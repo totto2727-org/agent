@@ -8,10 +8,10 @@ Represent mutually exclusive states as a discriminated union. Each variant carri
 
 ```ts
 type LoadState =
-  | { readonly _tag: 'Idle' }
-  | { readonly _tag: 'Loading' }
-  | { readonly _tag: 'Loaded'; readonly data: Hoge }
-  | { readonly _tag: 'Failed'; readonly error: LoadError }
+  | { readonly _tag: "Idle" }
+  | { readonly _tag: "Loading" }
+  | { readonly _tag: "Loaded"; readonly data: Hoge }
+  | { readonly _tag: "Failed"; readonly error: LoadError };
 ```
 
 Do not encode the same state as independent booleans and optional or untyped fields such as `{ loading: boolean, error: boolean, data: any }`. That shape permits contradictory and incomplete combinations.

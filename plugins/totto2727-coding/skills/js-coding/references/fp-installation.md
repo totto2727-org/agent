@@ -23,5 +23,5 @@ deno add jsr:@totto2727/fp npm:effect@beta
 
 ```ts
 // Direct import (without deno.json)
-import { Result } from 'jsr:@totto2727/fp@<version>/option-t'
+import { Result } from "jsr:@totto2727/fp@<version>/option-t";
 ```

@@ -27,28 +27,28 @@ Do not assign a thrown error or an exception-occurrence flag to a temporary vari
 
 ```ts
 // Bad: manual catch and temporary state obscure the expected rejection.
-it('rejects invalid input', async () => {
-  let caught: unknown
+it("rejects invalid input", async () => {
+  let caught: unknown;
   try {
-    await parseConfig('invalid')
+    await parseConfig("invalid");
   } catch (error) {
-    caught = error
+    caught = error;
   }
-  expect(caught).toBeInstanceOf(ConfigError)
-})
+  expect(caught).toBeInstanceOf(ConfigError);
+});
 
 // Good: the matcher directly expresses the expected rejection.
-it('rejects invalid input', async () => {
-  await expect(parseConfig('invalid')).rejects.toThrow(ConfigError)
-})
+it("rejects invalid input", async () => {
+  await expect(parseConfig("invalid")).rejects.toThrow(ConfigError);
+});
 ```
 
 For synchronous exceptions, pass a function to `toThrow`:
 
 ```ts
-it('throws for invalid input', () => {
-  expect(() => parseConfigSync('invalid')).toThrow(ConfigError)
-})
+it("throws for invalid input", () => {
+  expect(() => parseConfigSync("invalid")).toThrow(ConfigError);
+});
 ```
 
 Always await `resolves` and `rejects` expectations. Use explicit `try`/`catch` only when a property of the caught error is part of the contract and no direct matcher can express it.

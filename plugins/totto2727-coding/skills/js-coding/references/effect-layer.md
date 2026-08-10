@@ -69,5 +69,5 @@ export const remoteLayer = Layer.effect(Service, ...)
 Access services within `Effect.gen` using `yield*`:
 
 ```typescript
-const service = yield * SomeModule.Service
+const service = yield * SomeModule.Service;
 ```
