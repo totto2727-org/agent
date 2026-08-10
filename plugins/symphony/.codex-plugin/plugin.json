@@ -1,0 +1,20 @@
+{
+  "name": "symphony",
+  "description": "Workflow companion skills maintained by OpenAI Symphony for Linear, commits, branch synchronization, publishing, and PR landing.",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "author": {
+    "name": "totto2727",
+    "url": "https://github.com/totto2727"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Symphony Workflow",
+    "shortDescription": "Run the skills required by Symphony workflows.",
+    "longDescription": "OpenAI Symphony workflow skills for Linear interaction, commits, branch synchronization, publishing, and PR landing.",
+    "developerName": "totto2727",
+    "category": "Developer Tools",
+    "capabilities": [],
+    "defaultPrompt": "Help me execute the relevant Symphony workflow skill for this task."
+  }
+}

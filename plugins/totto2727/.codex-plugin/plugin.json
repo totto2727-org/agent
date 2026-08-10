@@ -1,0 +1,20 @@
+{
+  "name": "totto2727",
+  "description": "totto2727's utils",
+  "version": "3.0.0",
+  "author": {
+    "name": "totto2727",
+    "url": "https://github.com/totto2727",
+    "email": "kaihatu.totto2727@gmail.com"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "totto2727 Utilities",
+    "shortDescription": "General-purpose utility skills for agent workflows.",
+    "longDescription": "General-purpose skills for documents, data, CLI work, project structure, and skill review.",
+    "developerName": "totto2727",
+    "category": "Productivity",
+    "capabilities": [],
+    "defaultPrompt": "Help me choose and use the appropriate utility skill for this task."
+  }
+}

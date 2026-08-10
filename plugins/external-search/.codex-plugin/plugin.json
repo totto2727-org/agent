@@ -1,0 +1,20 @@
+{
+  "name": "external-search",
+  "description": "External search tools: web search (Brave), OSS repository analysis (Zread), documentation lookup (Context7), and web page reader.",
+  "version": "0.1.0",
+  "author": {
+    "name": "totto2727",
+    "url": "https://github.com/totto2727",
+    "email": "kaihatu.totto2727@gmail.com"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "External Search",
+    "shortDescription": "Search the web, documentation, and repositories.",
+    "longDescription": "External search skills for web research, documentation lookup, and repository analysis.",
+    "developerName": "totto2727",
+    "category": "Productivity",
+    "capabilities": [],
+    "defaultPrompt": "Help me search external sources for this task."
+  }
+}
