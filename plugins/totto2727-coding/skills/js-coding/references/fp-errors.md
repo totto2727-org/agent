@@ -7,9 +7,9 @@
 Use `@totto2727/fp/error` as the canonical shape for domain error payloads. `TaggedErrorBaseType` is the only allowed base type for custom `Data.TaggedError` payloads.
 
 ```ts
-import type { TaggedErrorBaseType } from '@totto2727/fp/error'
+import type { TaggedErrorBaseType } from "@totto2727/fp/error";
 
-export class BackendError extends Data.TaggedError('BackendError')<TaggedErrorBaseType>() {}
+export class BackendError extends Data.TaggedError("BackendError")<TaggedErrorBaseType>() {}
 ```
 
 Rules:
@@ -23,11 +23,13 @@ Rules:
 Allowed boundary translation:
 
 ```ts
-upstream.pipe(Effect.mapError((error) => new BackendError({ error })))
+upstream.pipe(Effect.mapError((error) => new BackendError({ error })));
 
-return yield * Effect.fail(new BackendError({ message: 'missing session cookie' }))
+return yield * Effect.fail(new BackendError({ message: "missing session cookie" }));
 
-upstream.pipe(Effect.mapError((error) => new BackendError({ message: 'backend request failed', error })))
+upstream.pipe(
+  Effect.mapError((error) => new BackendError({ message: "backend request failed", error })),
+);
 ```
 
 Forbidden:

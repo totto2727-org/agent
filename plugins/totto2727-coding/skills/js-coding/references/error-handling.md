@@ -18,8 +18,8 @@ A boundary error should preserve the original failure as structured data when it
 
 ```ts
 const loadHoge = source.load.pipe(
-  Effect.mapError((error) => new HogeLoadError({ error, message: 'failed to load Hoge' })),
-)
+  Effect.mapError((error) => new HogeLoadError({ error, message: "failed to load Hoge" })),
+);
 ```
 
 The human-authored message explains the boundary. The `error` field preserves the cause for diagnostics and later rendering.

@@ -17,13 +17,13 @@ The external response model mirrors the source contract closely enough to decode
 Use an Effect Schema decoder such as `Schema.decodeUnknownEffect` at an untyped ingress. Return a typed failure from that adapter instead of asserting the value with `as` or widening it to `any`.
 
 ```ts
-const decodeHogeResponse = Schema.decodeUnknownEffect(HogeResponse)
+const decodeHogeResponse = Schema.decodeUnknownEffect(HogeResponse);
 
 const receiveHoge = (input: unknown) =>
   decodeHogeResponse(input).pipe(
     Effect.mapError((error) => new HogeBoundaryError({ error })),
     Effect.flatMap(Hoge.fromResponse),
-  )
+  );
 ```
 
 `Hoge.fromResponse` is the strict domain conversion. It must return an Effect or another typed failure mechanism when a decoded wire value is structurally valid but violates a domain invariant.

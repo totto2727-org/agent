@@ -8,7 +8,7 @@ description: |
 metadata:
   author: totto2727
   version: 1.0.0
-  argument-hint: '[path/to/SKILL.md]'
+  argument-hint: "[path/to/SKILL.md]"
 ---
 
 # Skill Reviewer — Skill Quality Review & Improvement Suggestions

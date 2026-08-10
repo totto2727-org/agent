@@ -74,14 +74,14 @@ Related references: [Effect Layer](effect-layer.md) and [Effect Runtime](effect-
 
 ```tsx
 <Button
-  mix={on('click', async () => {
-    state.submitting = true
-    void handle.update()
+  mix={on("click", async () => {
+    state.submitting = true;
+    void handle.update();
 
-    await Effect.runPromise(sendRequestOnly)
+    await Effect.runPromise(sendRequestOnly);
 
     // Navigation and final state are outside Effect: forbidden.
-    window.location.href = '/app'
+    window.location.href = "/app";
   })}
 />
 ```

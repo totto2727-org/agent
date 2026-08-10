@@ -13,16 +13,16 @@ Middleware and route handlers share the same structure: the Hono boundary is the
 ```typescript
 const program = Effect.gen(function* () {
   // ... business logic ...
-})
+});
 
 const programWithCatch = program.pipe(
   Effect.tapError((e) => Effect.logError(e)),
   Effect.catchTags({
     UnknownError: () => new HttpError.InternalServerError().makeResponseEffect(),
   }),
-)
+);
 
-return c.var.runtime.runPromise(programWithCatch)
+return c.var.runtime.runPromise(programWithCatch);
 ```
 
 ### Key Rules
@@ -89,21 +89,21 @@ const runtime = ManagedRuntime.make(
     Layer.provideMerge(FetchHttpClient.layer),
     Layer.provide(Env.makeLayer(env)),
   ),
-)
+);
 ```
 
 Handlers consume services; they do not provide them:
 
 ```typescript
-app.get('/me', (c) =>
+app.get("/me", (c) =>
   c.var.runtime.runPromise(
     Effect.gen(function* () {
-      const client = yield* BackendClient
-      const user = yield* client.callMe(c.req.header('authorization') ?? null)
-      return c.json(user)
+      const client = yield* BackendClient;
+      const user = yield* client.callMe(c.req.header("authorization") ?? null);
+      return c.json(user);
     }),
   ),
-)
+);
 ```
 
 Service implementations may require `HttpClient.HttpClient`, but they must not provide `FetchHttpClient.layer` internally. The request runtime provides it.

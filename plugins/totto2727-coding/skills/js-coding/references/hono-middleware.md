@@ -8,10 +8,10 @@
 export const myMiddleware = factory.createMiddleware((c, next) => {
   const program = Effect.gen(function* () {
     // ...
-    yield* Effect.tryPromise(next)
-  })
+    yield* Effect.tryPromise(next);
+  });
   // ... programWithCatch + runPromise
-})
+});
 ```
 
 Middleware-specific state belongs in the shared Hono environment type, not in individual route files. Define variables in the runtime/context boundary:
@@ -19,16 +19,16 @@ Middleware-specific state belongs in the shared Hono environment type, not in in
 ```typescript
 // feature/runtime/hono.ts
 export interface Variables {
-  readonly runtime: Runtime.Runtime
-  readonly user: AuthUser | null
+  readonly runtime: Runtime.Runtime;
+  readonly user: AuthUser | null;
 }
 ```
 
 ```typescript
 // feature/share/lib/hono/context.ts
 export interface Env {
-  Bindings: Bindings
-  Variables: Variables
+  Bindings: Bindings;
+  Variables: Variables;
 }
 ```
 
