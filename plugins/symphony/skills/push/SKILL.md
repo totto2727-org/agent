@@ -1,6 +1,7 @@
 ---
 name: push
-description: Push current branch changes to origin and create or update the corresponding
+description: |-
+  Push current branch changes to origin and create or update the corresponding
   pull request; use when asked to push, publish updates, or create pull request.
 ---
 
