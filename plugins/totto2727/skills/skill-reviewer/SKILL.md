@@ -261,7 +261,7 @@ Classify each area as one of the following:
 
 ### G7: Anti-Patterns — Known Problem Pattern Detection
 
-Detect whether any of the following known anti-patterns apply.
+Detect whether any of the following reviewer-policy anti-patterns apply. Treat them as quality heuristics rather than Agent Skills format violations unless the specification explicitly says otherwise.
 
 | NG Pattern                                                      | Reason                                                                                    |
 | --------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
@@ -270,7 +270,7 @@ Detect whether any of the following known anti-patterns apply.
 | Description over 1024 characters                                | Exceeds frontmatter limit                                                                 |
 | `< >` in description                                            | Security violation                                                                        |
 | No negative trigger                                             | False triggering risk between similar skills                                              |
-| README.md exists in the skill folder                            | Specification violation                                                                   |
+| README.md exists in the skill folder                            | Reviewer policy: auxiliary documentation can duplicate or blur skill instructions         |
 | Vague instructions (e.g., "process appropriately")              | Model cannot follow correctly                                                             |
 | Excessive use of MUST or NEVER                                  | Should be replaced by Why explanation                                                     |
 | Validation relying solely on language instructions              | Should be scriptified                                                                     |
