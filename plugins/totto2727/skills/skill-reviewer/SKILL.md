@@ -17,7 +17,7 @@ Use Case Category: **Workflow Automation**
 Design Pattern: **Sequential Workflow** (Step 1→2→3→4 sequential execution)
 
 Performs systematic quality review of skills (SKILL.md) and provides improvement suggestions.
-Conforms to Anthropic official "The Complete Guide to Building Skills for Claude" (2026-03).
+Use the Agent Skills Specification as the official format baseline and the other sources in `references/sources.md` as supporting quality guidance.
 
 ## Basic Policy
 
@@ -219,26 +219,45 @@ Is the skill's purpose and design pattern clear?
 
 ### G6: Testing Strategy — Quality Assurance Design
 
-Is the testing perspective included in the design?
+Evaluate concrete cases and their evidence, not whether tests can merely be imagined.
+
+**Evidence Status:**
+
+Classify each area as one of the following:
+
+- **Executed** — The case was run and an invocation trace, output, diff, log, or equivalent artifact is available
+- **Designed** — The input and expected result are concrete, but execution evidence is unavailable
+- **Not applicable** — The area does not materially apply and the review explains why
+- **Missing** — No concrete case or rationale is provided
 
 **3 Areas:**
 
-1. **Triggering Test** — Should trigger / Should NOT trigger examples
-2. **Functional Test** — Correct output, error handling, edge cases
-3. **Performance Test** — Comparison with/without skill
+1. **Triggering Test**
+   - Include at least one explicit trigger, one paraphrased trigger, and one adjacent request that must not trigger the skill
+   - For a skill reviewer, examples include "Review this SKILL.md", "Is this skill well designed?", and the non-trigger "Create a new skill"
+   - Record the actual activation trace or equivalent evidence when executed; otherwise mark the cases as Designed
+2. **Functional Test**
+   - Include at least one normal case and one problem or edge case with explicit expected results
+   - For a skill reviewer, verify that a valid skill receives evidence-backed G1-G7 results and that a skill missing `description` receives a concrete G1 finding without inventing unrelated failures
+   - Record the input artifact, output, validator result when available, and PASS/FAIL for each expectation
+3. **Performance Test**
+   - Require comparison with and without the skill only when efficiency is claimed, the skill processes many files, observed latency is a concern, or a before/after improvement must be demonstrated
+   - Compare the same prompt using relevant measures such as tool calls, files read, elapsed time, token usage when available, user corrections, and output completeness
+   - Mark this area Not applicable with a concrete rationale when performance is not material; Not applicable does not prevent an A score
 
 **Check Items:**
 
-- Can test examples corresponding to trigger words in the description be envisioned?
-- Is failure behavior defined?
+- Are the inputs, expected results, and pass/fail conditions concrete?
+- Does the evidence support the claimed status without treating Designed cases as executed verification?
+- Are failure behavior and edge cases defined?
 - Does it follow the principle of "first iterate on one difficult task, then skill-ize the successful approach"?
 
 **Score Criteria:**
 
-- A: All 3 areas covered, abundant test examples
-- B: 2 areas covered
-- C: Only 1 area covered, or weak testing perspective
-- D: No testing strategy
+- A: Triggering and Functional have concrete cases with executed evidence; Performance is executed or justified as Not applicable
+- B: Triggering and Functional have concrete cases, but execution evidence is partial
+- C: Test areas or examples are named, but cases remain abstract or have no execution evidence
+- D: No test strategy, concrete cases, or evidence classification
 
 ### G7: Anti-Patterns — Known Problem Pattern Detection
 
