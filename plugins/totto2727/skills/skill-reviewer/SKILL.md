@@ -41,6 +41,12 @@ Use the Agent Skills Specification as the authoritative reference for general fo
 
 Perform the following evaluation categories (G1-G7) in order.
 
+Load detailed evaluation references only when the target needs them:
+
+- Read `references/triggering-evaluation.md` when diagnosing or optimizing triggering behavior.
+- Read `references/output-evaluation.md` when evaluating functional quality, baselines, or iteration evidence.
+- Read `references/script-design.md` when the target contains scripts or complex executable commands.
+
 ### Step 3: Perform Platform-Specific Evaluation
 
 **Confirm the target Platform with the user.** Do not guess.
@@ -88,25 +94,28 @@ Evaluate YAML frontmatter with the risk-prioritized checks below. The rubric com
 
 ### G2: Description Quality — Lifeline of Triggering Accuracy
 
-Description is the sole material for skill trigger decisions. Quality directly impacts this.
+Agents initially discover skills from the `name` and `description` metadata. The description carries most trigger semantics, so its quality directly affects activation accuracy.
 
 **7-Item Checklist:**
 
-| #   | Check                                                         | Evaluation Point                                                                          |
-| --- | ------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| 1   | What: Is it clearly stated what it does?                      | Concrete action verbs ("extract, transform, validate") rather than vague verbs ("manage") |
-| 2   | When: Is it clearly stated when to use it?                    | Description of use cases or context                                                       |
-| 3   | Does it contain trigger phrases?                              | Phrases the user would actually say                                                       |
-| 4   | Are the action verbs concrete?                                | "process" → "analyze and convert to CSV"                                                  |
-| 5   | Is the length appropriate? (within 1024 chars, not too short) | 2-3 sentences covering overview + trigger + exclusion is ideal                            |
-| 6   | Is it differentiated from existing skills?                    | No overlap in coverage with other skills                                                  |
-| 7   | Is there a negative trigger?                                  | "Do NOT use for: ..." to prevent false triggering                                         |
+| #   | Check                                                                | Evaluation Point                                                                                   |
+| --- | -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| 1   | What: Is it clearly stated what it does?                             | Concrete action verbs ("extract, transform, validate") rather than vague verbs ("manage")          |
+| 2   | When: Is it clearly stated when to use it?                           | User intent and relevant contexts, not internal implementation details                             |
+| 3   | Does it contain realistic trigger phrases?                           | Phrases users would actually say, including indirect descriptions of the need                      |
+| 4   | Are the action verbs concrete?                                       | "process" → "analyze and convert to CSV"                                                           |
+| 5   | Is the length appropriate? (within 1024 chars, not too short)        | A few sentences or a short paragraph that covers scope without bloating global context             |
+| 6   | Is it differentiated from existing skills?                           | Responsibility boundaries with adjacent skills are inferable                                       |
+| 7   | Are exclusions or boundaries stated when adjacent overlap is likely? | Use a negative trigger only when it clarifies a real near-miss; do not require one for every skill |
+
+For item 7, a documented finding that no material adjacent overlap exists counts as cleared.
 
 **Additional Checks:**
 
 - If file types are relevant, are extensions mentioned?
 - Are technical terms properly included? (to prevent undertriggering)
-- Is the description neither too "pushy" nor too weak?
+- Does the description use imperative activation language such as "Use this skill when..."?
+- Does it proactively cover relevant contexts without broadening beyond the skill's actual capability?
 
 **Score Criteria:**
 
@@ -132,7 +141,10 @@ Evaluate whether the SKILL.md body is effectively structured.
 - Are steps in clear numbered lists?
 - Is the output format specified? (templates or examples)
 - Are error handling instructions included?
-- Are links to reference files (references/) clear?
+- Do reference links state when each file should be loaded?
+- Are defaults clear when several approaches are possible, with alternatives limited to explicit exception cases?
+- Does instruction specificity match task fragility, leaving judgment where several approaches are valid and prescribing fragile sequences precisely?
+- Are non-obvious domain gotchas kept where the agent will see them before making the predictable mistake?
 - Does it exceed 5,000 words (approx. 500 lines)?
 
 **Why Explanation:**
@@ -160,8 +172,12 @@ Is the 3-layer structure properly utilized?
 
 - Are detailed API documents etc. embedded directly in SKILL.md?
 - Does reference material exceeding 300 lines have a Table of Contents?
-- Are deterministic processes like validation separated into scripts/?
-- Is the principle "code is deterministic, language interpretation is non-deterministic" followed?
+- Do links use skill-root-relative paths and identify when each supporting file is relevant?
+- Are repeated, complex, or error-prone commands separated into tested scripts while simple one-off commands remain direct and clear?
+- If scripts are present, are dependencies and environment requirements documented or represented in `compatibility`?
+- If scripts are present, do they expose an agent-usable, non-interactive interface with actionable errors and predictable outputs?
+- Are stateful or destructive scripts retry-safe and protected by appropriate dry-run behavior, safe defaults, or explicit safeguards?
+- Is potentially large output summarized, paginated, or written to a requested output file instead of flooding the context window?
 
 **Score Criteria:**
 
@@ -196,6 +212,8 @@ Is the skill's purpose and design pattern clear?
 - Is the skill overly specialized for a specific use case? (generality)
   - Does it function usefully across diverse prompts?
   - Is it not overfitted to specific examples? (should generalize from feedback)
+- Does it capture non-obvious expertise from real tasks, project artifacts, failure cases, or corrections rather than restating generic knowledge?
+- Does each instruction add knowledge the agent is unlikely to apply correctly without the skill?
 
 **MCP Enhancement Specific Checks (when applicable to category 3):**
 
@@ -234,12 +252,18 @@ Classify each area as one of the following:
 
 1. **Triggering Test**
    - Include at least one explicit trigger, one paraphrased trigger, and one adjacent request that must not trigger the skill
+   - Prefer realistic prompts and near-miss negatives over obviously unrelated queries
    - For a `skill-reviewer` target, examples include "Review this SKILL.md", "Is this skill well designed?", and the non-trigger "Create a new skill"
    - Record the actual activation trace or equivalent evidence when executed; otherwise mark the cases as Designed
+   - Repeat cases when nondeterministic triggering materially affects confidence; do not present a single run as a stable trigger rate
 2. **Functional Test**
+   - Define each case with a realistic prompt, an explicit expected output, and any required input files
    - Include at least one normal case and one problem or edge case with explicit expected results
    - For a `skill-reviewer` target, verify that a valid skill receives evidence-backed G1-G7 results and that a skill missing `description` receives a concrete G1 finding without inventing unrelated failures
-   - Record the input artifact, output, validator result when available, and PASS/FAIL for each expectation
+   - Use specific, observable assertions that are neither vague nor coupled to incidental wording
+   - Record the input artifact, output, validator result when available, and PASS/FAIL with concrete evidence for each expectation
+   - Compare with no skill or a previous version when claiming that the skill improves output quality; a structural review alone does not require this baseline
+   - Use scripts for mechanical assertions and human review for subjective qualities such as usefulness, visual quality, or tone
 3. **Performance Test**
    - Require comparison with and without the skill only when efficiency is claimed, the skill processes many files, observed latency is a concern, or a before/after improvement must be demonstrated
    - Compare the same prompt using relevant measures such as tool calls, files read, elapsed time, token usage when available, user corrections, and output completeness
@@ -249,7 +273,9 @@ Classify each area as one of the following:
 
 - Are the inputs, expected results, and pass/fail conditions concrete?
 - Does the evidence support the claimed status without treating Designed cases as executed verification?
+- Did each execution start from a clean context without development conclusions, prior outputs, or expected answers leaking into the run?
 - Are failure behavior and edge cases defined?
+- Were actual outputs and execution traces reviewed for wasted steps, ignored instructions, and unexpected behavior?
 - Does it follow the principle of "first iterate on one difficult task, then skill-ize the successful approach"?
 
 **Score Criteria:**
@@ -269,11 +295,13 @@ Detect whether any of the following reviewer-policy anti-patterns apply. Treat t
 | Vague description                                               | No triggering or false triggering                                                         |
 | Description over 1024 characters                                | Exceeds frontmatter limit                                                                 |
 | `< >` in description                                            | Security violation                                                                        |
-| No negative trigger                                             | False triggering risk between similar skills                                              |
+| Unclear boundary with an adjacent skill                         | False triggering risk when overlapping terms or intents are not distinguished             |
 | README.md exists in the skill folder                            | Reviewer policy: auxiliary documentation can duplicate or blur skill instructions         |
 | Vague instructions (e.g., "process appropriately")              | Model cannot follow correctly                                                             |
 | Excessive use of MUST or NEVER                                  | Should be replaced by Why explanation                                                     |
-| Validation relying solely on language instructions              | Should be scriptified                                                                     |
+| Repeated or error-prone validation relies only on prose         | A tested script is more reliable for mechanical checks                                    |
+| Script requires interactive prompts in normal operation         | Agent execution may hang because no user can answer the prompt                            |
+| Stateful script lacks safeguards appropriate to its risk        | Retries or mistaken inputs can cause surprising or destructive effects                    |
 | Copying reference file content directly into SKILL.md           | Progressive disclosure violation                                                          |
 | Over 50 simultaneously active skills                            | Context pressure, degraded response quality                                               |
 | Contains malware or exploit code                                | Violation of Principle of Lack of Surprise. Skills must not act against user expectations |
@@ -317,11 +345,11 @@ Also provide the following guide for issues discovered during review.
 
 - Add trigger words to the description
 - Include technical terms and keywords
-- Make the description slightly "pushy" (also mention possibly relevant use cases)
+- Proactively mention relevant user intents, including cases that do not name the domain directly
 
 ### Over-triggering (Overtriggering)
 
-- Add negative trigger "Do NOT use for: ..."
+- Add a negative trigger or explicit responsibility boundary when a real adjacent near-miss exists
 - Make the description more specific
 - Clearly limit the scope (e.g., "limited to legal PDF documents")
 
@@ -330,8 +358,9 @@ Also provide the following guide for issues discovered during review.
 - Make instructions more specific ("validate properly" → enumerate specific conditions)
 - Move important instructions to the top of the file
 - Explain Why instead of MUST
-- Script critical validations in scripts/
-  - **Code is deterministic, language interpretation is non-deterministic**
+- Select a clear default instead of presenting equivalent menus
+- Move repeated, complex, or error-prone validation into a tested script
+- Review execution traces for wasted steps or ambiguous instructions
 
 ### Slow Response or Degraded Quality
 
