@@ -6,15 +6,15 @@ A document `template.md` constrains the minimum rendered form of its document ki
 
 ## Vertical slice invariant
 
-Every document slice has exactly `{document}/spec.md`, `{document}/template.md`, and `{document}/sample.md`: the specification constrains semantics, the template constrains the minimum rendered form while allowing justified extensions, and the sample is a reproducible concrete output of the sibling template. Internal maintenance areas use `internal/{spec,template,sample}/{spec,template}.md` only. An `internal/**/sample.md` is prohibited; use the `readme/`, `agents/`, and `adr/` slices as concrete examples.
+Every document slice has exactly `{document}/spec.md`, `{document}/template.md`, and `{document}/sample.md`: the specification constrains semantics, the template constrains the minimum rendered form while allowing justified extensions, and the sample is a reproducible concrete output of the sibling template. Internal maintenance areas are intentionally asymmetric: `internal/spec/` contains its common specification template, while this directory and `internal/sample/` contain only `spec.md` because concrete templates and samples vary by document kind. An internal `sample.md` or a meta-template under `internal/template/` or `internal/sample/` is prohibited; use the `readme/`, `agents/`, and `adr/` slices as concrete examples.
 
 ## Required content
 
-Declare every required render context, render every required section in the required order, guard only optional sections, and include any required provenance or operational instructions from the sibling specification. Use standard Jinja delimiters and Markdown that remains useful after rendering.
+Declare every required render context, render every required section in the required order, guard only optional sections, and include any required provenance or operational instructions from the sibling specification. Use standard Jinja delimiters and Markdown that remains useful after rendering. Do not impose shared headings or layout across document kinds.
 
 ## Naming and path
 
-Name the resource `template.md` and store it beside the matching [specification](spec.md) and `sample.md` in a document slice, or beside that specification in an internal maintenance area. Do not add a renderer, generated script, or a parallel template format.
+Name the resource `template.md` and store it beside the matching `spec.md` and `sample.md` in a document slice. Do not add an internal template meta-template, renderer, generated script, or parallel template format.
 
 ## Consistency and extension
 

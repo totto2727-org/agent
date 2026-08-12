@@ -6,7 +6,7 @@ A document `spec.md` constrains the semantics of its sibling document slice. It 
 
 ## Vertical slice invariant
 
-Every document slice has exactly `{document}/spec.md`, `{document}/template.md`, and `{document}/sample.md`: the specification constrains semantics, the template constrains the minimum rendered form while allowing justified extensions, and the sample is a reproducible concrete output of the sibling template. Internal maintenance areas use `internal/{spec,template,sample}/{spec,template}.md` only. An `internal/**/sample.md` is prohibited; use the `readme/`, `agents/`, and `adr/` slices as concrete examples.
+Every document slice has exactly `{document}/spec.md`, `{document}/template.md`, and `{document}/sample.md`: the specification constrains semantics, the template constrains the minimum rendered form while allowing justified extensions, and the sample is a reproducible concrete output of the sibling template. Internal maintenance areas are intentionally asymmetric: `internal/spec/` contains this contract and its common specification template, while `internal/template/` and `internal/sample/` contain only `spec.md` because their concrete forms vary by document kind. An internal `sample.md` or a meta-template under `internal/template/` or `internal/sample/` is prohibited; use the `readme/`, `agents/`, and `adr/` slices as concrete examples.
 
 ## Required content
 
