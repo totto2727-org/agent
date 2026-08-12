@@ -1,7 +1,7 @@
 {
   "name": "totto2727-coding",
-  "description": "Shared coding and testing principles, JavaScript and MoonBit implementation practices, test design flow, ADR policy, and artifact templates.",
-  "version": "0.2.0",
+  "description": "Shared README, AGENTS, and ADR authoring guidance, Jinja templates, and examples.",
+  "version": "0.3.0",
   "author": {
     "name": "totto2727",
     "url": "https://github.com/totto2727",
@@ -10,11 +10,11 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "totto2727 Coding",
-    "shortDescription": "Reusable coding, testing, and artifact guidance.",
-    "longDescription": "Shared coding and testing principles, language practices, test design, ADR policy, and artifact templates.",
+    "shortDescription": "Reusable README, AGENTS, and ADR guidance.",
+    "longDescription": "Shared README, AGENTS, and ADR authoring guidance with Jinja Markdown templates, examples, and maintenance rules.",
     "developerName": "totto2727",
     "category": "Developer Tools",
     "capabilities": [],
-    "defaultPrompt": "Help me apply the relevant coding and testing guidance to this task."
+    "defaultPrompt": "Help me create or review a README, AGENTS, or ADR artifact using the shared guidance."
   }
 }
