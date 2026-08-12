@@ -178,6 +178,8 @@ Is the 3-layer structure properly utilized?
 - If scripts are present, do they expose an agent-usable, non-interactive interface with actionable errors and predictable outputs?
 - Are stateful or destructive scripts retry-safe and protected by appropriate dry-run behavior, safe defaults, or explicit safeguards?
 - Is potentially large output summarized, paginated, or written to a requested output file instead of flooding the context window?
+- Are evaluation definitions and fixtures kept outside SKILL.md unless they are required during normal skill execution?
+- Are generated evaluation outputs, grading results, and iteration history kept separate from distributable skill instructions?
 
 **Score Criteria:**
 
@@ -274,7 +276,7 @@ Classify each area as one of the following:
 
 - Are the inputs, expected results, and pass/fail conditions concrete?
 - Does the evidence support the claimed status without treating Designed cases as executed verification?
-- Did each execution start from a clean context without development conclusions, prior outputs, or expected answers leaking into the run?
+- Are evaluation-only prompts, expected answers, prior outputs, and development conclusions prevented from leaking into normal skill execution or clean evaluation contexts?
 - Did executed target code stay within the user's authorized scope without receiving ambient secrets or unrestricted access to the workspace or network?
 - Are failure behavior and edge cases defined?
 - Were actual outputs and execution traces reviewed for wasted steps, ignored instructions, and unexpected behavior?
