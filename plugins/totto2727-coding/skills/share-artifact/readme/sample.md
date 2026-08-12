@@ -36,6 +36,18 @@ git clone https://example.com/moonbit-fib.git
 moon run
 ```
 
+## API
+
+### `fib`
+
+Returns the Fibonacci number at the requested zero-based position.
+
+```moonbit
+test "fib usage" {
+  inspect(fib(10), content="55")
+}
+```
+
 ## Development
 
 For project structure and development commands, see [AGENTS.md](./AGENTS.md).

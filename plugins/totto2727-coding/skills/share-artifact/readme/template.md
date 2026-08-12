@@ -45,6 +45,28 @@ This document is canonical `README.mbt.md`; maintain `README.md` as the relative
 
 {% endfor -%}
 
+## API
+
+{% if api.mode == "registry" -%}
+[{{ api.registry_name }} API reference]({{ api.registry_url }})
+{% elif api.mode == "inline" -%}
+{% for entry in api.entries -%}
+
+### `{{ entry.name }}`
+
+{{ entry.summary }}
+
+```{{ entry.language }}
+{{ entry.example }}
+```
+
+{% endfor -%}
+{% elif api.mode == "guide" -%}
+{{ api.guide_summary }}
+
+See [{{ api.guide_title }}]({{ api.guide_path }}).
+{% endif -%}
+
 ## Development
 
 {{ development_summary }}
