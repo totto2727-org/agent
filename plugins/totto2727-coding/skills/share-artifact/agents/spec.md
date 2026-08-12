@@ -24,9 +24,17 @@ Render the sibling [template.md](template.md) as `AGENTS.md`. The minimum form u
 4. Architecture
 5. Development tools
 6. Package-specific rules when applicable
-7. Documentation — required provenance links when the template includes it
+7. Artifact-specific provenance footer
 
 The minimum form may be extended with repository-specific AI and developer sections, provided the required sections stay ordered, the extension does not become an end-user getting-started guide, and it retains the sibling [template.md](template.md) and [sample.md](sample.md) as the current authoring references.
+
+End the file with this exact provenance footer without a heading:
+
+```markdown
+_This AGENTS.md was generated from the [share-artifact skill](https://raw.githubusercontent.com/totto2727-org/agent/refs/heads/main/plugins/totto2727-coding/skills/share-artifact/SKILL.md) and [AGENTS template](https://raw.githubusercontent.com/totto2727-org/agent/refs/heads/main/plugins/totto2727-coding/skills/share-artifact/agents/template.md)._
+```
+
+The footer identifies only the sources used to create the current `AGENTS.md`; it is not a project documentation index.
 
 ## Root, package, and alias rules
 

@@ -35,9 +35,15 @@ The rendered ADR must contain, in the template's required order:
 2. `Decision` — the precise selected option and a comparison with viable alternatives. Alternatives must be real options with evidence-based tradeoffs; do not invent placeholders merely to meet a count.
 3. `Consequences` — additions, existing-work impact, future constraints, migration cost, benefits, and limitations.
 4. `Related records` when direct dependencies exist — link every implementation design, prior ADR, or other dependent record that directly relies on the decision. Each dependent record must also link back to this ADR.
-5. `Authoring resources` — the two canonical raw provenance links below.
+5. An artifact-specific provenance footer containing the two canonical raw links below.
 
-Every rendered ADR must include this exact raw skill URL and exact raw ADR-template URL in its `Authoring resources` block:
+Every rendered ADR must include this exact footer without a heading:
+
+```markdown
+_This ADR was generated from the [share-artifact skill](https://raw.githubusercontent.com/totto2727-org/agent/refs/heads/main/plugins/totto2727-coding/skills/share-artifact/SKILL.md) and [ADR template](https://raw.githubusercontent.com/totto2727-org/agent/refs/heads/main/plugins/totto2727-coding/skills/share-artifact/adr/template.md)._
+```
+
+The footer identifies only the sources used to create the current ADR; it is not a project documentation index. Its raw targets are:
 
 - `https://raw.githubusercontent.com/totto2727-org/agent/refs/heads/main/plugins/totto2727-coding/skills/share-artifact/SKILL.md`
 - `https://raw.githubusercontent.com/totto2727-org/agent/refs/heads/main/plugins/totto2727-coding/skills/share-artifact/adr/template.md`
@@ -73,6 +79,6 @@ Accept an ADR only when all of the following are true:
 - Every direct dependent record is linked in both directions when such records exist.
 - A confirmed record has an unchanged body except, when superseded, the exact one-line terminal addendum; the new ADR links back and holds the active decision.
 - Its minimum form is rendered from [template.md](template.md), can justify any extension, and is reproducibly represented by [sample.md](sample.md).
-- Its authoring-resources URLs are the exact canonical raw links listed above and resolve to the sibling skill and template paths.
+- Its provenance-footer URLs are the exact canonical raw links listed above and resolve to the sibling skill and template paths.
 
 Reject malformed or ambiguous scope, a file/path/frontmatter mismatch, false confirmation, a local-only design decision, invented alternatives, missing consequences, a stale dependent-record assumption, or any attempted confirmed-body mutation. Route rejected local decisions to the implementation's local design artifact and confirmed-decision changes to a new superseding ADR.

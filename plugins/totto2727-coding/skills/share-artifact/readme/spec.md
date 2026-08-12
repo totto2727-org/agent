@@ -27,10 +27,17 @@ Render the sibling [template.md](template.md) as the project `README.md` unless 
 5. Setup
 6. API
 7. Development — one short link to `AGENTS.md`, without operational detail
-8. Documentation — required provenance links when the template includes it
-9. License
+8. License
 
-The minimum form may be extended with purpose-specific end-user sections, provided the required sections remain in this order, `License` stays last, and the extension does not introduce developer, contributor, AI, or internal-operation guidance. An extension must not replace the sibling template or sample with an old role-based template path.
+The minimum form may be extended with purpose-specific end-user sections, provided the required sections remain in this order, `License` stays the final section, and the extension does not introduce developer, contributor, AI, or internal-operation guidance. An extension must not replace the sibling template or sample with an old role-based template path.
+
+After `License`, append this exact artifact-specific provenance footer without a heading:
+
+```markdown
+_This README was generated from the [share-artifact skill](https://raw.githubusercontent.com/totto2727-org/agent/refs/heads/main/plugins/totto2727-coding/skills/share-artifact/SKILL.md) and [README template](https://raw.githubusercontent.com/totto2727-org/agent/refs/heads/main/plugins/totto2727-coding/skills/share-artifact/readme/template.md)._
+```
+
+The footer identifies only the sources used to create the current README; it is not a project documentation index.
 
 ## API documentation policy
 

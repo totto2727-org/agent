@@ -49,9 +49,6 @@ scope: general
 {% endfor -%}
 {% endif -%}
 
-## Authoring resources
-
-- [share-artifact skill](https://raw.githubusercontent.com/totto2727-org/agent/refs/heads/main/plugins/totto2727-coding/skills/share-artifact/SKILL.md)
-- [ADR template](https://raw.githubusercontent.com/totto2727-org/agent/refs/heads/main/plugins/totto2727-coding/skills/share-artifact/adr/template.md){% if superseded_by %}
+_This ADR was generated from the [share-artifact skill](https://raw.githubusercontent.com/totto2727-org/agent/refs/heads/main/plugins/totto2727-coding/skills/share-artifact/SKILL.md) and [ADR template](https://raw.githubusercontent.com/totto2727-org/agent/refs/heads/main/plugins/totto2727-coding/skills/share-artifact/adr/template.md)._{% if superseded_by %}
 
 > Superseded by [{{ superseded_by.title }}]({{ superseded_by.path }}){% endif %}
