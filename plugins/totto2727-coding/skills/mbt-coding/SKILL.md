@@ -30,7 +30,7 @@ All references below are concrete MoonBit implementation guidance. Conceptual gu
 ## Structured values
 
 - [`paths.md`](references/paths.md) — preserve `Path` values and join path segments structurally.
-- [`json.md`](references/json.md) — confine `Json` to serialization boundaries and serialize request models with `ToJson`.
+- [`json.md`](references/json.md) — route MoonBit JSON and Lens work to the authoritative `$lens` skill, with a GitHub `main` raw-content fallback.
 
 ## Failures
 
