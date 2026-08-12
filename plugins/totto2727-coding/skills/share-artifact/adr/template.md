@@ -20,10 +20,16 @@ scope: {{ scope }}
 
 {{ decision }}
 
-<table>
-<thead><tr><th>Option</th><th>Summary</th><th>Result</th><th>Rationale</th></tr></thead>
-<tbody>{% for option in options %}<tr><td>{{ option.name }}</td><td>{{ option.summary }}</td><td>{{ option.result }}</td><td>{{ option.rationale }}</td></tr>{% endfor %}</tbody>
-</table>
+<!-- prettier-ignore-start -->
+
+| Option | Summary | Result | Rationale |
+| --- | --- | --- | --- |
+{% for option in options -%}
+| {{ option.name }} | {{ option.summary }} | {{ option.result }} | {{ option.rationale }} |
+{% endfor -%}
+{{ "\n" -}}
+
+<!-- prettier-ignore-end -->
 
 ## Consequences
 

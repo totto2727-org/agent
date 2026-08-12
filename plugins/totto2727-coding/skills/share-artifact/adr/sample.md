@@ -18,10 +18,14 @@ Independent clients need a durable compatibility policy across releases.
 
 Adopt explicit versioned API paths for published endpoints.
 
-<table>
-<thead><tr><th>Option</th><th>Summary</th><th>Result</th><th>Rationale</th></tr></thead>
-<tbody><tr><td>Versioned paths</td><td>Publish a version in each stable path.</td><td>Adopted</td><td>Makes compatibility boundaries explicit.</td></tr><tr><td>Unversioned paths</td><td>Change one shared path in place.</td><td>Rejected</td><td>Breaks independent clients without an explicit migration boundary.</td></tr></tbody>
-</table>
+<!-- prettier-ignore-start -->
+
+| Option | Summary | Result | Rationale |
+| --- | --- | --- | --- |
+| Versioned paths | Publish a version in each stable path. | Adopted | Makes compatibility boundaries explicit. |
+| Unversioned paths | Change one shared path in place. | Rejected | Breaks independent clients without an explicit migration boundary. |
+
+<!-- prettier-ignore-end -->
 
 ## Consequences
 
