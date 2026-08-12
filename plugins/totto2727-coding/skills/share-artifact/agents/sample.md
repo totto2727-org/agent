@@ -1,11 +1,5 @@
 # agent-marketplace
 
-## Language rules
-
-- Use English for committed artifacts.
-
-- Use Japanese for human-facing handoffs.
-
 ## Repository structure
 
 ```text

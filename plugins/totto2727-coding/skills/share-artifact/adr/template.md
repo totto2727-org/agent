@@ -2,7 +2,7 @@
 
 {{ "---" }}
 confirmed: {{ confirmed | lower }}
-scope: {{ scope }}
+scope: general
 ---
 
 # ADR: {{ title }}
@@ -52,8 +52,6 @@ scope: {{ scope }}
 ## Authoring resources
 
 - [share-artifact skill](https://raw.githubusercontent.com/totto2727-org/agent/refs/heads/main/plugins/totto2727-coding/skills/share-artifact/SKILL.md)
-- [ADR template](https://raw.githubusercontent.com/totto2727-org/agent/refs/heads/main/plugins/totto2727-coding/skills/share-artifact/adr/template.md)
-
-{% if superseded_by -%}
+- [ADR template](https://raw.githubusercontent.com/totto2727-org/agent/refs/heads/main/plugins/totto2727-coding/skills/share-artifact/adr/template.md){% if superseded_by %}
 
 > Superseded by [{{ superseded_by.title }}]({{ superseded_by.path }}){% endif %}

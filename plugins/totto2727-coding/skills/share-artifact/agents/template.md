@@ -2,14 +2,6 @@
 
 # {{ project_name }}
 
-## Language rules
-
-{% for rule in language_rules -%}
-
-- {{ rule }}
-
-{% endfor -%}
-
 ## Repository structure
 
 {{ repository_structure }}

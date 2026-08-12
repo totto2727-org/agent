@@ -4,8 +4,7 @@ description: >-
   Route README, AGENTS, and ADR authoring or review to the matching
   specification, Jinja template, and sample. Use for creating or reviewing
   README files, AGENTS.md guidance, or architecture decision records; do not
-  use for roadmap, milestone, retrospective, roadmap-retrospective,
-  implementation, or test workflows.
+  use for implementation or test workflows.
 ---
 
 # Share artifact

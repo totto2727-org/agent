@@ -6,26 +6,25 @@ This specification defines the AI-agent and developer-facing document. Its compa
 
 `AGENTS.md` tells AI agents and developers how to work correctly in the repository. Use the AI-agent test: if an agent needs the information to modify, build, test, or operate the project safely, it belongs here. Information that an end user needs to understand, install, or use the project belongs in [the README specification](../readme/spec.md).
 
-| Content                                                                                                                        | README.md                   | AGENTS.md                                     | Decision                                         |
-| ------------------------------------------------------------------------------------------------------------------------------ | --------------------------- | --------------------------------------------- | ------------------------------------------------ |
-| End-user overview, usage, features, prerequisites, setup, external user documentation, and license                             | Yes                         | No                                            | Keep the user-facing explanation in README.      |
-| Build, test, lint, format, deploy, CI, task, package-targeting, and contributor commands                                       | No                          | Yes                                           | Give AI agents the complete executable guidance. |
-| Repository structure, architecture, package management, aliases, conventions, tools, language rules, and execution constraints | No                          | Yes                                           | These are the repository’s operating rules.      |
-| Detailed command reference                                                                                                     | Brief summary and link only | Yes                                           | AGENTS is the canonical operational reference.   |
-| Shared setup or cross-reference                                                                                                | Brief summary and link      | Brief link to the end-user source when needed | Keep detailed content with its primary audience. |
+| Content                                                                                                        | README.md                   | AGENTS.md                                     | Decision                                         |
+| -------------------------------------------------------------------------------------------------------------- | --------------------------- | --------------------------------------------- | ------------------------------------------------ |
+| End-user overview, usage, features, prerequisites, setup, external user documentation, and license             | Yes                         | No                                            | Keep the user-facing explanation in README.      |
+| Build, test, lint, format, deploy, CI, task, package-targeting, and contributor commands                       | No                          | Yes                                           | Give AI agents the complete executable guidance. |
+| Repository structure, architecture, package management, aliases, conventions, tools, and execution constraints | No                          | Yes                                           | These are the repository’s operating rules.      |
+| Detailed command reference                                                                                     | Brief summary and link only | Yes                                           | AGENTS is the canonical operational reference.   |
+| Shared setup or cross-reference                                                                                | Brief summary and link      | Brief link to the end-user source when needed | Keep detailed content with its primary audience. |
 
 ## Required output and minimum order
 
 Render the sibling [template.md](template.md) as `AGENTS.md`. The minimum form uses this order:
 
 1. Project title
-2. Language rules
-3. Repository structure
-4. Development commands, including execution rules and standard tasks
-5. Architecture
-6. Development tools
-7. Package-specific rules when applicable
-8. Documentation — required provenance links when the template includes it
+2. Repository structure
+3. Development commands, including execution rules and standard tasks
+4. Architecture
+5. Development tools
+6. Package-specific rules when applicable
+7. Documentation — required provenance links when the template includes it
 
 The minimum form may be extended with repository-specific AI and developer sections, provided the required sections stay ordered, the extension does not become an end-user getting-started guide, and it retains the sibling [template.md](template.md) and [sample.md](sample.md) as the current authoring references.
 
