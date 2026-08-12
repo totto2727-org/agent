@@ -145,7 +145,7 @@ Evaluate whether the SKILL.md body is effectively structured.
 - Are defaults clear when several approaches are possible, with alternatives limited to explicit exception cases?
 - Does instruction specificity match task fragility, leaving judgment where several approaches are valid and prescribing fragile sequences precisely?
 - Are non-obvious domain gotchas kept where the agent will see them before making the predictable mistake?
-- Does it exceed 5,000 words (approx. 500 lines)?
+- Does it exceed either recommended limit: approximately 5,000 tokens or 500 lines?
 
 **Why Explanation:**
 Rather than overusing MUST or NEVER, does it include **reasoning why** it should be done?
@@ -293,7 +293,7 @@ Detect whether any of the following reviewer-policy anti-patterns apply. Treat t
 
 | NG Pattern                                                      | Reason                                                                                    |
 | --------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| SKILL.md over 5,000 words                                       | Increased loading cost, degraded response quality                                         |
+| SKILL.md over approximately 5,000 tokens or 500 lines           | Increased loading cost, degraded response quality                                         |
 | Vague description                                               | No triggering or false triggering                                                         |
 | Description over 1024 characters                                | Exceeds frontmatter limit                                                                 |
 | `< >` in description                                            | Security violation                                                                        |
@@ -366,6 +366,6 @@ Also provide the following guide for issues discovered during review.
 
 ### Slow Response or Degraded Quality
 
-- Check if SKILL.md exceeds 5,000 words
+- Check if SKILL.md exceeds approximately 5,000 tokens or 500 lines
 - Separate detailed information into references/
 - Check the number of simultaneously active skills (20-50 is the recommended upper limit)
