@@ -1,34 +1,8 @@
-# Agent plugins
+# Agent plugin marketplace
 
-`totto2727-org/agent` is a multi-product plugin marketplace for Claude Code, Cursor, and Codex.
+`totto2727-org/agent` distributes a coordinated marketplace of Claude Code, Cursor, and Codex plugins for reusable development workflows.
 
-## Plugins
-
-- `totto2727`: general-purpose utility skills.
-- `totto2727-coding`: reusable coding, testing, ADR, and artifact guidance.
-- `external-search`: skills for external web, documentation, and repository search.
-- `symphony`: the `linear`, `commit`, `pull`, `push`, and `land` skills referenced by [OpenAI Symphony's workflow](https://github.com/openai/symphony/blob/main/elixir/WORKFLOW.md).
-
-Standalone skills from the source monorepo are intentionally not included. Every distributed skill belongs to one of the plugins above.
-
-## Layout
-
-```text
-.
-├── .agents/plugins/marketplace.json
-├── .claude-plugin/marketplace.json
-├── .cursor-plugin/marketplace.json
-├── mbt/scripts/
-└── plugins/
-```
-
-The Claude marketplace is the authoring source. Regenerate the Cursor and Codex manifests after changing marketplace or plugin metadata:
-
-```bash
-c-plugin dev marketplace sync claude
-```
-
-## Install
+## Usage
 
 Install the marketplace skills with `c-plugin`:
 
@@ -36,13 +10,57 @@ Install the marketplace skills with `c-plugin`:
 c-plugin skill add totto2727-org/agent
 ```
 
-## Documentation generators
+The command discovers the marketplace manifests and installs the skills exposed by its plugin catalog.
 
-Run the generators from the repository root with MoonBit installed:
+## Key features
+
+- One plugin catalog distributed to Claude Code, Cursor, and Codex
+- General-purpose, coding, external-search, and Symphony workflow plugins
+- Claude marketplace metadata as the authoring source for generated product manifests
+- MoonBit generators for bundled MoonBit and component-building documentation skills
+- Nix-pinned Node.js and Vite+ development environment
+
+## Prerequisites
+
+- **c-plugin**: Install skills from the marketplace and synchronize product manifests.
+- **Nix**: Enter the pinned environment when developing the repository.
+
+## Setup
+
+1. Install the complete marketplace.
 
 ```bash
-moon run mbt/scripts/generate-docs-components-build.mbtx --target native
-moon run mbt/scripts/generate-docs-moonbit.mbtx --target native
+c-plugin skill add totto2727-org/agent
 ```
 
-The scripts update generated skills under `plugins/totto2727-coding/skills/`.
+2. Select the installed skills required by your coding-agent workflow.
+
+## API
+
+### `totto2727`
+
+Provides general-purpose utility skills.
+
+### `totto2727-coding`
+
+Provides reusable coding, testing, architecture-decision, and artifact-authoring guidance, including the canonical share-artifact specification.
+
+### `external-search`
+
+Provides skills for external web, documentation, and repository research.
+
+### `symphony`
+
+Provides the `linear`, `commit`, `pull`, `push`, and `land` skills used by [OpenAI Symphony workflows](https://github.com/openai/symphony/blob/main/elixir/WORKFLOW.md).
+
+Standalone skills from the source monorepo are intentionally not distributed; every public skill belongs to one of these four plugins.
+
+## Development
+
+For repository structure, manifest synchronization, documentation generation, and validation commands, see [AGENTS.md](./AGENTS.md).
+
+## License
+
+No license is currently declared for this repository.
+
+_This README was generated from the [share-artifact skill](https://raw.githubusercontent.com/totto2727-org/agent/refs/heads/main/plugins/totto2727-coding/skills/share-artifact/SKILL.md) and [README template](https://raw.githubusercontent.com/totto2727-org/agent/refs/heads/main/plugins/totto2727-coding/skills/share-artifact/readme/template.md)._
