@@ -102,7 +102,7 @@ Place discovery, resolution, and domain rules in the library that owns the conce
 
 ## Related skills
 
-- [`share-test`](../share-test/SKILL.md), [`js-test`](../js-test/SKILL.md), and [`mbt-test`](../mbt-test/SKILL.md) — testing philosophy and executable tests.
+- [`share-test`](../share-test/SKILL.md), [`js-test`](../js-test/SKILL.md), [`mbt-test`](../mbt-test/SKILL.md), and [`rust-test`](../rust-test/SKILL.md) — testing philosophy and executable tests.
 - [`share-test-design-flow`](../share-test-design-flow/SKILL.md) — concrete test design and human-facing reporting.
 - [`docs-moonbit`](../docs-moonbit/SKILL.md) and [`docs-components-build`](../docs-components-build/SKILL.md) — generated external specifications.
 - [`share-artifact`](../share-artifact/SKILL.md) — durable README, AGENTS, and ADR authoring.
