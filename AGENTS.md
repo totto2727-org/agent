@@ -20,7 +20,8 @@ vite.config.ts                          Repository formatting configuration
 ### Execution rules
 
 - Run commands from the repository root.
-- Enter the environment with `nix develop` before running Vite+ or MoonBit commands.
+- Enter the environment with `nix develop` before running Vite+ commands.
+- Install MoonBit separately and keep `moon` on `PATH` before running the documentation generators; the Nix development shell does not provide it.
 - Never use `npx` or `bunx`; use `vp run`, `vp exec`, or `vpx` when a package runner is needed.
 - Keep `.claude-plugin/marketplace.json` as the authoring source for generated marketplace manifests.
 - Run manifest synchronization after changing marketplace or plugin metadata and commit all generated outputs together.
@@ -30,8 +31,8 @@ vite.config.ts                          Repository formatting configuration
 - `nix develop` — Enter the pinned Node.js and Vite+ development environment.
 - `vp check` — Run the repository formatting and validation checks used by CI.
 - `c-plugin dev marketplace sync claude` — Regenerate Cursor and Codex marketplace manifests from the Claude manifest.
-- `moon run mbt/scripts/generate-docs-components-build.mbtx --target native` — Regenerate the component-building documentation skill.
-- `moon run mbt/scripts/generate-docs-moonbit.mbtx --target native` — Regenerate the MoonBit documentation skill.
+- `moon run mbt/scripts/generate-docs-components-build.mbtx --target native` — Regenerate the component-building documentation skill with the separately installed MoonBit toolchain.
+- `moon run mbt/scripts/generate-docs-moonbit.mbtx --target native` — Regenerate the MoonBit documentation skill with the separately installed MoonBit toolchain.
 - `git diff --check` — Reject whitespace errors before handoff.
 
 ## Architecture
@@ -50,14 +51,14 @@ vite.config.ts                          Repository formatting configuration
 
 ### Generated documentation
 
-- `mbt/scripts/` reads pinned upstream sources and regenerates documentation-backed skills under `plugins/totto2727-coding/skills/`.
+- `mbt/scripts/` reads current upstream sources and regenerates documentation-backed skills under `plugins/totto2727-coding/skills/`.
 - Generated documentation is formatted through the repository Vite+ configuration but should not be edited as unrelated cleanup.
 
 ## Development tools
 
 - **c-plugin**: Synchronizes product manifests and installs marketplace skills.
 - **Vite+**: Runs repository formatting and validation.
-- **MoonBit**: Implements the documentation generators.
+- **MoonBit**: Implements the documentation generators and must be installed separately from the Nix shell.
 - **Nix flakes**: Pin Node.js, Vite+, and the development shell.
 
 ## Package-specific rules
