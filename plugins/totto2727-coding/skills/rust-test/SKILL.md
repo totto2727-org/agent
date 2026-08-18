@@ -17,4 +17,5 @@ Apply [`share-test`](../share-test/SKILL.md), then use the implementation refere
 ## Related skills
 
 - [`share-coding`](../share-coding/SKILL.md) — language-independent production-code practices.
+- [`rust-coding`](../rust-coding/SKILL.md) — Rust production-code and library-selection practices.
 - [`share-test-design-flow`](../share-test-design-flow/SKILL.md) — concrete design and human-facing reporting.
