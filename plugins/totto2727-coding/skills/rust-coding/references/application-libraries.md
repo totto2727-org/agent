@@ -61,7 +61,7 @@ Keep workflow-specific DTOs and validators inside the workflow module. A generic
 
 ## Logging with tracing
 
-Initialize `tracing` once at the executable boundary. At minimum, record the loopback listening URL and one completed-request event containing method, URI, status code, and elapsed time.
+Initialize `tracing` once at the executable boundary. At minimum, record the loopback listening URL and one completed-request event containing method, normalized route template or redacted path, status code, and elapsed time. Omit query strings by default and allowlist only query fields known to be safe.
 
 Add workflow and LLM logs only after choosing their consumers and redaction policy. Prefer structured fields over interpolated messages, and never record secrets or full payloads merely because they are available.
 

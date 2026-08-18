@@ -99,15 +99,15 @@ When streams share a data source but not a connection, define how they synchroni
 
 Maintain a monotonically increasing revision and a bounded replay journal when a stream must recover changes after disconnecting.
 
-Subscribe to live notifications before reading the snapshot or replay boundary. Then replay retained revisions and ignore duplicate live notifications at or below the last applied revision. This closes the snapshot-to-subscribe race.
+Subscribe to live notifications before reading the snapshot or replay boundary, but do not rely on subscription order alone. Buffer live notifications or serialize snapshot, journal, and subscription access while establishing a revision boundary; replay retained revisions through that boundary, then drain buffered revisions above it in order before consuming the live stream. Ignore duplicates at or below the last applied revision. An equivalent single serialized journal protocol is also valid when it proves the same ordering and loss-free handoff.
 
-Assign the logical revision to the SSE event ID and resume from `Last-Event-ID`. One logical revision must be reconnect-atomic: encode all visible DOM changes for that revision in one SSE event, or use a finer cursor that can resume each sub-change independently. Never emit multiple complete events with the same revision ID because reconnecting after the first event would skip the remaining events.
+Assign the logical revision to the SSE event ID and resume from `Last-Event-ID`. Treat that header as untrusted input: limit its size, parse it into the expected revision type, and reject it or request a fresh snapshot when it is malformed or outside the retained range. One logical revision must be reconnect-atomic: encode all visible DOM changes for that revision in one SSE event, or use a finer cursor that can resume each sub-change independently. Never emit multiple complete events with the same revision ID because reconnecting after the first event would skip the remaining events.
 
 Reload or request a fresh SSR snapshot when the cursor is older than the bounded journal, ahead of the server, separated by a revision gap, or lost through receiver lag. Do not apply a partial replay after consistency is no longer provable.
 
 Use SSE keepalive comments for idle connections, but do not assign them domain revisions. Bound live broadcast queues and treat a slow receiver that falls behind as a resynchronization case instead of silently dropping changes.
 
-An in-memory journal and broadcast channel coordinate only one process. Use a shared durable event log or broker when multiple server processes must resume the same revisions.
+An in-memory journal and broadcast channel coordinate only one process. Use a shared durable event log or broker with explicit bounded retention or compaction when multiple server processes must resume the same revisions.
 
 Use stable IDs on patch roots. Choose `prepend`, `outer`, `inner`, or `remove` based on the actual DOM operation, and keep a logical revision to one atomic patch event whenever resumption uses that revision.
 
@@ -115,12 +115,14 @@ Use stable IDs on patch roots. Choose `prepend`, `outer`, `inner`, or `remove` b
 
 Validate path parameters, query filters, Datastar signals, and shard arguments at the server boundary. Do not trust hidden fields, signals, or selectors because the caller can construct requests directly.
 
-Log the listening URL and completed request method, URI, status, and elapsed time with `tracing`. Do not log secrets, complete workflow inputs, LLM prompts, or model responses by default.
+Authenticate and authorize every SSE connection, including reconnects. Scope the initial snapshot, replay lookup, server-side filter, and live notification stream to the authenticated principal or tenant and the permitted workflow or run; possession of a run ID or replay cursor is not authorization.
+
+Log the listening URL and completed request method, normalized route template or redacted path, status, and elapsed time with `tracing`. Omit query strings by default and allowlist individual query fields only after confirming they are safe. Do not log secrets, complete workflow inputs, LLM prompts, or model responses by default.
 
 ## Official sources
 
 - [Topcoat Datastar integration](https://github.com/tokio-rs/topcoat/blob/371c7403fcbf4d40bbacb2f87eb98d9ce00e76c8/crates/topcoat/docs/datastar.md)
-- [Topcoat shard behavior](https://github.com/tokio-rs/topcoat/blob/main/crates/topcoat-runtime/macro/docs/shard.md)
+- [Topcoat shard behavior](https://github.com/tokio-rs/topcoat/blob/371c7403fcbf4d40bbacb2f87eb98d9ce00e76c8/crates/topcoat-runtime/macro/docs/shard.md)
 - [Topcoat `PatchElements`](https://github.com/tokio-rs/topcoat/blob/371c7403fcbf4d40bbacb2f87eb98d9ce00e76c8/crates/topcoat-datastar/src/patch_elements.rs#L38-L75)
 - [Topcoat SSE event IDs](https://github.com/tokio-rs/topcoat/blob/371c7403fcbf4d40bbacb2f87eb98d9ce00e76c8/crates/topcoat-router/src/content/sse/event.rs#L67-L85)
 - [Datastar backend requests](https://data-star.dev/guide/backend_requests)
