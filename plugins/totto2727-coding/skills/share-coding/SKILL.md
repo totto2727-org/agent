@@ -99,6 +99,7 @@ Place discovery, resolution, and domain rules in the library that owns the conce
 
 - [`js-coding`](../js-coding/SKILL.md) — TypeScript, Effect, Hono, Remix, and `@totto2727/fp`.
 - [`mbt-coding`](../mbt-coding/SKILL.md) — MoonBit language and CLI implementation practices.
+- [`rust-coding`](../rust-coding/SKILL.md) — Rust web, workflow, LLM, validation, and library-selection practices.
 
 ## Related skills
 
