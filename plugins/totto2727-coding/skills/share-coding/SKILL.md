@@ -87,6 +87,10 @@ Choose explicit control flow over compact cleverness. Comments explain non-obvio
 
 Look for prior art in the same package before introducing a new pattern. Record the reason close to the decision when a deliberate divergence is necessary.
 
+## Just defaults
+
+When a repository uses Just, make the default recipe display the available recipes with a recipe body that runs `@just --list`. Do not make the default recipe run checks, builds, tests, setup, or any other operational command.
+
 ## Abstractions
 
 Keep a wrapper only when it owns a real invariant, reusable policy, or typed boundary. A helper that merely renames one standard operation and has one call site adds indirection without preserving knowledge.
