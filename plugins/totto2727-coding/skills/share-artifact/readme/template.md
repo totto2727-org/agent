@@ -78,7 +78,7 @@ No setup is required.
 
 See [{{ api.guide_title }}]({{ api.guide_path }}).
 {% else -%}
-{{ {}[api.mode] }}
+{{ [] | first }}
 {% endif -%}
 
 ## Development
