@@ -40,6 +40,12 @@ Do not satisfy `Setup` with repository preparation such as `git clone`, entering
 
 Keep `Prerequisites` limited to requirements a consumer must satisfy before setup, such as a runtime, supported target, account, credential, or external service. Put contributor-only toolchains and repository-development environments in `AGENTS.md`. When no prerequisite exists, pass an empty `prerequisites` list so the template renders `No prerequisites.` instead of inventing one. The overview must state the user outcome, and the usage example must exercise the installed or otherwise acquired public interface. Document user-visible constraints and actionable error behavior in `Usage`, `API`, or a purpose-specific end-user section whenever they are necessary for successful use; do not misclassify them as prerequisites.
 
+## Usage policy
+
+Put dependency declarations, imports, aliases, and other acquisition wiring in `Setup`; they do not satisfy `Usage` by themselves. `Usage` must exercise at least one acquired public interface and show an observable result, state change, or external effect.
+
+When an inline example would be misleading or too large, pass an empty `usage_examples` list and set `usage_guide.title`, `usage_guide.path`, and `usage_guide.summary` to link directly to a concrete runnable or checked example. Reject an empty inline form without that link, and reject a generic package page, project homepage, or API reference as the Usage destination.
+
 After `License`, append this exact artifact-specific provenance footer without a heading:
 
 ```markdown

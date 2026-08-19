@@ -11,7 +11,8 @@ This document is canonical `README.mbt.md`; maintain `README.md` as the relative
 
 ## Usage
 
-{# Each example must exercise the installed or acquired public interface. CLI projects must also expose a maintained help or user-guide discovery path. -#}
+{# Imports and dependency declarations belong in Setup. Each inline example must exercise an acquired public interface and show an observable result or effect. -#}
+{% if usage_examples -%}
 {% for example in usage_examples -%}
 
 ```{{ example.language }}
@@ -19,6 +20,11 @@ This document is canonical `README.mbt.md`; maintain `README.md` as the relative
 ```
 
 {% endfor -%}
+{% else -%}
+{{ usage_guide.summary }}
+
+See [{{ usage_guide.title }}]({{ usage_guide.path }}).
+{% endif -%}
 
 ## Key features
 
@@ -43,12 +49,12 @@ No prerequisites.
 
 ## Setup
 
-{# Steps must acquire/install the consumer artifact; repository preparation belongs in AGENTS.md. -#}
+{# Steps acquire/install the consumer artifact and declare its imports or aliases; repository preparation belongs in AGENTS.md. -#}
 {% if setup_steps -%}
 {% for step in setup_steps -%}
 {{ loop.index }}. {{ step.description }}
 
-```bash
+```{{ step.language }}
 {{ step.command }}
 ```
 
