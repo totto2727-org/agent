@@ -12,18 +12,28 @@ description: >-
 
 # Web Search
 
+Choose the web research path for the active agent platform.
+
+## Platform Routing
+
+### Codex
+
+Use Codex's built-in Web Search for both search and page retrieval. Do not invoke `bx` or `cf`.
+
+### Other Agents
+
 Search the web via Brave Search (`bx` CLI) and retrieve page content via Cloudflare Browser Rendering (`cf` CLI).
 
-## Available Tools
+## Other-Agent Tools
 
 | Role   | Tool                                   | Use Case                          | Reference                            |
 | ------ | -------------------------------------- | --------------------------------- | ------------------------------------ |
 | Search | `bx` CLI                               | Web search with real-time results | [references/bx.md](references/bx.md) |
 | Fetch  | `cf browser-rendering markdown create` | Retrieve page content as markdown | [references/cf.md](references/cf.md) |
 
-If CLI tools are unavailable, fall back to the equivalent standard tools provided by the agent runtime.
+If either CLI is unavailable, fall back to the equivalent standard tool provided by that agent runtime.
 
-## Workflow
+## Other-Agent Workflow
 
 1. **Search with `bx context`**
    - `bx context "query"` is the recommended endpoint for AI agents — returns pre-extracted, token-budgeted web content
