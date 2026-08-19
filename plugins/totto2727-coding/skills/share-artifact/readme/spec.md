@@ -38,7 +38,7 @@ The minimum form may be extended with purpose-specific end-user sections, provid
 
 Do not satisfy `Setup` with repository preparation such as `git clone`, entering a developer shell, dependency synchronization for contributors, code generation, build verification, tests, lint, CI, or publishing commands. Move that material to `AGENTS.md`. When an end user needs no acquisition or installation step, pass an empty `setup_steps` list so the template renders `No setup is required.` instead of inventing a command.
 
-Keep `Prerequisites` limited to what consumers need, such as a runtime, supported target, account, credential, or external service. Put contributor-only toolchains and repository-development environments in `AGENTS.md`. The overview must state the user outcome, and the usage example must exercise the installed or otherwise acquired public interface. Document user-visible targets, required credentials or configuration, constraints, and actionable error behavior in the appropriate required section or a purpose-specific end-user section whenever they are necessary for successful use.
+Keep `Prerequisites` limited to requirements a consumer must satisfy before setup, such as a runtime, supported target, account, credential, or external service. Put contributor-only toolchains and repository-development environments in `AGENTS.md`. When no prerequisite exists, pass an empty `prerequisites` list so the template renders `No prerequisites.` instead of inventing one. The overview must state the user outcome, and the usage example must exercise the installed or otherwise acquired public interface. Document user-visible constraints and actionable error behavior in `Usage`, `API`, or a purpose-specific end-user section whenever they are necessary for successful use; do not misclassify them as prerequisites.
 
 After `License`, append this exact artifact-specific provenance footer without a heading:
 
@@ -52,11 +52,11 @@ The footer identifies only the sources used to create the current README; it is 
 
 Set the template's `api.mode` to exactly one of the following values after inspecting the public API and its publishing registry:
 
-1. `registry` — use this when a package registry provides a maintained API index, as MoonBit and JSR registries commonly do. Set `api.registry_name` and `api.registry_url`, link directly to the package's canonical API page, and do not duplicate the generated API list in README.
+1. `registry` — use this only when the registry actually renders a maintained, accessible API index, as MoonBit and JSR registries commonly do. Inspect the published page, set `api.registry_name` and `api.registry_url`, link directly to the canonical API index, and do not duplicate the generated API list in README.
 2. `inline` — use this when no registry supplies the API index and every meaningful public API can be explained concisely without making README difficult to navigate. Set `api.entries` and document every meaningful public API with its purpose and a representative usage example; do not omit an API merely to shorten the section.
 3. `guide` — use this when no registry supplies the API index and complete inline coverage would make README difficult to navigate. Create a detailed guide under `docs/`, set `api.guide_title`, `api.guide_path`, and `api.guide_summary`, then keep only that summary and relative guide link in README.
 
-Reject any other mode, an empty registry URL, partial inline coverage, or a guide link whose target does not exist. The API section is required even when its contents are delegated to a registry or `docs/` guide.
+Reject any other mode, an empty registry URL, a registry package landing page that does not expose the API, an inaccessible or suppressed API index, partial inline coverage, or a guide link whose target does not exist. The API section is required even when its contents are delegated to a registry or `docs/` guide.
 
 ## CLI documentation policy
 

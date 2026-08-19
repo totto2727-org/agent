@@ -30,12 +30,16 @@ This document is canonical `README.mbt.md`; maintain `README.md` as the relative
 
 ## Prerequisites
 
-{# Include only consumer runtime, target, account, credential, service, constraint, or error-recovery requirements needed for successful use. -#}
+{# Include only consumer requirements that must be satisfied before setup. Put constraints and error behavior in Usage, API, or a purpose-specific end-user section. -#}
+{% if prerequisites -%}
 {% for prerequisite in prerequisites -%}
 
 - **{{ prerequisite.name }}**: {{ prerequisite.detail }}
 
 {% endfor -%}
+{% else -%}
+No prerequisites.
+{% endif -%}
 
 ## Setup
 
