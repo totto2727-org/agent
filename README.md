@@ -4,13 +4,13 @@
 
 ## Usage
 
-Install the marketplace skills with `c-plugin`:
+Ask a supported coding agent to use an installed marketplace skill:
 
-```bash
-c-plugin skill add totto2727-org/agent
+```text
+Use the share-artifact skill to audit this project's README.md. Keep consumer installation and usage in README, move repository build and test instructions to AGENTS.md, and update both files where needed.
 ```
 
-The command discovers the marketplace manifests and installs the skills exposed by its plugin catalog.
+The agent should audit the current documentation, update the end-user and developer boundaries, and report the files and rules it changed.
 
 ## Key features
 

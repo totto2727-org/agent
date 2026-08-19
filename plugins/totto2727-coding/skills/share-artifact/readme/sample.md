@@ -6,12 +6,6 @@ This document is canonical `README.mbt.md`; maintain `README.md` as the relative
 
 ## Usage
 
-```text
-import {
-  "example/moonbit-fib" @fib
-}
-```
-
 ```moonbit
 test "fib usage" {
   inspect(@fib.fib(10), content="55")
@@ -34,6 +28,14 @@ test "fib usage" {
 
 ```bash
 moon add example/moonbit-fib
+```
+
+2. Import the package in the consuming package's `moon.pkg`.
+
+```text
+import {
+  "example/moonbit-fib" @fib
+}
 ```
 
 ## API
