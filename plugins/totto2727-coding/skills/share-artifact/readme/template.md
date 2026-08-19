@@ -77,6 +77,8 @@ No setup is required.
 {{ api.guide_summary }}
 
 See [{{ api.guide_title }}]({{ api.guide_path }}).
+{% else -%}
+{{ {}[api.mode] }}
 {% endif -%}
 
 ## Development
