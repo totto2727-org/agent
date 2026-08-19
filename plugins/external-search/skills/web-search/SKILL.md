@@ -14,6 +14,15 @@ description: >-
 
 Choose the web research path for the active agent platform.
 
+## Core Principle
+
+Do not search or retrieve web content directly from the local machine during the normal path. Use a managed, indirect service instead:
+
+- Codex: built-in OpenAI Web Search for search and page retrieval.
+- Other agents: Brave Search through `bx` for search and Cloudflare Browser Run through `cf` for page retrieval.
+
+Use an agent's default search or fetch tool only when its designated managed service is unavailable. Use `curl` only as the final fallback for retrieving a known URL when no managed service or agent fetch tool is available.
+
 ## Platform Routing
 
 ### Codex
@@ -31,15 +40,13 @@ Search the web via Brave Search (`bx` CLI) and retrieve page content via Cloudfl
 | Search | `bx` CLI                               | Web search with real-time results | [references/bx.md](references/bx.md) |
 | Fetch  | `cf browser-rendering markdown create` | Retrieve page content as markdown | [references/cf.md](references/cf.md) |
 
-If either CLI is unavailable, fall back to the equivalent standard tool provided by that agent runtime.
-
 ## Other-Agent Workflow
 
 1. **Search with `bx context`**
    - `bx context "query"` is the recommended endpoint for AI agents — returns pre-extracted, token-budgeted web content
    - Construct a specific query targeting official sources when possible
    - Review returned titles, URLs, and snippets
-   - If `bx` is unavailable, use the standard web search tool
+   - If `bx` is unavailable, follow the fallback policy above
 
 2. **Evaluate results**
    - Sufficient information found → Return results
@@ -49,7 +56,7 @@ If either CLI is unavailable, fall back to the equivalent standard tool provided
    - Serialize the URL into a request body with `jq -cn --arg url "$URL" '{url: $url}'`, then pass that value as `--body` (see [references/cf.md](references/cf.md))
    - Only fetch URLs that are likely to contain the needed information
    - Treat URLs as data: never interpolate an externally supplied URL directly into shell-quoted JSON
-   - If `cf` is unavailable, use the standard web fetch tool
+   - If `cf` is unavailable, follow the fallback policy above
 
 ## Content Trust
 
