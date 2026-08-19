@@ -11,7 +11,8 @@ This document is canonical `README.mbt.md`; maintain `README.md` as the relative
 
 ## Usage
 
-{# Imports and dependency declarations belong in Setup. Each inline example must exercise an acquired public interface and show an observable result or effect. -#}
+{# Imports and dependency declarations belong in Setup. Select exactly one surface: library, cli, or gui. -#}
+{% if usage_surface == "library" -%}
 {% if usage_examples -%}
 {% for example in usage_examples -%}
 
@@ -24,6 +25,32 @@ This document is canonical `README.mbt.md`; maintain `README.md` as the relative
 {{ usage_guide.summary }}
 
 See [{{ usage_guide.title }}]({{ usage_guide.path }}).
+{% endif -%}
+{% elif usage_surface == "cli" -%}
+{% if cli_usage_examples -%}
+{% for example in cli_usage_examples -%}
+{{ example.summary }}
+
+```bash
+{{ example.command }}
+```
+
+Expected result:
+
+```text
+{{ example.result }}
+```
+
+{% endfor -%}
+{% else -%}
+{{ [] | first }}
+{% endif -%}
+{% elif usage_surface == "gui" -%}
+![{{ gui_usage.image_alt }}]({{ gui_usage.image_path }})
+
+{{ gui_usage.interaction_result }}
+{% else -%}
+{{ [] | first }}
 {% endif -%}
 
 ## Key features

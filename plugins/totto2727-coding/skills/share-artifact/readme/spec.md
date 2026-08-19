@@ -42,9 +42,13 @@ Keep `Prerequisites` limited to requirements a consumer must satisfy before setu
 
 ## Usage policy
 
-Put dependency declarations, imports, aliases, and other acquisition wiring in `Setup`; they do not satisfy `Usage` by themselves. `Usage` must exercise at least one acquired public interface and show an observable result, state change, or external effect.
+Put dependency declarations, imports, aliases, and other acquisition wiring in `Setup`; they do not satisfy `Usage` by themselves. Classify Usage by product surface and set the template's `usage_surface` to exactly one of the following values:
 
-When an inline example would be misleading or too large, pass an empty `usage_examples` list and set `usage_guide.title`, `usage_guide.path`, and `usage_guide.summary` to link directly to a concrete runnable or checked example. Reject an empty inline form without that link, and reject a generic package page, project homepage, or API reference as the Usage destination.
+1. `library` — show a small public API code example that demonstrates the main feature and an observable return value, assertion, state change, or effect. When inline code would be misleading or too large, pass an empty `usage_examples` list and set `usage_guide.title`, `usage_guide.path`, and `usage_guide.summary` to link directly to a concrete runnable or checked example.
+2. `cli` — show an installed command and a representative expected stdout, stderr, file, or state result. A command without its expected result does not satisfy Usage.
+3. `gui` — show a current real screenshot or image of the primary user-visible state, followed by a short description of the interaction and its result. A mock, concept image, or stale screenshot does not satisfy Usage.
+
+Reject any other surface. The direct example-link fallback applies only to `library`; reject a generic package page, project homepage, or API reference as the Usage destination for any surface.
 
 After `License`, append this exact artifact-specific provenance footer without a heading:
 
@@ -66,7 +70,7 @@ Reject any other mode, an empty registry URL, a registry package landing page th
 
 ## CLI documentation policy
 
-For a command-line project, show a minimal working invocation in `Usage` and provide a maintained discovery path for the remaining commands and options. Keep a concise complete reference in README, link a detailed end-user guide under `docs/`, or point to generated help with the exact command needed to reach it, such as `tool --help`. Include nested help paths when discovery depends on a subcommand. A full CLI reference is end-user documentation and must never use `AGENTS.md` as its source of truth; `AGENTS.md` contains only repository development and operation instructions.
+For a command-line project, show an installed command and its representative expected result in `Usage`, then provide a maintained discovery path for the remaining commands and options. Keep a concise complete reference in README, link a detailed end-user guide under `docs/`, or point to generated help with the exact command needed to reach it, such as `tool --help`. Include nested help paths when discovery depends on a subcommand. A full CLI reference is end-user documentation and must never use `AGENTS.md` as its source of truth; `AGENTS.md` contains only repository development and operation instructions.
 
 ## Shared content and updates
 
