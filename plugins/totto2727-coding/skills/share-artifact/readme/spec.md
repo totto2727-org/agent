@@ -6,6 +6,8 @@ This specification defines an end-user-facing project, module, or package entry 
 
 `README.md` serves end users first: it explains what the project does and how to use it. Organize and word it around user value; never distort it for implementation structure, generated-artifact layout, or maintainer convenience. Use the end-user test: if a person who only wants to use the project needs the information, it belongs here. If an AI agent or contributor needs it to modify, build, test, or operate the repository, it belongs in [the AGENTS specification](../agents/spec.md).
 
+A developer can still be an end user of developer tooling. Show the user's tooling task in README, such as invoking an installed skill to improve the user's own project. Put instructions for maintaining the tool's own repository, manifests, generated artifacts, canonical files, or symlinks in AGENTS instead; the subject of the operation, not whether the user writes code, determines the audience.
+
 | Content                                                                                                                        | README.md                              | AGENTS.md                              | Decision                                                              |
 | ------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------- | -------------------------------------- | --------------------------------------------------------------------- |
 | Project overview, user-visible features, usage examples, end-user prerequisites and setup, external documentation, and license | Yes                                    | No                                     | Explain the user outcome and the smallest usable path.                |
@@ -46,7 +48,8 @@ Put dependency declarations, imports, aliases, and other acquisition wiring in `
 
 1. `library` — show a small public API code example that demonstrates a real use case and an observable return value, assertion, state change, or effect. Each `usage_examples` entry states its user goal in `summary`, then demonstrates it in `code`. When inline code would be misleading or too large, pass an empty `usage_examples` list and set `usage_guide.title`, `usage_guide.path`, and `usage_guide.summary` to link directly to a concrete runnable or checked example. An interface-only library may use this fallback to explain its role and link directly to a concrete implementation's Usage section only when the linked example demonstrates real integration under the same goal, input, operation, and outcome requirements.
 2. `cli` — show an installed command and a representative expected stdout, stderr, file, or state result. A command without its expected result does not satisfy Usage.
-3. `gui` — show a current real screenshot or image of the primary user-visible state, followed by a short description of the interaction and its result. A mock, concept image, or stale screenshot does not satisfy Usage.
+3. `agent` — for an installed coding-agent skill or plugin, show a concrete post-install prompt that states the user's goal and a representative expected user-facing output or effect. A prompt that only installs, regenerates, or maintains the tool itself does not satisfy Usage.
+4. `gui` — show a current real screenshot or image of the primary user-visible state, followed by a short description of the interaction and its result. A mock, concept image, or stale screenshot does not satisfy Usage.
 
 Reject any other surface. The direct example-link fallback applies only to `library`; reject a generic package page, project homepage, or API reference as the Usage destination for any surface.
 

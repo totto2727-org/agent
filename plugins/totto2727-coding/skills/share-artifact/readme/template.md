@@ -7,7 +7,7 @@
 
 ## Usage
 
-{# Show a plausible goal, representative input, primary public operation, and user-relevant outcome. Imports, constructors, initialization, ID round trips, and default-field inspection alone do not qualify. Select exactly one surface: library, cli, or gui. -#}
+{# Show a plausible goal, representative input, primary public operation, and user-relevant outcome. Imports, constructors, initialization, ID round trips, and default-field inspection alone do not qualify. Select exactly one surface: library, cli, agent, or gui. -#}
 {% if usage_surface == "library" -%}
 {% if usage_examples -%}
 {% for example in usage_examples -%}
@@ -31,6 +31,25 @@ See [{{ usage_guide.title }}]({{ usage_guide.path }}).
 
 ```bash
 {{ example.command }}
+```
+
+Expected result:
+
+```text
+{{ example.result }}
+```
+
+{% endfor -%}
+{% else -%}
+{{ [] | first }}
+{% endif -%}
+{% elif usage_surface == "agent" -%}
+{% if agent_usage_examples -%}
+{% for example in agent_usage_examples -%}
+{{ example.summary }}
+
+```text
+{{ example.prompt }}
 ```
 
 Expected result:
