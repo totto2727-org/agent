@@ -2,6 +2,7 @@
 
 # {{ project_name }}
 
+{# State the end-user outcome, not the repository implementation. -#}
 {{ overview }}
 
 {% if is_moonbit -%}
@@ -10,6 +11,7 @@ This document is canonical `README.mbt.md`; maintain `README.md` as the relative
 
 ## Usage
 
+{# Each example must exercise the installed or acquired public interface. CLI projects must also expose a maintained help or user-guide discovery path. -#}
 {% for example in usage_examples -%}
 
 ```{{ example.language }}
@@ -28,6 +30,7 @@ This document is canonical `README.mbt.md`; maintain `README.md` as the relative
 
 ## Prerequisites
 
+{# Include only consumer runtime, target, account, credential, service, constraint, or error-recovery requirements needed for successful use. -#}
 {% for prerequisite in prerequisites -%}
 
 - **{{ prerequisite.name }}**: {{ prerequisite.detail }}
@@ -36,6 +39,8 @@ This document is canonical `README.mbt.md`; maintain `README.md` as the relative
 
 ## Setup
 
+{# Steps must acquire/install the consumer artifact; repository preparation belongs in AGENTS.md. -#}
+{% if setup_steps -%}
 {% for step in setup_steps -%}
 {{ loop.index }}. {{ step.description }}
 
@@ -44,6 +49,9 @@ This document is canonical `README.mbt.md`; maintain `README.md` as the relative
 ```
 
 {% endfor -%}
+{% else -%}
+No setup is required.
+{% endif -%}
 
 ## API
 

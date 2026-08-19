@@ -16,14 +16,11 @@ The command discovers the marketplace manifests and installs the skills exposed 
 
 - One plugin catalog distributed to Claude Code, Cursor, and Codex
 - General-purpose, coding, external-search, and Symphony workflow plugins
-- Claude marketplace metadata as the authoring source for generated product manifests
-- MoonBit generators for bundled MoonBit and component-building documentation skills
-- Nix-pinned Node.js and Vite+ development environment
+- Skills installed through one consumer-facing `c-plugin` command
 
 ## Prerequisites
 
-- **c-plugin**: Install skills from the marketplace and synchronize product manifests.
-- **Nix**: Enter the pinned environment when developing the repository.
+- **c-plugin**: Install skills from the marketplace.
 
 ## Setup
 
