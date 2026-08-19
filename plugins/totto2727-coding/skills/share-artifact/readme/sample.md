@@ -2,8 +2,6 @@
 
 A small MoonBit Fibonacci library for applications that need an integer sequence primitive.
 
-This document is canonical `README.mbt.md`; maintain `README.md` as the relative symlink `README.md -> README.mbt.md`.
-
 ## Usage
 
 ```moonbit

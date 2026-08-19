@@ -1,13 +1,9 @@
-{# Extensions may add end-user sections if they preserve this order, keep License last, retain the MoonBit canonical-output and relative-symlink rule when applicable, and do not add developer, contributor, AI, or internal-operation guidance. -#}
+{# Extensions may add end-user sections if they preserve this order, keep License last, and do not add developer, contributor, AI, or internal-operation guidance. -#}
 
 # {{ project_name }}
 
 {# State the end-user outcome, not the repository implementation. -#}
 {{ overview }}
-
-{% if is_moonbit -%}
-This document is canonical `README.mbt.md`; maintain `README.md` as the relative symlink `README.md -> README.mbt.md`.
-{%- endif %}
 
 ## Usage
 

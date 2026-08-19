@@ -19,7 +19,7 @@ This specification defines an end-user-facing project, module, or package entry 
 
 ## Required output and minimum order
 
-Render the sibling [template.md](template.md) as the project `README.md` unless the MoonBit exception below applies. The minimum form uses this order:
+Render the sibling [template.md](template.md) as the end-user README content. The minimum form uses this order:
 
 1. Title and one-paragraph overview
 2. Usage
@@ -88,9 +88,3 @@ When updating an existing project:
 ## Corrections for common mistakes
 
 Do not add AI rules such as “never use npx” to README; move them to `AGENTS.md` and retain only the Development link. Do not put repository cloning, developer-shell entry, dependency synchronization, code generation, build verification, test, lint, CI, publishing, or contributor setup commands in README; those commands fail the end-user test and belong in `AGENTS.md`, except for the narrow supported source-distribution case in the Setup policy. Do not add repository architecture or directory structure to README merely because it is useful to developers. Do not replace meaningful API usage with a symbol dump, an incomplete shortlist, or a bare link to a non-API package page. Do not move user-facing CLI reference material or required runtime constraints into `AGENTS.md`.
-
-## MoonBit exception
-
-For a MoonBit project, render the sibling [template.md](template.md) to canonical `README.mbt.md`, then make `README.md` a relative symlink: `README.md -> README.mbt.md`. Keep the Markdown and its supported MoonBit code blocks valid for `moon check README.mbt.md` and `moon test README.mbt.md`. Do not maintain a second independently authored README.
-
-This layout follows MoonBit’s official literate Markdown documentation: <https://docs.moonbitlang.com/en/latest/language/docs.html>. The relative symlink layout is documented in the official MoonBit tutorial: <https://docs.moonbitlang.com/en/latest/toolchain/moon/tutorial.html>.
