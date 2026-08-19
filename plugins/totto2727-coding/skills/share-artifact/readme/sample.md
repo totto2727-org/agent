@@ -4,6 +4,8 @@ A small MoonBit Fibonacci library for applications that need an integer sequence
 
 ## Usage
 
+Calculate the Fibonacci number at position 10 and verify the library returns 55.
+
 ```moonbit
 test "fib usage" {
   inspect(@fib.fib(10), content="55")

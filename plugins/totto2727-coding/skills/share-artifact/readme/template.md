@@ -1,4 +1,4 @@
-{# Extensions may add end-user sections if they preserve this order, keep License last, and do not add developer, contributor, AI, or internal-operation guidance. -#}
+{# Organize content around user value, not implementation or generated-artifact maintenance. Extensions may add end-user sections if they preserve this order, keep License last, and do not add developer, contributor, AI, or internal-operation guidance. -#}
 
 # {{ project_name }}
 
@@ -7,10 +7,11 @@
 
 ## Usage
 
-{# Imports and dependency declarations belong in Setup. Select exactly one surface: library, cli, or gui. -#}
+{# Show a plausible goal, representative input, primary public operation, and user-relevant outcome. Imports, constructors, initialization, ID round trips, and default-field inspection alone do not qualify. Select exactly one surface: library, cli, or gui. -#}
 {% if usage_surface == "library" -%}
 {% if usage_examples -%}
 {% for example in usage_examples -%}
+{{ example.summary }}
 
 ```{{ example.language }}
 {{ example.code }}
@@ -18,6 +19,7 @@
 
 {% endfor -%}
 {% else -%}
+{# Link directly to a concrete runnable example; for interface-only libraries, the linked implementation Usage must demonstrate real integration. -#}
 {{ usage_guide.summary }}
 
 See [{{ usage_guide.title }}]({{ usage_guide.path }}).
@@ -72,7 +74,7 @@ No prerequisites.
 
 ## Setup
 
-{# Steps acquire/install the consumer artifact and declare its imports or aliases; repository preparation belongs in AGENTS.md. -#}
+{# Steps only acquire/install the consumer artifact or declare dependencies, imports, and aliases. Execution, verification, and authentication belong in Usage or another end-user section; repository build/test/operations belong in AGENTS.md. -#}
 {% if setup_steps -%}
 {% for step in setup_steps -%}
 {{ loop.index }}. {{ step.description }}
