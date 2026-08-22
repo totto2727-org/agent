@@ -4,13 +4,17 @@
 
 ## Usage
 
-Ask a supported coding agent to use an installed marketplace skill:
+After installing the marketplace, ask a supported coding agent to audit the documentation in your project:
 
 ```text
 Use the share-artifact skill to audit this project's README.md. Keep consumer installation and usage in README, move repository build and test instructions to AGENTS.md, and update both files where needed.
 ```
 
-The agent should audit the current documentation, update the end-user and developer boundaries, and report the files and rules it changed.
+Expected result:
+
+```text
+A concise audit summary identifying the user-facing README improvements, developer-only guidance placed in AGENTS.md, and the files updated.
+```
 
 ## Key features
 
@@ -54,7 +58,7 @@ Standalone skills from the source monorepo are intentionally not distributed; ev
 
 ## Development
 
-For repository structure, manifest synchronization, documentation generation, and validation commands, see [AGENTS.md](./AGENTS.md).
+For repository structure, manifest synchronization, and validation commands, see [AGENTS.md](./AGENTS.md).
 
 ## License
 
