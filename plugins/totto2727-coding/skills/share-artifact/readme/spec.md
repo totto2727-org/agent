@@ -21,7 +21,7 @@ A developer can still be an end user of developer tooling. Show the user's tooli
 
 ## Required output and minimum order
 
-Render the sibling [template.md](template.md) as the end-user README content. The minimum form uses this order:
+Set `entry_scope` to `root`, `independent`, or `nested`, then render the sibling [template.md](template.md) as the end-user README content. `root` is the repository-level consumer entrypoint. `independent` is a nested package, directory, or standalone example that users genuinely acquire, configure, or enter separately. Both use this full minimum order:
 
 1. Title and one-paragraph overview
 2. Usage
@@ -32,7 +32,7 @@ Render the sibling [template.md](template.md) as the end-user README content. Th
 7. Development — one short link to `AGENTS.md`, without operational detail
 8. License
 
-The minimum form may be extended with purpose-specific end-user sections, provided the required sections remain in this order, `License` stays the final section, and the extension does not introduce developer, contributor, AI, or internal-operation guidance. An extension must not replace the sibling template or sample with an old role-based template path.
+The full minimum form may be extended with purpose-specific end-user sections, provided the required sections remain in this order, `License` stays the final section, and the extension does not introduce developer, contributor, AI, or internal-operation guidance. A `nested` entry follows the compact form defined in the hierarchy policy below. An extension must not replace the sibling template or sample with an old role-based template path.
 
 ## Setup policy
 
@@ -55,9 +55,13 @@ Reject any other surface. The direct example-link fallback applies only to `libr
 
 ## Entry README hierarchy policy
 
-In a repository with root, module, or package entry READMEs, keep the root README focused on the overall user value, top-level acquisition path, and navigation to independently usable parts. Give each module or package entry README its own package-specific user goal, representative Usage, consumer Setup differences, and API discovery path. Do not replace the package use case with a repeated root overview, and do not force root readers through package-internal implementation or repository architecture to discover how to use the product.
+In a repository with root, module, or package entry READMEs, publish the complete consumer `Usage` and `Setup` once at the repository root by default. Set `entry_scope` to `nested` for a directory or package README that is part of that same consumer flow. Its compact form contains only the title, that directory or package's distinct role, an optional direct link to the canonical runnable example through `usage_guide`, its uniquely owned API, and the required artifact-provenance footer. It inherits Development and License information from the root and does not repeat those sections.
 
-After `License`, append this exact artifact-specific provenance footer without a heading:
+Set `entry_scope` to `independent` and repeat the full form only when the nested package, directory, or standalone example is independently acquired or configured, or is a genuinely distinct consumer entrypoint with its own Usage and Setup. Do not create both a root README and `src/README.md` when their consumer meaning would be identical.
+
+Never duplicate commands, examples, feature lists, API prose, Development links, or License text across the README hierarchy. Keep each detail in one source of truth at the nearest owning entrypoint, and use direct relative links from other READMEs. The root may briefly summarize and navigate to package-owned APIs, while a nested README may link to root Usage or a concrete runnable example; neither may copy the source text.
+
+After `License` in the full form, or after `API` in the compact `nested` form, append this exact artifact-specific provenance footer without a heading:
 
 ```markdown
 _This README was generated from the [share-artifact skill](https://raw.githubusercontent.com/totto2727-org/agent/refs/heads/main/plugins/totto2727-coding/skills/share-artifact/SKILL.md) and [README template](https://raw.githubusercontent.com/totto2727-org/agent/refs/heads/main/plugins/totto2727-coding/skills/share-artifact/readme/template.md)._

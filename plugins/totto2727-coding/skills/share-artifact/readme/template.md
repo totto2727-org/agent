@@ -5,6 +5,9 @@
 {# State the end-user outcome, not the repository implementation. -#}
 {{ overview }}
 
+{# Use root for the repository consumer entrypoint, independent only for a genuinely separate consumer entrypoint, and nested for a compact non-duplicating package or directory entry. -#}
+{% if entry_scope == "root" or entry_scope == "independent" -%}
+
 ## Usage
 
 {# Show a plausible goal, representative input, primary public operation, and user-relevant outcome. Imports, constructors, initialization, ID round trips, and default-field inspection alone do not qualify. Select exactly one surface: library, cli, agent, or gui. -#}
@@ -106,6 +109,18 @@ No prerequisites.
 {% else -%}
 No setup is required.
 {% endif -%}
+{% elif entry_scope == "nested" -%}
+{% if usage_guide -%}
+
+## Usage
+
+{{ usage_guide.summary }}
+
+See [{{ usage_guide.title }}]({{ usage_guide.path }}).
+{% endif %}
+{% else -%}
+{{ [] | first }}
+{% endif -%}
 
 ## API
 
@@ -131,6 +146,8 @@ See [{{ api.guide_title }}]({{ api.guide_path }}).
 {{ [] | first }}
 {% endif -%}
 
+{% if entry_scope == "root" or entry_scope == "independent" -%}
+
 ## Development
 
 {{ development_summary }}
@@ -138,5 +155,5 @@ See [{{ api.guide_title }}]({{ api.guide_path }}).
 ## License
 
 {{ license }}
-
+{% endif %}
 _This README was generated from the [share-artifact skill](https://raw.githubusercontent.com/totto2727-org/agent/refs/heads/main/plugins/totto2727-coding/skills/share-artifact/SKILL.md) and [README template](https://raw.githubusercontent.com/totto2727-org/agent/refs/heads/main/plugins/totto2727-coding/skills/share-artifact/readme/template.md)._
