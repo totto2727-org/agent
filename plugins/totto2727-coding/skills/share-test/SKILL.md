@@ -37,6 +37,10 @@ Every test establishes its own state and remains valid in isolation, in a differ
 
 Control time, randomness, network access, and external state at the boundary. A result that depends on timing or ambient machine state is not reliable evidence.
 
+## End-to-end test scope
+
+Use [`github.com/totto2727-org/e2e`](https://github.com/totto2727-org/e2e) to implement CLI end-to-end tests. This skill does not yet specify a shared implementation approach for non-CLI end-to-end tests.
+
 ## Behavior scope
 
 Each test has a single reason to fail. Multiple assertions are acceptable when one setup and one system-under-test invocation produce multiple observable facts that jointly describe one outcome.
