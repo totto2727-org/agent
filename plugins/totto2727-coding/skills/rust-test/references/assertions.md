@@ -20,8 +20,6 @@ cargo test --test <integration-target>
 cargo test --doc
 ```
 
-Run the crate or workspace test task when broader evidence is required.
-
 ## Async tests
 
 Use the async executor already selected by the crate or repository, such as its runtime test attribute or an established `block_on` helper. Do not add a second runtime or a new executor dependency only for one test. Await every operation and assertion that belongs to the contract; do not let the test return while spawned work remains unobserved.
