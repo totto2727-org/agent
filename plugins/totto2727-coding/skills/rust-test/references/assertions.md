@@ -12,7 +12,7 @@ Apply the matcher-selection principles from [`share-test`](../../share-test/SKIL
 
 ## Execution
 
-Use the repository's Vite+ test task when one exists. Otherwise use the smallest Cargo command that proves the behavior:
+When invoking Cargo directly, use the smallest command that proves the behavior:
 
 ```bash
 cargo test <test-name>
