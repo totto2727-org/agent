@@ -54,7 +54,7 @@ Standalone skills from the source monorepo are intentionally not distributed; ev
 
 ## Development
 
-For repository structure, manifest synchronization, documentation generation, and validation commands, see [AGENTS.md](./AGENTS.md).
+For repository structure, manifest synchronization, and validation commands, see [AGENTS.md](./AGENTS.md).
 
 ## License
 

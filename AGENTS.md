@@ -7,7 +7,6 @@
 .claude-plugin/marketplace.json        Authoring marketplace manifest
 .cursor-plugin/marketplace.json        Generated Cursor marketplace manifest
 .github/workflows/ci.yml               Vite+ validation workflow
-mbt/scripts/                            MoonBit documentation generators
 plugins/<plugin>/.claude-plugin/        Plugin metadata
 plugins/<plugin>/skills/                Distributed skill packages
 flake.nix                               Reproducible Node.js and Vite+ environment
@@ -21,7 +20,6 @@ vite.config.ts                          Repository formatting configuration
 
 - Run commands from the repository root.
 - Enter the environment with `nix develop` before running Vite+ commands.
-- Install MoonBit separately and keep `moon` on `PATH` before running the documentation generators; the Nix development shell does not provide it.
 - Never use `npx` or `bunx`; use `vp run`, `vp exec`, or `vpx` when a package runner is needed.
 - Keep `.claude-plugin/marketplace.json` as the authoring source for generated marketplace manifests.
 - Run manifest synchronization after changing marketplace or plugin metadata and commit all generated outputs together.
@@ -31,8 +29,6 @@ vite.config.ts                          Repository formatting configuration
 - `nix develop` — Enter the pinned Node.js and Vite+ development environment.
 - `vp check` — Run the repository formatting and validation checks used by CI.
 - `c-plugin dev marketplace sync claude` — Regenerate Cursor and Codex marketplace manifests from the Claude manifest.
-- `moon run mbt/scripts/generate-docs-components-build.mbtx --target native` — Regenerate the component-building documentation skill with the separately installed MoonBit toolchain.
-- `moon run mbt/scripts/generate-docs-moonbit.mbtx --target native` — Regenerate the MoonBit documentation skill with the separately installed MoonBit toolchain.
 - `git diff --check` — Reject whitespace errors before handoff.
 
 ## Architecture
@@ -49,16 +45,15 @@ vite.config.ts                          Repository formatting configuration
 - `plugins/<plugin>/skills/<skill>/SKILL.md` is the entry point for each bundled skill.
 - Standalone skills under `.agents/skills/` are intentionally excluded from this repository.
 
-### Generated documentation
+### External documentation skills
 
-- `mbt/scripts/` reads current upstream sources and regenerates documentation-backed skills under `plugins/totto2727-coding/skills/`.
-- Generated documentation is formatted through the repository Vite+ configuration but should not be edited as unrelated cleanup.
+- Do not distribute a local documentation copy when the upstream site publishes an official Agent Skill.
+- Referencing skills must name the official skill, prefer its local installation, and provide a direct official-site fallback for environments where the skill is unavailable.
 
 ## Development tools
 
 - **c-plugin**: Synchronizes product manifests and installs marketplace skills.
 - **Vite+**: Runs repository formatting and validation.
-- **MoonBit**: Implements the documentation generators and must be installed separately from the Nix shell.
 - **Nix flakes**: Pin Node.js, Vite+, and the development shell.
 
 ## Package-specific rules
