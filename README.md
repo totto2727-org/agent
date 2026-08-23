@@ -24,15 +24,16 @@ A concise audit summary identifying the user-facing README improvements, develop
 
 ## Prerequisites
 
-- **c-plugin**: Install skills from the marketplace.
+- **c-plugin**: Install `c-plugin` and make the command available on `PATH` before adding this marketplace.
 
 ## Setup
 
 ### Install persistently
 
-Install the marketplace and select the skills to keep enabled in the coding-agent targets managed by `c-plugin`.
+In a fresh consuming project, initialize `c-plugin`, then install the marketplace and select the skills to keep enabled in the managed coding-agent targets.
 
 ```bash
+c-plugin init
 c-plugin skill add totto2727-org/agent
 ```
 
