@@ -18,9 +18,11 @@ from jinja2 import UndefinedError
 
 from tests.share_artifact_readme_fixture import (
     ARTIFACT_RELATIVE_PATH,
+    CONSUMER_FLAKE_CODE,
     DEPENDENCY_CONTEXT,
     DOCUMENT_TYPE,
     EXECUTED_OUTPUT,
+    FLAKE_VALIDATION_COMMAND,
     PROVENANCE,
     REPOSITORY_ROOT,
     SAMPLE_PATH,
@@ -110,9 +112,23 @@ def test_application_renders_every_supported_acquisition_mode(
         "nix run github:example/greet-app -- Ada",
         "npm i -g @example/greet-app",
         "nix profile add github:example/greet-app",
-        'inputs.greet-app.url = "github:example/greet-app";',
+        CONSUMER_FLAKE_CODE,
     ):
         assert expected in rendered
+
+
+def test_consumer_flake_is_complete_and_parses(tmp_path: Path) -> None:
+    flake_path = write_fixture_file(tmp_path, Path("flake.nix"), CONSUMER_FLAKE_CODE)
+
+    completed = run(
+        (*FLAKE_VALIDATION_COMMAND, str(flake_path)),
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    assert "outputs" in completed.stdout
 
 
 def test_application_omits_unsupported_persistent_and_flake_modes() -> None:

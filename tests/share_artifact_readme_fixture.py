@@ -44,6 +44,16 @@ EXECUTED_OUTPUT: Final = (
     '("fib API usage") ok',
     "Total tests: 2, passed: 2, failed: 0.",
 )
+CONSUMER_FLAKE_CODE: Final = """{
+  inputs = {
+    greet-app.url = "github:example/greet-app/0123456789abcdef0123456789abcdef01234567";
+  };
+  outputs = { self, greet-app }: {
+    packages = greet-app.packages;
+  };
+}
+"""
+FLAKE_VALIDATION_COMMAND: Final = ("nix-instantiate", "--parse")
 PROVENANCE: Final = (
     (
         "https://raw.githubusercontent.com/totto2727-org/agent/refs/heads/main/plugins/totto2727-coding/skills/share-artifact/SKILL.md",
@@ -151,7 +161,7 @@ def application_context(surface: ApplicationSurface) -> RenderContext:
             ],
             "consumer_flake_setup": {
                 "description": "Add the package to a consumer flake.",
-                "code": 'inputs.greet-app.url = "github:example/greet-app";',
+                "code": CONSUMER_FLAKE_CODE,
             },
             "cli_usage_examples": [
                 {"summary": "Greet Ada.", "command": "greet Ada", "result": "Hello!"}
