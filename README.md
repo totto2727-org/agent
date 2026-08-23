@@ -20,7 +20,7 @@ A concise audit summary identifying the user-facing README improvements, develop
 
 - One plugin catalog distributed to Claude Code, Cursor, and Codex
 - General-purpose, coding, external-search, and Symphony workflow plugins
-- Skills installed through one consumer-facing `c-plugin` command
+- Skills installed through `c-plugin` for project-local or global use
 
 ## Prerequisites
 
@@ -30,11 +30,20 @@ A concise audit summary identifying the user-facing README improvements, develop
 
 ### Install persistently
 
-In a fresh consuming project, initialize `c-plugin`, then install the marketplace and select the skills to keep enabled in the managed coding-agent targets.
+Choose the scope where `c-plugin` should install and enable the marketplace's skills.
+
+For the current project, initialize project-local state and add the marketplace:
 
 ```bash
 c-plugin init
 c-plugin skill add totto2727-org/agent
+```
+
+For all projects using the current home directory, initialize global state and add the marketplace globally:
+
+```bash
+c-plugin init --global
+c-plugin skill add --global totto2727-org/agent
 ```
 
 ## API

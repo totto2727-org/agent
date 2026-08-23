@@ -7,176 +7,96 @@
 # ///
 
 # How to run:
-#   uv run tests/share_artifact_readme_template_test.py
+#   PYTHONPATH=. uv run tests/share_artifact_readme_template_test.py
 
 from copy import deepcopy
 from pathlib import Path
-from typing import Literal, assert_never
+from subprocess import run
 
 import pytest
-from jinja2 import Environment, StrictUndefined, UndefinedError
-from jinja2.environment import Template
+from jinja2 import UndefinedError
 
-type JsonScalar = str | int | bool | None
-type JsonValue = JsonScalar | list[JsonValue] | dict[str, JsonValue]
-type RenderContext = dict[str, JsonValue]
-type ApplicationSurface = Literal["cli", "agent", "gui"]
-
-REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
-README_DIRECTORY = (
-    REPOSITORY_ROOT
-    / "plugins"
-    / "totto2727-coding"
-    / "skills"
-    / "share-artifact"
-    / "readme"
+from tests.share_artifact_readme_fixture import (
+    ARTIFACT_RELATIVE_PATH,
+    DEPENDENCY_CONTEXT,
+    DOCUMENT_TYPE,
+    EXECUTED_OUTPUT,
+    PROVENANCE,
+    REPOSITORY_ROOT,
+    SAMPLE_PATH,
+    SAMPLE_RENDER_CONTEXT,
+    SPEC_PATH,
+    TEMPLATE_PATH,
+    VALIDATION_COMMAND,
+    ApplicationSurface,
+    application_context,
+    read_template,
+    write_fixture_file,
 )
-TEMPLATE_PATH = README_DIRECTORY / "template.md"
-SAMPLE_PATH = README_DIRECTORY / "sample.md"
 
 
-def read_template() -> Template:
-    environment = Environment(
-        undefined=StrictUndefined,
-        keep_trailing_newline=True,
-        trim_blocks=False,
-        lstrip_blocks=False,
-    )
-    return environment.from_string(TEMPLATE_PATH.read_text(encoding="utf-8"))
-
-
-def library_context() -> RenderContext:
-    return {
-        "project_name": "moonbit-fib",
-        "overview": "A small MoonBit Fibonacci library for applications that need an integer sequence primitive.",
-        "entry_scope": "root",
-        "usage_placement": "owned",
-        "usage_surface": "library",
-        "usage_examples": [
-            {
-                "summary": "Calculate the Fibonacci number at position 10 and verify the library returns 55.",
-                "language": "mbt check",
-                "code": 'test "fib usage" {\n  inspect(@fib.fib(10), content="55")\n}',
-            }
-        ],
-        "usage_links": [],
-        "usage_guide": {},
-        "cli_usage_examples": [],
-        "agent_usage_examples": [],
-        "gui_usage": {},
-        "features": [
-            "Small public API",
-            "Supports non-negative `Int` positions on MoonBit targets",
-        ],
-        "prerequisites": [
-            {
-                "name": "MoonBit project",
-                "detail": "Use a project that can consume packages from Mooncakes.",
-            }
-        ],
-        "setup_steps": [
-            {
-                "description": "Add the library dependency to the consuming MoonBit project.",
-                "language": "bash",
-                "command": "moon add example/moonbit-fib",
-            },
-            {
-                "description": "Import the package in the consuming package's `moon.pkg`.",
-                "language": "text",
-                "command": 'import {\n  "example/moonbit-fib" @fib\n}',
-            },
-        ],
-        "api": {
-            "mode": "inline",
-            "entries": [
-                {
-                    "name": "fib",
-                    "summary": "Returns the Fibonacci number at the requested zero-based position.\n\nCallers must pass a non-negative position; negative positions are outside the supported input range.",
-                    "language": "mbt check",
-                    "example": 'test "fib API usage" {\n  inspect(@fib.fib(10), content="55")\n}',
-                }
-            ],
-        },
-        "development_summary": "For project structure and development commands, see [AGENTS.md](./AGENTS.md).",
-        "license": "MIT",
-    }
-
-
-def application_context(surface: ApplicationSurface) -> RenderContext:
-    context = deepcopy(library_context())
-    context.update(
-        {
-            "project_name": "greet-app",
-            "overview": "An application that formats a greeting.",
-            "usage_surface": surface,
-            "usage_examples": [],
-            "setup_steps": [],
-            "temporary_setup_options": [
-                {
-                    "description": "Run the npm package once.",
-                    "language": "bash",
-                    "command": "npx @example/greet-app@1.2.3 Ada",
-                },
-                {
-                    "description": "Run the flake app once.",
-                    "language": "bash",
-                    "command": "nix run github:example/greet-app/0123456789abcdef0123456789abcdef01234567 -- Ada",
-                },
-            ],
-            "persistent_setup_options": [
-                {
-                    "description": "Install from npm.",
-                    "language": "bash",
-                    "command": "npm i -g @example/greet-app@1.2.3",
-                },
-                {
-                    "description": "Install into a Nix profile.",
-                    "language": "bash",
-                    "command": "nix profile add github:example/greet-app/0123456789abcdef0123456789abcdef01234567",
-                },
-            ],
-            "consumer_flake_setup": {
-                "description": "Add the package to a consumer flake.",
-                "code": 'inputs.greet-app.url = "github:example/greet-app/0123456789abcdef0123456789abcdef01234567";\n\noutputs = { self, nixpkgs, greet-app, ... }: {\n  packages.x86_64-linux.default = greet-app.packages.x86_64-linux.default;\n};',
-            },
-        }
-    )
-    match surface:
-        case "cli":
-            context["cli_usage_examples"] = [
-                {
-                    "summary": "Greet Ada.",
-                    "command": "greet Ada",
-                    "result": "Hello, Ada!",
-                }
-            ]
-        case "agent":
-            context["agent_usage_examples"] = [
-                {
-                    "summary": "Ask the installed agent to greet Ada.",
-                    "prompt": "Greet Ada.",
-                    "result": "Hello, Ada!",
-                }
-            ]
-        case "gui":
-            context["gui_usage"] = {
-                "image_alt": "Greeting window showing Hello, Ada!",
-                "image_path": "./docs/greeting.png",
-                "interaction_result": "Enter Ada and select Greet to display Hello, Ada!",
-            }
-        case unreachable:
-            assert_never(unreachable)
-    return context
-
-
-def test_library_sample_is_reproducible_and_dependency_only() -> None:
-    rendered = read_template().render(**library_context())
+def test_library_sample_records_and_reproduces_its_contract() -> None:
+    rendered = read_template().render(**SAMPLE_RENDER_CONTEXT)
 
     assert rendered == SAMPLE_PATH.read_text(encoding="utf-8")
+    assert SPEC_PATH.parent == TEMPLATE_PATH.parent == SAMPLE_PATH.parent
+    assert SPEC_PATH.parent.name == DOCUMENT_TYPE.lower()
+    assert {SPEC_PATH.name, TEMPLATE_PATH.name, SAMPLE_PATH.name} == {
+        "spec.md",
+        "template.md",
+        "sample.md",
+    }
+    for url, repo_path in PROVENANCE:
+        assert url in rendered
+        assert repo_path.resolve().is_relative_to(REPOSITORY_ROOT.resolve())
+        assert repo_path.resolve().is_file()
     assert "moon add example/moonbit-fib" in rendered
     assert "Run without permanent installation" not in rendered
     assert "Install persistently" not in rendered
     assert "Use from a consumer flake" not in rendered
+
+
+def test_sample_moonbit_examples_execute(tmp_path: Path) -> None:
+    module_name, module_version, module_source = DEPENDENCY_CONTEXT
+    manifest = (
+        f'name = "{module_name}"\nversion = "{module_version}"\n'
+        f'source = "{module_source}"\n'
+    )
+    _ = write_fixture_file(tmp_path, Path("moon.mod"), manifest)
+    _ = write_fixture_file(tmp_path, Path("src/moon.pkg"), "")
+    _ = write_fixture_file(
+        tmp_path,
+        Path("src/fib.mbt"),
+        "pub fn fib(n : Int) -> Int {\n  match n {\n    0 => 0\n    1 => 1\n    _ => fib(n - 1) + fib(n - 2)\n  }\n}\n",
+    )
+    _ = write_fixture_file(
+        tmp_path,
+        Path("src/test/moon.pkg"),
+        f'import {{\n  "{module_name}" @fib,\n}} for "test"\n',
+    )
+    artifact_path = write_fixture_file(
+        tmp_path,
+        ARTIFACT_RELATIVE_PATH,
+        read_template().render(**SAMPLE_RENDER_CONTEXT),
+    )
+
+    completed = run(
+        VALIDATION_COMMAND,
+        cwd=tmp_path,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    output = completed.stdout + completed.stderr
+    print(output, end="")
+
+    assert (
+        artifact_path.resolve().relative_to(tmp_path.resolve())
+        == ARTIFACT_RELATIVE_PATH
+    )
+    assert completed.returncode == 0, output
+    for marker in EXECUTED_OUTPUT:
+        assert marker in output
 
 
 @pytest.mark.parametrize("surface", ["cli", "agent", "gui"])
@@ -186,14 +106,11 @@ def test_application_renders_every_supported_acquisition_mode(
     rendered = read_template().render(**application_context(surface))
 
     for expected in (
-        "### Run without permanent installation",
-        "npx @example/greet-app@1.2.3 Ada",
-        "nix run github:example/greet-app/0123456789abcdef0123456789abcdef01234567 -- Ada",
-        "### Install persistently",
-        "npm i -g @example/greet-app@1.2.3",
-        "nix profile add github:example/greet-app/0123456789abcdef0123456789abcdef01234567",
-        "### Use from a consumer flake",
-        "```nix",
+        "npx @example/greet-app Ada",
+        "nix run github:example/greet-app -- Ada",
+        "npm i -g @example/greet-app",
+        "nix profile add github:example/greet-app",
+        'inputs.greet-app.url = "github:example/greet-app";',
     ):
         assert expected in rendered
 
@@ -204,7 +121,7 @@ def test_application_omits_unsupported_persistent_and_flake_modes() -> None:
         {
             "description": "Run the Go command without installing it.",
             "language": "bash",
-            "command": "go run example.com/greet-app@v1.2.3 Ada",
+            "command": "go run example.com/greet-app@latest Ada",
         }
     ]
     context["persistent_setup_options"] = []
@@ -212,18 +129,14 @@ def test_application_omits_unsupported_persistent_and_flake_modes() -> None:
 
     rendered = read_template().render(**context)
 
-    assert "go run example.com/greet-app@v1.2.3 Ada" in rendered
+    assert "go run example.com/greet-app@latest Ada" in rendered
     assert "### Install persistently" not in rendered
     assert "### Use from a consumer flake" not in rendered
 
 
 @pytest.mark.parametrize(
     "missing_key",
-    [
-        "temporary_setup_options",
-        "persistent_setup_options",
-        "consumer_flake_setup",
-    ],
+    ["temporary_setup_options", "persistent_setup_options", "consumer_flake_setup"],
 )
 def test_application_rejects_missing_setup_input(missing_key: str) -> None:
     context = application_context("cli")
@@ -239,13 +152,11 @@ def test_application_without_acquisition_route_states_no_setup() -> None:
     context["persistent_setup_options"] = []
     context["consumer_flake_setup"] = {}
 
-    rendered = read_template().render(**context)
-
-    assert "No setup is required." in rendered
+    assert "No setup is required." in read_template().render(**context)
 
 
 def test_nested_entry_does_not_duplicate_root_setup() -> None:
-    context = library_context()
+    context = deepcopy(SAMPLE_RENDER_CONTEXT)
     context["entry_scope"] = "nested"
     context["usage_placement"] = "linked"
     context["usage_guide"] = {
@@ -262,7 +173,7 @@ def test_nested_entry_does_not_duplicate_root_setup() -> None:
 
 
 def test_invalid_usage_surface_is_rejected() -> None:
-    context = library_context()
+    context = deepcopy(SAMPLE_RENDER_CONTEXT)
     context["usage_surface"] = "service"
 
     with pytest.raises(UndefinedError):
@@ -270,4 +181,4 @@ def test_invalid_usage_surface_is_rejected() -> None:
 
 
 if __name__ == "__main__":
-    raise SystemExit(pytest.main([__file__, "-q"]))
+    raise SystemExit(pytest.main([__file__, "-q", "-s"]))

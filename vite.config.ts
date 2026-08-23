@@ -5,7 +5,7 @@ export default {
   run: {
     tasks: {
       test: {
-        command: "uv run tests/share_artifact_readme_template_test.py",
+        command: "PYTHONPATH=. uv run tests/share_artifact_readme_template_test.py",
       },
     },
   },
