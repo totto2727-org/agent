@@ -122,7 +122,8 @@ No prerequisites.
 
 ## Setup
 
-{# Steps only acquire/install the consumer artifact or declare dependencies, imports, and aliases. Execution, verification, and authentication belong in Usage or another end-user section; repository build/test/operations belong in AGENTS.md. -#}
+{# Libraries use only consumer dependency/import steps. Application surfaces expose every real supported acquisition mode: one-off acquisition such as npx/nix run/moonx/go run, persistent installation such as npm i -g/nix profile add/moon install, and a complete consumer flake.nix when the project exports a usable flake package or app. Omit unsupported modes; never invent a route. Execution results remain in Usage, and repository build/test/operations belong in AGENTS.md. -#}
+{% if usage_surface == "library" -%}
 {% if setup_steps -%}
 {% for step in setup_steps -%}
 {{ loop.index }}. {{ step.description }}
@@ -134,6 +135,50 @@ No prerequisites.
 {% endfor -%}
 {% else -%}
 No setup is required.
+{% endif -%}
+{% elif usage_surface == "cli" or usage_surface == "agent" or usage_surface == "gui" -%}
+{% if temporary_setup_options -%}
+
+### Run without permanent installation
+
+{% for option in temporary_setup_options -%}
+{{ option.description }}
+
+```{{ option.language }}
+{{ option.command }}
+```
+
+{% endfor -%}
+{% endif -%}
+{% if persistent_setup_options -%}
+
+### Install persistently
+
+{% for option in persistent_setup_options -%}
+{{ option.description }}
+
+```{{ option.language }}
+{{ option.command }}
+```
+
+{% endfor -%}
+{% endif -%}
+{% if consumer_flake_setup -%}
+
+### Use from a consumer flake
+
+{{ consumer_flake_setup.description }}
+
+```nix
+{{ consumer_flake_setup.code }}
+```
+
+{% endif -%}
+{% if not temporary_setup_options and not persistent_setup_options and not consumer_flake_setup -%}
+No setup is required.
+{% endif -%}
+{% else -%}
+{{ [] | first }}
 {% endif -%}
 {% endif -%}
 

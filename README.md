@@ -28,13 +28,13 @@ A concise audit summary identifying the user-facing README improvements, develop
 
 ## Setup
 
-1. Install the complete marketplace.
+### Install persistently
+
+Install the marketplace and select the skills to keep enabled in the coding-agent targets managed by `c-plugin`.
 
 ```bash
 c-plugin skill add totto2727-org/agent
 ```
-
-2. Select the installed skills required by your coding-agent workflow.
 
 ## API
 

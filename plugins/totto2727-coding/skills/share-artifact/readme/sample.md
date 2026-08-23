@@ -24,7 +24,7 @@ test "fib usage" {
 
 ## Setup
 
-1. Add the package to the consuming project.
+1. Add the library dependency to the consuming MoonBit project.
 
 ```bash
 moon add example/moonbit-fib
