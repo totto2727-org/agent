@@ -6,7 +6,7 @@ A small MoonBit Fibonacci library for applications that need an integer sequence
 
 Calculate the Fibonacci number at position 10 and verify the library returns 55.
 
-```moonbit
+```mbt check
 test "fib usage" {
   inspect(@fib.fib(10), content="55")
 }
@@ -46,8 +46,8 @@ Returns the Fibonacci number at the requested zero-based position.
 
 Callers must pass a non-negative position; negative positions are outside the supported input range.
 
-```moonbit
-test "fib usage" {
+```mbt check
+test "fib API usage" {
   inspect(@fib.fib(10), content="55")
 }
 ```

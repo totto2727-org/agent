@@ -65,6 +65,14 @@ Set `entry_scope=independent` and `usage_placement=owned` to repeat the full for
 
 Never duplicate commands, examples, feature lists, API prose, Development links, or License text across the README hierarchy. Keep each detail in one source of truth at the nearest owning entrypoint, and use direct relative links from other READMEs. The root may briefly summarize and navigate to package-owned APIs and Usage, while a nested README may own a distinct inline example or link to root Usage or another concrete runnable example; none may copy another entrypoint's source text.
 
+## Executable MoonBit example validation
+
+Authors and reviewers must validate every executable MoonBit README example with a command that actually compiles or tests that exact rendered artifact against the dependency or current-source context it claims. Record the artifact path, command, dependency or source context, and output in the validation fixture and handoff. A successful `moon check README.mbt.md` or similar command that reports `no work to do` is not evidence because it did not compile the example; select a command and package context whose output proves that the artifact participated in the work.
+
+Put imports in the proper package manifest or supported frontmatter dependency metadata. Never place an `import` declaration inside an `mbt check` block to make a README compile. When Setup shows a dependency version, validate against that same version. Alternatively, validate against the current source tree through a test-only dependency and package context whose imports resolve the current implementation without changing consumer Setup.
+
+Compilation or doctest convenience never justifies a duplicate `src/README.mbt.md` or another semantically identical README. Keep the one user-owned artifact and supply its compiler context through test-only dependencies, imports, or package configuration.
+
 After `License` in the full form, or after `API` in the compact `nested` form, append this exact artifact-specific provenance footer without a heading:
 
 ```markdown

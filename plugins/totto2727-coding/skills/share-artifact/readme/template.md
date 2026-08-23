@@ -10,7 +10,7 @@
 
 ## Usage
 
-{# Show a plausible goal, representative input, primary public operation, and user-relevant outcome. Imports, constructors, initialization, ID round trips, and default-field inspection alone do not qualify. Select exactly one surface: library, cli, agent, or gui. -#}
+{# Show a plausible goal, representative input, primary public operation, and user-relevant outcome. Imports, constructors, initialization, ID round trips, and default-field inspection alone do not qualify. Validate executable MoonBit fences against this exact artifact; keep imports in package/frontmatter dependencies, reject no-work evidence, and match Setup versions or current-tree test-only context. Select exactly one surface: library, cli, agent, or gui. -#}
 {% if usage_surface == "library" -%}
 {% if usage_examples -%}
 {% for example in usage_examples -%}
