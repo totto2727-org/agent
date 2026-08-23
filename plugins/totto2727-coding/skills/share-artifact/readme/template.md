@@ -5,8 +5,8 @@
 {# State the end-user outcome, not the repository implementation. -#}
 {{ overview }}
 
-{# Use root for the repository consumer entrypoint, independent only for a genuinely separate consumer entrypoint, and nested for a compact non-duplicating package or directory entry. -#}
-{% if entry_scope == "root" or entry_scope == "independent" -%}
+{# Root and independent entries own Usage. Nested entries must own distinct Usage or link concrete relevant Usage; common setup and project metadata stay at root. -#}
+{% if (entry_scope == "root" or entry_scope == "independent" or entry_scope == "nested") and usage_placement == "owned" -%}
 
 ## Usage
 
@@ -21,11 +21,25 @@
 ```
 
 {% endfor -%}
+{% elif usage_links -%}
+{% if entry_scope == "root" -%}
+Choose the package Usage that matches your goal:
+
+{% for link in usage_links -%}
+
+- [{{ link.title }}]({{ link.path }}): {{ link.summary }}
+
+{% endfor -%}
 {% else -%}
+{{ [] | first }}
+{% endif -%}
+{% elif entry_scope == "root" or entry_scope == "independent" -%}
 {# Link directly to a concrete runnable example; for interface-only libraries, the linked implementation Usage must demonstrate real integration. -#}
 {{ usage_guide.summary }}
 
 See [{{ usage_guide.title }}]({{ usage_guide.path }}).
+{% else -%}
+{{ [] | first }}
 {% endif -%}
 {% elif usage_surface == "cli" -%}
 {% if cli_usage_examples -%}
@@ -72,6 +86,18 @@ Expected result:
 {% else -%}
 {{ [] | first }}
 {% endif -%}
+{% elif entry_scope == "nested" and usage_placement == "linked" -%}
+
+## Usage
+
+{{ usage_guide.summary }}
+
+See [{{ usage_guide.title }}]({{ usage_guide.path }}).
+{% else -%}
+{{ [] | first }}
+{% endif -%}
+
+{% if entry_scope == "root" or entry_scope == "independent" -%}
 
 ## Key features
 
@@ -109,17 +135,6 @@ No prerequisites.
 {% else -%}
 No setup is required.
 {% endif -%}
-{% elif entry_scope == "nested" -%}
-{% if usage_guide -%}
-
-## Usage
-
-{{ usage_guide.summary }}
-
-See [{{ usage_guide.title }}]({{ usage_guide.path }}).
-{% endif %}
-{% else -%}
-{{ [] | first }}
 {% endif -%}
 
 ## API
