@@ -122,7 +122,7 @@ No prerequisites.
 
 ## Setup
 
-{# Libraries use only consumer dependency/import steps. Application surfaces expose every real supported acquisition mode: one-off acquisition such as npx/nix run/moonx/go run, persistent installation such as npm i -g/nix profile add/moon install, and a complete consumer flake.nix when the project exports a usable flake package or app. Pin registry commands to exact versions and Nix sources to immutable revisions or a committed consumer lock; never use latest or a mutable default branch. Omit unsupported modes; never invent a route. Execution results remain in Usage, and repository build/test/operations belong in AGENTS.md. -#}
+{# Libraries use only consumer dependency/import steps. Application surfaces expose every real supported acquisition mode: one-off acquisition such as npx/nix run/moonx/go run, persistent installation such as npm i -g/nix profile add/moon install, and a complete consumer flake.nix when the project exports a usable flake package or app. Omit unsupported modes; never invent a route. Execution results remain in Usage, and repository build/test/operations belong in AGENTS.md. -#}
 {% if usage_surface == "library" -%}
 {% if setup_steps -%}
 {% for step in setup_steps -%}
