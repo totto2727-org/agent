@@ -30,7 +30,7 @@ A concise audit summary identifying the user-facing README improvements, develop
 
 ### Install persistently
 
-Install the marketplace and select the skills to keep enabled in the coding-agent targets managed by `c-plugin`.
+Install the marketplace and select the skills to keep enabled in the coding-agent targets managed by `c-plugin`. The installer resolves the repository commit and records that immutable revision in its lock file.
 
 ```bash
 c-plugin skill add totto2727-org/agent

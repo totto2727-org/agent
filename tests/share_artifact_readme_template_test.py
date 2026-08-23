@@ -115,29 +115,29 @@ def application_context(surface: ApplicationSurface) -> RenderContext:
                 {
                     "description": "Run the npm package once.",
                     "language": "bash",
-                    "command": "npx @example/greet-app Ada",
+                    "command": "npx @example/greet-app@1.2.3 Ada",
                 },
                 {
                     "description": "Run the flake app once.",
                     "language": "bash",
-                    "command": "nix run github:example/greet-app -- Ada",
+                    "command": "nix run github:example/greet-app/0123456789abcdef0123456789abcdef01234567 -- Ada",
                 },
             ],
             "persistent_setup_options": [
                 {
                     "description": "Install from npm.",
                     "language": "bash",
-                    "command": "npm i -g @example/greet-app",
+                    "command": "npm i -g @example/greet-app@1.2.3",
                 },
                 {
                     "description": "Install into a Nix profile.",
                     "language": "bash",
-                    "command": "nix profile add github:example/greet-app",
+                    "command": "nix profile add github:example/greet-app/0123456789abcdef0123456789abcdef01234567",
                 },
             ],
             "consumer_flake_setup": {
                 "description": "Add the package to a consumer flake.",
-                "code": 'inputs.greet-app.url = "github:example/greet-app";\n\noutputs = { self, nixpkgs, greet-app, ... }: {\n  packages.x86_64-linux.default = greet-app.packages.x86_64-linux.default;\n};',
+                "code": 'inputs.greet-app.url = "github:example/greet-app/0123456789abcdef0123456789abcdef01234567";\n\noutputs = { self, nixpkgs, greet-app, ... }: {\n  packages.x86_64-linux.default = greet-app.packages.x86_64-linux.default;\n};',
             },
         }
     )
@@ -187,11 +187,11 @@ def test_application_renders_every_supported_acquisition_mode(
 
     for expected in (
         "### Run without permanent installation",
-        "npx @example/greet-app Ada",
-        "nix run github:example/greet-app -- Ada",
+        "npx @example/greet-app@1.2.3 Ada",
+        "nix run github:example/greet-app/0123456789abcdef0123456789abcdef01234567 -- Ada",
         "### Install persistently",
-        "npm i -g @example/greet-app",
-        "nix profile add github:example/greet-app",
+        "npm i -g @example/greet-app@1.2.3",
+        "nix profile add github:example/greet-app/0123456789abcdef0123456789abcdef01234567",
         "### Use from a consumer flake",
         "```nix",
     ):
@@ -204,7 +204,7 @@ def test_application_omits_unsupported_persistent_and_flake_modes() -> None:
         {
             "description": "Run the Go command without installing it.",
             "language": "bash",
-            "command": "go run example.com/greet-app@latest Ada",
+            "command": "go run example.com/greet-app@v1.2.3 Ada",
         }
     ]
     context["persistent_setup_options"] = []
@@ -212,7 +212,7 @@ def test_application_omits_unsupported_persistent_and_flake_modes() -> None:
 
     rendered = read_template().render(**context)
 
-    assert "go run example.com/greet-app@latest Ada" in rendered
+    assert "go run example.com/greet-app@v1.2.3 Ada" in rendered
     assert "### Install persistently" not in rendered
     assert "### Use from a consumer flake" not in rendered
 
