@@ -117,7 +117,7 @@ SAMPLE_RENDER_CONTEXT: Final[RenderContext] = {
                 "name": "fib",
                 "summary": "Returns the Fibonacci number at the requested zero-based position.\n\nCallers must pass a non-negative position; negative positions are outside the supported input range.",
                 "language": "mbt check",
-                "example": 'test "fib API usage" {\n  inspect(@fib.fib(10), content="55")\n}',
+                "example": 'test "fib API usage" {\n  inspect(@fib.fib(7), content="13")\n}',
             }
         ],
     },
@@ -127,7 +127,7 @@ SAMPLE_RENDER_CONTEXT: Final[RenderContext] = {
 
 
 def setup_option(command: str) -> RenderContext:
-    return {"language": "bash", "command": command}
+    return {"command": command}
 
 
 def application_context(surface: ApplicationSurface) -> RenderContext:

@@ -44,7 +44,7 @@ Callers must pass a non-negative position; negative positions are outside the su
 
 ```mbt check
 test "fib API usage" {
-  inspect(@fib.fib(10), content="55")
+  inspect(@fib.fib(7), content="13")
 }
 ```
 

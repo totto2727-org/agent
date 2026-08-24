@@ -54,9 +54,23 @@ def test_library_sample_records_its_contract_structure() -> None:
     for section in ("# moonbit-fib", "## Usage", "## Setup", "## API", "## License"):
         assert section in rendered
     assert "moon add example/moonbit-fib" in rendered
-    assert "Run without permanent installation" not in rendered
-    assert "Install persistently" not in rendered
-    assert "Use from a consumer flake" not in rendered
+    assert "Run without installing" not in rendered
+    assert "### Install" not in rendered
+    assert "### Nix flake" not in rendered
+
+
+def test_root_readme_keeps_required_c_plugin_initialization_order() -> None:
+    rendered = (REPOSITORY_ROOT / "README.md").read_text(encoding="utf-8")
+    setup = rendered.split("## Setup", 1)[1].split("## API", 1)[0]
+
+    assert setup.count("### Install") == 1
+    assert setup.count("```") == 2
+    assert setup.index("c-plugin init\n") < setup.index(
+        "c-plugin skill add totto2727-org/agent"
+    )
+    assert setup.index("c-plugin init --global") < setup.index(
+        "c-plugin skill add --global totto2727-org/agent"
+    )
 
 
 def test_sample_moonbit_examples_execute(tmp_path: Path) -> None:
@@ -116,6 +130,15 @@ def test_application_renders_every_supported_acquisition_mode(
         CONSUMER_FLAKE_CODE,
     ):
         assert expected in rendered
+    setup = rendered.split("## Setup", 1)[1].split("## API", 1)[0]
+    headings = ("### Run without installing", "### Install", "### Nix flake")
+    for heading, next_heading in zip(headings, (*headings[1:], "")):
+        section = setup.split(heading, 1)[1]
+        if next_heading:
+            section = section.split(next_heading, 1)[0]
+        assert section.count("```") == 2
+        fence = "```nix" if heading == "### Nix flake" else "```bash"
+        assert section.count(fence) == 1
 
 
 def test_consumer_flake_is_complete_and_parses(tmp_path: Path) -> None:
@@ -136,7 +159,6 @@ def test_application_omits_unsupported_persistent_and_flake_modes() -> None:
     context = application_context("cli")
     context["temporary_setup_options"] = [
         {
-            "language": "bash",
             "command": "go run example.com/greet-app@latest Ada",
         }
     ]
@@ -146,8 +168,8 @@ def test_application_omits_unsupported_persistent_and_flake_modes() -> None:
     rendered = read_template().render(**context)
 
     assert "go run example.com/greet-app@latest Ada" in rendered
-    assert "### Install persistently" not in rendered
-    assert "### Use from a consumer flake" not in rendered
+    assert "### Install" not in rendered
+    assert "### Nix flake" not in rendered
 
 
 @pytest.mark.parametrize(
