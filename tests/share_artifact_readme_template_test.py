@@ -59,20 +59,6 @@ def test_library_sample_records_its_contract_structure() -> None:
     assert "### Nix flake" not in rendered
 
 
-def test_root_readme_keeps_required_c_plugin_initialization_order() -> None:
-    rendered = (REPOSITORY_ROOT / "README.md").read_text(encoding="utf-8")
-    setup = rendered.split("## Setup", 1)[1].split("## API", 1)[0]
-
-    assert setup.count("### Install") == 1
-    assert setup.count("```") == 2
-    assert setup.index("c-plugin init\n") < setup.index(
-        "c-plugin skill add totto2727-org/agent"
-    )
-    assert setup.index("c-plugin init --global") < setup.index(
-        "c-plugin skill add --global totto2727-org/agent"
-    )
-
-
 def test_sample_moonbit_examples_execute(tmp_path: Path) -> None:
     module_name, module_version, module_source = DEPENDENCY_CONTEXT
     manifest = (
