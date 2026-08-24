@@ -122,11 +122,14 @@ No prerequisites.
 
 ## Setup
 
-{# Libraries use only consumer dependency/import steps. Application surfaces expose every real supported acquisition mode: one-off acquisition such as npx/nix run/moonx/go run, persistent installation such as npm i -g/nix profile add/moon install, and a complete consumer flake.nix when the project exports a usable flake package or app. Omit unsupported modes; never invent a route. Execution results remain in Usage, and repository build/test/operations belong in AGENTS.md. -#}
+{# Render only supported acquisition commands. Descriptions are optional and belong only when they state a non-obvious, actionable prerequisite or constraint; omit obvious command effects, history, unsupported-route explanations, and maintainer CI/dev-shell/test-target context. Execution results remain in Usage, and repository operations belong in AGENTS.md. -#}
 {% if usage_surface == "library" -%}
 {% if setup_steps -%}
 {% for step in setup_steps -%}
-{{ loop.index }}. {{ step.description }}
+{% if step.description is defined and step.description -%}
+{{ step.description }}
+
+{% endif -%}
 
 ```{{ step.language }}
 {{ step.command }}
@@ -142,7 +145,10 @@ No setup is required.
 ### Run without permanent installation
 
 {% for option in temporary_setup_options -%}
+{% if option.description is defined and option.description -%}
 {{ option.description }}
+
+{% endif -%}
 
 ```{{ option.language }}
 {{ option.command }}
@@ -155,7 +161,10 @@ No setup is required.
 ### Install persistently
 
 {% for option in persistent_setup_options -%}
+{% if option.description is defined and option.description -%}
 {{ option.description }}
+
+{% endif -%}
 
 ```{{ option.language }}
 {{ option.command }}
@@ -167,7 +176,10 @@ No setup is required.
 
 ### Use from a consumer flake
 
+{% if consumer_flake_setup.description is defined and consumer_flake_setup.description -%}
 {{ consumer_flake_setup.description }}
+
+{% endif -%}
 
 ```nix
 {{ consumer_flake_setup.code }}

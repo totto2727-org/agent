@@ -115,6 +115,14 @@ def test_application_renders_every_supported_acquisition_mode(
         CONSUMER_FLAKE_CODE,
     ):
         assert expected in rendered
+    for obvious_description in (
+        "Run the npm package once.",
+        "Run the flake app once.",
+        "Install from npm.",
+        "Install into a Nix profile.",
+        "Add the package to a consumer flake.",
+    ):
+        assert obvious_description not in rendered
 
 
 def test_consumer_flake_is_complete_and_parses(tmp_path: Path) -> None:
@@ -135,7 +143,6 @@ def test_application_omits_unsupported_persistent_and_flake_modes() -> None:
     context = application_context("cli")
     context["temporary_setup_options"] = [
         {
-            "description": "Run the Go command without installing it.",
             "language": "bash",
             "command": "go run example.com/greet-app@latest Ada",
         }

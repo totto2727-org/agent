@@ -106,12 +106,10 @@ SAMPLE_RENDER_CONTEXT: Final[RenderContext] = {
     ],
     "setup_steps": [
         {
-            "description": "Add the library dependency to the consuming MoonBit project.",
             "language": "bash",
             "command": "moon add example/moonbit-fib",
         },
         {
-            "description": "Import the package in the consuming package's `moon.pkg`.",
             "language": "text",
             "command": 'import {\n  "example/moonbit-fib" @fib\n}',
         },
@@ -132,8 +130,8 @@ SAMPLE_RENDER_CONTEXT: Final[RenderContext] = {
 }
 
 
-def setup_option(description: str, command: str) -> RenderContext:
-    return {"description": description, "language": "bash", "command": command}
+def setup_option(command: str) -> RenderContext:
+    return {"language": "bash", "command": command}
 
 
 def application_context(surface: ApplicationSurface) -> RenderContext:
@@ -146,21 +144,14 @@ def application_context(surface: ApplicationSurface) -> RenderContext:
             "usage_examples": [],
             "setup_steps": [],
             "temporary_setup_options": [
-                setup_option("Run the npm package once.", "npx @example/greet-app Ada"),
-                setup_option(
-                    "Run the flake app once.",
-                    "nix run github:example/greet-app -- Ada",
-                ),
+                setup_option("npx @example/greet-app Ada"),
+                setup_option("nix run github:example/greet-app -- Ada"),
             ],
             "persistent_setup_options": [
-                setup_option("Install from npm.", "npm i -g @example/greet-app"),
-                setup_option(
-                    "Install into a Nix profile.",
-                    "nix profile add github:example/greet-app",
-                ),
+                setup_option("npm i -g @example/greet-app"),
+                setup_option("nix profile add github:example/greet-app"),
             ],
             "consumer_flake_setup": {
-                "description": "Add the package to a consumer flake.",
                 "code": CONSUMER_FLAKE_CODE,
             },
             "cli_usage_examples": [

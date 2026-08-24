@@ -24,13 +24,9 @@ test "fib usage" {
 
 ## Setup
 
-1. Add the library dependency to the consuming MoonBit project.
-
 ```bash
 moon add example/moonbit-fib
 ```
-
-2. Import the package in the consuming package's `moon.pkg`.
 
 ```text
 import {
