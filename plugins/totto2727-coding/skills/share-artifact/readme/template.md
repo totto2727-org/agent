@@ -10,7 +10,7 @@
 
 ## Usage
 
-{# Show a plausible goal, representative input, primary public operation, and user-relevant outcome. Imports, constructors, initialization, ID round trips, and default-field inspection alone do not qualify. Validate executable MoonBit fences against this exact artifact; keep imports in package/frontmatter dependencies, reject no-work evidence, and match Setup versions or current-tree test-only context. Select exactly one surface: library, cli, agent, or gui. -#}
+{# Show a plausible goal, representative input, primary public operation, and user-relevant outcome. Do not narrate obvious one-shot command semantics such as "run once" or "without installing"; retain only user value, observable results, and actionable runtime constraints. Imports, constructors, initialization, ID round trips, and default-field inspection alone do not qualify. Validate executable MoonBit fences against this exact artifact; keep imports in package/frontmatter dependencies, reject no-work evidence, use existing meaningful or disposable validation context, and never add permanent documentation-only test scaffolding. Match Setup versions or current-tree context. Select exactly one surface: library, cli, agent, or gui. -#}
 {% if usage_surface == "library" -%}
 {% if usage_examples -%}
 {% for example in usage_examples -%}
@@ -122,10 +122,14 @@ No prerequisites.
 
 ## Setup
 
-{# Steps only acquire/install the consumer artifact or declare dependencies, imports, and aliases. Execution, verification, and authentication belong in Usage or another end-user section; repository build/test/operations belong in AGENTS.md. -#}
+{# Render only supported acquisition commands. Descriptions are optional and belong only when they state a non-obvious, actionable prerequisite or constraint; omit obvious command effects, history, unsupported-route explanations, and maintainer CI/dev-shell/test-target context. Execution results remain in Usage, and repository operations belong in AGENTS.md. -#}
+{% if usage_surface == "library" -%}
 {% if setup_steps -%}
 {% for step in setup_steps -%}
-{{ loop.index }}. {{ step.description }}
+{% if step.description is defined and step.description -%}
+{{ step.description }}
+
+{% endif -%}
 
 ```{{ step.language }}
 {{ step.command }}
@@ -134,6 +138,59 @@ No prerequisites.
 {% endfor -%}
 {% else -%}
 No setup is required.
+{% endif -%}
+{% elif usage_surface == "cli" or usage_surface == "agent" or usage_surface == "gui" -%}
+{% if temporary_setup_options -%}
+
+### Run without permanent installation
+
+{% for option in temporary_setup_options -%}
+{% if option.description is defined and option.description -%}
+{{ option.description }}
+
+{% endif -%}
+
+```{{ option.language }}
+{{ option.command }}
+```
+
+{% endfor -%}
+{% endif -%}
+{% if persistent_setup_options -%}
+
+### Install persistently
+
+{% for option in persistent_setup_options -%}
+{% if option.description is defined and option.description -%}
+{{ option.description }}
+
+{% endif -%}
+
+```{{ option.language }}
+{{ option.command }}
+```
+
+{% endfor -%}
+{% endif -%}
+{% if consumer_flake_setup -%}
+
+### Use from a consumer flake
+
+{% if consumer_flake_setup.description is defined and consumer_flake_setup.description -%}
+{{ consumer_flake_setup.description }}
+
+{% endif -%}
+
+```nix
+{{ consumer_flake_setup.code }}
+```
+
+{% endif -%}
+{% if not temporary_setup_options and not persistent_setup_options and not consumer_flake_setup -%}
+No setup is required.
+{% endif -%}
+{% else -%}
+{{ [] | first }}
 {% endif -%}
 {% endif -%}
 

@@ -28,6 +28,7 @@ vite.config.ts                          Repository formatting configuration
 
 - `nix develop` — Enter the pinned Node.js and Vite+ development environment.
 - `vp check` — Run the repository formatting and validation checks used by CI.
+- `vp run test` — Reproduce the share-artifact README sample, execute its MoonBit examples, and exercise every Setup branch under Jinja StrictUndefined.
 - `c-plugin dev marketplace sync claude` — Regenerate Cursor and Codex marketplace manifests from the Claude manifest.
 - `git diff --check` — Reject whitespace errors before handoff.
 
