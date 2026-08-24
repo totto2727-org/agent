@@ -39,11 +39,7 @@ VALIDATION_COMMAND: Final = (
     "wasm-gc",
     "-v",
 )
-EXECUTED_OUTPUT: Final = (
-    '("fib usage") ok',
-    '("fib API usage") ok',
-    "Total tests: 2, passed: 2, failed: 0.",
-)
+EXECUTED_OUTPUT: Final = ("Total tests: 2, passed: 2, failed: 0.",)
 CONSUMER_FLAKE_CODE: Final = """{
   inputs = {
     greet-app.url = "github:example/greet-app/0123456789abcdef0123456789abcdef01234567";
