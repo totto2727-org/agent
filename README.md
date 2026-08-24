@@ -32,17 +32,15 @@ A concise audit summary identifying the user-facing README improvements, develop
 
 Choose the scope where `c-plugin` should install and enable the marketplace's skills.
 
-For the current project, initialize project-local state and add the marketplace:
+For the current project, add the marketplace:
 
 ```bash
-c-plugin init
 c-plugin skill add totto2727-org/agent
 ```
 
-For all projects using the current home directory, initialize global state and add the marketplace globally:
+For all projects using the current home directory, add the marketplace globally:
 
 ```bash
-c-plugin init --global
 c-plugin skill add --global totto2727-org/agent
 ```
 
