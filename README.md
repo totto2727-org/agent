@@ -20,7 +20,7 @@ A concise audit summary identifying the user-facing README improvements, develop
 
 - One plugin catalog distributed to Claude Code, Cursor, and Codex
 - General-purpose, coding, external-search, and Symphony workflow plugins
-- Skills installed through `c-plugin` for project-local or global use
+- Skills installed through `c-plugin`
 
 ## Prerequisites
 
@@ -31,10 +31,7 @@ A concise audit summary identifying the user-facing README improvements, develop
 ### Install
 
 ```bash
-c-plugin init
 c-plugin skill add totto2727-org/agent
-c-plugin init --global
-c-plugin skill add --global totto2727-org/agent
 ```
 
 ## API
