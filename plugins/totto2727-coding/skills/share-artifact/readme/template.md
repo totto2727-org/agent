@@ -122,7 +122,7 @@ No prerequisites.
 
 ## Setup
 
-{# Render only supported acquisition commands. Descriptions are optional and belong only when they state a non-obvious, actionable prerequisite or constraint; omit obvious command effects, history, unsupported-route explanations, and maintainer CI/dev-shell/test-target context. Execution results remain in Usage, and repository operations belong in AGENTS.md. -#}
+{# Render only supported acquisition commands. Applications group each populated command list into one bash block under exactly one of Run without installing or Install, and render one nix block under Nix flake. Alternatives are parallel, never numbered. Omit obvious command effects, history, unsupported-route explanations, and maintainer CI/dev-shell/test-target context. Execution results remain in Usage, with one representative route per goal. -#}
 {% if usage_surface == "library" -%}
 {% if setup_steps -%}
 {% for step in setup_steps -%}
@@ -142,44 +142,29 @@ No setup is required.
 {% elif usage_surface == "cli" or usage_surface == "agent" or usage_surface == "gui" -%}
 {% if temporary_setup_options -%}
 
-### Run without permanent installation
+### Run without installing
 
+```bash
 {% for option in temporary_setup_options -%}
-{% if option.description is defined and option.description -%}
-{{ option.description }}
-
-{% endif -%}
-
-```{{ option.language }}
 {{ option.command }}
+{% endfor -%}
 ```
 
-{% endfor -%}
 {% endif -%}
 {% if persistent_setup_options -%}
 
-### Install persistently
+### Install
 
+```bash
 {% for option in persistent_setup_options -%}
-{% if option.description is defined and option.description -%}
-{{ option.description }}
-
-{% endif -%}
-
-```{{ option.language }}
 {{ option.command }}
+{% endfor -%}
 ```
 
-{% endfor -%}
 {% endif -%}
 {% if consumer_flake_setup -%}
 
-### Use from a consumer flake
-
-{% if consumer_flake_setup.description is defined and consumer_flake_setup.description -%}
-{{ consumer_flake_setup.description }}
-
-{% endif -%}
+### Nix flake
 
 ```nix
 {{ consumer_flake_setup.code }}

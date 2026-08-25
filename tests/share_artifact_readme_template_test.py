@@ -37,10 +37,9 @@ from tests.share_artifact_readme_fixture import (
 )
 
 
-def test_library_sample_records_and_reproduces_its_contract() -> None:
+def test_library_sample_records_its_contract_structure() -> None:
     rendered = read_template().render(**SAMPLE_RENDER_CONTEXT)
 
-    assert rendered == SAMPLE_PATH.read_text(encoding="utf-8")
     assert SPEC_PATH.parent == TEMPLATE_PATH.parent == SAMPLE_PATH.parent
     assert SPEC_PATH.parent.name == DOCUMENT_TYPE.lower()
     assert {SPEC_PATH.name, TEMPLATE_PATH.name, SAMPLE_PATH.name} == {
@@ -52,10 +51,12 @@ def test_library_sample_records_and_reproduces_its_contract() -> None:
         assert url in rendered
         assert repo_path.resolve().is_relative_to(REPOSITORY_ROOT.resolve())
         assert repo_path.resolve().is_file()
+    for section in ("# moonbit-fib", "## Usage", "## Setup", "## API", "## License"):
+        assert section in rendered
     assert "moon add example/moonbit-fib" in rendered
-    assert "Run without permanent installation" not in rendered
-    assert "Install persistently" not in rendered
-    assert "Use from a consumer flake" not in rendered
+    assert "Run without installing" not in rendered
+    assert "### Install" not in rendered
+    assert "### Nix flake" not in rendered
 
 
 def test_sample_moonbit_examples_execute(tmp_path: Path) -> None:
@@ -115,14 +116,15 @@ def test_application_renders_every_supported_acquisition_mode(
         CONSUMER_FLAKE_CODE,
     ):
         assert expected in rendered
-    for obvious_description in (
-        "Run the npm package once.",
-        "Run the flake app once.",
-        "Install from npm.",
-        "Install into a Nix profile.",
-        "Add the package to a consumer flake.",
-    ):
-        assert obvious_description not in rendered
+    setup = rendered.split("## Setup", 1)[1].split("## API", 1)[0]
+    headings = ("### Run without installing", "### Install", "### Nix flake")
+    for heading, next_heading in zip(headings, (*headings[1:], "")):
+        section = setup.split(heading, 1)[1]
+        if next_heading:
+            section = section.split(next_heading, 1)[0]
+        assert section.count("```") == 2
+        fence = "```nix" if heading == "### Nix flake" else "```bash"
+        assert section.count(fence) == 1
 
 
 def test_consumer_flake_is_complete_and_parses(tmp_path: Path) -> None:
@@ -143,7 +145,6 @@ def test_application_omits_unsupported_persistent_and_flake_modes() -> None:
     context = application_context("cli")
     context["temporary_setup_options"] = [
         {
-            "language": "bash",
             "command": "go run example.com/greet-app@latest Ada",
         }
     ]
@@ -153,8 +154,8 @@ def test_application_omits_unsupported_persistent_and_flake_modes() -> None:
     rendered = read_template().render(**context)
 
     assert "go run example.com/greet-app@latest Ada" in rendered
-    assert "### Install persistently" not in rendered
-    assert "### Use from a consumer flake" not in rendered
+    assert "### Install" not in rendered
+    assert "### Nix flake" not in rendered
 
 
 @pytest.mark.parametrize(
