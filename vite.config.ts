@@ -1,9 +1,6 @@
 export default {
   fmt: {
-    ignorePatterns: [
-      "plugins/*/skills/docs-*/**",
-      "plugins/totto2727-coding/skills/share-artifact/agents/template.md",
-    ],
+    ignorePatterns: ["plugins/totto2727-coding/skills/share-artifact/agents/template.md"],
   },
   run: {
     tasks: {
