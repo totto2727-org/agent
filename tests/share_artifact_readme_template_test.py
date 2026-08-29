@@ -40,6 +40,7 @@ from tests.share_artifact_readme_fixture import (
 def test_library_sample_records_its_contract_structure() -> None:
     rendered = read_template().render(**SAMPLE_RENDER_CONTEXT)
 
+    assert rendered == SAMPLE_PATH.read_text(encoding="utf-8")
     assert SPEC_PATH.parent == TEMPLATE_PATH.parent == SAMPLE_PATH.parent
     assert SPEC_PATH.parent.name == DOCUMENT_TYPE.lower()
     assert {SPEC_PATH.name, TEMPLATE_PATH.name, SAMPLE_PATH.name} == {

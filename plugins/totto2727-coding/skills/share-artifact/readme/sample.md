@@ -15,7 +15,6 @@ test "fib usage" {
 ## Key features
 
 - Small public API
-
 - Supports non-negative `Int` positions on MoonBit targets
 
 ## Prerequisites
