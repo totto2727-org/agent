@@ -36,6 +36,7 @@ Choose the package Usage that matches your goal:
 {{ usage_guide.summary }}
 
 See [{{ usage_guide.title }}]({{ usage_guide.path }}).
+
 {% else -%}
 {{ [] | first }}
 {% endif -%}
@@ -111,6 +112,7 @@ See [{{ usage_guide.title }}]({{ usage_guide.path }}).
 {% endfor %}
 {% else -%}
 No prerequisites.
+
 {% endif -%}
 
 ## Setup

@@ -180,6 +180,30 @@ def test_application_without_acquisition_route_states_no_setup() -> None:
     assert "No setup is required." in read_template().render(**context)
 
 
+def test_no_prerequisites_paragraph_keeps_blank_line_before_setup() -> None:
+    context = deepcopy(SAMPLE_RENDER_CONTEXT)
+    context["prerequisites"] = []
+
+    rendered = read_template().render(**context)
+
+    assert "No prerequisites.\n\n## Setup" in rendered
+
+
+def test_usage_guide_paragraph_keeps_blank_line_before_key_features() -> None:
+    context = deepcopy(SAMPLE_RENDER_CONTEXT)
+    context["usage_examples"] = []
+    context["usage_links"] = []
+    context["usage_guide"] = {
+        "summary": "Use the complete guide.",
+        "title": "Usage guide",
+        "path": "./docs/usage.md",
+    }
+
+    rendered = read_template().render(**context)
+
+    assert "See [Usage guide](./docs/usage.md).\n\n## Key features" in rendered
+
+
 def test_nested_entry_does_not_duplicate_root_setup() -> None:
     context = deepcopy(SAMPLE_RENDER_CONTEXT)
     context["entry_scope"] = "nested"
