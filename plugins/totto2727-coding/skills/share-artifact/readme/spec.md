@@ -34,6 +34,8 @@ Set `entry_scope` to `root`, `independent`, or `nested`, and set `usage_placemen
 
 The full minimum form may be extended with purpose-specific end-user sections, provided the required sections remain in this order, `License` stays the final section, and the extension does not introduce developer, contributor, AI, or internal-operation guidance. A `nested` entry follows the compact form defined in the hierarchy policy below. An extension must not replace the sibling template or sample with an old role-based template path.
 
+Render consecutive single-paragraph bullet items as a tight list without blank lines between items. Keep one blank line before and after the list so adjacent headings, paragraphs, and code blocks remain distinct.
+
 ## Setup policy
 
 `Setup` is the smallest supported acquisition or installation path that lets an end user use the project from a consumer environment. It contains only acquisition, installation, dependency declarations, imports, and aliases. Prefer a registry or package-manager dependency, an install command, a published release artifact, or a supported project-creation mechanism such as a repository template.

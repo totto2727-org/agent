@@ -26,10 +26,8 @@
 Choose the package Usage that matches your goal:
 
 {% for link in usage_links -%}
-
 - [{{ link.title }}]({{ link.path }}): {{ link.summary }}
-
-{% endfor -%}
+{% endfor %}
 {% else -%}
 {{ [] | first }}
 {% endif -%}
@@ -38,6 +36,7 @@ Choose the package Usage that matches your goal:
 {{ usage_guide.summary }}
 
 See [{{ usage_guide.title }}]({{ usage_guide.path }}).
+
 {% else -%}
 {{ [] | first }}
 {% endif -%}
@@ -102,22 +101,18 @@ See [{{ usage_guide.title }}]({{ usage_guide.path }}).
 ## Key features
 
 {% for feature in features -%}
-
 - {{ feature }}
-
-{% endfor -%}
-
+{% endfor %}
 ## Prerequisites
 
 {# Include only consumer requirements that must be satisfied before setup. Put constraints and error behavior in Usage, API, or a purpose-specific end-user section. -#}
 {% if prerequisites -%}
 {% for prerequisite in prerequisites -%}
-
 - **{{ prerequisite.name }}**: {{ prerequisite.detail }}
-
-{% endfor -%}
+{% endfor %}
 {% else -%}
 No prerequisites.
+
 {% endif -%}
 
 ## Setup

@@ -40,6 +40,7 @@ from tests.share_artifact_readme_fixture import (
 def test_library_sample_records_its_contract_structure() -> None:
     rendered = read_template().render(**SAMPLE_RENDER_CONTEXT)
 
+    assert rendered == SAMPLE_PATH.read_text(encoding="utf-8")
     assert SPEC_PATH.parent == TEMPLATE_PATH.parent == SAMPLE_PATH.parent
     assert SPEC_PATH.parent.name == DOCUMENT_TYPE.lower()
     assert {SPEC_PATH.name, TEMPLATE_PATH.name, SAMPLE_PATH.name} == {
@@ -177,6 +178,30 @@ def test_application_without_acquisition_route_states_no_setup() -> None:
     context["consumer_flake_setup"] = {}
 
     assert "No setup is required." in read_template().render(**context)
+
+
+def test_no_prerequisites_paragraph_keeps_blank_line_before_setup() -> None:
+    context = deepcopy(SAMPLE_RENDER_CONTEXT)
+    context["prerequisites"] = []
+
+    rendered = read_template().render(**context)
+
+    assert "No prerequisites.\n\n## Setup" in rendered
+
+
+def test_usage_guide_paragraph_keeps_blank_line_before_key_features() -> None:
+    context = deepcopy(SAMPLE_RENDER_CONTEXT)
+    context["usage_examples"] = []
+    context["usage_links"] = []
+    context["usage_guide"] = {
+        "summary": "Use the complete guide.",
+        "title": "Usage guide",
+        "path": "./docs/usage.md",
+    }
+
+    rendered = read_template().render(**context)
+
+    assert "See [Usage guide](./docs/usage.md).\n\n## Key features" in rendered
 
 
 def test_nested_entry_does_not_duplicate_root_setup() -> None:
