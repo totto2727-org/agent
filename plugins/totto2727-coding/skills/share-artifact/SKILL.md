@@ -1,18 +1,18 @@
 ---
 name: share-artifact
 description: >-
-  Route README, AGENTS, and ADR authoring or review to the matching
-  specification, Jinja template, and sample. Use for creating or reviewing
-  README files, AGENTS.md guidance, or architecture decision records; do not
-  use for implementation or test workflows.
+  Specifications and Jinja forms for README, AGENTS.md, and ADR authoring or review.
 ---
 
 # Share artifact
 
-## Selection rule
+## Resource selection
 
-For a README, AGENTS, or ADR request, open the selected `spec.md`, use its `template.md`, and compare the result with `sample.md`.
-Read the internal contract that matches any specification, template, or sample maintenance task.
+Select only the document slice relevant to the request.
+Its specification defines meaning and invariants, its Jinja template defines rendered form, and its sample demonstrates that form.
+For a small edit, consult the applicable rule rather than loading every sibling resource.
+Template changes require the matching sample and reproducibility checks; internal contracts apply only when maintaining these resources.
+The model owns the investigation, editing, and validation sequence within those constraints.
 
 ## Table of contents
 

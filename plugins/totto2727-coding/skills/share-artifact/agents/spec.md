@@ -1,6 +1,6 @@
 # AGENTS specification
 
-This specification defines the AI-agent and developer-facing document. Its companion minimum form is [template.md](template.md), and [sample.md](sample.md) is a concrete rendered output. Read this specification before rendering or extending the template.
+This specification defines the AI-agent and developer-facing document. Its companion minimum form is [template.md](template.md), and [sample.md](sample.md) is a concrete rendered output. Use the applicable constraints when authoring or reviewing repository guidance.
 
 ## Audience and decision rule
 
@@ -16,18 +16,36 @@ This specification defines the AI-agent and developer-facing document. Its compa
 
 ## Required output and minimum order
 
-Render the sibling [template.md](template.md) as `AGENTS.md`. The minimum form uses this order:
+Render the sibling [template.md](template.md) as `AGENTS.md` with a project title and the provenance footer below.
+Between them, include only relevant repository-specific context, in this order when present:
 
-1. Project title
-2. Repository structure
-3. Development commands, including execution rules and standard tasks
-4. Architecture
-5. Development tools
-6. Package-specific rules when applicable
+1. Repository structure: selected non-obvious paths, not an exhaustive tree
+2. Development commands: execution rules and standard tasks, independently optional when genuinely inapplicable
+3. Architecture: boundaries or invariants that affect safe changes
+4. Development tools: non-obvious behavior not already explained by commands
+5. Package-specific rules when applicable
+6. Task-specific documentation: conditional navigation to detailed sources
 7. MoonBit README maintenance when applicable
-8. Artifact-specific provenance footer
 
-The minimum form may be extended with repository-specific AI and developer sections, provided the required sections stay ordered, the extension does not become an end-user getting-started guide, and it retains the sibling [template.md](template.md) and [sample.md](sample.md) as the current authoring references.
+Omit irrelevant sections instead of filling headings with generic advice.
+Do not omit applicable safety boundaries, environment requirements, working directories, or actual build, test, and operation commands merely to shorten the document.
+Keep commands exact, including required flags, targets, and prerequisites; their descriptions explain applicability rather than requiring every task for every edit.
+Do not invent an always-read checklist or a run-full-tests workflow.
+The model chooses its investigation and validation scope within the repository's actual operational constraints.
+
+Use task-specific documentation links when detailed guidance has a separate owner.
+Each link states when it is relevant and points directly to the maintained source, rather than requiring all linked documents to be read for every task.
+Keep shared safety and execution constraints visible in AGENTS even when detail is delegated.
+
+The minimum form may be extended with justified repository-specific AI and developer sections, provided present sections stay ordered and the extension does not become an end-user getting-started guide.
+
+### Render context and validation
+
+Supply `project_name`, `repository_structure`, `execution_rules`, `standard_tasks`, `architecture_sections`, `development_tools`, `package_rules`, `documentation_links`, and `is_moonbit` explicitly.
+Use an empty string for irrelevant repository structure, empty lists for irrelevant collections, and a boolean for `is_moonbit` (reject strings, numbers, null, and collections); empty content is intentional, while a missing key is a render error under Jinja `StrictUndefined`.
+Task entries contain `command` and `description`, architecture entries contain `title` and `items`, tool entries contain `name` and `description`, and documentation links contain `when`, `title`, and `path`.
+In this skill's authoring repository, the named fixture `tests/share_artifact_agents_fixture.py` records sample context and provenance paths; `tests/share_artifact_agents_template_test.py` checks byte-reproducibility, empty and populated sections, conditional navigation, MoonBit branches, and missing context under `StrictUndefined` with `keep_trailing_newline=True`.
+These fixture paths are authoring-repository validation resources, not files required in an installed skill or a consuming project.
 
 Render consecutive single-paragraph bullet items as a tight list without blank lines between items. Keep one blank line before and after the list so adjacent headings and paragraphs remain distinct.
 
@@ -49,13 +67,12 @@ The repository-root `AGENTS.md` is the canonical shared AI context. Create a pac
 
 For content serving both audiences, keep the detailed version with its primary audience and add a short relative link elsewhere. For example, AGENTS may link to `./README.md#setup` for consumer installation, while README may link to `./AGENTS.md#development-commands` for repository development commands. End-user CLI commands and generated help remain governed by the README specification; AGENTS documents only commands for modifying, building, testing, or operating the repository.
 
-When updating an existing project:
+Updates preserve these invariants:
 
-1. Read its existing `README.md`, root `AGENTS.md`, and relevant package `AGENTS.md` files first.
-2. Classify the proposed content with the table and AI-agent test.
-3. Update the root or the unique package document without duplicating shared rules.
-4. Split cross-audience content with the shared-content link rule.
-5. Preserve valid local links, preserve the `CLAUDE.md -> AGENTS.md` alias, and use the sibling [template.md](template.md) and [sample.md](sample.md) as the current references.
+- Existing repository-specific constraints and applicable package rules remain authoritative unless the requested change supersedes them.
+- Shared rules have one owner at the root; package documents contain only unique local context.
+- Cross-audience content retains the shared-content link rule and valid local links.
+- The `CLAUDE.md -> AGENTS.md` alias remains intact, and the sibling [template.md](template.md) and [sample.md](sample.md) remain the authoring references.
 
 ## Corrections for common mistakes
 
