@@ -3,7 +3,8 @@ name: share-coding
 description: >-
   Language-independent coding philosophy for production code. Use before a
   language-specific coding skill when reasoning about types, effects, naming,
-  boundaries, abstractions, readability, or change scope. Do not use for test
+  boundaries, abstractions, readability, change scope, or scheduled and periodic
+  task design (cron jobs, recurring jobs, and polling). Do not use for test
   implementation or language-specific APIs.
 ---
 
@@ -99,6 +100,10 @@ Keep a wrapper only when it owns a real invariant, reusable policy, or typed bou
 ## Domain boundaries
 
 Place discovery, resolution, and domain rules in the library that owns the concept. Entry points request resolved domain values rather than reimplementing filesystem walks, lookup rules, or naming policies.
+
+## Scheduling
+
+- [`scheduling.md`](references/scheduling.md) — read before implementing or changing scheduled jobs, periodic tasks, or polling loops; define timing, restart, overlap, missed-run, and retry semantics before selecting a scheduler.
 
 ## Concrete implementation skills
 

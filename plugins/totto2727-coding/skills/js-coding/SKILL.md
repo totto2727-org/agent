@@ -2,7 +2,8 @@
 name: js-coding
 description: >-
   Index of concrete TypeScript production-code practices for this repository.
-  Use for Effect, Hono, Remix, or @totto2727/fp implementation. Apply
+  Use for browser Enter-to-submit and IME handling, Effect, Hono, Remix,
+  or @totto2727/fp implementation. Apply
   share-coding first for language-independent philosophy. Use js-test for
   executable tests.
 ---
@@ -32,6 +33,10 @@ All references below are concrete TypeScript implementation guidance or an expli
 - [`hono-subapp.md`](references/hono-subapp.md) — sub-application construction.
 - [`hono-errors.md`](references/hono-errors.md) — HTTP error types.
 - [`hono-ordering.md`](references/hono-ordering.md) — middleware registration order.
+
+## Browser input
+
+- [`ime-safe-enter-submit.md`](references/ime-safe-enter-submit.md) — read when adding or changing custom Enter-to-submit behavior, or fixing premature submission during IME conversion; routes to official Modern Web Guidance.
 
 ## Remix
 
