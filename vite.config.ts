@@ -8,7 +8,8 @@ export default {
   run: {
     tasks: {
       test: {
-        command: "PYTHONPATH=. uv run tests/share_artifact_readme_template_test.py",
+        command:
+          "PYTHONPATH=. uv run tests/share_artifact_readme_template_test.py && PYTHONPATH=. uv run tests/share_artifact_agents_template_test.py",
       },
     },
   },

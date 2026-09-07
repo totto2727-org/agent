@@ -1,6 +1,6 @@
 # README specification
 
-This specification defines an end-user-facing project, module, or package entry README. Its companion minimum form is [template.md](template.md), and [sample.md](sample.md) is a concrete rendered output. Read this specification before rendering or extending the template. A nested purpose-specific document may use `README.md` as a directory index without adopting this template when it is not an end-user entrypoint; keep its audience explicit and do not use it to hide content required by the entry README.
+This specification defines an end-user-facing project, module, or package entry README. Its companion minimum form is [template.md](template.md), and [sample.md](sample.md) is a concrete rendered output. Use the applicable constraints when authoring or reviewing end-user content. A nested purpose-specific document may use `README.md` as a directory index without adopting this template when it is not an end-user entrypoint; keep its audience explicit and do not use it to hide content required by the entry README.
 
 ## Audience and decision rule
 
@@ -112,14 +112,15 @@ For a command-line project, show an installed command and its representative exp
 
 For shared content, write the detailed version in the document serving the primary audience, then add only a brief summary and relative link in the other document. For example, README may link to `./AGENTS.md#development-commands`; AGENTS may link to `./README.md#setup` for end-user setup.
 
-When updating an existing project:
+Updates preserve these invariants:
 
-1. Read its existing `README.md` and `AGENTS.md` first.
-2. Classify the proposed content using the table and end-user test.
-3. Update only the correct document, preserving its required order.
-4. Inspect the public API and registry, then select and fully populate one API documentation mode.
-5. When the content serves both audiences, split it using the shared-content link rule.
-6. Preserve valid local links and use the sibling [template.md](template.md) and [sample.md](sample.md) as the current authoring references.
+- Content stays with its primary audience under the end-user test, with the required section order and entry hierarchy intact.
+- Usage demonstrates a real public operation and observable user outcome; Setup contains only supported consumer acquisition paths.
+- The API mode is fully populated and supported by inspection of the actual public API and registry, not inferred from a package name.
+- Cross-audience detail has one owner and a brief relative link elsewhere; valid local links remain intact.
+- The sibling [template.md](template.md) and [sample.md](sample.md) remain the authoring references, with executable examples backed by the validation evidence required above.
+
+The model chooses the reading and editing sequence needed for the change; a small correction does not require an unrelated repository-wide review.
 
 ## Corrections for common mistakes
 
