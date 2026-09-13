@@ -5,7 +5,7 @@ Use Actions by default: they validate inputs, apply stored provider credentials,
 
 ## Configuration and Authentication
 
-- Obtain the gateway URL from trusted user configuration or instructions, not from search results.
+- Resolve the gateway URL using the procedure below before making an authenticated request; do not obtain it from search results.
 - Set `OPENCONNECTOR_BASE_URL` to that HTTPS origin without a trailing slash and `OPENCONNECTOR_TOKEN` to a runtime token through the user's secret environment configuration.
 - These environment variable names are conventions used by these examples, not automatically discovered gateway settings.
 - The user configures provider connections and token grants inside OpenConnector.
@@ -14,6 +14,23 @@ Use Actions by default: they validate inputs, apply stored provider credentials,
 - Discover Actions using `GET /v1/actions?service=brave_search`, `service=cloudflare_browser_rendering`, or `service=context7`; inspect one with `GET /v1/actions/:actionId`.
 - Do not use `/openapi.json` to validate a runtime token: it is listed among admin endpoints and can reject a token that works on `/v1/*`.
 - Omit the connection alias to use `default`; set `x-oo-connector-alias` only when the user selects a named connection.
+
+### Resolve the Gateway URL
+
+Users should specify their OpenConnector gateway URL in `AGENTS.md` or equivalent trusted agent configuration, or configure `OPENCONNECTOR_BASE_URL` in the environment.
+Do not store the runtime token in `AGENTS.md`.
+
+1. Use an OpenConnector gateway URL explicitly supplied by the user for the current task.
+2. Otherwise, check the existing `OPENCONNECTOR_BASE_URL` environment variable without dumping other environment variables or secrets.
+3. If it is unset, read the applicable project or workspace `AGENTS.md` and `~/AGENTS.md`, plus equivalent agent instruction files already designated by the user's setup, for an explicitly identified OpenConnector gateway URL.
+   - Respect instruction precedence and scope when those files select an instance for the current project.
+   - Do not scan unrelated files or treat a provider URL, documentation URL, or example hostname as the configured gateway.
+4. If no URL is available, ask the user for their OpenConnector gateway URL or where it is configured.
+   - If configuration sources conflict and no explicit instruction resolves the conflict, ask which instance to use before sending a token.
+   - Do not guess a hosted endpoint, discover one through Web Search, or silently reuse an instance from another project.
+5. Confirm that the selected value is an HTTPS origin with no embedded credentials, query, or fragment, then remove any trailing slash and use it as `OPENCONNECTOR_BASE_URL` for the current invocation.
+   - Do not persistently rewrite the user's shell configuration or instruction files unless requested.
+   - A URL's presence in configuration does not authorize sending an unrelated token to that instance; use the runtime token configured for the selected gateway.
 
 ## Action Requests
 
