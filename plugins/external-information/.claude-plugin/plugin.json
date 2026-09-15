@@ -7,14 +7,5 @@
     "url": "https://github.com/totto2727",
     "email": "kaihatu.totto2727@gmail.com"
   },
-  "skills": "./skills/",
-  "interface": {
-    "displayName": "External Information",
-    "shortDescription": "Access external APIs and research information.",
-    "longDescription": "A shared OpenConnector foundation with web-search and doc-search skills, including GitHub and Linear API operations.",
-    "developerName": "totto2727",
-    "category": "Productivity",
-    "capabilities": [],
-    "defaultPrompt": "Use OpenConnector to access external information for this task."
-  }
+  "skills": "./skills/"
 }

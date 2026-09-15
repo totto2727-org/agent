@@ -9,19 +9,20 @@
 
 ### Standard tasks
 
-| Command                                | Scope                                                                                            |
-| -------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| `nix develop --command vp check`       | Formatting and validation used by CI.                                                            |
-| `nix develop --command vp run test`    | README and AGENTS template rendering contracts, including executable MoonBit README examples.    |
-| `c-plugin dev marketplace sync claude` | Regenerate Cursor and Codex marketplace manifests after changing marketplace or plugin metadata. |
-| `git diff --check`                     | Whitespace errors in the current diff.                                                           |
+| Command                                | Scope                                                                                                        |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `nix develop --command vp check`       | Formatting and validation used by CI.                                                                        |
+| `nix develop --command vp run test`    | README and AGENTS rendering contracts, MoonBit README examples, and external-information platform manifests. |
+| `c-plugin dev marketplace sync claude` | Regenerate Cursor and Codex marketplace manifests after changing marketplace or plugin metadata.             |
+| `git diff --check`                     | Whitespace errors in the current diff.                                                                       |
 
 ## Architecture
 
 ### Marketplace ownership
 
 - `.claude-plugin/marketplace.json` is the authoring source. Synchronization generates `.agents/plugins/marketplace.json` and `.cursor-plugin/marketplace.json`; commit the generated outputs with metadata changes.
-- All three manifests must expose the same four plugin identifiers and valid local plugin source paths.
+- All three marketplaces must expose the same four plugin identifiers and valid local plugin source paths.
+- Plugin manifests share identity and component paths, not their entire schema. Keep Codex `interface` metadata in `.codex-plugin/plugin.json`; use each platform's documented fields for Claude and Cursor and validate them separately.
 - `plugins/<plugin>/.claude-plugin/plugin.json` defines plugin metadata. Distributable skills belong under `plugins/<plugin>/skills/<skill>/`, with `SKILL.md` as the entry point; do not add standalone skills under `.agents/skills/`.
 
 ### External documentation
