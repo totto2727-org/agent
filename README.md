@@ -19,7 +19,7 @@ A concise audit summary identifying the user-facing README improvements, develop
 ## Key features
 
 - One plugin catalog distributed to Claude Code, Cursor, and Codex
-- General-purpose, coding, external-search, and Symphony workflow plugins
+- General-purpose, coding, external-information, and Symphony workflow plugins
 - Skills installed through `c-plugin`
 
 ## Prerequisites
@@ -44,9 +44,17 @@ Provides general-purpose utility skills.
 
 Provides reusable coding, testing, architecture-decision, and artifact-authoring guidance, including the canonical share-artifact specification.
 
-### `external-search`
+### `external-information`
 
-Provides skills for external web, documentation, and repository research.
+Provides three coordinated skills:
+
+- `open-connector`: shared API access for GitHub, Linear, Brave Search, Cloudflare Browser Run, and Context7.
+- `web-search`: web search and page retrieval through the shared base, with Codex built-in Web Search preserved.
+- `doc-search`: Context7 library lookup and documentation retrieval through the shared base.
+
+Configure a complete HTTPS gateway URL in `OPENCONNECTOR_BASE_URL` or trusted agent instructions and supply `OPENCONNECTOR_TOKEN` through a secret environment configuration.
+See the [base skill](plugins/external-information/skills/open-connector/SKILL.md) for routing, authentication, and API request examples.
+When upgrading an installation that selected `external-search`, select `external-information` instead; `web-search` and `doc-search` keep their skill names.
 
 ### `symphony`
 

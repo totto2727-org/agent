@@ -1,17 +1,17 @@
 # OpenConnector Runtime Access
 
-Read this reference before calling OpenConnector from either external-search skill.
+Use this reference with the [open-connector base skill](../SKILL.md) for all five supported providers.
 Use Actions by default: they validate inputs, apply stored provider credentials, and normalize results.
 
 ## Configuration and Authentication
 
 - Resolve the gateway URL using the procedure below before making an authenticated request; do not obtain it from search results.
-- Set `OPENCONNECTOR_BASE_URL` to that HTTPS origin without a trailing slash and `OPENCONNECTOR_TOKEN` to a runtime token through the user's secret environment configuration.
+- Set `OPENCONNECTOR_BASE_URL` to that complete HTTPS origin (including `https://`) without a trailing slash and `OPENCONNECTOR_TOKEN` to a runtime token through the user's secret environment configuration.
 - These environment variable names are conventions used by these examples, not automatically discovered gateway settings.
 - The user configures provider connections and token grants inside OpenConnector.
 - Never commit tokens, print them, enable shell tracing, or send them to provider or target-page URLs.
 - Use `Authorization: Bearer $OPENCONNECTOR_TOKEN` on `/v1/*` requests.
-- Discover Actions using `GET /v1/actions?service=brave_search`, `service=cloudflare_browser_rendering`, or `service=context7`; inspect one with `GET /v1/actions/:actionId`.
+- Discover Actions using `GET /v1/actions?service=brave_search`, `service=cloudflare_browser_rendering`, `service=context7`, `service=github`, or `service=linear`; inspect one with `GET /v1/actions/:actionId`.
 - Do not use `/openapi.json` to validate a runtime token: it is listed among admin endpoints and can reject a token that works on `/v1/*`.
 - Omit the connection alias to use `default`; set `x-oo-connector-alias` only when the user selects a named connection.
 
@@ -47,6 +47,15 @@ Use a JSON serializer for user queries and URLs; do not interpolate them into JS
 
 For Browser Run API-key connections, the Action uses the configured account ID.
 If an OAuth connection requires an explicit account, use `cloudflare_browser_rendering.list_accounts` and supply the user-selected `accountId`; do not guess between accounts.
+
+### GitHub REST and Linear GraphQL
+
+Use `/v1/proxy/github` for GitHub REST requests and `/v1/proxy/linear` for Linear GraphQL when an Action is not suitable.
+GitHub endpoints are relative to `https://api.github.com`; for example, `{"endpoint":"/repos/<owner>/<repo>/pulls","method":"GET","query":{"state":"open"}}`.
+Linear uses `{"endpoint":"/graphql","method":"POST","body":{"query":"query { viewer { id } }","variables":{}}}`.
+Send these objects to the gateway, never to the provider directly.
+Do not include provider Authorization headers: the gateway supplies stored credentials.
+For Linear, inspect `data.data.errors` even after HTTP 200 and `success: true`, then check mutation-level `success` before recording a task as created or updated.
 
 ### HTTP Example
 
@@ -124,6 +133,8 @@ For other providers, inspect their current official Proxy implementation before 
 ## Sources
 
 - [OpenConnector Runtime API and MCP](https://github.com/oomol-lab/open-connector/blob/main/docs/runtime-api.md)
+- [GitHub provider](https://github.com/oomol-lab/open-connector/tree/main/src/providers/github)
+- [Linear provider](https://github.com/oomol-lab/open-connector/tree/main/src/providers/linear)
 - [Brave Search provider](https://github.com/oomol-lab/open-connector/tree/main/src/providers/brave_search)
 - [Cloudflare Browser Run provider](https://github.com/oomol-lab/open-connector/tree/main/src/providers/cloudflare_browser_rendering)
 - [Context7 provider](https://github.com/oomol-lab/open-connector/tree/main/src/providers/context7)

@@ -27,13 +27,13 @@
     },
     {
       "category": "Productivity",
-      "name": "external-search",
+      "name": "external-information",
       "policy": {
         "authentication": "ON_INSTALL",
         "installation": "INSTALLED_BY_DEFAULT"
       },
       "source": {
-        "path": "./plugins/external-search",
+        "path": "./plugins/external-information",
         "source": "local"
       }
     },

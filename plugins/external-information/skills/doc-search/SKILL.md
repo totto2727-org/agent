@@ -12,7 +12,8 @@ description: >-
 # Documentation Search
 
 Look up library and framework documentation through Context7 Actions in OpenConnector.
-Read [OpenConnector runtime access](../web-search/references/openconnector.md) before the first call for configuration, authentication, schemas, and failure handling.
+Load the [open-connector](../open-connector/SKILL.md) base skill before the first external API call.
+It owns gateway discovery, authentication, and transport; use its [runtime reference](../open-connector/references/runtime.md) for schemas and failure handling.
 Do not install the Context7 CLI or configure a direct Context7 API key locally.
 The user manages the Context7 connection inside OpenConnector.
 
