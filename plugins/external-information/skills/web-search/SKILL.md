@@ -24,7 +24,8 @@ Do not invoke external search CLIs or OpenConnector for this workflow.
 ### Other Agents
 
 Use OpenConnector Actions to search with Brave Search and retrieve Markdown with Cloudflare Browser Run.
-Read [references/openconnector.md](references/openconnector.md) before the first call for configuration, authentication, request examples, and failure handling.
+Load the [open-connector](../open-connector/SKILL.md) base skill before the first external API call.
+It owns gateway discovery, authentication, and transport; use its [runtime reference](../open-connector/references/runtime.md) for request examples and failure handling.
 Keep provider credentials inside OpenConnector rather than configuring direct Brave or Cloudflare clients locally.
 
 ## Other-Agent Workflow
