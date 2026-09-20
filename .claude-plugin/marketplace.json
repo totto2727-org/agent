@@ -18,10 +18,6 @@
     {
       "name": "external-information",
       "source": "./plugins/external-information"
-    },
-    {
-      "name": "symphony",
-      "source": "./plugins/symphony"
     }
   ]
 }

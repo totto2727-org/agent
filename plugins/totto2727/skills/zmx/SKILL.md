@@ -1,12 +1,7 @@
 ---
 name: zmx
 description: >-
-  This skill should be used when managing persistent terminal sessions with zmx.
-  Relevant when the user asks to run background processes, start dev servers,
-  manage long-running tasks, or work with terminal session multiplexing.
-  Common triggers: "run in background", "start dev server", "attach session",
-  "check session output", "list sessions", "kill session", "zmx".
-  Alternative to tmux/screen for session persistence.
+  Manage persistent terminal sessions with zmx. Use when zmx is requested or a process must survive terminal disconnection.
 ---
 
 # zmx - Session Persistence for Terminal Processes

@@ -1,13 +1,7 @@
 ---
 name: web-search
 description: >-
-  This skill should be used when searching the web or fetching web page content.
-  Relevant when the user asks to search online, find information on the web,
-  retrieve content from a specific URL, or check the latest information about a topic.
-  Common triggers: "search the web for", "look up online", "find on the internet",
-  "fetch this page", "what does this URL say", "check the latest version of",
-  "read this article", "get current information about", "what's new in".
-  Do NOT use for: library/framework documentation lookup (use doc-search).
+  Search the web and retrieve pages for current facts or specified URLs. For library or framework documentation, use doc-search.
 ---
 
 # Web Search

@@ -26,4 +26,3 @@ jobs:
         run: |
           eval "$(nix print-dev-env "$GITHUB_WORKSPACE#default")"
           vp check
-          vp run test

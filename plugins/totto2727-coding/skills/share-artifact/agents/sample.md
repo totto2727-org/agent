@@ -16,8 +16,7 @@ plugins/  Distributable plugins
 
 ### Standard tasks
 
-- `vp check` — Run repository formatting and validation checks.
-- `vp run test` — Validate artifact templates and executable README examples.
+- `vp check`: Run repository formatting and validation checks.
 
 ## Architecture
 
@@ -39,6 +38,4 @@ plugins/  Distributable plugins
 
 ## Task-specific documentation
 
-- When changing README artifact guidance: [README specification](./plugins/totto2727-coding/skills/share-artifact/readme/spec.md).
-
-_This AGENTS.md was generated from the [share-artifact skill](https://raw.githubusercontent.com/totto2727-org/agent/refs/heads/main/plugins/totto2727-coding/skills/share-artifact/SKILL.md) and [AGENTS template](https://raw.githubusercontent.com/totto2727-org/agent/refs/heads/main/plugins/totto2727-coding/skills/share-artifact/agents/template.md)._
+- When changing README artifact guidance: [README guidance](../readme/spec.md).
