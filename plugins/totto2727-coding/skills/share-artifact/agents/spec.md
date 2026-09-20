@@ -1,85 +1,77 @@
-# AGENTS specification
+# AGENTS format
 
-This specification defines the AI-agent and developer-facing document. Its companion minimum form is [template.md](template.md), and [sample.md](sample.md) is a concrete rendered output. Use the applicable constraints when authoring or reviewing repository guidance.
+Use [documentation-principles](../../documentation-principles/SKILL.md) for documentation principles and content-quality decisions.
+This slice defines AGENTS structure, field placement, file aliases, and rendering constraints.
+The companion [template.md](template.md) defines the Jinja form, and [sample.md](sample.md) is its rendered example.
 
-## Audience and decision rule
+## Document boundary
 
-`AGENTS.md` tells AI agents and developers how to work correctly in the repository. Use the AI-agent test: if an agent needs the information to modify, build, test, or operate the project safely, it belongs here. Information that an end user needs to understand, install, or use the project belongs in [the README specification](../readme/spec.md).
+`AGENTS.md` contains repository development and AI-agent instructions: build, test, lint, deploy, architecture, tools, and execution constraints.
+Consumer installation, usage, public API references, and license information belong in the [README format](../readme/spec.md).
 
-| Content                                                                                                        | README.md              | AGENTS.md                                     | Decision                                         |
-| -------------------------------------------------------------------------------------------------------------- | ---------------------- | --------------------------------------------- | ------------------------------------------------ |
-| End-user overview, usage, features, prerequisites, setup, external user documentation, and license             | Yes                    | No                                            | Keep the user-facing explanation in README.      |
-| Build, test, lint, format, deploy, CI, task, package-targeting, and contributor commands                       | No                     | Yes                                           | Give AI agents the complete executable guidance. |
-| Repository structure, architecture, package management, aliases, conventions, tools, and execution constraints | No                     | Yes                                           | These are the repository’s operating rules.      |
-| Repository development and operation command reference                                                         | No                     | Yes                                           | AGENTS is the canonical developer reference.     |
-| Shared setup or cross-reference                                                                                | Brief summary and link | Brief link to the end-user source when needed | Keep detailed content with its primary audience. |
+## Section order
 
-## Required output and minimum order
+Render a project title followed by the populated sections in this order:
 
-Render the sibling [template.md](template.md) as `AGENTS.md` with a project title and the provenance footer below.
-Between them, include only relevant repository-specific context, in this order when present:
+1. `Repository structure`
+2. `Development commands`, with optional `Execution rules` and `Standard tasks` subsections
+3. `Architecture`
+4. `Development tools`
+5. `Package-specific rules`
+6. `Task-specific documentation`
+7. `MoonBit README maintenance` when `is_moonbit=true`
+8. Provenance footer
 
-1. Repository structure: selected non-obvious paths, not an exhaustive tree
-2. Development commands: execution rules and standard tasks, independently optional when genuinely inapplicable
-3. Architecture: boundaries or invariants that affect safe changes
-4. Development tools: non-obvious behavior not already explained by commands
-5. Package-specific rules when applicable
-6. Task-specific documentation: conditional navigation to detailed sources
-7. MoonBit README maintenance when applicable
+Empty sections are omitted.
+Additional repository-specific sections may extend the form without reordering existing sections or becoming a consumer getting-started guide.
+Render single-paragraph bullet items as tight lists, with one blank line before and after each list.
 
-Omit irrelevant sections instead of filling headings with generic advice.
-Do not omit applicable safety boundaries, environment requirements, working directories, or actual build, test, and operation commands merely to shorten the document.
-Keep commands exact, including required flags, targets, and prerequisites; their descriptions explain applicability rather than requiring every task for every edit.
-Do not invent an always-read checklist or a run-full-tests workflow.
-The model chooses its investigation and validation scope within the repository's actual operational constraints.
+## Render context
 
-Use task-specific documentation links when detailed guidance has a separate owner.
-Each link states when it is relevant and points directly to the maintained source, rather than requiring all linked documents to be read for every task.
-Keep shared safety and execution constraints visible in AGENTS even when detail is delegated.
+Supply every top-level input explicitly:
 
-The minimum form may be extended with justified repository-specific AI and developer sections, provided present sections stay ordered and the extension does not become an end-user getting-started guide.
+| Input                   | Type and item fields                                          |
+| ----------------------- | ------------------------------------------------------------- |
+| `project_name`          | Title string.                                                 |
+| `repository_structure`  | Markdown string, empty when unused.                           |
+| `execution_rules`       | List of repository execution-rule strings.                    |
+| `standard_tasks`        | List of mappings with `command` and `description`.            |
+| `architecture_sections` | List of mappings with `title` and `items`, a list of strings. |
+| `development_tools`     | List of mappings with `name` and `description`.               |
+| `package_rules`         | List of rule strings.                                         |
+| `documentation_links`   | List of mappings with `when`, `title`, and `path`.            |
+| `is_moonbit`            | Boolean, not a string, number, null, or collection.           |
 
-### Render context and validation
+Use empty lists for unused collections.
+Task-specific links render their `when` condition with the destination link.
+Use Jinja `StrictUndefined` and `keep_trailing_newline=True`; missing required fields and invalid `is_moonbit` values are render errors.
 
-Supply `project_name`, `repository_structure`, `execution_rules`, `standard_tasks`, `architecture_sections`, `development_tools`, `package_rules`, `documentation_links`, and `is_moonbit` explicitly.
-Use an empty string for irrelevant repository structure, empty lists for irrelevant collections, and a boolean for `is_moonbit` (reject strings, numbers, null, and collections); empty content is intentional, while a missing key is a render error under Jinja `StrictUndefined`.
-Task entries contain `command` and `description`, architecture entries contain `title` and `items`, tool entries contain `name` and `description`, and documentation links contain `when`, `title`, and `path`.
-In this skill's authoring repository, the named fixture `tests/share_artifact_agents_fixture.py` records sample context and provenance paths; `tests/share_artifact_agents_template_test.py` checks byte-reproducibility, empty and populated sections, conditional navigation, MoonBit branches, and missing context under `StrictUndefined` with `keep_trailing_newline=True`.
-These fixture paths are authoring-repository validation resources, not files required in an installed skill or a consuming project.
+## File layout and aliases
 
-Render consecutive single-paragraph bullet items as a tight list without blank lines between items. Keep one blank line before and after the list so adjacent headings and paragraphs remain distinct.
+The repository-root `AGENTS.md` owns shared repository instructions.
+Package-level `AGENTS.md` files supplement it with package-specific rules.
+`CLAUDE.md -> AGENTS.md` is a relative symlink to the same canonical content, not a separately rendered document.
+The README `Development` section links here; consumer setup references link back to `README.md#setup`.
 
-End the file with this exact provenance footer without a heading:
+## MoonBit README layout
+
+For MoonBit projects, the physical consumer document is `README.mbt.md`, with the relative symlink `README.md -> README.mbt.md`.
+The conditional maintenance section records this layout and the `moon check README.mbt.md` and `moon test README.mbt.md` commands.
+These are maintainer instructions and do not appear in the rendered consumer README.
+Executable-example evidence follows the [sample contract](../internal/sample/spec.md#validation).
+
+This layout follows the official [literate Markdown documentation](https://docs.moonbitlang.com/en/latest/language/docs.html) and [MoonBit tutorial](https://docs.moonbitlang.com/en/latest/toolchain/moon/tutorial.html).
+
+## Provenance
+
+Append this exact footer without a heading:
 
 ```markdown
 _This AGENTS.md was generated from the [share-artifact skill](https://raw.githubusercontent.com/totto2727-org/agent/refs/heads/main/plugins/totto2727-coding/skills/share-artifact/SKILL.md) and [AGENTS template](https://raw.githubusercontent.com/totto2727-org/agent/refs/heads/main/plugins/totto2727-coding/skills/share-artifact/agents/template.md)._
 ```
 
-The footer identifies only the sources used to create the current `AGENTS.md`; it is not a project documentation index.
+## Resource consistency
 
-## Root, package, and alias rules
-
-The repository-root `AGENTS.md` is the canonical shared AI context. Create a package-level `AGENTS.md` only when that package has unique AI or developer rules not already covered by the root file; it supplements the root instead of duplicating it.
-
-`CLAUDE.md -> AGENTS.md` is a relative symlink alias for the same canonical content. Never create a separate `CLAUDE.md` template or allow `CLAUDE.md` and `AGENTS.md` to diverge.
-
-## Shared content and updates
-
-For content serving both audiences, keep the detailed version with its primary audience and add a short relative link elsewhere. For example, AGENTS may link to `./README.md#setup` for consumer installation, while README may link to `./AGENTS.md#development-commands` for repository development commands. End-user CLI commands and generated help remain governed by the README specification; AGENTS documents only commands for modifying, building, testing, or operating the repository.
-
-Updates preserve these invariants:
-
-- Existing repository-specific constraints and applicable package rules remain authoritative unless the requested change supersedes them.
-- Shared rules have one owner at the root; package documents contain only unique local context.
-- Cross-audience content retains the shared-content link rule and valid local links.
-- The `CLAUDE.md -> AGENTS.md` alias remains intact, and the sibling [template.md](template.md) and [sample.md](sample.md) remain the authoring references.
-
-## Corrections for common mistakes
-
-Do not place an end-user project description, installation walkthrough, marketing highlights, or license text in AGENTS; move it to README. Do not create divergent `CLAUDE.md` content; make it the `AGENTS.md` alias. Do not create a package AGENTS file that repeats the root document; add one only for unique local rules. Do not conceal build or test commands in README: they belong in AGENTS under Development commands.
-
-## MoonBit README maintenance
-
-For MoonBit projects, keep the canonical end-user content in the physical `README.mbt.md` file and maintain `README.md` as the relative symlink `README.md -> README.mbt.md`. Validate supported MoonBit blocks with `moon check README.mbt.md` and `moon test README.mbt.md`. This is maintainer guidance for AI agents and developers; never render canonical-file or symlink-maintenance instructions into the end-user README.
-
-This layout follows MoonBit’s official literate Markdown documentation: <https://docs.moonbitlang.com/en/latest/language/docs.html>. The relative symlink layout is documented in the official MoonBit tutorial: <https://docs.moonbitlang.com/en/latest/toolchain/moon/tutorial.html>.
+Keep this format, its template, and its sample aligned under the shared [template](../internal/template/spec.md) and [sample](../internal/sample/spec.md) contracts.
+The authoring repository's `tests/share_artifact_agents_fixture.py` records the sample context, and `tests/share_artifact_agents_template_test.py` checks byte-reproducibility, empty and populated sections, conditional navigation, MoonBit branches, and missing or invalid context.
+These are authoring resources, not dependencies of an installed skill or consuming project.

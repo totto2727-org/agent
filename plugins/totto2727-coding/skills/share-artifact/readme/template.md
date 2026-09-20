@@ -1,8 +1,8 @@
-{# Organize content around user value, not implementation or generated-artifact maintenance. Extensions may add end-user sections if they preserve this order, keep License last, and do not add developer, contributor, AI, or internal-operation guidance. -#}
+{# Apply documentation-principles for content quality. This template defines the README form. Extensions preserve section order, keep License last, and contain only consumer documentation. -#}
 
 # {{ project_name }}
 
-{# State the end-user outcome, not the repository implementation. -#}
+{# Overview field for the consumer entrypoint. -#}
 {{ overview }}
 
 {# Root and independent entries own Usage. Nested entries must own distinct Usage or link concrete relevant Usage; common setup and project metadata stay at root. -#}
@@ -10,7 +10,7 @@
 
 ## Usage
 
-{# Show a plausible goal, representative input, primary public operation, and user-relevant outcome. Do not narrate obvious one-shot command semantics such as "run once" or "without installing"; retain only user value, observable results, and actionable runtime constraints. Imports, constructors, initialization, ID round trips, and default-field inspection alone do not qualify. Validate executable MoonBit fences against this exact artifact; keep imports in package/frontmatter dependencies, reject no-work evidence, use existing meaningful or disposable validation context, and never add permanent documentation-only test scaffolding. Match Setup versions or current-tree context. Select exactly one surface: library, cli, agent, or gui. -#}
+{# Usage fields contain the public operation and result; acquisition fields belong to Setup. Select exactly one surface: library, cli, agent, or gui. See documentation-principles for example quality and the sample contract for executable-example validation. -#}
 {% if usage_surface == "library" -%}
 {% if usage_examples -%}
 {% for example in usage_examples -%}
@@ -117,7 +117,7 @@ No prerequisites.
 
 ## Setup
 
-{# Render only supported acquisition commands. Applications group each populated command list into one bash block under exactly one of Run without installing or Install, and render one nix block under Nix flake. Alternatives are parallel, never numbered. Omit obvious command effects, history, unsupported-route explanations, and maintainer CI/dev-shell/test-target context. Execution results remain in Usage, with one representative route per goal. -#}
+{# Applications group each populated command list into one bash block under Run without installing or Install, and render one nix block under Nix flake. Empty modes omit their headings. Alternatives are parallel, not numbered. Execution results occupy Usage. -#}
 {% if usage_surface == "library" -%}
 {% if setup_steps -%}
 {% for step in setup_steps -%}
