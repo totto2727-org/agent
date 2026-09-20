@@ -1,12 +1,15 @@
 # Sample resource contract
 
+Use [documentation-principles](../../../documentation-principles/SKILL.md) for shared writing principles.
+This contract covers resource structure and rendering consistency only.
+
 ## Role
 
 A document `sample.md` is a reproducible concrete rendered output of its sibling template. It demonstrates the specification in a reviewable form; it is not an external-link stub or an independently authored alternative.
 
 ## Vertical slice invariant
 
-Every document slice has exactly `{document}/spec.md`, `{document}/template.md`, and `{document}/sample.md`: the specification constrains semantics, the template constrains the minimum rendered form while allowing justified extensions, and the sample is a reproducible concrete output of the sibling template. Internal maintenance areas are intentionally asymmetric: `internal/spec/` contains its common specification template, while this directory and `internal/template/` contain only `spec.md` because concrete samples and templates vary by document kind. An internal `sample.md` or a meta-template under `internal/sample/` or `internal/template/` is prohibited; use the `readme/`, `agents/`, and `adr/` slices as concrete examples.
+Every document slice has exactly `{document}/spec.md`, `{document}/template.md`, and `{document}/sample.md`: the specification defines document-specific format constraints, the template constrains the minimum rendered form while allowing justified extensions, and the sample is a reproducible concrete output of the sibling template. Internal maintenance areas are intentionally asymmetric: `internal/spec/` contains its common specification template, while this directory and `internal/template/` contain only `spec.md` because concrete samples and templates vary by document kind. An internal `sample.md` or a meta-template under `internal/sample/` or `internal/template/` is prohibited; use the `readme/`, `agents/`, and `adr/` slices as concrete examples.
 
 ## Required content
 

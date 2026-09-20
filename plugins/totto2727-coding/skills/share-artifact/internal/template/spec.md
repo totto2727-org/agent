@@ -1,12 +1,15 @@
 # Template resource contract
 
+Use [documentation-principles](../../../documentation-principles/SKILL.md) for shared writing principles.
+This contract covers resource structure and rendering consistency only.
+
 ## Role
 
 A document `template.md` constrains the minimum rendered form of its document kind. It is a valid Jinja Markdown maintenance template that makes mandatory context and sections explicit without becoming a runtime dependency.
 
 ## Vertical slice invariant
 
-Every document slice has exactly `{document}/spec.md`, `{document}/template.md`, and `{document}/sample.md`: the specification constrains semantics, the template constrains the minimum rendered form while allowing justified extensions, and the sample is a reproducible concrete output of the sibling template. Internal maintenance areas are intentionally asymmetric: `internal/spec/` contains its common specification template, while this directory and `internal/sample/` contain only `spec.md` because concrete templates and samples vary by document kind. An internal `sample.md` or a meta-template under `internal/template/` or `internal/sample/` is prohibited; use the `readme/`, `agents/`, and `adr/` slices as concrete examples.
+Every document slice has exactly `{document}/spec.md`, `{document}/template.md`, and `{document}/sample.md`: the specification defines document-specific format constraints, the template constrains the minimum rendered form while allowing justified extensions, and the sample is a reproducible concrete output of the sibling template. Internal maintenance areas are intentionally asymmetric: `internal/spec/` contains its common specification template, while this directory and `internal/sample/` contain only `spec.md` because concrete templates and samples vary by document kind. An internal `sample.md` or a meta-template under `internal/template/` or `internal/sample/` is prohibited; use the `readme/`, `agents/`, and `adr/` slices as concrete examples.
 
 ## Required content
 

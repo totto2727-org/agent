@@ -42,7 +42,7 @@ Provides general-purpose utility skills.
 
 ### `totto2727-coding`
 
-Provides reusable coding, testing, architecture-decision, and artifact-authoring guidance, including the canonical share-artifact specification.
+Provides reusable coding and testing guidance, [documentation-principles](plugins/totto2727-coding/skills/documentation-principles/SKILL.md) for shared writing principles, and [share-artifact](plugins/totto2727-coding/skills/share-artifact/SKILL.md) for README, AGENTS.md, and ADR formats.
 
 ### `external-information`
 
