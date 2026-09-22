@@ -1,7 +1,7 @@
 # Output Evaluation
 
-Read this reference when a review needs functional evaluation, a quality baseline, or an iteration plan.
-These are evaluation heuristics, not Agent Skills format constraints or a required workflow for every skill.
+Use this method for G6 in a general review, or when a focused review covers functional quality, baselines, or iteration.
+The normal and problem/edge cases required by `SKILL.md` are minimum review evidence, not Agent Skills format constraints.
 
 ## Define cases
 
@@ -12,7 +12,8 @@ Define each case with:
 - Required input files, if any.
 - Observable assertions derived from the expected behavior, refined when execution reveals an unreliable check rather than relaxed merely to fit the output.
 
-Begin with a small representative set and add malformed, boundary, or ambiguous cases where they exercise a material risk.
+Include at least one normal and one problem or edge case for a general review.
+Add malformed, boundary, or ambiguous cases where they exercise a material risk.
 
 ## Isolate runs and choose a baseline
 

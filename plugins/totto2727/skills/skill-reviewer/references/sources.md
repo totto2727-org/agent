@@ -2,11 +2,12 @@
 
 ## Format authority
 
-- [Agent Skills specification](https://agentskills.io/specification): normative format constraints and separately identified recommendations, summarized in [Standard constraints and recommendations](standard.md).
+- [Agent Skills specification](https://agentskills.io/specification): normative format constraints and separately identified recommendations, summarized in [G1: Format](review-methods.md#g1-format).
 
 ## Further design and evaluation guidance
 
-These official guides provide recommendations, not additional mandatory format constraints.
+These official guides inform the review methods and evidence requirements.
+Their recommendations are not additional Agent Skills format constraints.
 Consult them when a review needs more detail than the local references provide.
 
 - [Optimizing descriptions](https://agentskills.io/skill-creation/optimizing-descriptions.md)

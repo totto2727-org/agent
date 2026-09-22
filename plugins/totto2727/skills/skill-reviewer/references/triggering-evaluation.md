@@ -1,8 +1,8 @@
 # Triggering Evaluation
 
-Read this reference when activation is in scope or metadata changes affect discovery.
-These are evaluation heuristics, not standard format constraints.
-Do not turn example query counts, run counts, thresholds, or split ratios into universal requirements.
+Use this method for G2/G6 in a general review, or when a focused review covers activation or metadata changes.
+The minimum explicit, paraphrased, and adjacent-negative cases in `SKILL.md` are review requirements, not standard format constraints.
+Beyond those minimum cases, do not turn example query counts, run counts, thresholds, or split ratios into universal requirements.
 
 ## Design the query set
 
