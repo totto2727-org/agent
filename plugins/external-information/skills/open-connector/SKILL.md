@@ -1,11 +1,7 @@
 ---
 name: open-connector
 description: >-
-  Use before calling external APIs for GitHub, Linear, Brave Search,
-  Cloudflare Browser Run, or Context7, and when finding, creating, or updating
-  work tickets. Provides shared OpenConnector routing, authentication,
-  and API execution for web-search and doc-search.
-  Do not use for Git transport or Codex's built-in Web Search itself.
+  Route GitHub, Linear, Brave Search, Browser Run, and Context7 API requests through OpenConnector. Not for Git transport or Codex built-in Web Search.
 ---
 
 # OpenConnector

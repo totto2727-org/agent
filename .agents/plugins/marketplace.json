@@ -36,18 +36,6 @@
         "path": "./plugins/external-information",
         "source": "local"
       }
-    },
-    {
-      "category": "Productivity",
-      "name": "symphony",
-      "policy": {
-        "authentication": "ON_INSTALL",
-        "installation": "INSTALLED_BY_DEFAULT"
-      },
-      "source": {
-        "path": "./plugins/symphony",
-        "source": "local"
-      }
     }
   ]
 }

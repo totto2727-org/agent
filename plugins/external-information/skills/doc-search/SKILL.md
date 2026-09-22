@@ -1,12 +1,7 @@
 ---
 name: doc-search
 description: >-
-  This skill should be used when researching library or framework documentation.
-  Relevant when the user asks to find docs, look up a library API,
-  check the docs, read documentation, or fetch documentation for a specific package.
-  Common triggers: "look up docs", "find documentation", "API reference",
-  "search docs for", "how does X work in library Y", "check the React docs",
-  "show me the docs for", "what does the API say about".
+  Look up library or framework APIs and version-specific documentation. Use for package documentation questions, not general web research.
 ---
 
 # Documentation Search

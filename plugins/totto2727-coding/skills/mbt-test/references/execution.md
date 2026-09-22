@@ -21,4 +21,4 @@ Async tests may run in parallel. Keep their state independent, await every opera
 
 ## Scope boundary
 
-This reference covers only MoonBit test code executable through repository Vite+ tasks or `moon test`. Manual verification, visual or subjective inspection, and human-readable QA reports belong to `share-test-design-flow`.
+This reference covers only MoonBit test code executable through repository Vite+ tasks or `moon test`. Manual verification, visual or subjective inspection, and human-readable QA reports belong to `share-test-design`.
