@@ -191,6 +191,28 @@ When appropriate, use:
 Do not structure content for its own sake.
 A short paragraph is better than an unnecessary table or list when prose is clearer.
 
+## Use GitHub Flavored Markdown by default
+
+Write Markdown using GitHub Flavored Markdown (GFM).
+Unless the repository specifies otherwise, assume the target renderer supports GFM and GitHub's alert syntax rather than restricting documents to plain Markdown for hypothetical compatibility.
+Follow repository-specific format or renderer requirements when they differ from this default.
+
+Use GitHub Alerts to clearly separate warnings, notes, and supplementary information from the main narrative.
+Choose the alert type that matches the content: `NOTE`, `TIP`, `IMPORTANT`, `WARNING`, or `CAUTION`.
+GitHub Alerts are a GitHub-specific extension, not part of the formal GFM specification.
+When the repository requires another format or a renderer without alert support, use its supported equivalent to preserve the separation from the main text.
+
+```markdown
+> [!NOTE]
+> Relative paths are resolved from the configuration file's directory.
+
+> [!WARNING]
+> This command overwrites the existing configuration file.
+```
+
+Keep alerts concise and close to the relevant text or action.
+Keep the primary explanation in the main text rather than turning ordinary paragraphs into alerts.
+
 ## Optimize for scanning
 
 Technical documentation is rarely read strictly from beginning to end.
