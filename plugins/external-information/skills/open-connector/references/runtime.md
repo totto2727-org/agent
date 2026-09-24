@@ -59,6 +59,10 @@ For Linear, inspect `data.data.errors` even after HTTP 200 and `success: true`, 
 
 ### HTTP Example
 
+Use `curl` by default for all gateway HTTP requests, including Action discovery, Action execution, and Provider Proxy calls.
+Do not substitute Python HTTP clients such as `urllib`, `requests`, or `httpx` unless the user explicitly requests another transport.
+Python may still process local JSON data.
+Python requests have been reported to encounter Cloudflare rejection where `curl` succeeds, but the underlying cause is unverified.
 This example requires `curl` and `jq` and calls only the configured gateway.
 Do not run it for Codex's web-search workflow, which retains built-in Web Search.
 Do not enable `set -x` or verbose HTTP logging.

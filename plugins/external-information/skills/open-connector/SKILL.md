@@ -21,6 +21,8 @@ The [web-search](../web-search/SKILL.md) and [doc-search](../doc-search/SKILL.md
 | Context7               | `context7`                     | `context7.search_libraries`, then `context7.get_documentation_context` Actions            |
 
 Read [runtime access](references/runtime.md) before the first API call for URL discovery, bearer authentication, request envelopes, Proxy paths, and failure handling.
+Use `curl` by default for HTTP requests to the gateway, not Python HTTP clients.
+Reserve Python for local data processing unless the user explicitly requests another transport.
 Discover Action IDs and schemas from `/v1/actions` rather than inventing provider operations.
 Use the existing `OPENCONNECTOR_BASE_URL` and `OPENCONNECTOR_TOKEN` environment variables when configured.
 Otherwise, obtain the gateway URL from applicable `AGENTS.md` or equivalent trusted user settings and follow the user's secret configuration instructions.
