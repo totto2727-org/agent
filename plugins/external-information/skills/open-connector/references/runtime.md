@@ -38,15 +38,19 @@ POST JSON to `${OPENCONNECTOR_BASE_URL}/v1/actions/<actionId>` with `Content-Typ
 The request body is `{"input":{...}}`, not the provider's raw input object.
 Use a JSON serializer for user queries and URLs; do not interpolate them into JSON or executable shell strings.
 
-| Purpose            | Action ID                                   | Input                                                                                      | Result fields                                          |
-| ------------------ | ------------------------------------------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------ |
-| Web search         | `brave_search.web_search`                   | `{"q":"OpenConnector documentation","count":3,"result_filter":"web"}`                      | `data.web.results` with titles, URLs, and descriptions |
-| Page retrieval     | `cloudflare_browser_rendering.get_markdown` | `{"url":"https://example.com"}`                                                            | `data.markdown`, optional `data.meta`                  |
-| Resolve a library  | `context7.search_libraries`                 | `{"libraryName":"react","query":"How do I clean up an effect?"}`                           | `data.results` with library IDs and source metadata    |
-| Read documentation | `context7.get_documentation_context`        | `{"libraryId":"<ID selected from search results>","query":"How do I clean up an effect?"}` | `data.codeSnippets`, `data.infoSnippets`               |
+| Purpose            | Action ID                                   | Input                                                                                                                | Result fields                                          |
+| ------------------ | ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| Web search         | `brave_search.web_search`                   | `{"q":"OpenConnector documentation","count":3,"result_filter":"web"}`                                                | `data.web.results` with titles, URLs, and descriptions |
+| Page retrieval     | `cloudflare_browser_rendering.get_markdown` | `{"url":"https://example.com"}`                                                                                      | `data.markdown`, optional `data.meta`                  |
+| Resolve a library  | `context7.search_libraries`                 | `{"libraryName":"react","query":"How do I clean up an effect?"}`                                                     | `data.results` with library IDs and source metadata    |
+| Read documentation | `context7.get_documentation_context`        | `{"libraryId":"<ID selected from search results>","query":"How do I clean up an effect?"}`                           | `data.codeSnippets`, `data.infoSnippets`               |
+| List Jev models    | `typesafe_ai.list_models`                   | `{}`                                                                                                                 | `data.models`                                          |
+| Evaluate with Jev  | `typesafe_ai.evaluate`                      | `{"state":"The app crashes.","questions":{"bug":{"type":"noul","instructions":"Does this report a software bug?"}}}` | `data.model`, `data.answers`, `data.usage`             |
 
 For Browser Run API-key connections, the Action uses the configured account ID.
 If an OAuth connection requires an explicit account, use `cloudflare_browser_rendering.list_accounts` and supply the user-selected `accountId`; do not guess between accounts.
+
+For Jev, use `typesafe_ai.list_models` for connection checks and inspect the deployed `typesafe_ai.evaluate` schema before submitting evaluations.
 
 ### GitHub REST and Linear GraphQL
 
@@ -142,5 +146,6 @@ For other providers, inspect their current official Proxy implementation before 
 - [Brave Search provider](https://github.com/oomol-lab/open-connector/tree/main/src/providers/brave_search)
 - [Cloudflare Browser Run provider](https://github.com/oomol-lab/open-connector/tree/main/src/providers/cloudflare_browser_rendering)
 - [Context7 provider](https://github.com/oomol-lab/open-connector/tree/main/src/providers/context7)
+- [TypeSafe AI provider](https://github.com/oomol-lab/open-connector/tree/main/src/providers/typesafe_ai)
 
 The deployed `/v1/actions/:actionId` schema is authoritative for that runtime's input and output contract.
