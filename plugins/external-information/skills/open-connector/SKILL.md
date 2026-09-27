@@ -1,14 +1,16 @@
 ---
 name: open-connector
 description: >-
-  Route GitHub, Linear, Brave Search, Browser Run, and Context7 API requests through OpenConnector. Not for Git transport or Codex built-in Web Search.
+  Route GitHub, Linear, Brave Search, Browser Run, Context7, and Jev (TypeSafe AI) API requests through OOMOL/OpenConnector. Not for Git transport or Codex built-in Web Search.
 ---
 
 # OpenConnector
 
 This is the shared foundation of `external-information`.
-Route API operations for the five providers below through OpenConnector Actions or Provider Proxy, not direct provider API calls, provider credentials, or standalone provider CLIs.
+Route API operations for the providers below through OpenConnector Actions or Provider Proxy, not direct provider API calls, provider credentials, or standalone provider CLIs.
 The [web-search](../web-search/SKILL.md) and [doc-search](../doc-search/SKILL.md) skills supply research workflows on top of this transport policy.
+For Jev usage and evaluation design, prefer the installed official `typesafe-ai` skill from `typesafe-ai/skills`; if unavailable, consult the [TypeSafe documentation index](https://docs.typesafe.ai/llms.txt).
+Use this skill for the OpenConnector transport rather than duplicating the official guidance.
 
 ## Provider Routing
 
@@ -19,6 +21,7 @@ The [web-search](../web-search/SKILL.md) and [doc-search](../doc-search/SKILL.md
 | Brave Search           | `brave_search`                 | `brave_search.web_search` Action                                                          |
 | Cloudflare Browser Run | `cloudflare_browser_rendering` | `cloudflare_browser_rendering.get_markdown` Action                                        |
 | Context7               | `context7`                     | `context7.search_libraries`, then `context7.get_documentation_context` Actions            |
+| Jev (TypeSafe AI)      | `typesafe_ai`                  | `typesafe_ai.list_models`, then `typesafe_ai.evaluate` Actions                            |
 
 Read [runtime access](references/runtime.md) before the first API call for URL discovery, bearer authentication, request envelopes, Proxy paths, and failure handling.
 Use `curl` by default for HTTP requests to the gateway, not Python HTTP clients.
