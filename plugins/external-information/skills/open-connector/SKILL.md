@@ -1,13 +1,13 @@
 ---
 name: open-connector
 description: >-
-  Route GitHub, Linear, Brave Search, Browser Run, and Context7 API requests through OpenConnector. Not for Git transport or Codex built-in Web Search.
+  Route GitHub, Linear, Brave Search, Browser Run, Context7, and Jev (TypeSafe AI) API requests through OOMOL/OpenConnector. Use for Jev model discovery and typed evaluations, not browser control, Git transport, or Codex built-in Web Search.
 ---
 
 # OpenConnector
 
 This is the shared foundation of `external-information`.
-Route API operations for the five providers below through OpenConnector Actions or Provider Proxy, not direct provider API calls, provider credentials, or standalone provider CLIs.
+Route API operations for the providers below through OpenConnector Actions or Provider Proxy, not direct provider API calls, provider credentials, or standalone provider CLIs.
 The [web-search](../web-search/SKILL.md) and [doc-search](../doc-search/SKILL.md) skills supply research workflows on top of this transport policy.
 
 ## Provider Routing
@@ -19,6 +19,7 @@ The [web-search](../web-search/SKILL.md) and [doc-search](../doc-search/SKILL.md
 | Brave Search           | `brave_search`                 | `brave_search.web_search` Action                                                          |
 | Cloudflare Browser Run | `cloudflare_browser_rendering` | `cloudflare_browser_rendering.get_markdown` Action                                        |
 | Context7               | `context7`                     | `context7.search_libraries`, then `context7.get_documentation_context` Actions            |
+| Jev (TypeSafe AI)      | `typesafe_ai`                  | `typesafe_ai.list_models`, then `typesafe_ai.evaluate` Actions                            |
 
 Read [runtime access](references/runtime.md) before the first API call for URL discovery, bearer authentication, request envelopes, Proxy paths, and failure handling.
 Use `curl` by default for HTTP requests to the gateway, not Python HTTP clients.
@@ -28,6 +29,12 @@ Use the existing `OPENCONNECTOR_BASE_URL` and `OPENCONNECTOR_TOKEN` environment 
 Otherwise, obtain the gateway URL from applicable `AGENTS.md` or equivalent trusted user settings and follow the user's secret configuration instructions.
 Require a complete HTTPS origin including `https://`; do not guess the scheme or gateway host.
 Never store a runtime token in a skill, instruction file, task description, or repository.
+
+## Jev Through OOMOL/OpenConnector
+
+Read [Jev calls](references/jev.md) when checking Jev access or requesting Choice, Score, or Noul evaluations.
+The gateway exposes Jev under the `typesafe_ai` service, not a `jev` service.
+These Actions do not establish that a client's built-in Jev integration or browser agent uses the gateway.
 
 ## Boundaries and Exceptions
 

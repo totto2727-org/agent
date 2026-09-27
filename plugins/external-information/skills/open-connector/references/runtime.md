@@ -1,6 +1,6 @@
 # OpenConnector Runtime Access
 
-Use this reference with the [open-connector base skill](../SKILL.md) for all five supported providers.
+Use this reference with the [open-connector base skill](../SKILL.md) for its supported providers.
 Use Actions by default: they validate inputs, apply stored provider credentials, and normalize results.
 
 ## Configuration and Authentication
@@ -11,7 +11,7 @@ Use Actions by default: they validate inputs, apply stored provider credentials,
 - The user configures provider connections and token grants inside OpenConnector.
 - Never commit tokens, print them, enable shell tracing, or send them to provider or target-page URLs.
 - Use `Authorization: Bearer $OPENCONNECTOR_TOKEN` on `/v1/*` requests.
-- Discover Actions using `GET /v1/actions?service=brave_search`, `service=cloudflare_browser_rendering`, `service=context7`, `service=github`, or `service=linear`; inspect one with `GET /v1/actions/:actionId`.
+- Discover Actions using `GET /v1/actions?service=brave_search`, `service=cloudflare_browser_rendering`, `service=context7`, `service=github`, `service=linear`, or `service=typesafe_ai`; inspect one with `GET /v1/actions/:actionId`.
 - Do not use `/openapi.json` to validate a runtime token: it is listed among admin endpoints and can reject a token that works on `/v1/*`.
 - Omit the connection alias to use `default`; set `x-oo-connector-alias` only when the user selects a named connection.
 
