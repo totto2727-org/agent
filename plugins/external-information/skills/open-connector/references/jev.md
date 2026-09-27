@@ -39,7 +39,7 @@ The current evaluation schema defaults to `jev-latest` when `model` is omitted, 
 | `score`       | Score against an ordered rubric          | `instructions` and `criteria` containing 2 to 10 levels, lowest first  | `score`, `confidence`, `legend`, `probabilities` |
 | `noul`        | Estimate the probability of a yes answer | `instructions` or `criteria` describing `true` and/or `false` outcomes | `noul`, a probability from 0 to 1                |
 
-The response is under `.data`, with `model`, `answers` keyed by question name, and token `usage` when reported.
+The response is under `.data`, with `model`, `answers` keyed by question name, and `usage.input_tokens` and `usage.output_tokens`.
 Probabilities and scores are model judgments, not independently verified facts.
 Evaluate only user-authorized content and avoid sending unnecessary secrets or personal data.
 Evaluation can consume provider quota or incur charges, so use model listing for connection-only checks.
