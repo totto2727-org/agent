@@ -1,0 +1,44 @@
+[
+  {
+    "id": "consumer-contract",
+    "scope": "section",
+    "instructions": "Judge the target against the reader's stated task. Does any sentence narrate maintainer-only implementation or repository history rather than a consumer action or observable contract? Examples of unwanted narration include where old examples became test fixtures and lists of internal runtime modules after the actionable host setting is already given. Public imports, valid input constraints, and the actual setting the consumer must enable remain useful. A useful sentence elsewhere does not cancel an irrelevant sentence in the target.",
+    "pass": "The unit directly supports the reader's task. Any implementation detail has a concrete consumer consequence, or the intended audience is maintainers and the detail serves their task.",
+    "fail": "The unit includes internal mechanics, historical migration commentary, or maintainer-only repository details that distract from the stated consumer task."
+  },
+  {
+    "id": "actionable-example",
+    "scope": "section",
+    "instructions": "When the target teaches an API operation or customization, does it demonstrate the actual code needed for that operation rather than only describing it? For replacing a component, a concrete example must show the wrapper or replacement definition, the changed option, and how it is passed to the consumer API. Naming a hypothetical replacement and saying to wrap a component does not demonstrate the customization. Existing earlier examples can supply unchanged setup, but cannot stand in for the customization being taught. Return not_applicable for navigation-only text, simple factual entries, or warnings.",
+    "pass": "The operation is demonstrated concretely. A customization example shows both the replacement behavior and its wiring; unchanged setup may come from page context.",
+    "fail": "An operation or customization is described only through mechanism names or abstract prose where a concrete example is needed to show how to do it."
+  },
+  {
+    "id": "consequential-limit",
+    "scope": "section",
+    "instructions": "Does this target communicate a consequential limitation with ALL of the following: the affected feature, the observable outcome when the limitation matters, and a concrete available remedy or alternative? All applicable elements must be explicit in the target, not inferred from internal terms or supplied by a different passage. For example, saying browser JavaScript is required does not by itself tell the reader what appears without it or how to obtain server-rendered output. A note about internal wrappers is insufficient if it leaves the effect or known remedy implicit. Return not_applicable when no consequential limitation is discussed.",
+    "pass": "The target explicitly states the affected behavior, its observable consequence, and a concrete remedy when available, with appropriate prominence.",
+    "fail": "A consequential limitation is buried in internal explanation, understated as incidental information, overgeneralized to unaffected behavior, or lacks the concrete consequence or available remedy."
+  },
+  {
+    "id": "focused-unit",
+    "scope": "section",
+    "instructions": "Does every part of the target contribute to the single reader task stated in evidence.document.purpose? Fail if it repeats the same starting instruction, narrates historical alternatives, or teaches an optional adjacent task that is not needed for that task. Merely using the same platform or library does not make an optional extension part of basic setup. Preserve requirements needed for the stated task, code explanations, and direct next-step links. A short paragraph or heading section needs no generic introduction or summary.",
+    "pass": "Each part contributes to the unit's reader question; the unit may be short and rely on explicit page context.",
+    "fail": "The unit mixes unrelated tasks, repeats an introduction or self-explanatory example without added value, or adds filler that can be removed without losing useful information."
+  },
+  {
+    "id": "reader-route",
+    "scope": "page",
+    "instructions": "Evaluate the complete page's route for its stated reader task. Does it lead through the supported public default before optional customization, route platform alternatives through the relevant overview, and keep host-specific prerequisites in their host guides? Do not demand repository cloning or example-directory navigation when the supported public generator supplies the project. Use supplied destination evidence when judging a delegated prerequisite; do not assume missing linked content exists.",
+    "pass": "The page provides a direct, coherent route for its intended task. Platform-specific details live at the relevant task step or an evidenced destination, and alternatives do not distract from the main route.",
+    "fail": "The page diverts a basic task through repository examples or internal fixtures, repeats host-specific setup in a cross-platform overview, or makes the reader assemble the default path from competing introductions."
+  },
+  {
+    "id": "canonical-home",
+    "scope": "page",
+    "instructions": "Using the page and supplied documentation-set context, does detailed consumer guidance have a clear maintained home with direct links from entry pages, rather than parallel duplicate guides? A concise package overview, task-local prerequisite, or equivalent translation is not unnecessary duplication. Return insufficient_context when the question depends on unseen neighboring documents.",
+    "pass": "The evidence shows one clear home for detailed consumer guidance and useful direct entry links, without a parallel duplicate procedure.",
+    "fail": "The evidence shows duplicate detailed consumer procedures or references maintained across a package README, separate guide, or documentation site without a distinct reader purpose."
+  }
+]

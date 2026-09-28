@@ -39,6 +39,17 @@ Introduce additional concepts and details when the reader needs them.
 Prefer one clear purpose per document.
 When a page attempts to solve multiple independent problems, consider separating them.
 
+### Describe the consumer's contract, not the implementation's journey
+
+For consumer documentation, lead with what the reader imports, configures, runs, or observes.
+Explain implementation details only when they change a decision the reader must make.
+Repository layout, test fixtures, previous designs, and internal rendering boundaries do not belong in a usage guide merely because they explain how the feature was built.
+Keep those details in maintainer documentation or durable design records.
+
+State the supported default path before presenting customization or alternatives.
+When a configured component or generated project already supplies something, do not make the reader reconstruct it from internal examples.
+Separate limitations of a default component from limitations of the whole feature.
+
 ## Separate documentation concerns
 
 For user-facing documentation, use the Diátaxis framework as a useful distinction between four kinds of documentation:
@@ -104,6 +115,12 @@ Do not require readers to understand implementation details or advanced concepts
 
 When deeper information belongs elsewhere, link to it rather than duplicating it unnecessarily.
 
+Keep alternative selection in an overview and route the reader to the chosen task guide.
+Place host-specific prerequisites in that host's guide, not in every entry page.
+Moving a prerequisite out of an overview is not permission to remove it from the path where it is required.
+Distinguish choosing a route from following one: an overview helps readers choose, while an execution step should link directly to the needed task or example.
+Require earlier tutorial state only when the current task actually depends on it, not merely because a previous page happened to edit the same sample.
+
 ## Put the bottom line first
 
 Present important information early whenever practical.
@@ -165,6 +182,11 @@ Split independent concerns when doing so improves comprehension.
 
 Do not apply this mechanically when splitting would make the text less natural or obscure the relationship between ideas.
 
+A short section or page is complete when it answers its own question with the context its reader needs.
+Do not add an introduction, summary, or minimum number of paragraphs merely to make it look substantial.
+Choose boundaries by meaning, not word count: keep a command with its prerequisites, a code example with its explanation, and a warning with the behavior it qualifies.
+Small units still need a discoverable route and enough context to avoid forcing readers to assemble one task from disconnected fragments.
+
 ## Keep information local
 
 Place information near the point where the reader needs it.
@@ -212,6 +234,9 @@ When the repository requires another format or a renderer without alert support,
 
 Keep alerts concise and close to the relevant text or action.
 Keep the primary explanation in the main text rather than turning ordinary paragraphs into alerts.
+Choose severity by the reader's consequence, not the complexity of the implementation.
+For a limitation that can invalidate the reader's intended use, state the affected feature, observable consequence, and available remedy when one exists.
+Do not hide a consequential limitation inside an implementation-oriented note or broaden it to unaffected features.
 
 ## Optimize for scanning
 
@@ -242,6 +267,9 @@ Use prose primarily to explain information that the example cannot communicate c
 - important edge cases
 - design rationale
 
+When documenting an operation or extension point, prefer a small example showing the actual import, call, or replacement over prose that merely names the mechanism.
+Do not remove a necessary example in the name of concision or repeat what its syntax already makes clear.
+
 ## Do not repeat information unnecessarily
 
 As a general rule, explain a fact once.
@@ -249,6 +277,11 @@ As a general rule, explain a fact once.
 Avoid repeating the same information in the body, examples, notes, and summaries unless the repetition serves a clear reader need.
 
 When repetition is necessary, ensure each occurrence provides distinct value.
+
+Choose one maintained home for each detailed procedure or public contract.
+A package README may link directly to a documentation site's guide and reference instead of maintaining a parallel guide.
+Keep the short overview needed to choose that link, but avoid repeating the same introduction in the overview, guide, and example directory.
+Translations are intentional parallel editions: preserve equivalent steps, defaults, and warnings rather than deleting them as duplication.
 
 ## Preserve technical precision
 
@@ -270,6 +303,11 @@ State important technical properties explicitly when relevant, including:
 
 Do not invent behavior or present assumptions as facts.
 
+Precision does not require narrating every internal normalization step or hidden dependency.
+For an API lookup, prioritize the public call, its result, and necessary failure handling.
+Keep an internal detail when it changes valid inputs, required configuration, observable behavior, or another decision the reader must make.
+An actionable runtime setting is often more useful than a list of modules that setting enables.
+
 Distinguish verified facts from inference.
 When uncertainty matters, state it explicitly.
 
@@ -282,6 +320,9 @@ Include what serves the document's purpose.
 Move secondary information to a more appropriate document or link to it.
 
 Omit information that provides no practical value to the intended reader.
+
+Mention absent behavior when it prevents a likely mistake, such as expecting a form submission to persist data.
+Do not inventory missing bindings, ports, or features when a concise conditional next action would serve the reader better.
 
 Do not assume that more detail automatically produces better documentation.
 
@@ -342,3 +383,4 @@ It does not prescribe:
 Those concerns belong to the agent, skill, workflow, or user instructions responsible for the task.
 
 Use this skill as a shared set of principles for judging the quality and structure of software documentation regardless of how that documentation is produced.
+For history-calibrated reviews and optional parallel Jev checks, use [documentation-quality](../documentation-quality/SKILL.md).
