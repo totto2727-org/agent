@@ -1,53 +1,53 @@
-# Consumer contract
+# Reader relevance
 
 ## Applicability and context
 
-Use `consumer-contract` for a section whose audience and task are known.
-Read its heading and surrounding page to identify what the reader must import, configure, run, or observe.
-Review one source language, normally English, rather than applying this rubric to translated editions.
-This guide supports follow-up reasoning review; do not inject its samples or expected labels into blind Jev requests.
+Use `consumer-contract` to assess whether a developer-documentation passage serves its intended audience and goal.
+Read the heading and surrounding material before deciding which facts, explanations, or actions matter.
+Review English source documents, not translated editions.
+Use these examples for follow-up review, not as samples or expected labels in blind model input.
 
 ## Illustrative comparison
 
-These project-independent adaptations are not quotations or claims about a particular package.
-Assume the task is to configure a collection of local documents and handle missing entries.
+This hypothetical CLI accepts an output path and refuses to overwrite an existing file.
+The section teaches exporting a report, not the architecture of the command dispatcher.
 
 **Problematic**
 
-> Supply relative document paths and check for a missing entry before parsing.
-> The resolver normalizes the registry through three internal modules; the previous example now lives in the integration fixtures.
+> Set `--output` to the destination file path.
+> If the file already exists, the export fails without changing it.
+> The dispatcher constructs its command registry through three internal modules.
 
 **Improved**
 
-> Supply relative document paths and check for a missing entry before parsing.
+> Set `--output` to the destination file path.
+> If the file already exists, the export fails without changing it.
 
 ### Why this diagnosis
 
-The retained sentence defines valid input and necessary failure handling.
-The removed sentence explains repository maintenance without changing a consumer decision.
-A useful first sentence does not cancel an irrelevant second sentence.
-The improvement is not that the passage became short, but that each remaining claim serves the task.
+The retained sentences explain the input and a consequence that affects the export task.
+The dispatcher sentence does not help this reader choose an output path or understand the result.
+That same detail could matter in an architecture explanation of command registration.
+The distinction is relevance to the stated audience and goal, not a fixed division between users and maintainers.
 
 ## Exceptions and false positives
 
-- Public imports, valid input constraints, required host settings, defaults, and observable failures are useful contract details.
-- An internal detail belongs when it changes a reader's decision, such as a required runtime compatibility setting.
-- Maintainer guides, architecture explanations, and migration guides may need internals or history for their stated task.
-- Do not remove a lookup's result or missing-entry handling merely because the code already names the operation.
-- A change in API support or implementation behavior is not itself evidence of a writing failure.
+- Architecture explanations can serve understanding without asking the reader to perform an action.
+- Implementation detail belongs when it explains a meaningful compatibility requirement, failure, or design decision.
+- Definitions, defaults, constraints, and uncertainty may be essential even when they lengthen the passage.
+- Specialist audiences may need detail that a general developer audience does not.
+- Do not remove a useful explanation merely because code or a table mentions the same subject.
 
 ## Inspect and fix a failure
 
-1. Identify the exact distracting sentence and the reader decision it supposedly supports.
-2. Verify behavior against the relevant source or public contract before simplifying technical claims.
-3. Replace internal mechanics with the action or observable consequence when one exists.
-4. Keep required settings and constraints; move maintenance-only history to its appropriate home if it has lasting value.
-5. Reread the complete unit, including code and neighboring explanation, to ensure no required context was removed.
-
-Do not substitute a generic introduction or a longer explanation for a complete short contract.
+1. State who the passage is for and what they need to understand, decide, or do.
+2. Identify the exact detail that does not support that goal in the supplied context.
+3. Verify behavior before replacing a mechanism with its reader-visible consequence.
+4. Preserve relevant conditions and consequences when removing or relocating the distraction.
+5. Reread the unit to ensure the change did not remove a necessary qualification.
 
 ## Abstention boundaries
 
-- `not_applicable`: the material has no relevant explanatory or instructional task to assess, such as a raw machine-generated index.
-- `insufficient_context`: the audience, task, public behavior, or surrounding context needed to distinguish contract from internals is missing.
-- Maintainer intent is an exception to consumer-only expectations, not an automatic failure or abstention.
+- `not_applicable`: the target has no explanatory or instructional content to assess, such as an isolated identifier list.
+- `insufficient_context`: the audience or purpose needed to judge relevance cannot be established.
+- An unfamiliar or specialist audience is not evidence that its necessary detail is irrelevant.

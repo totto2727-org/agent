@@ -2,61 +2,59 @@
 
 ## Applicability and context
 
-Use `canonical-home` at page scope with the relevant documentation-set context.
-Inspect actual entry pages, linked guides, and overlapping procedures rather than guessing from document names.
-Review one source language, normally English, rather than applying this rubric to translated editions.
-This guide supports follow-up reasoning review; do not inject its samples or expected labels into blind Jev requests.
+Use `canonical-home` when developer documents overlap in the details they maintain.
+Compare actual passages and their reader purposes, not filenames or links alone.
+Review English source documents, not translated editions.
+Use these examples for follow-up review, not as samples or expected labels in blind model input.
 
 ## Illustrative comparison
 
-These invented document inventories illustrate ownership, not paths in a particular product.
-Assume the supplied excerpts confirm that all three procedures serve the same consumer task.
+In this hypothetical library's documentation, three pages repeat the complete retry-option table with no distinct need for independent copies.
+The table includes option names, defaults, accepted values, and interactions.
 
 **Problematic**
 
 ```text
-Package README: full installation, configuration, rendering, and customization guide.
-Package guide: repeats the same consumer procedure.
-Documentation site: maintains another copy of that procedure.
+Overview: introduction plus complete retry-option table.
+Retry tutorial: worked example plus another complete retry-option table.
+Configuration reference: independently maintained retry-option table.
 ```
 
 **Improved**
 
 ```text
-Package README: concise purpose and direct links to the site's guide and API reference.
-Documentation site guide: maintained home for the consumer procedure.
-Documentation site reference: detailed public contract for lookup.
-Contributor guide: repository setup and maintenance tasks.
+Overview: purpose and direct links to the tutorial and configuration reference.
+Retry tutorial: worked example with its chosen values and relevant caveats.
+Configuration reference: maintained home for the complete retry-option table.
 ```
 
 ### Why this diagnosis
 
-The problematic arrangement requires parallel maintenance of the same detailed consumer guidance without a distinct reader purpose.
-The improved arrangement retains entrypoint context while assigning detailed procedures and reference material clear homes.
-It separates maintainer tasks rather than erasing them with the duplicate consumer guide.
-A README does not need to become empty to stop being a competing manual.
+The problematic arrangement requires the same detailed table to be updated in three places without a reader benefit.
+The improved tutorial still teaches its task rather than becoming an empty pointer.
+Repeating the values needed to understand that example is not the same as maintaining another complete reference.
+The right home depends on the document set's readers and maintenance responsibilities, not a required filename or publishing system.
 
 ## Exceptions and false positives
 
-- A concise package overview or a useful quick entrypoint is not automatically duplicate documentation.
-- A task-local prerequisite can legitimately repeat a requirement needed by readers arriving directly at that task.
-- A reference and a tutorial can discuss the same API while answering different reader questions.
-- Maintainer guidance has a distinct purpose when it explains repository maintenance rather than repeating consumer setup.
-- Translations are intentional parallel editions, not competing homes; preserve equivalent steps, defaults, and warnings.
-- Similar filenames or isolated repeated sentences do not establish duplicate detailed procedures.
+- A tutorial and a reference may cover the same subject while answering different questions.
+- A standalone runbook or offline handout may need enough repeated detail to work without another document.
+- Deliberately generated copies with a clear maintained source are not independently competing homes.
+- Safety warnings and required legal notices may need repetition at each point of use.
+- Training material may repeat an explanation deliberately to support practice or recall.
+- Concise summaries, task-local prerequisites, and useful entry points are not automatically competing manuals.
+- Translated editions are excluded from this review, not treated as duplicate homes.
 
 ## Inspect and fix a failure
 
-1. Compare the actual overlapping excerpts and identify their audiences and tasks.
-2. Establish which location will be maintained as the home for each detailed procedure or contract.
-3. Retain the concise overview readers need to choose a link, and link directly to the relevant guide or reference.
-4. Consolidate duplicate detail without discarding unique constraints, useful examples, or maintainer instructions.
-5. Check affected links and entrypoints after consolidation; do not replace multiple working routes with a dead destination.
-
-This is an ownership judgment across documents, not a ban on all repetition or an instruction to delete unseen pages.
+1. Compare the overlapping detail and establish whether the audiences and purposes justify repetition.
+2. Choose one maintained home for detail that does not need independent copies.
+3. Retain context, examples, and warnings needed where readers encounter the topic.
+4. Replace unnecessary duplication with a direct reference to the relevant section.
+5. Check the destination, affected entry points, and any retained copies for consistency.
 
 ## Abstention boundaries
 
-- `not_applicable`: the page has no consumer-guidance ownership or entrypoint responsibility within the supplied document set.
-- `insufficient_context`: the duplication question depends on unseen neighboring guides, README content, or linked destinations.
-- A link alone does not prove the destination contains the detailed guidance; missing evidence is not a pass.
+- `not_applicable`: the supplied material has no overlapping-detail or document-home responsibility to assess.
+- `insufficient_context`: unseen documents or unknown standalone requirements determine whether the repetition is justified.
+- Similar filenames or isolated repeated sentences do not establish competing maintained homes.

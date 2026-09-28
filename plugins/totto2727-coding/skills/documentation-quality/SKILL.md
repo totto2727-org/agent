@@ -1,7 +1,7 @@
 ---
 name: documentation-quality
 description: >-
-  Review technical documentation against explicit rules, with on-demand anti-patterns and examples.
+  Review developer documentation across languages, tools, and project types, with on-demand anti-patterns and examples.
   Use for documentation quality checks and optional parallel Jev evaluation through OOMOL/OpenConnector.
   Apply primarily to English source documentation, not translated editions.
   Use documentation-principles for writing principles and share-artifact for document formats.
@@ -11,6 +11,7 @@ compatibility: Node.js 22 or later and curl for the optional evaluator. Live che
 # Documentation Quality
 
 Apply [documentation-principles](../documentation-principles/SKILL.md) to the reader's task, not a document-length target.
+Select criteria by the document's purpose rather than a particular technology or development workflow.
 Review English source documentation by default and exclude translated editions from evaluations.
 Translation fidelity, source accuracy, runnable examples, and working links require separate checks.
 

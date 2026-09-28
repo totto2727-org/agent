@@ -1,7 +1,7 @@
 ---
 name: documentation-principles
 description: >-
-  Shared principles for creating, editing, and planning clear technical documentation.
+  Shared principles for creating, editing, and planning developer documentation across languages, tools, and project types.
   Apply primarily to English source documentation, not translated editions.
   Use documentation-quality for reviews and rule-specific examples, and share-artifact for document formats.
 ---
@@ -9,6 +9,7 @@ description: >-
 # Documentation Principles
 
 **Minimize the reader's effort to find, understand, and use the information they need.**
+Choose guidance by the reader's purpose, not a particular language, framework, or project structure.
 Apply these principles primarily to English source documentation before translation, not as a rewriting or quality-review pass on translated editions.
 Review translation fidelity and target-language correctness separately.
 
@@ -21,8 +22,8 @@ Distinguish learning, task execution, reference, and explanation without forcing
 ## Lead with the useful answer
 
 State the action, result, or decision before supporting background.
-Present the supported default before optional alternatives and disclose detail when it becomes necessary.
-For consumer documentation, explain observable behavior; for maintainer documentation, include the internals needed for maintenance.
+When a task has a supported normal path, present it before optional alternatives and disclose detail when it becomes necessary.
+Match technical detail to the reader's goal, whether usage, operation, implementation, or design.
 
 ## Give each unit one responsibility
 

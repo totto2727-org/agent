@@ -2,63 +2,65 @@
 
 ## Applicability and context
 
-Use `reader-route` at complete-page scope to assess the route through a stated reader task.
-Supply the supported default path and relevant destination excerpts, especially when prerequisites are delegated to another guide.
-Review one source language, normally English, rather than applying this rubric to translated editions.
-This guide supports follow-up reasoning review; do not inject its samples or expected labels into blind Jev requests.
+Use `reader-route` for developer pages whose purpose depends on coherent ordering or navigation.
+Establish the reader's goal and inspect relevant destinations when navigation delegates essential information.
+Review English source documents, not translated editions.
+Use these examples for follow-up review, not as samples or expected labels in blind model input.
 
 ## Illustrative comparison
 
-These simplified page outlines are illustrative adaptations, not real commands or repository instructions.
-Assume the public generator provides a runnable project and the supplied host guide documents its prerequisites.
+This hypothetical restore runbook requires an empty target, a compatible snapshot, and write access before restoration.
+Assume its supplied sections contain those checks and a result-verification procedure.
+These outlines compare order, not executable restore commands.
 
 **Problematic**
 
 ```text
-Getting started
-1. Install the runtimes and deployment tools for every supported host.
-2. Clone the framework repository and find its examples directory.
-3. Compare the fixture application with the generated starter.
-4. Choose one of several overlapping setup introductions.
+Restore a test database
+1. Restore the snapshot.
+2. Find your target type in the administration handbook.
+3. Check that the target is empty and the snapshot is compatible.
+4. Obtain write access if the command failed.
+5. Browse the troubleshooting index to find verification instructions.
 ```
 
 **Improved**
 
 ```text
-Getting started
-1. Create a project with the supported public generator.
-2. Run the generated project using the documented default command.
-3. For another host, choose it in the Platforms overview.
-
-Platforms overview -> Selected host guide -> Host prerequisites and setup
+Restore a test database
+1. Choose the target type under "Supported restore targets."
+2. Follow that target's "Before restoring" checks:
+   empty target, compatible snapshot, and write access.
+3. If all checks pass, follow "Restore the snapshot."
+4. Follow "Verify the restored data" before using the test database.
 ```
 
 ### Why this diagnosis
 
-The improved route leads through the supported default without requiring knowledge of repository fixtures.
-Alternative selection belongs in an overview; the selected host guide owns its runtime and deployment prerequisites.
-This outline illustrates ordering only; an actual execution guide must supply its verified commands and destinations.
-Moving prerequisites is an improvement only if the supplied destination evidence confirms readers still encounter them before use.
+The improved route places necessary checks before the operation that relies on them.
+Its destinations identify the next relevant section instead of sending readers through broad indexes.
+The route ends with the intended verified outcome, not merely a completed command.
+Moving a prerequisite behind a link works only when the destination actually supplies it before use.
 
 ## Exceptions and false positives
 
-- A contributor or fixture-maintenance guide may correctly begin with cloning the repository.
-- If no public generator exists or supports the task, do not invent one or reject the supported manual route.
-- A one-sentence link to the platform overview can be a complete navigation unit.
-- Execution steps should link directly to the needed task or example rather than force another round of route selection.
-- Require earlier tutorial state only when the current task actually depends on it, not because both pages edit the same example.
-- Task-local prerequisites can be worth repeating when readers arrive directly at a host guide.
+- Reference indexes can support selective lookup rather than a single sequential reading path.
+- Architecture explanations may need concepts introduced in dependency order without any setup procedure.
+- Multiple routes are legitimate when readers have different environments, constraints, or goals.
+- Require prior tutorial state only when the current task depends on it.
+- Direct-entry readers may need a prerequisite repeated locally.
+- Do not impose a particular generator, platform, tool, or default route on unrelated documentation.
 
 ## Inspect and fix a failure
 
-1. Trace the page from entry to the stated outcome using its supported public default.
-2. Identify detours into repository examples, competing introductions, or optional customization before the default works.
-3. Verify each delegated prerequisite in the supplied destination, not merely its link label.
-4. Keep route selection in the overview and host-specific execution requirements in the selected guide.
-5. Check links and exercise real commands separately; coherent prose does not establish an executable route.
+1. Trace the intended reading or execution route from entry to its stated outcome.
+2. Identify premature actions, missing conceptual foundations, ambiguous choices, or unnecessary detours.
+3. Check delegated prerequisites and next steps in the actual destination excerpts.
+4. Put prerequisites before use and a documented normal path before optional branches, when one exists.
+5. Verify real links and commands separately from the judgment of ordering.
 
 ## Abstention boundaries
 
-- `not_applicable`: the page is a factual record with no task route or alternative-selection responsibility.
-- `insufficient_context`: only a fragment is supplied, the supported default is unknown, or a decisive linked prerequisite is unseen.
-- Do not assume a missing destination contains the prerequisite or classify its unseen contents as a proven failure.
+- `not_applicable`: an isolated factual entry or lookup-only reference has no meaningful ordering or navigation responsibility.
+- `insufficient_context`: the page scope or decisive linked destination is unavailable.
+- Do not assume an unseen destination contains a prerequisite or classify its contents as a proven failure.

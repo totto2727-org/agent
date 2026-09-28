@@ -1,73 +1,62 @@
-# Actionable example
+# Concrete demonstration
 
 ## Applicability and context
 
-Use `actionable-example` when a section teaches an API operation or customization.
-Inspect the surrounding page and earlier examples for unchanged setup, but require the operation being taught to be demonstrated concretely.
-Review one source language, normally English, rather than applying this rubric to translated editions.
-This guide supports follow-up reasoning review; do not inject its samples or expected labels into blind Jev requests.
+Use `actionable-example` when developers need a concrete demonstration to apply a procedure or understand a concept.
+Inspect surrounding explanations and existing examples before deciding that a demonstration is missing.
+Review English source documents, not translated editions.
+Use these examples for follow-up review, not as samples or expected labels in blind model input.
 
 ## Illustrative comparison
 
-This is a self-contained JavaScript teaching example, not a real library API.
-Assume these local definitions are already shown on the page:
-
-```js
-function Label({ text, prefix = "" }) {
-  return `${prefix}${text}`;
-}
-
-function renderLabel(text, { component = Label } = {}) {
-  return component({ text });
-}
-```
-
-The task is to customize the label prefix without changing the underlying renderer.
+This hypothetical batch tool reads `workers` and `tasks_per_worker` from a JSON configuration.
+Both are positive integers, and its maximum concurrent task count is their product.
+The guide teaches sizing a three-worker configuration for at most twelve concurrent tasks.
 
 **Problematic**
 
-> Wrap `Label` to change its prefix, then pass your replacement as `component`.
-
-```js
-renderLabel("Ready", { component: PrefixedLabel });
-```
+> Adjust the per-worker task limit to keep total concurrency within twelve tasks.
 
 **Improved**
 
-```js
-function PrefixedLabel(props) {
-  return Label({ ...props, prefix: "Note: " });
-}
+> Divide the total limit by the worker count: 12 / 3 = 4 tasks per worker.
+> Use this configuration:
 
-renderLabel("Ready", { component: PrefixedLabel }); // "Note: Ready"
+```json
+{
+  "workers": 3,
+  "tasks_per_worker": 4
+}
 ```
+
+> The resulting maximum is 3 * 4 = 12 concurrent tasks.
+> Increasing `workers` without lowering `tasks_per_worker` also increases that maximum.
 
 ### Why this diagnosis
 
-The problematic sample names a replacement but never defines the behavior the reader is trying to implement.
-The improved sample shows the wrapper, changed option, and wiring into the consuming call.
-Earlier context supplies unchanged setup, not the missing customization.
-Adding code can reduce reader effort more than shortening the prose.
+The problematic instruction leaves the learner to connect the overall limit to the individual fields.
+The filled configuration and calculation show that connection and its resulting behavior.
+A runnable program would add no necessary information to this particular sizing example.
 
 ## Exceptions and false positives
 
-- Navigation-only text, simple factual entries, and warnings do not need decorative examples.
-- A focused example may rely on explicit earlier imports or setup; it need not repeat an entire application.
-- Keep non-obvious constraints, prerequisites, trade-offs, and failure handling in prose when syntax cannot explain them.
-- Do not require an unrelated customization example when the unit only teaches default usage.
+- Commands, configuration, request/result pairs, diagrams, calculations, and code are valid demonstrations when suited to the idea.
+- Factual reference entries, warnings, and already unambiguous instructions may need no example.
+- An architecture concept may need a diagram rather than an execution sequence.
+- A focused example may rely on clearly available earlier setup rather than repeat an entire project.
+- Customization examples should show the changed behavior and how it is connected, not merely name an undefined replacement.
+- A demonstration does not replace necessary explanations of constraints or failure handling.
 
 ## Inspect and fix a failure
 
-1. Name the exact operation or changed behavior the reader must reproduce.
-2. Locate existing setup and determine which step the target leaves to inference.
-3. Add the smallest verified import, call, replacement definition, or configuration that demonstrates that step.
-4. For customization, inspect both replacement behavior and its wiring; a placeholder name is not enough.
-5. Validate real examples against the project's supported API and runtime separately from this writing judgment.
-
-Do not copy this local teaching API into product documentation as though it were a public package contract.
+1. Identify the procedure or relationship the reader is expected to grasp.
+2. Locate the missing connection rather than requiring an example merely because none is present.
+3. Choose the smallest suitable demonstration and show its outcome or interpretation.
+4. Verify inputs, transformations, labels, and results against the stated contract.
+5. Check real examples against supported behavior separately from this writing judgment.
 
 ## Abstention boundaries
 
-- `not_applicable`: navigation, factual lookup text, or a warning does not teach an operation or customization.
-- `insufficient_context`: the taught operation or referenced earlier setup is unavailable, preventing a completeness judgment.
-- A visibly missing replacement definition is a failure when the supplied page confirms no earlier definition, not missing context.
+- `not_applicable`: no concrete demonstration is needed for the passage's purpose.
+- `insufficient_context`: the concept or referenced setup is unavailable, preventing a completeness judgment.
+- A clearly missing step in an otherwise supplied demonstration is a defect, not missing context.

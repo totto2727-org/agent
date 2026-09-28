@@ -3,14 +3,15 @@
 Select a rule by the reader's task and the evidence available.
 Open its guide only when needed to interpret a finding or resolve uncertainty; do not load every example for a normal review.
 These checks cover selected [documentation principles](../../documentation-principles/SKILL.md), not every aspect of documentation quality.
+Apply them across developer guides, references, design explanations, and operational procedures without requiring a particular stack, tool, or document layout.
 
 | Rule and follow-up guide                            | Scope                          | Evidence needed                                                |
 | --------------------------------------------------- | ------------------------------ | -------------------------------------------------------------- |
-| [consumer-contract](rules/consumer-contract.md)     | Section                        | Reader task, audience, public behavior, surrounding page       |
-| [actionable-example](rules/actionable-example.md)   | Section                        | Operation being taught and any earlier example it relies on    |
+| [consumer-contract](rules/consumer-contract.md)     | Section                        | Reader purpose, audience, and necessary technical context      |
+| [actionable-example](rules/actionable-example.md)   | Section                        | Operation or mechanism and any supporting examples or setup    |
 | [consequential-limit](rules/consequential-limit.md) | Section                        | Affected behavior, observable consequence, known remedy        |
 | [focused-unit](rules/focused-unit.md)               | Section                        | The unit's question and neighboring explanation                |
-| [reader-route](rules/reader-route.md)               | Page                           | Complete page, default path, relevant destination excerpts     |
+| [reader-route](rules/reader-route.md)               | Page                           | Complete page, intended outcome, relevant destination excerpts |
 | [canonical-home](rules/canonical-home.md)           | Page with document-set context | Actual entry points, linked guides, and overlapping procedures |
 
 ## Resolve a finding

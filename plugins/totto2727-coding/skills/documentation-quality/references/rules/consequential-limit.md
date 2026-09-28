@@ -2,61 +2,54 @@
 
 ## Applicability and context
 
-Use `consequential-limit` when the target discusses a limitation that can affect the reader's intended use.
-Establish the affected feature, observable consequence, and known remedy or alternative from reliable context.
-Review one source language, normally English, rather than applying this rubric to translated editions.
-This guide supports follow-up reasoning review; do not inject its samples or expected labels into blind Jev requests.
+Use `consequential-limit` when a developer-documentation passage describes a limitation affecting the reader's intended use or understanding.
+Establish where it applies, what it means for the reader, and any known available remedy or alternative.
+Review English source documents, not translated editions.
+Use these examples for follow-up review, not as samples or expected labels in blind model input.
 
 ## Illustrative comparison
 
-These adaptations assume a renderer with browser-only default diagrams and a verified server-renderable replacement mechanism.
-They are not quotations or assertions about an unspecified product's API.
+This hypothetical database client keeps export cursors for one hour after creation.
+Its defined contract rejects expired cursors and allows a new export, but does not recover an expired export's position.
 
 **Problematic**
 
-```markdown
-> [!NOTE]
-> Diagrams use a client wrapper; the surrounding document remains server-renderable.
-```
+> Export cursors have limited retention.
+> Restart if necessary.
 
 **Improved**
 
-```markdown
-> [!WARNING]
-> Default diagrams require browser JavaScript.
-> Server output contains diagram placeholders, not completed diagrams.
-> For completed server output, provide a server-renderable diagram replacement through the renderer's component configuration.
-```
+> An export cursor expires one hour after creation.
+> After that, a resume request fails with `CURSOR_EXPIRED` and cannot continue from the saved position.
+> Start a new export from the beginning if you still need the data.
+> Restarting does not recover the expired cursor's position.
 
 ### Why this diagnosis
 
-The earlier note requires the reader to infer what a client wrapper means for the output they need.
-The warning states the affected behavior, what the reader will observe, and the available next action in the target itself.
-It does not incorrectly extend a default diagram limitation to all document rendering.
-A remedy names an available mechanism; its full implementation can live in a linked customization example.
+The improved passage states the interval, the affected operation, and the observable failure.
+It identifies an available next action without claiming that the action restores lost progress.
+It does not suggest that all database operations stop when one export cursor expires.
+The warning need not become a complete export tutorial to communicate the limitation.
 
 ## Exceptions and false positives
 
-- Require a remedy only when one is known and available; do not invent a workaround to satisfy the rubric.
-- If evidence establishes that no remedy exists, state the limitation honestly without promising one.
-- A warning need not contain a complete runnable replacement; `actionable-example` evaluates a section that teaches its implementation.
-- Use GitHub Alerts by default where supported, or the repository's renderer-compatible equivalent.
-- GitHub Alerts are a GitHub extension, not part of the formal GFM specification.
-- Choose severity by reader impact, not internal complexity; ordinary explanation should remain ordinary prose.
-- Keep the warning close to the affected behavior, not in a remote implementation note.
+- Require a remedy or alternative only when it is known and available.
+- If none exists, explain the limitation without promising a solution.
+- If availability is unknown, do not turn uncertainty into either a remedy or a claim that none exists.
+- A limitation can qualify a benchmark or architecture conclusion, not only restrict an operation.
+- Choose placement and prominence by reader impact and document format, not a mandatory callout syntax.
+- Explicit surrounding context may supply applicability or consequences when readers encounter it before relying on the guidance.
 
 ## Inspect and fix a failure
 
-1. Identify the affected feature precisely, including whether only its default implementation is limited.
-2. Verify the observable outcome and known remedy against source or supported behavior.
-3. Make each applicable element explicit in the target; another passage cannot rescue an incomplete warning.
-4. Replace vague internal boundaries with consumer consequences and a concrete available action.
-5. Check prominence and scope without turning every technical caveat into an alarming callout.
+1. Identify the affected operation, claim, configuration, or time interval precisely.
+2. Verify the consequence and any proposed remedy against the supplied evidence.
+3. Replace vague restriction language with what the reader can expect or cannot conclude.
+4. State a known next action without implying it solves more than it does.
+5. Check that readers encounter the qualification before relying on the affected guidance.
 
 ## Abstention boundaries
 
-- `not_applicable`: no consequential limitation is discussed in the target.
-- `insufficient_context`: the supplied evidence cannot establish the affected behavior or whether an asserted remedy is available.
-- A known limitation with a missing consequence or known remedy is a failure, not a reason to abstain.
-
-The rubric's “ALL” wording means all applicable elements: its pass condition requires a concrete remedy **when available**, not an invented one.
+- `not_applicable`: the target discusses no consequential restriction or limitation.
+- `insufficient_context`: decisive evidence about applicability, effect, or an asserted remedy is unavailable.
+- Omitting an established consequence is a defect even when no remedy exists.
