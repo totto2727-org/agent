@@ -3,6 +3,7 @@ name: documentation-quality
 description: >-
   Evaluate technical documentation against explicit writing rules, including many small pages or sections in parallel with Jev through OOMOL/OpenConnector.
   Use for documentation quality checks, history-calibrated reviews, and before/after regression checks.
+  Apply primarily to English source documentation, not translated editions.
   Use documentation-principles for writing principles and share-artifact for README, AGENTS.md, and ADR structure.
 compatibility: Node.js 22 or later and curl for the optional evaluator. Live checks require an OOMOL/OpenConnector instance with the TypeSafe AI Actions enabled.
 ---
@@ -19,6 +20,10 @@ This skill owns the evaluation workflow, not a competing set of writing principl
 > A `pass` is a model judgment, not proof that the document meets the reviewed standard.
 
 ## Establish the reference
+
+Apply this workflow primarily to English source documentation, before translation.
+Exclude translated editions from quality-evaluation manifests and calibration corpora.
+Translation fidelity and target-language correctness belong to a separate review, not this writing-quality rubric.
 
 1. Identify the audience, reader task, and documentation type before choosing rules.
 2. When a reviewed branch supplies the reference, inspect its chronological commits, not only its base-to-merge diff.
@@ -81,8 +86,8 @@ Source accuracy, runnable examples, working links, and translation equivalence r
 
 Use paired historical negatives and merged positives to test whether each rule distinguishes its intended problem.
 Freeze the rules, threshold, and model choice before evaluating a held-out revision family.
-Keep related translations and nearly identical host variants in the same split.
-Do not count them as independent evidence of generalization.
+Keep nearly identical host variants in the same split.
+Do not count them as independent evidence of generalization, and do not add translated editions as extra samples.
 
 Report false acceptances, false rejections, abstentions, and infrastructure errors separately, per rule and revision family.
 Include short merged sections as positive controls so the checker cannot succeed by rejecting brevity.

@@ -4,6 +4,7 @@ description: |
   software documentation. Use when creating, editing, reviewing, or
   planning technical documentation such as READMEs, guides, tutorials,
   API references, specifications, design documents, ADRs, and RFCs.
+  Apply primarily to English source documentation, not translated editions.
 name: documentation-principles
 ---
 
@@ -17,6 +18,10 @@ Reading, writing, editing, and tooling are the responsibility of the task, agent
 This skill defines the **principles and decision criteria** that should remain consistent across those activities.
 
 ## Core principle
+
+Apply these principles primarily to English source documentation, before translation.
+Do not apply them as a separate rewriting or quality-review pass to translated editions.
+Review translations separately for fidelity to the source and target-language correctness; make structural or editorial improvements in the English source first, then update its translations.
 
 The goal of documentation is not to maximize the amount of information it contains.
 

@@ -23,6 +23,10 @@ Compare runs using the same resolved model when measuring a rule change.
 
 ## Prepare a manifest
 
+Select English source documentation by default and exclude translated editions from `documents`, including historical calibration inputs.
+Review the English source before translation; assess translation fidelity and target-language correctness separately rather than applying this rubric again after translation.
+The evaluator does not automatically detect source language or translation status, so enforce this scope when preparing the manifest.
+
 Paths are relative to the manifest file unless absolute.
 Use exactly one of `rulesFile` or inline `rules`.
 The [bundled rules](rules.json) are a starting point, not a requirement to apply every rule to every document.
