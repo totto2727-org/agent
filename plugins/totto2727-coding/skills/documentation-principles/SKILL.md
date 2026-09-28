@@ -39,9 +39,13 @@ Separate choosing a path from following the chosen task.
 ## Use the minimum sufficient form
 
 Prefer direct, concrete wording and descriptive headings.
-Use prose, examples, lists, tables, or callouts according to what makes the information easiest to understand.
-Let examples demonstrate behavior and use explanation for what the example cannot show.
 Remove repetition and material that adds no reader value, not necessary context.
+
+## Prefer examples over prose
+
+Prefer concrete examples, code, and diagrams over prose describing the same behavior or relationships.
+Use prose to supply context, constraints, and consequences that the examples cannot convey.
+Choose the form that makes the information easiest to understand.
 
 ## Preserve accuracy and consequences
 
