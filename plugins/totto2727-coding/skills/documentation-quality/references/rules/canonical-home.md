@@ -60,8 +60,3 @@ This is an ownership judgment across documents, not a ban on all repetition or a
 - `not_applicable`: the page has no consumer-guidance ownership or entrypoint responsibility within the supplied document set.
 - `insufficient_context`: the duplication question depends on unseen neighboring guides, README content, or linked destinations.
 - A link alone does not prove the destination contains the detailed guidance; missing evidence is not a pass.
-
-## Historical grounding
-
-See [PR #17: explain rendering as a consumer contract](../history-evidence.md#pr-17-explain-rendering-as-a-consumer-contract), especially revision `71f11f63`, for consolidation of package consumer docs into the bilingual site.
-The [rule catalog](../rules.md) notes that this page rule is not calibrated by the section-pair corpus; bilingual editions are not independent evidence of duplication or quality.

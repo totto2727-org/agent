@@ -56,9 +56,3 @@ Prefer descriptive headings and direct wording, not a mechanical sentence, parag
 - `not_applicable`: the selected material is not a meaningful prose or instructional unit, such as a raw index of generated symbols.
 - `insufficient_context`: the reader task or neighboring material needed to judge relevance is missing.
 - Brevity is neither failure nor inapplicability; a one-sentence navigation unit can pass.
-
-## Historical grounding
-
-See [PR #15: simplify the route to a running project](../history-evidence.md#pr-15-simplify-the-route-to-a-running-project) for repeated introductions and optional binding digressions.
-See [PR #17: explain rendering as a consumer contract](../history-evidence.md#pr-17-explain-rendering-as-a-consumer-contract) for retained asset constraints and removed optional detours or redundant component prose.
-The [corpus](../history-corpus.json) includes short positive controls; they are not length templates.

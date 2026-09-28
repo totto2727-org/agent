@@ -51,9 +51,3 @@ Do not substitute a generic introduction or a longer explanation for a complete 
 - `not_applicable`: the material has no relevant explanatory or instructional task to assess, such as a raw machine-generated index.
 - `insufficient_context`: the audience, task, public behavior, or surrounding context needed to distinguish contract from internals is missing.
 - Maintainer intent is an exception to consumer-only expectations, not an automatic failure or abstention.
-
-## Historical grounding
-
-See [PR #15: simplify the route to a running project](../history-evidence.md#pr-15-simplify-the-route-to-a-running-project) for removed fixture introductions and retained prerequisites.
-See [PR #17: explain rendering as a consumer contract](../history-evidence.md#pr-17-explain-rendering-as-a-consumer-contract) for consumer-visible rendering consequences.
-The [corpus](../history-corpus.json) includes platform introductions, collection prerequisites, and lookup simplification; its immutable revisions distinguish writing changes from changing APIs.

@@ -71,8 +71,3 @@ Do not copy this local teaching API into product documentation as though it were
 - `not_applicable`: navigation, factual lookup text, or a warning does not teach an operation or customization.
 - `insufficient_context`: the taught operation or referenced earlier setup is unavailable, preventing a completeness judgment.
 - A visibly missing replacement definition is a failure when the supplied page confirms no earlier definition, not missing context.
-
-## Historical grounding
-
-See [PR #17: explain rendering as a consumer contract](../history-evidence.md#pr-17-explain-rendering-as-a-consumer-contract), especially revision `d6b5a67b`, for import/render and replacement examples.
-The [corpus](../history-corpus.json) pins the `rendering-example` pair; it does not make its particular API a universal example template.

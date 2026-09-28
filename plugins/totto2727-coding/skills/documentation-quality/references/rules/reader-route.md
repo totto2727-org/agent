@@ -62,8 +62,3 @@ Moving prerequisites is an improvement only if the supplied destination evidence
 - `not_applicable`: the page is a factual record with no task route or alternative-selection responsibility.
 - `insufficient_context`: only a fragment is supplied, the supported default is unknown, or a decisive linked prerequisite is unseen.
 - Do not assume a missing destination contains the prerequisite or classify its unseen contents as a proven failure.
-
-## Historical grounding
-
-See [PR #15: simplify the route to a running project](../history-evidence.md#pr-15-simplify-the-route-to-a-running-project), particularly the generator route, Platforms link, and host-local prerequisites.
-The [rule catalog](../rules.md) notes that the section-pair corpus does not calibrate this page rule; its history is interpretive evidence, not measured classification accuracy.

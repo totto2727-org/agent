@@ -60,8 +60,3 @@ A remedy names an available mechanism; its full implementation can live in a lin
 - A known limitation with a missing consequence or known remedy is a failure, not a reason to abstain.
 
 The rubric's “ALL” wording means all applicable elements: its pass condition requires a concrete remedy **when available**, not an invented one.
-
-## Historical grounding
-
-See [PR #17: explain rendering as a consumer contract](../history-evidence.md#pr-17-explain-rendering-as-a-consumer-contract) for the verbatim earlier note and merged warning.
-The [corpus](../history-corpus.json) pins the `rendering-warning` pair and preserves the complete warning as the target.
