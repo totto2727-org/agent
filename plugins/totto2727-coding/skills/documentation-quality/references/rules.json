@@ -33,12 +33,5 @@
     "instructions": "For a page that guides action, develops an explanation, or helps readers find related guidance, can the stated reader follow a coherent route to the intended outcome? Check that prerequisites appear before they are needed, steps and decisions are ordered clearly, and links lead to the appropriate level of guidance. Explain a documented normal path before optional branches when such a path exists, but do not invent a default or require a particular tool, automation method, environment, or document layout. Judge delegated prerequisites using supplied destination evidence, not assumptions. Return not_applicable for an isolated factual entry or a lookup-only reference with no meaningful ordering or navigation responsibility. Return insufficient_context when a decisive destination or required prerequisite is unseen.",
     "pass": "The page provides an understandable route for its stated purpose, with usable ordering, clear choices, and prerequisites available at the relevant point.",
     "fail": "The page requires avoidable detours, introduces necessary prerequisites too late, presents competing or circular instructions, or leaves the reader to reconstruct the route from disconnected guidance."
-  },
-  {
-    "id": "canonical-home",
-    "scope": "page",
-    "instructions": "Using the page and supplied documentation-set context, does each detailed procedure or fact set have a clear maintained home, with useful entry points instead of competing copies for the same audience and purpose? Do not require any particular hosting location, file type, or split between documents. Repetition can be justified by distinct reader tasks, standalone use, necessary task-local reminders, or deliberate generated copies with a clear source. A tutorial and reference may discuss the same subject without duplicating their purpose. Translated editions are outside this evaluation scope, not duplication defects. Return insufficient_context when decisive overlapping material or ownership information is unseen. Return not_applicable when the page has no shared-guidance ownership or entry-point responsibility.",
-    "pass": "Detailed guidance has clear ownership, and any repeated information serves a distinct reader need or an explicit single-source publication arrangement.",
-    "fail": "The evidence shows competing maintained copies of the same detailed guidance for the same reader purpose without a justified need or clear authoritative source."
   }
 ]
