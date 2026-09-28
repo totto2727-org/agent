@@ -61,7 +61,7 @@ The corrected unit makes the limitation and available action legible to a consum
 These transitions justify concrete rules about reader routes, consumer consequences, canonical ownership, and focused examples.
 They do not justify banning implementation terminology, all repeated prerequisites, all alternatives, or all short pages.
 An intermediate revision is not the final positive target if a later commit changes it again.
-Japanese and English versions, or nearly identical Node and Bun guides, are related samples and must not be split between calibration and holdout as though independent.
+Translated editions are excluded from this rubric; keep nearly identical Node and Bun guides in the same split rather than treating them as independent evidence.
 
 The maintained corpus records selected source ranges and per-rule labels separately from model input.
 Its holdout is a regression check against a separate revision family, not evidence that the rule design itself was blind to these public PRs.

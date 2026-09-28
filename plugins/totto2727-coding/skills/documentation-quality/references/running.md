@@ -12,6 +12,8 @@ The script calls only `/v1/actions/typesafe_ai.evaluate` on that origin.
 There is no direct-provider fallback.
 
 Use the installed `open-connector` skill to discover `typesafe_ai.evaluate` and call `typesafe_ai.list_models` before the first live run.
+If unavailable, use the [gateway skill in this repository](../../../../external-information/skills/open-connector/SKILL.md).
+Prefer the installed official `typesafe-ai` skill for question design and model limits, with the [official documentation index](https://docs.typesafe.ai/llms.txt) as fallback.
 The Action wraps TypeSafe's request as `{"input":{"state":...,"model":...,"questions":...}}` and returns typed answers under `data.answers`.
 Question and answer collections are keyed objects, not arrays.
 See the official [API reference](https://docs.typesafe.ai/api.md), [Choice primitive](https://docs.typesafe.ai/primitives/choice.md), and [model limits](https://docs.typesafe.ai/models.md).
@@ -94,6 +96,7 @@ node plugins/totto2727-coding/skills/documentation-quality/scripts/evaluate.mjs 
 
 Dry runs do not require gateway credentials and do not make network calls.
 Inspect the planned ranges, evidence, requests, and questions before authorizing a live run.
+Confirm that both the gateway and its configured model provider may receive the document contents.
 Do not publish the plan if its source text is private.
 
 Remove `--dry-run` and choose a new report path to evaluate through OOMOL.
@@ -116,9 +119,20 @@ A successful dry run is not an acceptance result.
 `not_applicable` and `insufficient_context` stay visible for review rather than silently reducing the coverage denominator.
 A historical negative correctly judged `fail` still makes the quality evaluator exit `1`; the separate corpus scorer determines whether that judgment matched its label.
 
+For a failing or uncertain answer, match `answers[].questionId` to `questions[].id` within the same evaluation and use its `rule.id` in the [rule index](rules.md).
+Read only that rule's guide, then compare the actual source range and page context with its example and exceptions.
+Do not send the guide's labeled samples back as evidence in a blind evaluation or infer a rationale that Jev did not return.
+Keep `not_applicable`, `insufficient_context`, low confidence, and missing results separate from positive passes; do not average away a critical failure.
+
+For an evaluation with `status: "error"`, inspect its `error` field and the gateway or response validation failure rather than editing document prose.
+Resolve access or request-format problems through the configured gateway, without bypassing authentication or silently accepting missing answers.
+If preparation exits `2`, correct the manifest, environment, source range, or output path before retrying.
+Keep earlier reports and use a new output path so a failed run remains inspectable.
+
 ## Reproduce the historical comparison
 
 The [corpus specification](history-corpus.json) pins source commits and complete semantic ranges from both PRs.
+Use the [calibration procedure](calibration.md) when selecting new examples or changing expected labels and rules.
 It keeps a calibration split and separate revision-family holdout, with original labels outside the model request.
 It includes short merged paragraphs as positive controls and preserves the complete page as context.
 These are selected regression examples, not a statistically representative documentation benchmark.
