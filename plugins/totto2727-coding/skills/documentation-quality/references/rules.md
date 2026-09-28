@@ -24,8 +24,7 @@ If the problem is missing context, obtain that context rather than copying an ex
 
 The executable definitions live in [rules.json](rules.json); the linked Markdown examples are for follow-up review, not automatic model input.
 Keep `fail`, low confidence, `not_applicable`, `insufficient_context`, and infrastructure errors distinct from a positive pass.
-The [execution guide](running.md#read-the-report) explains report fields and errors; the [calibration guide](calibration.md) covers disagreements with historical expectations.
+The [execution guide](running.md#read-the-report) explains report fields and errors.
 
-The initial `jev-1.13.0` validation accepted some corrected-away passages with high confidence, so the rubric remains advisory.
-The paired corpus exercises four section rules; `reader-route` and `canonical-home` are not calibrated by those pairs.
+The rubric is advisory: a high-confidence judgment can still be wrong.
 Examples explain the intended decision but do not establish model accuracy.

@@ -5,7 +5,7 @@
 Use `consequential-limit` when the target discusses a limitation that can affect the reader's intended use.
 Establish the affected feature, observable consequence, and known remedy or alternative from reliable context.
 Review one source language, normally English, rather than applying this rubric to translated editions.
-This guide supports follow-up reasoning review; do not inject its samples or historical labels into blind Jev requests.
+This guide supports follow-up reasoning review; do not inject its samples or expected labels into blind Jev requests.
 
 ## Illustrative comparison
 

@@ -5,7 +5,7 @@
 Use `reader-route` at complete-page scope to assess the route through a stated reader task.
 Supply the supported default path and relevant destination excerpts, especially when prerequisites are delegated to another guide.
 Review one source language, normally English, rather than applying this rubric to translated editions.
-This guide supports follow-up reasoning review; do not inject its samples or historical labels into blind Jev requests.
+This guide supports follow-up reasoning review; do not inject its samples or expected labels into blind Jev requests.
 
 ## Illustrative comparison
 

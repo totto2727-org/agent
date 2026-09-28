@@ -25,7 +25,7 @@ Compare runs using the same resolved model when measuring a rule change.
 
 ## Prepare a manifest
 
-Select English source documentation by default and exclude translated editions from `documents`, including historical calibration inputs.
+Select English source documentation by default and exclude translated editions from `documents`.
 Review the English source before translation; assess translation fidelity and target-language correctness separately rather than applying this rubric again after translation.
 The evaluator does not automatically detect source language or translation status, so enforce this scope when preparing the manifest.
 
@@ -106,7 +106,7 @@ Transient gateway responses may be retried within a fixed limit; authentication 
 ## Read the report
 
 The report retains document and rule identities, scope, source ranges, typed answers, probabilities, resolved model, and errors.
-Source IDs and file paths are report metadata, not hints about which historical version should pass.
+Source IDs and file paths are report metadata, not hints about the expected verdict.
 A Choice's confidence and its selected option's probability are different fields; do not assume they are equal.
 
 | Process exit | Meaning                                                                                            |
@@ -117,7 +117,6 @@ A Choice's confidence and its selected option's probability are different fields
 
 A successful dry run is not an acceptance result.
 `not_applicable` and `insufficient_context` stay visible for review rather than silently reducing the coverage denominator.
-A historical negative correctly judged `fail` still makes the quality evaluator exit `1`; the separate corpus scorer determines whether that judgment matched its label.
 
 For a failing or uncertain answer, match `answers[].questionId` to `questions[].id` within the same evaluation and use its `rule.id` in the [rule index](rules.md).
 Read only that rule's guide, then compare the actual source range and page context with its example and exceptions.
@@ -129,39 +128,6 @@ Resolve access or request-format problems through the configured gateway, withou
 If preparation exits `2`, correct the manifest, environment, source range, or output path before retrying.
 Keep earlier reports and use a new output path so a failed run remains inspectable.
 
-## Reproduce the historical comparison
-
-The [corpus specification](history-corpus.json) pins source commits and complete semantic ranges from both PRs.
-Use the [calibration procedure](calibration.md) when selecting new examples or changing expected labels and rules.
-It keeps a calibration split and separate revision-family holdout, with original labels outside the model request.
-It includes short merged paragraphs as positive controls and preserves the complete page as context.
-These are selected regression examples, not a statistically representative documentation benchmark.
-
-With the effront repository already available locally:
-
-```bash
-node plugins/totto2727-coding/skills/documentation-quality/scripts/history-corpus.mjs prepare \
-  --repository ../package/effront \
-  --output-dir tmp/documentation-quality/calibration \
-  --split calibration
-
-node plugins/totto2727-coding/skills/documentation-quality/scripts/evaluate.mjs \
-  --manifest tmp/documentation-quality/calibration/manifest.json \
-  --output tmp/documentation-quality/calibration/report.json \
-  --concurrency 4
-
-node plugins/totto2727-coding/skills/documentation-quality/scripts/history-corpus.mjs score \
-  --report tmp/documentation-quality/calibration/report.json \
-  --labels tmp/documentation-quality/calibration/labels.json \
-  --output tmp/documentation-quality/calibration/score.json
-```
-
-Run scoring even when the quality evaluator exits `1`; do not join those two commands with `&&`.
-Freeze the rules before repeating with `--split holdout` and a different output directory.
-Review false acceptances, false rejections, abstentions, missing results, and per-rule/per-family coverage separately.
-Only explicitly labeled judgments contribute to accuracy counts; additional selected questions remain exploratory.
-Do not overwrite failed runs or change labels to make results appear better.
-
 ## Validate the local implementation
 
 ```bash
@@ -172,4 +138,4 @@ git diff --check
 
 The local tests validate segmentation, request/response boundaries, aggregation, and failure behavior with controlled transport.
 They do not prove Jev's semantic accuracy or gateway availability.
-A live corpus run supplies that separate evidence for the selected examples and returned model.
+A live evaluation against independently labeled examples supplies separate evidence of accuracy for those examples and the returned model.

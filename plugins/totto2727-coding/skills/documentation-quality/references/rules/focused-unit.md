@@ -5,12 +5,12 @@
 Use `focused-unit` for a coherent section or paragraph group with a stated reader task.
 Read `evidence.document.purpose`, its heading, and neighboring explanation before deciding what is extraneous.
 Review one source language, normally English, rather than applying this rubric to translated editions.
-This guide supports follow-up reasoning review; do not inject its samples or historical labels into blind Jev requests.
+This guide supports follow-up reasoning review; do not inject its samples or expected labels into blind Jev requests.
 
 ## Illustrative comparison
 
 These project-independent adaptations assume a basic setup task with a required compatibility setting.
-They do not prescribe a real host configuration or quote a historical guide.
+They do not prescribe a real host configuration.
 
 **Problematic**
 

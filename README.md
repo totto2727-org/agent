@@ -44,7 +44,7 @@ Provides general-purpose utility skills.
 
 Provides reusable coding and testing guidance, [documentation-principles](plugins/totto2727-coding/skills/documentation-principles/SKILL.md) for shared writing principles, [share-test-design](plugins/totto2727-coding/skills/share-test-design/SKILL.md) for test-design decisions, and [share-artifact](plugins/totto2727-coding/skills/share-artifact/SKILL.md) for adaptable README, AGENTS.md, and ADR structures.
 Jinja templates show the overall document shape; they do not require a renderer or exact reproduction.
-Use [documentation-quality](plugins/totto2727-coding/skills/documentation-quality/SKILL.md) for history-calibrated document reviews and optional parallel Jev checks through OOMOL/OpenConnector.
+Use [documentation-quality](plugins/totto2727-coding/skills/documentation-quality/SKILL.md) for rule-based document reviews and optional parallel Jev checks through OOMOL/OpenConnector.
 
 ### `external-information`
 

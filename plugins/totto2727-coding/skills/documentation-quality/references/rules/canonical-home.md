@@ -5,11 +5,11 @@
 Use `canonical-home` at page scope with the relevant documentation-set context.
 Inspect actual entry pages, linked guides, and overlapping procedures rather than guessing from document names.
 Review one source language, normally English, rather than applying this rubric to translated editions.
-This guide supports follow-up reasoning review; do not inject its samples or historical labels into blind Jev requests.
+This guide supports follow-up reasoning review; do not inject its samples or expected labels into blind Jev requests.
 
 ## Illustrative comparison
 
-These invented document inventories illustrate ownership, not paths in a particular product or quotations from history.
+These invented document inventories illustrate ownership, not paths in a particular product.
 Assume the supplied excerpts confirm that all three procedures serve the same consumer task.
 
 **Problematic**

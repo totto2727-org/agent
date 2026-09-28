@@ -5,11 +5,11 @@
 Use `actionable-example` when a section teaches an API operation or customization.
 Inspect the surrounding page and earlier examples for unchanged setup, but require the operation being taught to be demonstrated concretely.
 Review one source language, normally English, rather than applying this rubric to translated editions.
-This guide supports follow-up reasoning review; do not inject its samples or historical labels into blind Jev requests.
+This guide supports follow-up reasoning review; do not inject its samples or expected labels into blind Jev requests.
 
 ## Illustrative comparison
 
-This is a self-contained JavaScript teaching example, not a real library API or a quotation from history.
+This is a self-contained JavaScript teaching example, not a real library API.
 Assume these local definitions are already shown on the page:
 
 ```js

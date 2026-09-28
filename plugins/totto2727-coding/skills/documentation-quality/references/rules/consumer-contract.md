@@ -5,7 +5,7 @@
 Use `consumer-contract` for a section whose audience and task are known.
 Read its heading and surrounding page to identify what the reader must import, configure, run, or observe.
 Review one source language, normally English, rather than applying this rubric to translated editions.
-This guide supports follow-up reasoning review; do not inject its samples or historical labels into blind Jev requests.
+This guide supports follow-up reasoning review; do not inject its samples or expected labels into blind Jev requests.
 
 ## Illustrative comparison
 
