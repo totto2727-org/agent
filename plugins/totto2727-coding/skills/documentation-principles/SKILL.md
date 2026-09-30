@@ -1,344 +1,71 @@
 ---
-description: |
-  Principles for designing and writing clear, concise, and readable
-  software documentation. Use when creating, editing, reviewing, or
-  planning technical documentation such as READMEs, guides, tutorials,
-  API references, specifications, design documents, ADRs, and RFCs.
 name: documentation-principles
+description: >-
+  Shared principles for creating, editing, and planning developer documentation across languages, tools, and project types.
+  Apply primarily to English source documentation, not translated editions.
+  Use documentation-quality for reviews and rule-specific examples, and share-artifact for document formats.
 ---
 
 # Documentation Principles
 
-Software documentation should help readers find, understand, and use the information they need with minimal effort.
+**Minimize the reader's effort to find, understand, and use the information they need.**
+Choose guidance by the reader's purpose, not a particular language, framework, or project structure.
+Apply these principles primarily to English source documentation before translation, not as a rewriting or quality-review pass on translated editions.
+Review translation fidelity and target-language correctness separately.
 
-This skill does not prescribe a specific writing workflow, research method, file-editing process, or review procedure.
-Reading, writing, editing, and tooling are the responsibility of the task, agent, or workflow using this skill.
+## Serve a reader's purpose
 
-This skill defines the **principles and decision criteria** that should remain consistent across those activities.
+Choose the audience, task, and document type before deciding what belongs.
+Include information because it helps that reader, not merely because it is available.
+Distinguish learning, task execution, reference, and explanation without forcing every document into one format.
 
-## Core principle
+## Lead with the useful answer
 
-The goal of documentation is not to maximize the amount of information it contains.
+State the action, result, or decision before supporting background.
+When a task has a supported normal path, present it before optional alternatives and disclose detail when it becomes necessary.
+Match technical detail to the reader's goal, whether usage, operation, implementation, or design.
 
-**Optimize for the minimum reader effort required to obtain the information they need.**
+## Give each unit one responsibility
 
-Correct information does not belong in a document merely because it is available.
-Include it when it serves the reader's purpose.
+Organize pages, sections, and paragraphs around coherent reader questions.
+Choose boundaries by meaning and keep dependent explanation together.
+A short unit is complete when it answers its question with the context its reader needs.
 
-Do not sacrifice technical accuracy or necessary context for brevity.
+## Keep information discoverable and local
 
-## Start from the reader's purpose
+Put prerequisites and consequences where the reader needs them.
+Maintain one clear home for detailed guidance and link to it from relevant entry points.
+Separate choosing a path from following the chosen task.
 
-Every document should have a clear purpose and intended audience.
+## Use the minimum sufficient form
 
-Write the information the reader needs, not everything that could be explained.
+Prefer direct, concrete wording and descriptive headings.
+Remove repetition and material that adds no reader value, not necessary context.
 
-Answer the document's primary question or objective as early as practical.
-Introduce additional concepts and details when the reader needs them.
+## Prefer examples over prose
 
-Prefer one clear purpose per document.
-When a page attempts to solve multiple independent problems, consider separating them.
+Prefer concrete examples, code, and diagrams over prose describing the same behavior or relationships.
+Use prose to supply context, constraints, and consequences that the examples cannot convey.
+Choose the form that makes the information easiest to understand.
 
-## Separate documentation concerns
+## Preserve accuracy and consequences
 
-For user-facing documentation, use the Diátaxis framework as a useful distinction between four kinds of documentation:
+Accuracy takes precedence over brevity.
+Keep requirements, constraints, failure conditions, and meaningful trade-offs explicit, with consistent terminology.
+Distinguish verified facts from assumptions, make consequential limitations visible, and state a next action when one is available.
 
-### Tutorial
+## Apply the principles
 
-Helps the reader learn through guided practice.
+Before adding material, ask whether the reader needs it for this document's purpose.
+Before removing material, ask whether doing so loses accuracy, context, or a necessary decision.
+Use the repository's document conventions; default to GitHub Flavored Markdown when none are specified.
 
-Its primary purpose is to provide a learning experience.
+Use [documentation-quality](../documentation-quality/SKILL.md) for review procedures, anti-patterns, and rule-specific examples.
+Use [share-artifact](../share-artifact/SKILL.md) for README, AGENTS.md, and ADR structure.
+These principles do not prescribe a research, editing, or agent-execution workflow.
 
-### How-to guide
+## Sources
 
-Helps the reader accomplish a specific task.
-
-It may assume the reader already understands the fundamentals.
-
-### Reference
-
-Provides precise technical information for lookup, such as APIs, configuration, types, commands, and specifications.
-
-Prioritize accuracy, consistency, completeness within scope, and findability.
-
-### Explanation
-
-Helps the reader understand concepts, architecture, background, or design decisions.
-
-It primarily addresses why something works the way it does and how it should be understood.
-
-Avoid mixing these concerns unnecessarily.
-
-Do not force every technical document into Diátaxis.
-Established formats may have structures better suited to their purpose, including:
-
-- README
-- API reference
-- troubleshooting guide
-- contributor guide
-- architecture document
-- design document
-- ADR
-- RFC
-- technical specification
-
-Classification is a tool, not a goal.
-Use it to decide which information belongs in a document and which information does not.
-
-## Use progressive disclosure
-
-Present information in the order the reader needs it.
-
-Begin with the minimum information required to understand or use the subject.
-Introduce additional material afterward as needed, such as:
-
-- details
-- alternatives
-- constraints
-- edge cases
-- background
-- implementation details
-- advanced explanations
-
-Do not require readers to understand implementation details or advanced concepts before they can perform a basic task.
-
-When deeper information belongs elsewhere, link to it rather than duplicating it unnecessarily.
-
-## Put the bottom line first
-
-Present important information early whenever practical.
-
-Avoid structures that require the reader to consume the entire explanation before discovering the conclusion, behavior, or action they need.
-
-When background or rationale is useful, state the relevant conclusion, behavior, or decision first, then provide the supporting context.
-
-This follows the BLUF (Bottom Line Up Front) principle.
-
-## Be concise
-
-Every sentence should contribute useful information.
-
-Remove content that can be deleted without reducing the reader's ability to understand or correctly use the subject.
-
-In particular, avoid:
-
-- generic introductions
-- unnecessary background
-- repeated information
-- obvious statements
-- filler
-- excessive modifiers
-- meta-commentary
-- summaries that merely restate the document
-- prose that simply restates code
-- transitions that exist only to delay the main point
-
-Do not optimize for the smallest possible word count.
-
-**Provide the necessary information in the minimum sufficient form.**
-
-## Write directly
-
-Prefer concrete and direct language over abstract or indirect phrasing.
-
-For example, prefer:
-
-> This feature changes the configuration.
-
-over:
-
-> By using this feature, it is possible to make changes to the configuration.
-
-Avoid introductory phrases that add no information, such as "it is important to note that," "basically," or "generally speaking," unless the qualification itself is meaningful.
-
-Prefer active voice when it makes the actor or behavior clearer.
-
-## Give each unit a clear responsibility
-
-As a general rule:
-
-- one sentence should communicate one primary fact or claim
-- one paragraph should develop one idea
-- one section should serve one clear purpose
-
-Split independent concerns when doing so improves comprehension.
-
-Do not apply this mechanically when splitting would make the text less natural or obscure the relationship between ideas.
-
-## Keep information local
-
-Place information near the point where the reader needs it.
-
-Avoid explaining concepts in detail long before they become relevant.
-
-Avoid structures that require readers to assemble a single concept from unrelated sections.
-
-When appropriate, link to the canonical explanation instead of duplicating the same information across multiple locations.
-
-## Prefer structure over prose
-
-Do not rely on long prose when a clearer structure would communicate the information more efficiently.
-
-When appropriate, use:
-
-- headings
-- lists
-- tables
-- code examples
-- definitions
-- notes or callouts
-
-Do not structure content for its own sake.
-A short paragraph is better than an unnecessary table or list when prose is clearer.
-
-## Use GitHub Flavored Markdown by default
-
-Write Markdown using GitHub Flavored Markdown (GFM).
-Unless the repository specifies otherwise, assume the target renderer supports GFM and GitHub's alert syntax rather than restricting documents to plain Markdown for hypothetical compatibility.
-Follow repository-specific format or renderer requirements when they differ from this default.
-
-Use GitHub Alerts to clearly separate warnings, notes, and supplementary information from the main narrative.
-Choose the alert type that matches the content: `NOTE`, `TIP`, `IMPORTANT`, `WARNING`, or `CAUTION`.
-GitHub Alerts are a GitHub-specific extension, not part of the formal GFM specification.
-When the repository requires another format or a renderer without alert support, use its supported equivalent to preserve the separation from the main text.
-
-```markdown
-> [!NOTE]
-> Relative paths are resolved from the configuration file's directory.
-
-> [!WARNING]
-> This command overwrites the existing configuration file.
-```
-
-Keep alerts concise and close to the relevant text or action.
-Keep the primary explanation in the main text rather than turning ordinary paragraphs into alerts.
-
-## Optimize for scanning
-
-Technical documentation is rarely read strictly from beginning to end.
-
-Structure documents so readers can quickly locate relevant information.
-
-Headings should describe the content beneath them rather than act as rhetorical transitions.
-
-Prefer explicit information architecture over long narrative prose.
-
-## Let examples carry information
-
-Examples should demonstrate behavior, not decorate the document.
-
-Keep examples focused on the concept being explained.
-Exclude code and configuration that are unrelated to the point.
-
-Do not restate self-explanatory code in prose.
-
-Use prose primarily to explain information that the example cannot communicate clearly on its own, including:
-
-- non-obvious behavior
-- constraints
-- prerequisites
-- trade-offs
-- consequences
-- important edge cases
-- design rationale
-
-## Do not repeat information unnecessarily
-
-As a general rule, explain a fact once.
-
-Avoid repeating the same information in the body, examples, notes, and summaries unless the repetition serves a clear reader need.
-
-When repetition is necessary, ensure each occurrence provides distinct value.
-
-## Preserve technical precision
-
-Accuracy takes precedence over concision.
-
-Keep necessary explanation when removing it would make the meaning ambiguous.
-
-Use terminology consistently.
-
-State important technical properties explicitly when relevant, including:
-
-- requirements
-- defaults
-- constraints
-- behavior
-- side effects
-- exceptions
-- failure conditions
-
-Do not invent behavior or present assumptions as facts.
-
-Distinguish verified facts from inference.
-When uncertainty matters, state it explicitly.
-
-## Avoid unnecessary completeness
-
-A document does not need to contain everything known about its subject.
-
-Include what serves the document's purpose.
-
-Move secondary information to a more appropriate document or link to it.
-
-Omit information that provides no practical value to the intended reader.
-
-Do not assume that more detail automatically produces better documentation.
-
-## Decision criteria
-
-When adding a sentence, paragraph, example, note, or section, ask:
-
-> Does the reader need this information to accomplish the purpose of this document?
-
-When evaluating existing content, ask:
-
-> Can this be removed without reducing the reader's ability to understand or use the subject correctly?
-
-If the answer is yes, remove it by default.
-
-Keep the content when removing it would lose accuracy, necessary context, constraints, or meaningful decision-making information.
-
-## References
-
-This skill primarily draws from the following public resources.
-
-### Diátaxis
-
-A systematic framework for technical documentation that distinguishes tutorials, how-to guides, reference, and explanation.
-
-https://diataxis.fr/
-
-### Technical Writing Guide
-
-The StrictDoc Project's technical writing skill, including guidance on BLUF, concise wording, active voice, sentence focus, and structure over prose.
-
-https://github.com/strictdoc-project/technical_writing_skill/blob/main/SKILL.md
-
-### Next.js documentation and agent guidance
-
-Next.js documentation and agent guidance provide useful examples of progressive disclosure, task-focused documentation, and the separation of durable documentation from task-specific agent workflows.
-
-https://nextjs.org/docs
-
-https://github.com/vercel/next.js/tree/canary/docs
-
-https://github.com/vercel/next.js/blob/canary/.agents/skills/README.md
-
-## Scope of this skill
-
-This skill defines **documentation principles and decision criteria**.
-
-It does not prescribe:
-
-- how to inspect source code
-- how to read existing documentation
-- how to discover or validate sources
-- how to create or edit files
-- how to organize agents or subagents
-- how to perform reviews
-- how to structure a documentation-generation workflow
-
-Those concerns belong to the agent, skill, workflow, or user instructions responsible for the task.
-
-Use this skill as a shared set of principles for judging the quality and structure of software documentation regardless of how that documentation is produced.
+- [Diátaxis](https://diataxis.fr/): distinguish reader needs and document types.
+- [StrictDoc technical writing guidance](https://github.com/strictdoc-project/technical_writing_skill/blob/main/SKILL.md): direct wording, bottom-line-first structure, and concision.
+- [Next.js documentation](https://nextjs.org/docs) and [agent guidance](https://github.com/vercel/next.js/blob/canary/.agents/skills/README.md): task-oriented structure and progressive disclosure.

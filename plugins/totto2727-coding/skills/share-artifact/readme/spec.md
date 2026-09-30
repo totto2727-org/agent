@@ -28,10 +28,14 @@ A directory index does not need the full consumer entrypoint structure.
 ## Entry hierarchy
 
 The root README owns shared prerequisites, setup, development links, and license information.
+Shared prerequisites are requirements of the default or common route, not the union of every optional host's requirements.
+Keep host-specific blockers in the corresponding guide before the command that needs them.
 A separately acquired or configured package needs its own consumer entrypoint.
 A nested package sharing root setup can focus on its overview, usage, and API, linking to shared setup rather than repeating it.
 A multi-package root can link directly to package usage examples.
 When delegating usage, link to a concrete example or usage section rather than a package landing page or API index.
+When a documentation site owns the consumer guide and reference, link directly to those pages rather than maintaining another full guide in the package README.
+Keep the package overview and the information needed to choose the right destination.
 
 ## Usage
 
