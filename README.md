@@ -48,14 +48,18 @@ Use [documentation-quality](plugins/totto2727-coding/skills/documentation-qualit
 
 ### `external-information`
 
-Provides three coordinated skills:
+Provides four coordinated skills:
 
-- `open-connector`: shared API access for GitHub, Linear, Brave Search, Cloudflare Browser Run, and Context7.
-- `web-search`: web search and page retrieval through the shared base, with Codex built-in Web Search preserved.
+- `open-connector`: shared API access for GitHub, Linear, Brave Search, Cloudflare Browser Run, Context7, and Jev.
+- `monid`: separate access policy for Monid discovery, inspection, execution, polling, and saved-response handling.
+- `web-search`: Monid/TinyFish search and Markdown retrieval with links enabled, saved responses and content-only `jq` reads, and Jev selection of related pages; Browser Run, Brave, specialized APIs, and Codex built-in Web Search remain available under its fallback policy.
 - `doc-search`: Context7 library lookup and documentation retrieval through the shared base.
 
 Configure a complete HTTPS gateway URL in `OPENCONNECTOR_BASE_URL` or trusted agent instructions and supply `OPENCONNECTOR_TOKEN` through a secret environment configuration.
 See the [base skill](plugins/external-information/skills/open-connector/SKILL.md) for routing, authentication, and API request examples.
+TinyFish uses a separately configured Monid credential, not the OpenConnector token.
+Context7, TypeSafe/Jev, and Cloudflare Browser Run execute directly through OOMOL/OpenConnector and must never be routed through Monid.
+The local [Monid policy](plugins/external-information/skills/monid/SKILL.md) references Monid's upstream skill and API documentation rather than copying its CLI instructions; [web-search](plugins/external-information/skills/web-search/SKILL.md) similarly references the official `typesafe-ai` skill.
 When upgrading an installation that selected `external-search`, select `external-information` instead; `web-search` and `doc-search` keep their skill names.
 
 ### Upgrading existing installations

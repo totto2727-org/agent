@@ -2,6 +2,7 @@
 
 Use this reference with the [open-connector base skill](../SKILL.md) for its supported providers.
 Use Actions by default: they validate inputs, apply stored provider credentials, and normalize results.
+Context7, TypeSafe/Jev, and Cloudflare Browser Run use OOMOL/OpenConnector directly, not Monid; connection failures do not relax this boundary.
 
 ## Configuration and Authentication
 
@@ -68,25 +69,36 @@ Do not substitute Python HTTP clients such as `urllib`, `requests`, or `httpx` u
 Python may still process local JSON data.
 Python requests have been reported to encounter Cloudflare rejection where `curl` succeeds, but the underlying cause is unverified.
 This example requires `curl` and `jq` and calls only the configured gateway.
-Do not run it for Codex's web-search workflow, which retains built-in Web Search.
+This is a Brave fallback example, not web-search's default route; follow the invoking skill's provider policy.
 Do not enable `set -x` or verbose HTTP logging.
 
 ```bash
-set -o pipefail
+set -euo pipefail
+umask 077
 : "${OPENCONNECTOR_BASE_URL:?Configure the trusted OpenConnector HTTPS origin}"
 : "${OPENCONNECTOR_TOKEN:?Configure the OpenConnector runtime token}"
+mkdir -p tmp
+ARTIFACT_DIR=$(mktemp -d "tmp/web-search-fallback.XXXXXX")
 QUERY='OpenConnector documentation'
-jq -cn --arg q "$QUERY" '{input: {q: $q, count: 3, result_filter: "web"}}' |
-  curl --silent --show-error --fail-with-body --max-time 45 \
-    "${OPENCONNECTOR_BASE_URL%/}/v1/actions/brave_search.web_search" \
-    --header "Authorization: Bearer $OPENCONNECTOR_TOKEN" \
-    --header 'Content-Type: application/json' \
-    --data-binary @- |
-  jq -e 'if .success == true then .data.web.results else error(.message // "OpenConnector request failed") end'
+jq -cn --arg q "$QUERY" '{input: {q: $q, count: 3, result_filter: "web"}}' \
+  > "$ARTIFACT_DIR/brave-request.json"
+curl --silent --show-error --fail-with-body --max-time 45 \
+  "${OPENCONNECTOR_BASE_URL%/}/v1/actions/brave_search.web_search" \
+  --header "Authorization: Bearer $OPENCONNECTOR_TOKEN" \
+  --header 'Content-Type: application/json' \
+  --data-binary "@$ARTIFACT_DIR/brave-request.json" \
+  --output "$ARTIFACT_DIR/brave-response.json" --write-out '%{http_code}' \
+  > "$ARTIFACT_DIR/brave-response.http"
+test "$(< "$ARTIFACT_DIR/brave-response.http")" = 200
+jq -e 'if .success == true then [.data.web.results[] | {title, url, description}] else error("OpenConnector request failed; inspect a bounded error projection") end' \
+  "$ARTIFACT_DIR/brave-response.json"
 ```
 
-For page retrieval, serialize `URL` with `jq -cn --arg url "$URL" '{input: {url: $url}}'`, POST to the Markdown Action, and read `.data.markdown` after checking `.success`.
+Run the example from the working repository root, or replace `tmp` with the approved temporary location outside a repository.
+Use unique filenames for retries and save error responses too; keep artifacts out of commits and never save authentication headers.
+For page retrieval, serialize `URL` with `jq -cn --arg url "$URL" '{input: {url: $url}}'`, POST to the Markdown Action with a response file, and read only `.data.markdown` with `jq -r` after checking HTTP status, `.success`, and page metadata.
 For Context7, serialize `libraryName` or the selected `libraryId` and `query` with `jq --arg` in the same way.
+For Jev, serialize candidates directly from saved files, save the response, and project only the selected IDs and relevant scores after validating answers; do not print the full distribution into the conversation.
 Do not follow redirects when sending the gateway token.
 
 ## Provider Proxy Alternative

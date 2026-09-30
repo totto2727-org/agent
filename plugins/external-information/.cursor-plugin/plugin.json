@@ -1,6 +1,6 @@
 {
   "name": "external-information",
-  "description": "OpenConnector API access for GitHub, Linear, Brave Search, Cloudflare Browser Run, and Context7, with web and documentation research workflows.",
+  "description": "Monid/TinyFish web research with saved responses and Jev link selection, plus direct OpenConnector access for Context7, TypeSafe, Browser Run, GitHub, Linear, and Brave Search.",
   "version": "0.2.0",
   "author": {
     "name": "totto2727",
@@ -11,10 +11,10 @@
   "interface": {
     "displayName": "External Information",
     "shortDescription": "Access external APIs and research information.",
-    "longDescription": "A shared OpenConnector foundation with web-search and doc-search skills, including GitHub and Linear API operations.",
+    "longDescription": "Separate Monid and OpenConnector access policies with web-search and doc-search workflows. Use TinyFish for ordinary web research and OpenConnector directly for Context7, TypeSafe/Jev, and Cloudflare Browser Run.",
     "developerName": "totto2727",
     "category": "Productivity",
     "capabilities": [],
-    "defaultPrompt": "Use OpenConnector to access external information for this task."
+    "defaultPrompt": "Use the appropriate research and access-policy skills for this task. Follow their Monid and OpenConnector provider boundaries."
   }
 }

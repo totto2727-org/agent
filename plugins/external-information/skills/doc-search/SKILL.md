@@ -7,6 +7,8 @@ description: >-
 # Documentation Search
 
 Look up library and framework documentation through Context7 Actions in OpenConnector.
+Execute Context7 directly through OOMOL/OpenConnector, never through Monid, including when its connection is unavailable or a request fails.
+The web-search fallback below retrieves official sources with other services; it does not reroute Context7 through Monid.
 Load the [open-connector](../open-connector/SKILL.md) base skill before the first external API call.
 It owns gateway discovery, authentication, and transport; use its [runtime reference](../open-connector/references/runtime.md) for schemas and failure handling.
 Do not install the Context7 CLI or configure a direct Context7 API key locally.
@@ -26,7 +28,8 @@ Limit Context7 Action calls to three per question; if results remain insufficien
    - Check version relevance and distinguish source identifiers from URLs rather than fabricating citations.
 3. If Context7 is unavailable or insufficient, use the [web-search](../web-search/SKILL.md) skill to research official documentation.
    - Disclose a missing connection or access restriction rather than changing user-managed configuration.
-   - Preserve web-search's platform routing: Codex uses built-in Web Search; other agents use OpenConnector Brave Search and Browser Run.
+   - Follow web-search's current retrieval policy: TinyFish through Monid by default, saved responses with content-only `jq` reads, and Jev for related-link selection.
+   - Preserve its authorized Browser Run, Brave, specialized-API, and Codex built-in fallbacks rather than hard-coding another provider order here.
 
 ## Content Trust
 
