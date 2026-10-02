@@ -48,14 +48,19 @@ Use [documentation-quality](plugins/totto2727-coding/skills/documentation-qualit
 
 ### `external-information`
 
-Provides three coordinated skills:
+Provides four coordinated skills:
 
-- `open-connector`: shared API access for GitHub, Linear, Brave Search, Cloudflare Browser Run, and Context7.
-- `web-search`: web search and page retrieval through the shared base, with Codex built-in Web Search preserved.
+- `open-connector`: references to the official `oo` skill and CLI documentation.
+- `monid`: a reference to the official Monid skill.
+- `web-search`: Monid/TinyFish search and Markdown retrieval with links enabled, saved responses and content-only `jq` reads, and Jev selection of related pages; Browser Run, specialized APIs, and Codex built-in Web Search remain available under its fallback policy.
 - `doc-search`: Context7 library lookup and documentation retrieval through the shared base.
 
 Configure a complete HTTPS gateway URL in `OPENCONNECTOR_BASE_URL` or trusted agent instructions and supply `OPENCONNECTOR_TOKEN` through a secret environment configuration.
-See the [base skill](plugins/external-information/skills/open-connector/SKILL.md) for routing, authentication, and API request examples.
+The [web-search](plugins/external-information/skills/web-search/SKILL.md) and [doc-search](plugins/external-information/skills/doc-search/SKILL.md) workflows own routing, gateway environment mapping, and saved-response handling.
+TinyFish requires the official `@monid-ai/cli` command `monid` and a separately configured active Monid key, not the OpenConnector token.
+See the [official CLI setup](https://monid.ai/docs/cli/overview.md) for installation and authentication; CLI or account setup is not performed automatically by these research skills.
+Context7, TypeSafe/Jev, and Cloudflare Browser Run execute directly through OOMOL/OpenConnector and must never be routed through Monid.
+The [monid](plugins/external-information/skills/monid/SKILL.md) and [open-connector](plugins/external-information/skills/open-connector/SKILL.md) skills contain official references only; research-specific instructions belong to their callers.
 When upgrading an installation that selected `external-search`, select `external-information` instead; `web-search` and `doc-search` keep their skill names.
 
 ### Upgrading existing installations
