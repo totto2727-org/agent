@@ -12,7 +12,7 @@ Keep raw responses and link inventories on disk, and bring only task-relevant co
 ## Dependencies and Routing
 
 - Load the local [monid](../monid/SKILL.md) access-policy skill before Monid calls.
-  It owns official CLI authentication, discovery, execution, polling, and saved-response handling, with live upstream references rather than a vendored documentation copy.
+  It adds local routing and saved-response policy while delegating CLI usage to the official upstream skill.
   Use the official `monid` CLI, not raw Monid HTTP calls; follow its prerequisite and authorization rules if the CLI or active key is missing.
 - Load [open-connector](../open-connector/SKILL.md) before using Cloudflare Browser Run or Jev.
   Those provider APIs must use the user's configured gateway, not direct clients or a Monid endpoint that bypasses that policy.
@@ -44,8 +44,8 @@ Inspect current capabilities and pricing and keep calls within the user's author
    - Add `image_links: true` when image-file URLs matter; this is separate from finding documentation about images.
    - Set cache freshness deliberately. Use `ttl: 0` for a live fetch when freshness is required, not for every repeated read.
 3. **Save every complete response before reading it**, including discovery, schema, run, polling, Jev, and fallback responses.
-   - For Monid, redirect official CLI `--json` output and stderr to separate files and save its exit status before any response projection.
-     A `run -o` provider-output file alone is insufficient; keep the complete CLI response too, and never pipe live output directly into `jq` or the conversation.
+   - For Monid, redirect complete official CLI output with `monid ... --json > response.json`, then use `jq` on the saved file.
+     See [saved responses](../monid/SKILL.md#saved-responses).
    - Use unique task-local artifacts under the working repository's `tmp/`, or the approved temporary location outside a repository.
    - Keep requests and responses separate, protect potentially sensitive content, exclude artifacts from commits, and never save authorization headers or secrets.
    - Check CLI exit status or gateway HTTP status, then run, provider, and per-URL outcomes with narrow `jq` projections before reading content.
@@ -72,7 +72,7 @@ Jev can reduce the main model's context load, but its own token usage, latency, 
 
 ## Failure and Trust Boundaries
 
-- Follow the [Monid runtime reference](../monid/references/runtime.md) for asynchronous runs and per-URL failures.
+- Follow [Monid saved-response policy](../monid/SKILL.md#saved-responses) and the official CLI workflow for asynchronous runs and per-URL failures.
   A successful HTTP request or completed run does not prove that the intended content was retrieved.
 - Missing credentials, insufficient balance, denied access, or login requirements are user-controlled prerequisites.
   Do not change connections, grants, account settings, or payment arrangements to force retrieval.

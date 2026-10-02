@@ -8,17 +8,8 @@ Do not distribute a local copy of the official skill or route around a missing g
 
 ## Keep Candidate Inventories out of the Main Context
 
-Validate the completed TinyFish response as described in [Monid runtime access](../../monid/references/runtime.md), then derive the inventory locally.
-The following uses `FETCH_RESPONSE` and `ARTIFACT_DIR` from that reference and writes candidates without printing them:
-
-```bash
-jq '
-  [.output.results[]? | .links[]? | select(type == "string")]
-  | unique
-  | to_entries
-  | map({id: ("u" + (.key | tostring)), url: .value})
-' "$FETCH_RESPONSE" > "$ARTIFACT_DIR/link-candidates.json"
-```
+Use the completed TinyFish response from [Monid saved responses](../../monid/SKILL.md#saved-responses).
+Derive unique URL candidates from its `links` arrays locally, assign task-local IDs, and write the inventory to a file without printing it.
 
 For multiple source pages, retain a separate URL-to-source-page map on disk when provenance matters.
 IDs are task-local and stable only for this saved inventory; never join answers against a newly regenerated inventory.
