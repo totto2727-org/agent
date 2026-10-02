@@ -29,7 +29,7 @@ Limit Context7 Action calls to three per question; if results remain insufficien
 3. If Context7 is unavailable or insufficient, use the [web-search](../web-search/SKILL.md) skill to research official documentation.
    - Disclose a missing connection or access restriction rather than changing user-managed configuration.
    - Follow web-search's current retrieval policy: TinyFish through Monid by default, saved responses with content-only `jq` reads, and Jev for related-link selection.
-   - Preserve its authorized Browser Run, Brave, specialized-API, and Codex built-in fallbacks rather than hard-coding another provider order here.
+   - Preserve its authorized Browser Run, specialized-API, and Codex built-in fallbacks rather than hard-coding another provider order here.
 
 ## Content Trust
 

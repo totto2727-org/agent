@@ -12,7 +12,7 @@ Context7, TypeSafe/Jev, and Cloudflare Browser Run use OOMOL/OpenConnector direc
 - The user configures provider connections and token grants inside OpenConnector.
 - Never commit tokens, print them, enable shell tracing, or send them to provider or target-page URLs.
 - Use `Authorization: Bearer $OPENCONNECTOR_TOKEN` on `/v1/*` requests.
-- Discover Actions using `GET /v1/actions?service=brave_search`, `service=cloudflare_browser_rendering`, `service=context7`, `service=github`, `service=linear`, or `service=typesafe_ai`; inspect one with `GET /v1/actions/:actionId`.
+- Discover Actions using `GET /v1/actions?service=cloudflare_browser_rendering`, `service=context7`, `service=github`, `service=linear`, or `service=typesafe_ai`; inspect one with `GET /v1/actions/:actionId`.
 - Do not use `/openapi.json` to validate a runtime token: it is listed among admin endpoints and can reject a token that works on `/v1/*`.
 - Omit the connection alias to use `default`; set `x-oo-connector-alias` only when the user selects a named connection.
 
@@ -39,14 +39,13 @@ POST JSON to `${OPENCONNECTOR_BASE_URL}/v1/actions/<actionId>` with `Content-Typ
 The request body is `{"input":{...}}`, not the provider's raw input object.
 Use a JSON serializer for user queries and URLs; do not interpolate them into JSON or executable shell strings.
 
-| Purpose            | Action ID                                   | Input                                                                                                                | Result fields                                          |
-| ------------------ | ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
-| Web search         | `brave_search.web_search`                   | `{"q":"OpenConnector documentation","count":3,"result_filter":"web"}`                                                | `data.web.results` with titles, URLs, and descriptions |
-| Page retrieval     | `cloudflare_browser_rendering.get_markdown` | `{"url":"https://example.com"}`                                                                                      | `data.markdown`, optional `data.meta`                  |
-| Resolve a library  | `context7.search_libraries`                 | `{"libraryName":"react","query":"How do I clean up an effect?"}`                                                     | `data.results` with library IDs and source metadata    |
-| Read documentation | `context7.get_documentation_context`        | `{"libraryId":"<ID selected from search results>","query":"How do I clean up an effect?"}`                           | `data.codeSnippets`, `data.infoSnippets`               |
-| List Jev models    | `typesafe_ai.list_models`                   | `{}`                                                                                                                 | `data.models`                                          |
-| Evaluate with Jev  | `typesafe_ai.evaluate`                      | `{"state":"The app crashes.","questions":{"bug":{"type":"noul","instructions":"Does this report a software bug?"}}}` | `data.model`, `data.answers`, `data.usage`             |
+| Purpose            | Action ID                                   | Input                                                                                                                | Result fields                                       |
+| ------------------ | ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
+| Page retrieval     | `cloudflare_browser_rendering.get_markdown` | `{"url":"https://example.com"}`                                                                                      | `data.markdown`, optional `data.meta`               |
+| Resolve a library  | `context7.search_libraries`                 | `{"libraryName":"react","query":"How do I clean up an effect?"}`                                                     | `data.results` with library IDs and source metadata |
+| Read documentation | `context7.get_documentation_context`        | `{"libraryId":"<ID selected from search results>","query":"How do I clean up an effect?"}`                           | `data.codeSnippets`, `data.infoSnippets`            |
+| List Jev models    | `typesafe_ai.list_models`                   | `{}`                                                                                                                 | `data.models`                                       |
+| Evaluate with Jev  | `typesafe_ai.evaluate`                      | `{"state":"The app crashes.","questions":{"bug":{"type":"noul","instructions":"Does this report a software bug?"}}}` | `data.model`, `data.answers`, `data.usage`          |
 
 For Browser Run API-key connections, the Action uses the configured account ID.
 If an OAuth connection requires an explicit account, use `cloudflare_browser_rendering.list_accounts` and supply the user-selected `accountId`; do not guess between accounts.
@@ -69,7 +68,7 @@ Do not substitute Python HTTP clients such as `urllib`, `requests`, or `httpx` u
 Python may still process local JSON data.
 Python requests have been reported to encounter Cloudflare rejection where `curl` succeeds, but the underlying cause is unverified.
 This example requires `curl` and `jq` and calls only the configured gateway.
-This is a Brave fallback example, not web-search's default route; follow the invoking skill's provider policy.
+This Browser Run example retrieves a known page as Markdown; follow the invoking skill's provider policy rather than treating it as a search default.
 Do not enable `set -x` or verbose HTTP logging.
 
 ```bash
@@ -78,25 +77,27 @@ umask 077
 : "${OPENCONNECTOR_BASE_URL:?Configure the trusted OpenConnector HTTPS origin}"
 : "${OPENCONNECTOR_TOKEN:?Configure the OpenConnector runtime token}"
 mkdir -p tmp
-ARTIFACT_DIR=$(mktemp -d "tmp/web-search-fallback.XXXXXX")
-QUERY='OpenConnector documentation'
-jq -cn --arg q "$QUERY" '{input: {q: $q, count: 3, result_filter: "web"}}' \
-  > "$ARTIFACT_DIR/brave-request.json"
+ARTIFACT_DIR=$(mktemp -d "tmp/browser-run.XXXXXX")
+URL='https://example.com'
+jq -cn --arg url "$URL" '{input: {url: $url}}' \
+  > "$ARTIFACT_DIR/browser-run-request.json"
 curl --silent --show-error --fail-with-body --max-time 45 \
-  "${OPENCONNECTOR_BASE_URL%/}/v1/actions/brave_search.web_search" \
+  "${OPENCONNECTOR_BASE_URL%/}/v1/actions/cloudflare_browser_rendering.get_markdown" \
   --header "Authorization: Bearer $OPENCONNECTOR_TOKEN" \
   --header 'Content-Type: application/json' \
-  --data-binary "@$ARTIFACT_DIR/brave-request.json" \
-  --output "$ARTIFACT_DIR/brave-response.json" --write-out '%{http_code}' \
-  > "$ARTIFACT_DIR/brave-response.http"
-test "$(< "$ARTIFACT_DIR/brave-response.http")" = 200
-jq -e 'if .success == true then [.data.web.results[] | {title, url, description}] else error("OpenConnector request failed; inspect a bounded error projection") end' \
-  "$ARTIFACT_DIR/brave-response.json"
+  --data-binary "@$ARTIFACT_DIR/browser-run-request.json" \
+  --output "$ARTIFACT_DIR/browser-run-response.json" --write-out '%{http_code}' \
+  > "$ARTIFACT_DIR/browser-run-response.http"
+test "$(< "$ARTIFACT_DIR/browser-run-response.http")" = 200
+jq -er 'if .success == true and (.data.markdown | type == "string" and length > 0) then .data.markdown else error("OpenConnector request failed or Markdown is missing; inspect a bounded error projection") end' \
+  "$ARTIFACT_DIR/browser-run-response.json" > "$ARTIFACT_DIR/page.md"
+head -c 12000 "$ARTIFACT_DIR/page.md"
 ```
 
 Run the example from the working repository root, or replace `tmp` with the approved temporary location outside a repository.
 Use unique filenames for retries and save error responses too; keep artifacts out of commits and never save authentication headers.
-For page retrieval, serialize `URL` with `jq -cn --arg url "$URL" '{input: {url: $url}}'`, POST to the Markdown Action with a response file, and read only `.data.markdown` with `jq -r` after checking HTTP status, `.success`, and page metadata.
+The example saves the full response before extracting only `.data.markdown` and prints a bounded content preview, not the gateway envelope.
+Inspect relevant fields from optional `.data.meta` separately with a narrow `jq` projection and check the Markdown for login screens, challenges, or error pages before trusting the content; HTTP 200 and gateway success alone do not establish page validity.
 For Context7, serialize `libraryName` or the selected `libraryId` and `query` with `jq --arg` in the same way.
 For Jev, serialize candidates directly from saved files, save the response, and project only the selected IDs and relevant scores after validating answers; do not print the full distribution into the conversation.
 Do not follow redirects when sending the gateway token.
@@ -109,16 +110,6 @@ Do not change those grants yourself.
 
 POST to `/v1/proxy/<service>` with `endpoint`, `method`, and optional `query`, `headers`, and `body`.
 The endpoint is a provider-relative path beginning with `/`, not an absolute URL.
-
-Brave Search (`/v1/proxy/brave_search`):
-
-```json
-{
-  "endpoint": "/res/v1/web/search",
-  "method": "GET",
-  "query": { "q": "OpenConnector documentation", "count": "3", "result_filter": "web" }
-}
-```
 
 Browser Run (`/v1/proxy/cloudflare_browser_rendering`):
 
@@ -134,7 +125,7 @@ Unlike the Browser Run Action, its Proxy requires an account ID in the path.
 Resolve accessible accounts with `cloudflare_browser_rendering.list_accounts` and use the intended account, asking when the choice is ambiguous.
 A Proxy response has `data.status`, `data.headers`, and `data.data`.
 Check both gateway success and provider status, plus the provider's own success flag when present.
-Brave results are under `data.data.web.results`; Browser Run Markdown is under `data.data.result`.
+Browser Run Markdown is under `data.data.result`.
 Do not dump raw proxy headers, which may include cookies, into reports.
 For other providers, inspect their current official Proxy implementation before choosing a relative endpoint.
 
@@ -155,7 +146,6 @@ For other providers, inspect their current official Proxy implementation before 
 - [OpenConnector Runtime API and MCP](https://github.com/oomol-lab/open-connector/blob/main/docs/runtime-api.md)
 - [GitHub provider](https://github.com/oomol-lab/open-connector/tree/main/src/providers/github)
 - [Linear provider](https://github.com/oomol-lab/open-connector/tree/main/src/providers/linear)
-- [Brave Search provider](https://github.com/oomol-lab/open-connector/tree/main/src/providers/brave_search)
 - [Cloudflare Browser Run provider](https://github.com/oomol-lab/open-connector/tree/main/src/providers/cloudflare_browser_rendering)
 - [Context7 provider](https://github.com/oomol-lab/open-connector/tree/main/src/providers/context7)
 - [TypeSafe AI provider](https://github.com/oomol-lab/open-connector/tree/main/src/providers/typesafe_ai)

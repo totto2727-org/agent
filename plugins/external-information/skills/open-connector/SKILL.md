@@ -1,7 +1,7 @@
 ---
 name: open-connector
 description: >-
-  Route GitHub, Linear, Brave Search, Browser Run, Context7, and Jev (TypeSafe AI) API requests through OOMOL/OpenConnector. Not for Git transport or Codex built-in Web Search.
+  Route GitHub, Linear, Browser Run, Context7, and Jev (TypeSafe AI) API requests through OOMOL/OpenConnector. Not for Git transport or Codex built-in Web Search.
 ---
 
 # OpenConnector
@@ -21,7 +21,6 @@ Use this skill for the OpenConnector transport rather than duplicating the offic
 | ---------------------- | ------------------------------ | ----------------------------------------------------------------------------------------- |
 | GitHub                 | `github`                       | A suitable Action or `/v1/proxy/github` for REST API operations                           |
 | Linear                 | `linear`                       | A suitable Action or `/v1/proxy/linear` with `/graphql` for ticket and GraphQL operations |
-| Brave Search           | `brave_search`                 | `brave_search.web_search` Action                                                          |
 | Cloudflare Browser Run | `cloudflare_browser_rendering` | `cloudflare_browser_rendering.get_markdown` Action                                        |
 | Context7               | `context7`                     | `context7.search_libraries`, then `context7.get_documentation_context` Actions            |
 | Jev (TypeSafe AI)      | `typesafe_ai`                  | `typesafe_ai.list_models`, then `typesafe_ai.evaluate` Actions                            |

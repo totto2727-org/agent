@@ -1,6 +1,6 @@
 {
   "name": "external-information",
-  "description": "Monid/TinyFish web research with saved responses and Jev link selection, plus direct OpenConnector access for Context7, TypeSafe, Browser Run, GitHub, Linear, and Brave Search.",
+  "description": "Monid CLI/TinyFish web research with saved responses and Jev link selection, plus direct OpenConnector access for Context7, TypeSafe, Browser Run, GitHub, and Linear.",
   "version": "0.2.0",
   "author": {
     "name": "totto2727",

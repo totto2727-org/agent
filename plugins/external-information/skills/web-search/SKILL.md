@@ -12,9 +12,9 @@ Keep raw responses and link inventories on disk, and bring only task-relevant co
 ## Dependencies and Routing
 
 - Load the local [monid](../monid/SKILL.md) access-policy skill before Monid calls.
-  It owns authentication, discovery, execution, polling, and saved-response handling, with live upstream references rather than a vendored documentation copy.
-  Existing authorized HTTP access is sufficient; do not install or update a CLI, register an account, or persist credentials merely to run this workflow.
-- Load [open-connector](../open-connector/SKILL.md) before using Brave Search, Cloudflare Browser Run, or Jev.
+  It owns official CLI authentication, discovery, execution, polling, and saved-response handling, with live upstream references rather than a vendored documentation copy.
+  Use the official `monid` CLI, not raw Monid HTTP calls; follow its prerequisite and authorization rules if the CLI or active key is missing.
+- Load [open-connector](../open-connector/SKILL.md) before using Cloudflare Browser Run or Jev.
   Those provider APIs must use the user's configured gateway, not direct clients or a Monid endpoint that bypasses that policy.
   **Context7, TypeSafe/Jev, and Cloudflare Browser Run must execute directly through OOMOL/OpenConnector and must never use Monid**, including as a fallback for missing connections or failed calls.
   Context7 library lookup belongs to [doc-search](../doc-search/SKILL.md), not Monid discovery.
@@ -25,10 +25,9 @@ Keep raw responses and link inventories on disk, and bring only task-relevant co
 
 | Need                                                                           | Preferred route                                         |
 | ------------------------------------------------------------------------------ | ------------------------------------------------------- |
-| Ordinary web search or page text                                               | Monid: TinyFish `/search` or `/fetch`                   |
+| Ordinary web search or page text                                               | Monid CLI: TinyFish `/search` or `/fetch`               |
 | Choose related pages from returned URLs                                        | Jev through OpenConnector, then fetch the selected URLs |
 | Browser interaction, rendering control, or extraction TinyFish cannot preserve | Cloudflare Browser Run through OpenConnector            |
-| Incomplete or unsuitable search results                                        | Brave Search through OpenConnector                      |
 | Social timelines, transcripts, or other specialized data                       | Discover and inspect a suitable Monid API               |
 
 Choose a specialized API directly when the data type makes it a better fit; do not require a failed browser attempt first.
@@ -39,15 +38,17 @@ Inspect current capabilities and pricing and keep calls within the user's author
 
 1. Establish the question, freshness requirements, and any supplied URL.
    Search only when needed, target official sources, and keep result counts and retrieval batches small.
-2. Inspect Monid's current TinyFish schema and price, then search with `/search` or fetch the supplied URL with `/fetch`.
+2. Inspect Monid's current TinyFish schema and price with `monid inspect`, then use `monid run` to search with `/search` or fetch the supplied URL with `/fetch`.
    - Use `format: "markdown"` and **`links: true` by default** for TinyFish page retrieval, including subsequent pages.
    - Disable links only for an explicit task requirement or a documented incompatibility, and state the exception.
    - Add `image_links: true` when image-file URLs matter; this is separate from finding documentation about images.
    - Set cache freshness deliberately. Use `ttl: 0` for a live fetch when freshness is required, not for every repeated read.
-3. **Save every raw API response before reading it**, including discovery, schema, run, polling, Jev, and fallback responses.
+3. **Save every complete response before reading it**, including discovery, schema, run, polling, Jev, and fallback responses.
+   - For Monid, redirect official CLI `--json` output and stderr to separate files and save its exit status before any response projection.
+     A `run -o` provider-output file alone is insufficient; keep the complete CLI response too, and never pipe live output directly into `jq` or the conversation.
    - Use unique task-local artifacts under the working repository's `tmp/`, or the approved temporary location outside a repository.
    - Keep requests and responses separate, protect potentially sensitive content, exclude artifacts from commits, and never save authorization headers or secrets.
-   - Check HTTP, run, provider, and per-URL outcomes with narrow `jq` projections before reading content.
+   - Check CLI exit status or gateway HTTP status, then run, provider, and per-URL outcomes with narrow `jq` projections before reading content.
    - Use `jq` against the saved file to read only the needed search titles/URLs/snippets or fetched Markdown text, retaining its source URL.
    - Do not `cat`, pretty-print, or load full response envelopes, full link arrays, or provider hints into the main model.
      Redirect projections and derived candidate files to disk; use bounded content slices for long pages.
