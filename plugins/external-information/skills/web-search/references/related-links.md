@@ -2,7 +2,7 @@
 
 Use this reference when a fetched page's saved `links` inventory is needed to find related pages.
 Prefer the installed official `typesafe-ai` skill from `typesafe-ai/skills`; if unavailable, read the [official documentation index](https://docs.typesafe.ai/llms.txt), [Choice](https://docs.typesafe.ai/primitives/choice), and [Score](https://docs.typesafe.ai/primitives/score) guidance as needed.
-Use [OpenConnector](../../open-connector/SKILL.md) for all Jev API access and inspect the deployed `typesafe_ai.evaluate` schema.
+Use [OpenConnector](../../open-connector/SKILL.md) for all Jev API access and `oo connector schema typesafe_ai.evaluate` for the current schema.
 Execute TypeSafe/Jev directly through OOMOL/OpenConnector, never through Monid, even if a Monid catalog endpoint offers the same model.
 Do not distribute a local copy of the official skill or route around a missing gateway connection.
 
@@ -22,7 +22,7 @@ When image files themselves are requested, derive candidates from `image_links` 
 
 Give Jev the user's research goal and explicit interpretation when the request is ambiguous, plus the candidate IDs and URL strings.
 Only include anchor text, titles, or snippets if the provider actually supplied them; never invent missing context from the URL.
-Construct the evaluation JSON from saved files with `jq --slurpfile` or a local serializer, POST the file through OpenConnector, and save its raw response before reading answers with `jq`.
+Construct the evaluation JSON from saved files with `jq --slurpfile` or a local serializer, run `oo connector run typesafe_ai --action evaluate --data @input.json --json > response.json`, then read answers from the saved file with `jq`.
 Do not send the inventory to the main model merely to assemble the request.
 
 Choose the primitive according to the question, not the desired number of HTTP calls:
@@ -44,8 +44,7 @@ A shared Score rubric or per-candidate Noul avoids that particular normalization
 
 ## Consume Only a Small, Verified Selection
 
-1. Check the gateway HTTP status and `success`, then validate the expected answer IDs, types, and value ranges in the saved response.
-   Treat missing answers, malformed values, and unknown IDs as errors, not zero relevance.
+1. Read `.data.answers` from the saved `oo` JSON response; follow the official CLI guidance if the command fails.
 2. Rank with local code and retain a task-appropriate bounded set, typically up to three URLs for an initial investigation.
    Use relevance and uncertainty criteria appropriate to the task; a top-k limit is a budget cap, not proof that every selected page is useful.
    Allow zero matches and keep a way to broaden the search or fetch candidate titles when the evidence is too weak.

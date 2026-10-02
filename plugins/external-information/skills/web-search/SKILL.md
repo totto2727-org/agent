@@ -7,7 +7,7 @@ description: >-
 # Web Search
 
 Use Monid's TinyFish for ordinary web search and Markdown extraction.
-Keep raw responses and link inventories on disk, and bring only task-relevant content into the conversation.
+Keep complete command responses and link inventories on disk, and bring only task-relevant content into the conversation.
 
 ## Dependencies and Routing
 
@@ -48,7 +48,7 @@ Inspect current capabilities and pricing and keep calls within the user's author
      See [saved responses](../monid/SKILL.md#saved-responses).
    - Use unique task-local artifacts under the working repository's `tmp/`, or the approved temporary location outside a repository.
    - Keep requests and responses separate, protect potentially sensitive content, exclude artifacts from commits, and never save authorization headers or secrets.
-   - Check CLI exit status or gateway HTTP status, then run, provider, and per-URL outcomes with narrow `jq` projections before reading content.
+   - Follow the official CLI's error handling and read the completed result from the saved file.
    - Use `jq` against the saved file to read only the needed search titles/URLs/snippets or fetched Markdown text, retaining its source URL.
    - Do not `cat`, pretty-print, or load full response envelopes, full link arrays, or provider hints into the main model.
      Redirect projections and derived candidate files to disk; use bounded content slices for long pages.

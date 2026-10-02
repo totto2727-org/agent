@@ -50,13 +50,13 @@ Use [documentation-quality](plugins/totto2727-coding/skills/documentation-qualit
 
 Provides four coordinated skills:
 
-- `open-connector`: shared API access for GitHub, Linear, Cloudflare Browser Run, Context7, and Jev.
+- `open-connector`: official `oo` CLI access for GitHub, Linear, Cloudflare Browser Run, Context7, and Jev.
 - `monid`: official Monid CLI discovery, inspection, execution, and polling under local access policy, saving complete JSON responses before content-only reads.
 - `web-search`: Monid/TinyFish search and Markdown retrieval with links enabled, saved responses and content-only `jq` reads, and Jev selection of related pages; Browser Run, specialized APIs, and Codex built-in Web Search remain available under its fallback policy.
 - `doc-search`: Context7 library lookup and documentation retrieval through the shared base.
 
 Configure a complete HTTPS gateway URL in `OPENCONNECTOR_BASE_URL` or trusted agent instructions and supply `OPENCONNECTOR_TOKEN` through a secret environment configuration.
-See the [base skill](plugins/external-information/skills/open-connector/SKILL.md) for routing, authentication, and API request examples.
+See the [base skill](plugins/external-information/skills/open-connector/SKILL.md) for official `oo` CLI references, gateway environment mapping, and saved-response handling.
 TinyFish requires the official `@monid-ai/cli` command `monid` and a separately configured active Monid key, not the OpenConnector token.
 See the [official CLI setup](https://monid.ai/docs/cli/overview.md) for installation and authentication; CLI or account setup is not performed automatically by these research skills.
 Context7, TypeSafe/Jev, and Cloudflare Browser Run execute directly through OOMOL/OpenConnector and must never be routed through Monid.

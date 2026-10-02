@@ -10,20 +10,21 @@ Look up library and framework documentation through Context7 Actions in OpenConn
 Execute Context7 directly through OOMOL/OpenConnector, never through Monid, including when its connection is unavailable or a request fails.
 The web-search fallback below retrieves official sources with other services; it does not reroute Context7 through Monid.
 Load the [open-connector](../open-connector/SKILL.md) base skill before the first external API call.
-It owns gateway discovery, authentication, and transport; use its [runtime reference](../open-connector/references/runtime.md) for schemas and failure handling.
+It uses the official `oo` CLI and owns gateway selection, authentication, and saved-response policy.
 Do not install the Context7 CLI or configure a direct Context7 API key locally.
 The user manages the Context7 connection inside OpenConnector.
 
 ## Workflow
 
 Limit Context7 Action calls to three per question; if results remain insufficient, use the fallback below.
+Save command output with `--json > response.json`, then read the saved file with `jq`.
 
-1. Resolve the library with `POST /v1/actions/context7.search_libraries`.
-   - Send `{"input":{"libraryName":"react","query":"How do I clean up an effect?"}}`, substituting the actual library and task using a JSON serializer.
+1. Resolve the library with `oo connector run context7 --action search_libraries`.
+   - Pass `{"libraryName":"react","query":"How do I clean up an effect?"}` using `--data`, substituting the actual library and task.
    - Inspect `data.results` and select the ID matching the official project and requested version.
    - Do not invent an ID or choose solely by popularity; ask when the intended library is ambiguous.
-2. Retrieve documentation with `POST /v1/actions/context7.get_documentation_context`.
-   - Send an `input` object containing the selected `libraryId` and the user's specific `query`.
+2. Retrieve documentation with `oo connector run context7 --action get_documentation_context`.
+   - Pass an object containing the selected `libraryId` and the user's specific `query` using `--data`.
    - Read `data.codeSnippets` and `data.infoSnippets`; retain source URLs from `codeId` and `pageId` when they are URLs.
    - Check version relevance and distinguish source identifiers from URLs rather than fabricating citations.
 3. If Context7 is unavailable or insufficient, use the [web-search](../web-search/SKILL.md) skill to research official documentation.
