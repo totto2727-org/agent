@@ -13,7 +13,8 @@ concurrency:
 jobs:
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # Include cold Nix cache uploads performed during post-job cleanup.
+    timeout-minutes: 20
     permissions:
       contents: read
     steps:
@@ -22,6 +23,7 @@ jobs:
       - uses: totto2727-org/monorepo/.github/actions/setup-nix@main
 
       - name: Run check
+        timeout-minutes: 5
         shell: bash
         run: |
           eval "$(nix print-dev-env "$GITHUB_WORKSPACE#default")"
