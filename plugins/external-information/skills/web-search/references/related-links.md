@@ -8,7 +8,7 @@ Do not distribute a local copy of the official skill or route around a missing g
 
 ## Keep Candidate Inventories out of the Main Context
 
-Use the completed TinyFish response from [Monid saved responses](../../monid/SKILL.md#saved-responses).
+Use the completed TinyFish response saved by the [web-search workflow](../SKILL.md#workflow).
 Derive unique URL candidates from its `links` arrays locally, assign task-local IDs, and write the inventory to a file without printing it.
 
 For multiple source pages, retain a separate URL-to-source-page map on disk when provenance matters.

@@ -11,10 +11,10 @@
   "interface": {
     "displayName": "External Information",
     "shortDescription": "Access external APIs and research information.",
-    "longDescription": "Separate Monid and OpenConnector access policies with web-search and doc-search workflows. Use TinyFish for ordinary web research and OpenConnector directly for Context7, TypeSafe/Jev, and Cloudflare Browser Run.",
+    "longDescription": "Official Monid and oo references with web-search and doc-search workflows. Research workflows manage provider routing and saved-response handling.",
     "developerName": "totto2727",
     "category": "Productivity",
     "capabilities": [],
-    "defaultPrompt": "Use the appropriate research and access-policy skills for this task. Follow their Monid and OpenConnector provider boundaries."
+    "defaultPrompt": "Use the appropriate research workflow and its official Monid or oo references for this task."
   }
 }

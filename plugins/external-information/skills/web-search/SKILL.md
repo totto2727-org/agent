@@ -11,11 +11,11 @@ Keep complete command responses and link inventories on disk, and bring only tas
 
 ## Dependencies and Routing
 
-- Load the local [monid](../monid/SKILL.md) access-policy skill before Monid calls.
-  It adds local routing and saved-response policy while delegating CLI usage to the official upstream skill.
-  Use the official `monid` CLI, not raw Monid HTTP calls; follow its prerequisite and authorization rules if the CLI or active key is missing.
-- Load [open-connector](../open-connector/SKILL.md) before using Cloudflare Browser Run or Jev.
-  Those provider APIs must use the user's configured gateway, not direct clients or a Monid endpoint that bypasses that policy.
+- Use [monid](../monid/SKILL.md) for the official Monid CLI reference.
+  Run Monid operations with the official CLI, not a custom HTTP client.
+- Use [open-connector](../open-connector/SKILL.md) for the official `oo` reference before using Cloudflare Browser Run or Jev.
+  Use `oo connector` with the user's configured gateway, not direct provider clients.
+  Map trusted `OPENCONNECTOR_BASE_URL` and `OPENCONNECTOR_TOKEN` values to the CLI's `OO_CONNECTOR_URL` and `OO_CONNECTOR_TOKEN` when those conventions are used; do not silently select another account or gateway.
   **Context7, TypeSafe/Jev, and Cloudflare Browser Run must execute directly through OOMOL/OpenConnector and must never use Monid**, including as a fallback for missing connections or failed calls.
   Context7 library lookup belongs to [doc-search](../doc-search/SKILL.md), not Monid discovery.
 - For related-link selection, prefer the installed official `typesafe-ai` skill from `typesafe-ai/skills`; otherwise use the [TypeSafe documentation index](https://docs.typesafe.ai/llms.txt).
@@ -45,7 +45,7 @@ Inspect current capabilities and pricing and keep calls within the user's author
    - Set cache freshness deliberately. Use `ttl: 0` for a live fetch when freshness is required, not for every repeated read.
 3. **Save every complete response before reading it**, including discovery, schema, run, polling, Jev, and fallback responses.
    - For Monid, redirect complete official CLI output with `monid ... --json > response.json`, then use `jq` on the saved file.
-     See [saved responses](../monid/SKILL.md#saved-responses).
+     Save `oo` output with `--json > response.json` in the same way.
    - Use unique task-local artifacts under the working repository's `tmp/`, or the approved temporary location outside a repository.
    - Keep requests and responses separate, protect potentially sensitive content, exclude artifacts from commits, and never save authorization headers or secrets.
    - Follow the official CLI's error handling and read the completed result from the saved file.
@@ -72,7 +72,7 @@ Jev can reduce the main model's context load, but its own token usage, latency, 
 
 ## Failure and Trust Boundaries
 
-- Follow [Monid saved-response policy](../monid/SKILL.md#saved-responses) and the official CLI workflow for asynchronous runs and per-URL failures.
+- Follow the official CLI workflow for asynchronous runs and per-URL failures, saving responses before reading completed content.
   A successful HTTP request or completed run does not prove that the intended content was retrieved.
 - Missing credentials, insufficient balance, denied access, or login requirements are user-controlled prerequisites.
   Do not change connections, grants, account settings, or payment arrangements to force retrieval.
