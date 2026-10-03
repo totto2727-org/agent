@@ -17,8 +17,6 @@ These files store the gateway token because `monid keys add` accepts only Monid-
 
 ```bash
 set -e
-: "${OPENCONNECTOR_BASE_URL:?}" "${OPENCONNECTOR_TOKEN:?}" "${TASK_TMP:?}"
-[[ "$OPENCONNECTOR_BASE_URL" == https://* ]]
 umask 077
 XDG_CONFIG_HOME="$(mktemp -d "$TASK_TMP/monid.XXXXXX")"
 export XDG_CONFIG_HOME
