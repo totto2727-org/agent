@@ -1,7 +1,7 @@
 {
   "name": "external-information",
-  "description": "Monid CLI/TinyFish web research with saved responses and Jev link selection, plus direct OpenConnector access for Context7, TypeSafe, Browser Run, GitHub, and Linear.",
-  "version": "0.2.0",
+  "description": "Monid/TinyFish research, cost-aware Cloudflare AI inference and typed Decision Models, plus OpenConnector for Context7, Browser Run, GitHub, and Linear.",
+  "version": "0.3.0",
   "author": {
     "name": "totto2727",
     "url": "https://github.com/totto2727",
@@ -11,10 +11,10 @@
   "interface": {
     "displayName": "External Information",
     "shortDescription": "Access external APIs and research information.",
-    "longDescription": "Official Monid and oo references with web-search and doc-search workflows. Research workflows manage provider routing and saved-response handling.",
+    "longDescription": "Official Monid and oo references, web and documentation research, and Cloudflare AI inference. Use cloudflare-ai for cost-aware execution and decision-model for typed judgment design.",
     "developerName": "totto2727",
     "category": "Productivity",
     "capabilities": [],
-    "defaultPrompt": "Use the appropriate research workflow and its official Monid or oo references for this task."
+    "defaultPrompt": "Use the relevant research skill, cloudflare-ai for cost-aware inference, or decision-model for typed judgments."
   }
 }

@@ -158,7 +158,7 @@ export async function prepareCorpus({
   }
   const manifest = {
     rulesFile: resolve(rulesPath),
-    model: "jev-latest",
+    model: "clef-flash",
     threshold: 0.8,
     documents,
   };

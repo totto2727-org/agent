@@ -7,9 +7,19 @@ import { spawn } from "node:child_process";
 
 const CHOICES = ["pass", "fail", "not_applicable", "insufficient_context"];
 const MAX_EVIDENCE_BYTES = 48 * 1024;
+const MAX_ATTEMPTS = 3;
 const TRANSIENT_STATUS = new Set([429, 500, 502, 503, 504]);
+const FATAL_STATUS = new Set([401, 402, 403]);
+const CLOUDFLARE_API_ORIGIN = "https://api.cloudflare.com";
+const ACCOUNT_ID_PATTERN = /^[0-9a-f]{32}$/i;
+const GATEWAY_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]*$/;
+const HEADER_SAFE_PATTERN = /^[\x21-\x7e]+$/;
+
+export const MODELS = ["clef-flash", "clef", "typesafe/jev"];
 
 export class EvaluationError extends Error {}
+
+export class TransportFailure extends EvaluationError {}
 
 export function parseArguments(argv) {
   const options = { concurrency: 4, dryRun: false };
@@ -56,12 +66,14 @@ function bounded(value, label) {
 export function validateManifest(raw) {
   const manifest = object(raw, "manifest");
   text(manifest.model, "manifest.model");
+  if (!MODELS.includes(manifest.model))
+    throw new EvaluationError(`manifest.model must be one of: ${MODELS.join(", ")}`);
   if (!Array.isArray(manifest.rules) || !manifest.rules.length)
     throw new EvaluationError("manifest.rules must be a non-empty array");
   if (!Array.isArray(manifest.documents) || !manifest.documents.length)
     throw new EvaluationError("manifest.documents must be a non-empty array");
   const threshold = manifest.threshold ?? 0.8;
-  if (typeof threshold !== "number" || threshold < 0 || threshold > 1)
+  if (!Number.isFinite(threshold) || threshold < 0 || threshold > 1)
     throw new EvaluationError("manifest.threshold must be between 0 and 1");
   const ruleIds = new Set();
   const rules = manifest.rules.map((rule, index) => {
@@ -354,7 +366,35 @@ function stateFor(item) {
   };
 }
 
-function curlConfig(url, token, requestFile, headersFile) {
+export function isNativeModel(model) {
+  return model.startsWith("clef");
+}
+
+export function endpointFor(model, accountId) {
+  const base = `${CLOUDFLARE_API_ORIGIN}/client/v4/accounts/${accountId}/ai/run`;
+  return isNativeModel(model) ? `${base}/@cf/cloudflare/${model}` : base;
+}
+
+export function payloadFor(model, state, questions) {
+  return isNativeModel(model)
+    ? { model, state, questions }
+    : { model, input: { state, questions } };
+}
+
+export function readCredentials(environment) {
+  const accountId = text(environment.CLOUDFLARE_ACCOUNT_ID, "CLOUDFLARE_ACCOUNT_ID");
+  if (!ACCOUNT_ID_PATTERN.test(accountId))
+    throw new EvaluationError("CLOUDFLARE_ACCOUNT_ID must be 32 hexadecimal characters");
+  const apiKey = text(environment.CLOUDFLARE_AI_GATEWAY_API_KEY, "CLOUDFLARE_AI_GATEWAY_API_KEY");
+  if (!HEADER_SAFE_PATTERN.test(apiKey))
+    throw new EvaluationError("CLOUDFLARE_AI_GATEWAY_API_KEY must be a header-safe secret");
+  const gatewayId = text(environment.CLOUDFLARE_AI_GATEWAY_ID, "CLOUDFLARE_AI_GATEWAY_ID");
+  if (!GATEWAY_ID_PATTERN.test(gatewayId))
+    throw new EvaluationError("CLOUDFLARE_AI_GATEWAY_ID must be a safe gateway slug");
+  return { accountId, apiKey, gatewayId };
+}
+
+function curlConfig(url, apiKey, gatewayId, requestFile, headersFile) {
   const escaped = (value) => value.replaceAll("\\", "\\\\").replaceAll('"', '\\"');
   return [
     `url = "${escaped(url)}"`,
@@ -362,7 +402,8 @@ function curlConfig(url, token, requestFile, headersFile) {
     "fail-with-body",
     "connect-timeout = 10",
     "max-time = 45",
-    `header = "Authorization: Bearer ${escaped(token)}"`,
+    `header = "Authorization: Bearer ${escaped(apiKey)}"`,
+    `header = "cf-aig-gateway-id: ${escaped(gatewayId)}"`,
     'header = "Content-Type: application/json"',
     `data-binary = "@${escaped(requestFile)}"`,
     `dump-header = "${escaped(headersFile)}"`,
@@ -399,14 +440,21 @@ function retryAfter(headers) {
   return milliseconds <= 1_000 ? milliseconds : null;
 }
 
-async function actionRequest(payload, origin, token, metrics) {
+async function actionRequest({ model, state, questions, credentials, metrics }) {
   const temporary = await mkdtemp(resolve(tmpdir(), "documentation-quality-"));
   try {
     const requestFile = resolve(temporary, "request.json");
     const headersFile = resolve(temporary, "headers.txt");
-    await writeFile(requestFile, JSON.stringify(payload));
-    const url = new URL("/v1/actions/typesafe_ai.evaluate", origin).toString();
-    for (let attempt = 0; attempt < 3; attempt += 1) {
+    const url = endpointFor(model, credentials.accountId);
+    await writeFile(requestFile, JSON.stringify(payloadFor(model, state, questions)));
+    const config = curlConfig(
+      url,
+      credentials.apiKey,
+      credentials.gatewayId,
+      requestFile,
+      headersFile,
+    );
+    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
       metrics.requestCount += 1;
       metrics.activeRequests += 1;
       metrics.observedPeakActiveRequests = Math.max(
@@ -415,49 +463,58 @@ async function actionRequest(payload, origin, token, metrics) {
       );
       let result;
       try {
-        result = await invokeCurl(curlConfig(url, token, requestFile, headersFile));
+        result = await invokeCurl(config);
       } finally {
         metrics.activeRequests -= 1;
       }
       const parsed = parseCurlOutput(result.stdout);
       const headers = await readFile(headersFile, "utf8").catch(() => "");
-      if (
-        (result.code !== 0 || !parsed.status) &&
-        !(parsed.status && TRANSIENT_STATUS.has(parsed.status) && attempt < 2)
-      )
-        throw new EvaluationError(`OpenConnector transport failed (exit ${result.code})`);
-      if (parsed.status && TRANSIENT_STATUS.has(parsed.status) && attempt < 2) {
+      if (!parsed.status)
+        throw new EvaluationError(`Cloudflare transport failed (exit ${result.code})`);
+      if (FATAL_STATUS.has(parsed.status))
+        throw new TransportFailure(`Cloudflare rejected the request with HTTP ${parsed.status}`);
+      if (TRANSIENT_STATUS.has(parsed.status) && attempt < MAX_ATTEMPTS - 1) {
         const delay = retryAfter(headers);
         if (delay === null)
-          throw new EvaluationError("OpenConnector Retry-After exceeds the bounded retry wait");
+          throw new EvaluationError("Cloudflare Retry-After exceeds the bounded retry wait");
         await new Promise((resolvePromise) => setTimeout(resolvePromise, delay));
         continue;
       }
       if (parsed.status !== 200)
-        throw new EvaluationError(`OpenConnector returned HTTP ${parsed.status ?? "unknown"}`);
+        throw new EvaluationError(`Cloudflare returned HTTP ${parsed.status}`);
+      if (result.code !== 0)
+        throw new EvaluationError(`Cloudflare transport failed (exit ${result.code})`);
       try {
         return JSON.parse(parsed.body);
       } catch {
-        throw new EvaluationError("OpenConnector returned malformed JSON");
+        throw new EvaluationError("Cloudflare returned malformed JSON");
       }
     }
   } finally {
     await rm(temporary, { recursive: true, force: true });
   }
-  throw new EvaluationError("OpenConnector retry limit reached");
+  throw new EvaluationError("Cloudflare retry limit reached");
 }
 
-export function validateResponse(response, questions) {
-  if (
-    !response ||
-    response.success !== true ||
-    !response.data ||
-    !response.data.answers ||
-    typeof response.data.answers !== "object" ||
-    Array.isArray(response.data.answers)
-  )
-    throw new EvaluationError("OpenConnector response has an invalid envelope");
-  const answers = response.data.answers;
+export function validateResponse(response, questions, model) {
+  const envelope = object(response, "Cloudflare response");
+  if (envelope.success !== true)
+    throw new EvaluationError("Cloudflare response reports an unsuccessful request");
+  const outer = object(envelope.result, "Cloudflare response result");
+  let result;
+  if (isNativeModel(model)) {
+    result = outer;
+  } else {
+    if (outer.state !== "Completed")
+      throw new EvaluationError(
+        `Cloudflare job did not complete (state ${outer.state ?? "unknown"})`,
+      );
+    result = object(outer.result, "Cloudflare job result");
+  }
+  text(result.model, "Cloudflare response model");
+  if (!result.answers || typeof result.answers !== "object" || Array.isArray(result.answers))
+    throw new EvaluationError("Cloudflare response has an invalid answers payload");
+  const answers = result.answers;
   const questionIds = Object.keys(questions);
   const answerIds = Object.keys(answers);
   if (
@@ -465,18 +522,18 @@ export function validateResponse(response, questions) {
     answerIds.some((id) => !Object.hasOwn(questions, id))
   )
     throw new EvaluationError(
-      "OpenConnector response does not answer every submitted question exactly once",
+      "Cloudflare response does not answer every submitted question exactly once",
     );
   for (const answer of Object.values(answers)) {
     if (
       !answer ||
       answer.type !== "choice" ||
       !CHOICES.includes(answer.choice) ||
-      typeof answer.confidence !== "number" ||
+      !Number.isFinite(answer.confidence) ||
       answer.confidence < 0 ||
       answer.confidence > 1
     )
-      throw new EvaluationError("OpenConnector response contains an invalid answer");
+      throw new EvaluationError("Cloudflare response contains an invalid answer");
     const probabilities = answer.probabilities;
     if (
       !probabilities ||
@@ -485,21 +542,19 @@ export function validateResponse(response, questions) {
       Object.keys(probabilities).length !== CHOICES.length ||
       CHOICES.some(
         (choice) =>
-          typeof probabilities[choice] !== "number" ||
+          !Number.isFinite(probabilities[choice]) ||
           probabilities[choice] < 0 ||
           probabilities[choice] > 1,
       )
     )
-      throw new EvaluationError(
-        "OpenConnector response contains an invalid probability distribution",
-      );
+      throw new EvaluationError("Cloudflare response contains an invalid probability distribution");
     const total = CHOICES.reduce((sum, choice) => sum + probabilities[choice], 0);
     if (Math.abs(total - 1) > 0.0200001)
-      throw new EvaluationError("OpenConnector response probabilities must sum to 1");
+      throw new EvaluationError("Cloudflare response probabilities must sum to 1");
   }
   return {
-    model: response.data.model ?? null,
-    usage: response.data.usage ?? null,
+    model: result.model,
+    usage: result.usage ?? null,
     answers: Object.entries(answers).map(([questionId, answer]) => ({ questionId, ...answer })),
   };
 }
@@ -534,26 +589,8 @@ export async function evaluate({
   const manifest = await loadManifest(manifestPath);
   const work = await buildWork(manifest, manifestPath);
   const metrics = { requestCount: 0, activeRequests: 0, observedPeakActiveRequests: 0 };
-  let origin;
-  if (!dryRun) {
-    try {
-      origin = new URL(text(environment.OPENCONNECTOR_BASE_URL, "OPENCONNECTOR_BASE_URL"));
-    } catch {
-      throw new EvaluationError("OPENCONNECTOR_BASE_URL must be an HTTPS origin");
-    }
-    if (
-      origin.protocol !== "https:" ||
-      origin.username ||
-      origin.password ||
-      origin.pathname !== "/" ||
-      origin.search ||
-      origin.hash
-    )
-      throw new EvaluationError("OPENCONNECTOR_BASE_URL must be an HTTPS origin");
-    text(environment.OPENCONNECTOR_TOKEN, "OPENCONNECTOR_TOKEN");
-    if (/\r|\n/.test(environment.OPENCONNECTOR_TOKEN))
-      throw new EvaluationError("OPENCONNECTOR_TOKEN must not contain a line break");
-  }
+  const credentials = dryRun ? null : readCredentials(environment);
+  let fatal = null;
   const evaluated = await pooled(work, concurrency, async (item) => {
     const publicQuestions = Object.fromEntries(
       Object.entries(item.questions).map(([id, question]) => [
@@ -580,14 +617,16 @@ export async function evaluate({
       questions: reportQuestions,
     };
     if (dryRun) return { ...base, status: "dry_run", state: stateFor(item), answers: [] };
+    if (fatal) return { ...base, status: "skipped", error: fatal.message, answers: [] };
     try {
-      const response = await actionRequest(
-        { input: { state: stateFor(item), model: manifest.model, questions: publicQuestions } },
-        origin,
-        environment.OPENCONNECTOR_TOKEN,
+      const response = await actionRequest({
+        model: manifest.model,
+        state: stateFor(item),
+        questions: publicQuestions,
+        credentials,
         metrics,
-      );
-      const validated = validateResponse(response, publicQuestions);
+      });
+      const validated = validateResponse(response, publicQuestions, manifest.model);
       return {
         ...base,
         status: "complete",
@@ -598,6 +637,10 @@ export async function evaluate({
         })),
       };
     } catch (error) {
+      if (error instanceof TransportFailure) {
+        fatal ??= error;
+        return { ...base, status: "error", error: error.message, answers: [] };
+      }
       return {
         ...base,
         status: "error",
@@ -607,7 +650,10 @@ export async function evaluate({
     }
   });
   const reviewRequired = evaluated.some(
-    (entry) => entry.status === "error" || entry.answers.some((answer) => answer.reviewRequired),
+    (entry) =>
+      entry.status === "error" ||
+      entry.status === "skipped" ||
+      entry.answers.some((answer) => answer.reviewRequired),
   );
   const failed = evaluated.some((entry) =>
     entry.answers.some((answer) => answer.choice === "fail"),

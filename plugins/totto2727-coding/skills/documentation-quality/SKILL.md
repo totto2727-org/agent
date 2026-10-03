@@ -2,10 +2,10 @@
 name: documentation-quality
 description: >-
   Review developer documentation across languages, tools, and project types, with on-demand anti-patterns and examples.
-  Use for documentation quality checks and optional parallel Jev evaluation through OOMOL/OpenConnector.
+  Use for documentation quality checks and optional parallel Decision Model evaluation through Cloudflare AI.
   Apply primarily to English source documentation, not translated editions.
   Use documentation-principles for writing principles and share-artifact for document formats.
-compatibility: Node.js 22 or later and curl for the optional evaluator. Live checks require OOMOL/OpenConnector with TypeSafe AI Actions.
+compatibility: Node.js 22 or later and curl for the optional evaluator. Live checks require the configured Cloudflare environment from cloudflare-ai.
 ---
 
 # Documentation Quality
@@ -29,13 +29,14 @@ Translation fidelity, source accuracy, runnable examples, and working links requ
 ## Optional parallel checks
 
 Use [running evaluations](references/running.md) for manifests, gateway setup, dry runs, bounded concurrency, and report interpretation.
-Send content only to an authorized OOMOL/OpenConnector gateway through its `typesafe_ai.evaluate` Action, never a direct provider endpoint.
+Use [decision-model](../../../external-information/skills/decision-model/SKILL.md) for judgment design and [cloudflare-ai](../../../external-information/skills/cloudflare-ai/SKILL.md) for execution, authentication, and endpoint configuration.
+Send content only through the selected Cloudflare inference route; do not substitute a provider-direct transport.
 Keep review examples and expected labels out of blind evaluation requests.
 
 > [!WARNING]
-> Jev judgments are review assistance, not an unattended approval gate.
+> Decision Model judgments are review assistance, not an unattended approval gate.
 > High confidence does not guarantee correctness; low confidence, abstentions, and request errors are not passes.
 
 For `fail` or an uncertain answer, match its question ID to the report's `rule.id`, then open that rule in the [index](references/rules.md).
 For transport or response-format errors, follow the [execution guide](references/running.md#read-the-report) instead of changing document prose.
-A reasoning reviewer must verify any proposed correction in context; Jev does not supply a verified rationale.
+A reasoning reviewer must verify any proposed correction in context; a Decision Model does not supply a verified rationale.
