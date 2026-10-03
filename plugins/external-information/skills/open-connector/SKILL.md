@@ -9,10 +9,19 @@ description: >-
 Use the installed official `oo` skill when available.
 Otherwise, consult the [official CLI reference](https://github.com/oomol-lab/oo-cli/blob/main/docs/commands.md) and [self-hosted connector guide](https://github.com/oomol-lab/oo-cli/blob/main/docs/self-hosted-connector.md).
 
-## Login
+## Setup
 
-Use the supplied environment variables to log in to this environment's connector:
+Configure the installed `oo` CLI once using the trusted gateway environment variables:
 
 ```bash
-oo connector login "$OPENCONNECTOR_BASE_URL" --token "$OPENCONNECTOR_TOKEN"
+export OO_CONNECTOR_URL="$OPENCONNECTOR_BASE_URL"
+export OO_CONNECTOR_TOKEN="$OPENCONNECTOR_TOKEN"
 ```
+
+Resolve these values from trusted configuration or the existing secret manager without printing tokens.
+The explicit gateway environment overrides saved or hosted connector accounts.
+
+## Run
+
+Run the installed `oo` CLI normally, using `oo connector` for gateway operations.
+Do not define a wrapper, use a package runner, or bypass the configured gateway.
