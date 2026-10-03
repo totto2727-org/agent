@@ -12,9 +12,9 @@ Keep complete command responses and link inventories on disk, and bring only tas
 ## Dependencies and Routing
 
 - Use [monid](../monid/SKILL.md) for the official Monid CLI reference and its isolated gateway profile.
-  Configure its `vpx` launcher and `MONID_API_BASE_URL` before discovery, inspection, execution, or polling.
-  All `monid` examples below refer to that configured launcher, not a bare global binary or a direct Monid connection.
-  Run Monid operations with the official CLI through the configured gateway, not a custom provider HTTP client.
+  Configure the profile once, then use the installed `monid` CLI with `MONID_API_BASE_URL="$MONID_GATEWAY_BASE_URL"` on every invocation.
+  All `monid` examples below require that proxy URL prefix, including discovery, inspection, execution, and polling.
+  Do not define a wrapper or use a custom provider HTTP client.
 - Use [open-connector](../open-connector/SKILL.md) for the official `oo` reference before using Cloudflare Browser Run or Jev.
   Use `oo connector` with the user's configured gateway, not direct provider clients.
   Map trusted `OPENCONNECTOR_BASE_URL` and `OPENCONNECTOR_TOKEN` values to the CLI's `OO_CONNECTOR_URL` and `OO_CONNECTOR_TOKEN` when those conventions are used; do not silently select another account or gateway.
@@ -40,7 +40,7 @@ Inspect current capabilities and pricing and keep calls within the user's author
 
 1. Establish the question, freshness requirements, and any supplied URL.
    Search only when needed, target official sources, and keep result counts and retrieval batches small.
-   Configure the official CLI through [monid](../monid/SKILL.md), then save and check `monid whoami --json` before submitting a billable run.
+   Configure the official CLI through [monid](../monid/SKILL.md), then save and check `MONID_API_BASE_URL="$MONID_GATEWAY_BASE_URL" monid whoami --json` before submitting a billable run.
    A missing gateway HTTP forwarding route or failed identity check blocks this route; do not switch to direct Monid access.
 2. Inspect Monid's current TinyFish schema and price with `monid inspect`, then use `monid run` to search with `/search` or fetch the supplied URL with `/fetch`.
    - Use `format: "markdown"` and **`links: true` by default** for TinyFish page retrieval, including subsequent pages.
@@ -48,7 +48,7 @@ Inspect current capabilities and pricing and keep calls within the user's author
    - Add `image_links: true` when image-file URLs matter; this is separate from finding documentation about images.
    - Set cache freshness deliberately. Use `ttl: 0` for a live fetch when freshness is required, not for every repeated read.
 3. **Save every complete response before reading it**, including discovery, schema, run, polling, Jev, and fallback responses.
-   - For Monid, redirect complete official CLI output with `monid ... --json > response.json`, then use `jq` on the saved file.
+   - For Monid, redirect complete official CLI output with `MONID_API_BASE_URL="$MONID_GATEWAY_BASE_URL" monid ... --json > response.json`, then use `jq` on the saved file.
      Save `oo` output with `--json > response.json` in the same way.
    - Use unique task-local artifacts under the working repository's `tmp/`, or the approved temporary location outside a repository.
    - Keep requests and responses separate, protect potentially sensitive content, exclude artifacts from commits, and never save authorization headers or secrets.
