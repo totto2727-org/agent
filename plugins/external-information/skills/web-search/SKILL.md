@@ -11,7 +11,7 @@ Keep complete command responses and link inventories on disk, and bring only tas
 
 ## Dependencies and Routing
 
-- Use [monid](../monid/SKILL.md) for the official Monid CLI reference and its isolated gateway profile.
+- Use [monid](../monid/SKILL.md) for the official Monid CLI reference and its gateway configuration.
   Configure the profile once, then use the installed `monid` CLI with `MONID_API_BASE_URL="$MONID_GATEWAY_BASE_URL"` on every invocation.
   All `monid` examples below require that proxy URL prefix, including discovery, inspection, execution, and polling.
   Do not define a wrapper or use a custom provider HTTP client.

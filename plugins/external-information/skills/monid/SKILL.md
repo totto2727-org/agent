@@ -12,18 +12,17 @@ Always use the OOMOL/OpenConnector proxy, not Monid directly.
 
 ## Setup
 
-Configure a separate CLI profile once in a new task-local `TASK_TMP` directory.
+Configure the CLI profile once in `${XDG_CONFIG_HOME:-$HOME/.config}/monid`.
 These files store the gateway token because `monid keys add` accepts only Monid-shaped keys.
 
 ```bash
 set -e
 umask 077
-XDG_CONFIG_HOME="$(mktemp -d "$TASK_TMP/monid.XXXXXX")"
-export XDG_CONFIG_HOME
-mkdir "$XDG_CONFIG_HOME/monid"
+MONID_CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/monid"
+mkdir -p "$MONID_CONFIG_DIR"
 MONID_GATEWAY_BASE_URL="${OPENCONNECTOR_BASE_URL%/}/v1/passthrough/monid"
-jq -n '{version: "0.1.7", active_key: "gateway", last_update_check: (now | todate)}' > "$XDG_CONFIG_HOME/monid/config.yaml"
-OPENCONNECTOR_TOKEN="$OPENCONNECTOR_TOKEN" jq -n '{keys: {gateway: {key: env.OPENCONNECTOR_TOKEN, prefix: "gateway", added_at: (now | todate)}}}' > "$XDG_CONFIG_HOME/monid/credentials.yaml"
+jq -n '{version: "0.1.7", active_key: "gateway", last_update_check: (now | todate)}' > "$MONID_CONFIG_DIR/config.yaml"
+OPENCONNECTOR_TOKEN="$OPENCONNECTOR_TOKEN" jq -n '{keys: {gateway: {key: env.OPENCONNECTOR_TOKEN, prefix: "gateway", added_at: (now | todate)}}}' > "$MONID_CONFIG_DIR/credentials.yaml"
 ```
 
 ## Run
