@@ -10,6 +10,8 @@ Use the installed `monid` CLI and the [official Monid skill](https://monid.ai/SK
 Always use the OOMOL/OpenConnector proxy, not Monid directly.
 `OPENCONNECTOR_BASE_URL` is the trusted HTTPS gateway origin, and `OPENCONNECTOR_TOKEN` is its runtime token.
 
+## Setup
+
 Configure a separate CLI profile once in a new task-local `TASK_TMP` directory.
 These files store the gateway token because `monid keys add` accepts only Monid-shaped keys.
 
@@ -25,6 +27,8 @@ MONID_GATEWAY_BASE_URL="${OPENCONNECTOR_BASE_URL%/}/v1/passthrough/monid"
 jq -n '{version: "0.1.7", active_key: "gateway", last_update_check: (now | todate)}' > "$XDG_CONFIG_HOME/monid/config.yaml"
 OPENCONNECTOR_TOKEN="$OPENCONNECTOR_TOKEN" jq -n '{keys: {gateway: {key: env.OPENCONNECTOR_TOKEN, prefix: "gateway", added_at: (now | todate)}}}' > "$XDG_CONFIG_HOME/monid/credentials.yaml"
 ```
+
+## Run
 
 Run normal `monid` commands, adding the proxy URL to every invocation:
 
