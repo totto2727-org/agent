@@ -14,8 +14,8 @@ Use [decision-model](../decision-model/SKILL.md) to design typed judgments; that
 
 1. For ordinary generation, coding, reasoning, summarization, and other non-decision inference, use OpenCode Go through the configured AI Gateway.
    Default to **`custom-opencode-go/deepseek-v4.1-flash`**.
-2. Choose another available OpenCode Go model only when the task genuinely requires higher accuracy or a capability the default cannot supply.
-   Establish the need from the task or observed failures, verify current availability and pricing, and bound the request.
+2. Choose another available OpenCode Go model only when the task demonstrably requires substantially higher accuracy than the default.
+   Establish that need from the task or observed failures, verify current availability and pricing, and bound the request.
    A preference for another provider is not evidence that OpenCode Go is unavailable.
 3. Use a non-OpenCode-Go provider for these tasks **only when OpenCode Go is actually unavailable for the required request**.
    Confirm the relevant availability or capability failure, then choose the lowest-cost adequate model from the user's configured, authorized routes.
