@@ -11,8 +11,10 @@ Keep complete command responses and link inventories on disk, and bring only tas
 
 ## Dependencies and Routing
 
-- Use [monid](../monid/SKILL.md) for the official Monid CLI reference.
-  Run Monid operations with the official CLI, not a custom HTTP client.
+- Use [monid](../monid/SKILL.md) for the official Monid CLI reference and its isolated gateway profile.
+  Configure its `vpx` launcher and `MONID_API_BASE_URL` before discovery, inspection, execution, or polling.
+  All `monid` examples below refer to that configured launcher, not a bare global binary or a direct Monid connection.
+  Run Monid operations with the official CLI through the configured gateway, not a custom provider HTTP client.
 - Use [open-connector](../open-connector/SKILL.md) for the official `oo` reference before using Cloudflare Browser Run or Jev.
   Use `oo connector` with the user's configured gateway, not direct provider clients.
   Map trusted `OPENCONNECTOR_BASE_URL` and `OPENCONNECTOR_TOKEN` values to the CLI's `OO_CONNECTOR_URL` and `OO_CONNECTOR_TOKEN` when those conventions are used; do not silently select another account or gateway.
@@ -23,12 +25,12 @@ Keep complete command responses and link inventories on disk, and bring only tas
 - Preserve Codex's built-in Web Search as a permitted platform-native alternative when explicitly requested or when the managed workflow is unavailable or insufficient.
   It is not a reason to replace the TinyFish default silently, and it does not exempt other provider APIs from their gateway requirements.
 
-| Need                                                                           | Preferred route                                         |
-| ------------------------------------------------------------------------------ | ------------------------------------------------------- |
-| Ordinary web search or page text                                               | Monid CLI: TinyFish `/search` or `/fetch`               |
-| Choose related pages from returned URLs                                        | Jev through OpenConnector, then fetch the selected URLs |
-| Browser interaction, rendering control, or extraction TinyFish cannot preserve | Cloudflare Browser Run through OpenConnector            |
-| Social timelines, transcripts, or other specialized data                       | Discover and inspect a suitable Monid API               |
+| Need                                                                           | Preferred route                                              |
+| ------------------------------------------------------------------------------ | ------------------------------------------------------------ |
+| Ordinary web search or page text                                               | Gateway-configured Monid CLI: TinyFish `/search` or `/fetch` |
+| Choose related pages from returned URLs                                        | Jev through OpenConnector, then fetch the selected URLs      |
+| Browser interaction, rendering control, or extraction TinyFish cannot preserve | Cloudflare Browser Run through OpenConnector                 |
+| Social timelines, transcripts, or other specialized data                       | Discover and inspect a suitable Monid API                    |
 
 Choose a specialized API directly when the data type makes it a better fit; do not require a failed browser attempt first.
 Provider preference does not imply free, unlimited, complete, or authorized access.
@@ -38,6 +40,8 @@ Inspect current capabilities and pricing and keep calls within the user's author
 
 1. Establish the question, freshness requirements, and any supplied URL.
    Search only when needed, target official sources, and keep result counts and retrieval batches small.
+   Configure the official CLI through [monid](../monid/SKILL.md), then save and check `monid whoami --json` before submitting a billable run.
+   A missing gateway HTTP forwarding route or failed identity check blocks this route; do not switch to direct Monid access.
 2. Inspect Monid's current TinyFish schema and price with `monid inspect`, then use `monid run` to search with `/search` or fetch the supplied URL with `/fetch`.
    - Use `format: "markdown"` and **`links: true` by default** for TinyFish page retrieval, including subsequent pages.
    - Disable links only for an explicit task requirement or a documented incompatibility, and state the exception.
