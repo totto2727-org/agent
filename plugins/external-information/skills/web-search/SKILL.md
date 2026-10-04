@@ -15,8 +15,7 @@ Keep complete command responses and link inventories on disk, and bring only tas
 - Use [open-connector](../open-connector/SKILL.md) for Cloudflare Browser Run or Jev, following that skill's Setup and Run instructions.
   **Context7, TypeSafe/Jev, and Cloudflare Browser Run must execute directly through OOMOL/OpenConnector and must never use Monid**, including as a fallback for missing connections or failed calls.
   Context7 library lookup belongs to [doc-search](../doc-search/SKILL.md), not Monid discovery.
-- If a required CLI is missing or cannot be invoked, use the respective skill's temporary `curl` fallback through the same gateway before changing services.
-- If that route cannot run either, report the blocker and follow the failure rules below; do not bypass its gateway requirements.
+- If a required skill cannot run, report the blocker and follow the failure rules below; do not bypass its gateway requirements.
 - For related-link selection, prefer the installed official `typesafe-ai` skill from `typesafe-ai/skills`; otherwise use the [TypeSafe documentation index](https://docs.typesafe.ai/llms.txt).
   Follow [related-link selection](references/related-links.md) for this workflow's context and candidate-handling rules.
 - Preserve Codex's built-in Web Search as a permitted platform-native alternative when explicitly requested or when the managed workflow is unavailable or insufficient.

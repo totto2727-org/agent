@@ -10,7 +10,6 @@ Look up library and framework documentation through Context7 Actions in OpenConn
 Execute Context7 directly through OOMOL/OpenConnector, never through Monid, including when its connection is unavailable or a request fails.
 The web-search fallback below retrieves official sources with other services; it does not reroute Context7 through Monid.
 Use [open-connector](../open-connector/SKILL.md) for the official `oo` CLI reference.
-If `oo` is missing or cannot be invoked, use that skill's temporary `curl` fallback for the same Context7 Actions before switching retrieval services.
 Use the user's configured gateway and credentials, mapping trusted `OPENCONNECTOR_BASE_URL` and `OPENCONNECTOR_TOKEN` values to `OO_CONNECTOR_URL` and `OO_CONNECTOR_TOKEN` when those conventions are used.
 Do not silently select another account or gateway.
 Do not install the Context7 CLI or configure a direct Context7 API key locally.
