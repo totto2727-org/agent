@@ -14,7 +14,7 @@ Do not add custom keyboard interception to an ordinary native single-line form s
 
 ## Official source
 
-Prefer the locally installed official `$modern-web-guidance` skill and retrieve its `ime-safe-enter-submit` guide.
+Prefer the locally installed official [`modern-web-guidance`](https://github.com/GoogleChrome/modern-web-guidance/blob/v0.0.186/skills/modern-web-guidance/SKILL.md) skill and retrieve its `ime-safe-enter-submit` guide.
 If the skill is unavailable, fetch the [official guide's Markdown source at v0.0.186](https://raw.githubusercontent.com/GoogleChrome/modern-web-guidance/v0.0.186/skills/modern-web-guidance/guides/forms/ime-safe-enter-submit.md) directly.
 The [official skill entry point](https://github.com/GoogleChrome/modern-web-guidance/blob/v0.0.186/skills/modern-web-guidance/SKILL.md) documents how to retrieve guides when installed.
 

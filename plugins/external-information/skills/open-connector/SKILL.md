@@ -6,7 +6,7 @@ description: >-
 
 # OpenConnector
 
-Use the installed official `oo` skill when available.
+Use the installed official [`oo`](https://github.com/oomol-lab/oo-cli/blob/main/contrib/skills/shared/oo/SKILL.md) skill when available.
 Otherwise, consult the [official CLI reference](https://github.com/oomol-lab/oo-cli/blob/main/docs/commands.md) and [self-hosted connector guide](https://github.com/oomol-lab/oo-cli/blob/main/docs/self-hosted-connector.md).
 
 If the `oo` binary is missing or cannot be invoked, temporarily use `curl` for the equivalent documented API operation through the same trusted OpenConnector gateway and credentials.

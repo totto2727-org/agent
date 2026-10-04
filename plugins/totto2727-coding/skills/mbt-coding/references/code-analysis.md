@@ -23,7 +23,7 @@ For code changes, run the relevant repository `mbt:check` or package `check` tas
 
 ## Sources
 
-- Use the official `$moonbit-orientation` skill locally when installed for source selection and freshness checks.
+- Use the official [`moonbit-orientation`](https://github.com/moonbitlang/skills/blob/master/skills/moonbit-orientation/SKILL.md) skill locally when installed for source selection and freshness checks.
 - [Official MoonBit Agent IDE documentation](https://docs.moonbitlang.com/en/latest/toolchain/moonide/index.html)
 
-If `$moonbit-orientation` is unavailable, fetch the [official documentation Markdown source index](https://raw.githubusercontent.com/moonbitlang/moonbit-docs/main/next/index.md) directly. For source links beginning with `/`, strip the leading slash and resolve the path under `https://raw.githubusercontent.com/moonbitlang/moonbit-docs/main/next/`.
+If `moonbit-orientation` is unavailable, fetch the [official documentation Markdown source index](https://raw.githubusercontent.com/moonbitlang/moonbit-docs/main/next/index.md) directly. For source links beginning with `/`, strip the leading slash and resolve the path under `https://raw.githubusercontent.com/moonbitlang/moonbit-docs/main/next/`.

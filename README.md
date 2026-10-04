@@ -47,10 +47,10 @@ Use [realpath](plugins/totto2727-coding/skills/realpath/SKILL.md) for filesystem
 
 Provides four coordinated skills:
 
-- `open-connector`: references to the official `oo` skill and CLI documentation.
-- `monid`: a reference to the official Monid skill.
-- `web-search`: Monid/TinyFish search and Markdown retrieval with links enabled, saved responses and content-only `jq` reads, and Jev selection of related pages; Browser Run, specialized APIs, and Codex built-in Web Search remain available under its fallback policy.
-- `doc-search`: Context7 library lookup and documentation retrieval through the shared base.
+- [`open-connector`](plugins/external-information/skills/open-connector/SKILL.md): references to the official [`oo`](https://github.com/oomol-lab/oo-cli/blob/main/contrib/skills/shared/oo/SKILL.md) skill and CLI documentation.
+- [`monid`](plugins/external-information/skills/monid/SKILL.md): a reference to the [official Monid skill](https://monid.ai/SKILL.md).
+- [`web-search`](plugins/external-information/skills/web-search/SKILL.md): Monid/TinyFish search and Markdown retrieval with links enabled, saved responses and content-only `jq` reads, and Jev selection of related pages; Browser Run, specialized APIs, and Codex built-in Web Search remain available under its fallback policy.
+- [`doc-search`](plugins/external-information/skills/doc-search/SKILL.md): Context7 library lookup and documentation retrieval through the shared base.
 
 Configure a complete HTTPS gateway URL in `OPENCONNECTOR_BASE_URL` or trusted agent instructions and supply `OPENCONNECTOR_TOKEN` through a secret environment configuration.
 The [web-search](plugins/external-information/skills/web-search/SKILL.md) and [doc-search](plugins/external-information/skills/doc-search/SKILL.md) workflows own routing, gateway environment mapping, and saved-response handling.
