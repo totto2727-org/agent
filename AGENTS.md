@@ -37,7 +37,6 @@
 - Keep secrets out of skills, templates, examples, and workflows; refer to environment variables instead.
 - When changing skill metadata, check it against the Agent Skills specification, using a skill validator when available.
 - When changing marketplace metadata or skill locations, verify generated manifests and affected reference paths.
-- Jinja templates illustrate document structure; do not require scripted generation, fixed render inputs, or byte-identical samples.
 - Decide whether history belongs by the document's purpose. Documents about the current state or how to act now must state current guidance and necessary concrete grounds. Retain history when recording or analyzing it is essential to the purpose, using [documentation-principles](plugins/totto2727-coding/skills/documentation-principles/SKILL.md#state-current-guidance-and-its-grounds).
 
 ## Task-specific documentation

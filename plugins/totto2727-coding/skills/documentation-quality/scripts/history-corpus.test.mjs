@@ -128,7 +128,7 @@ describe("historical document preparation", () => {
     const fixture = await repositoryFixture();
     const { manifest, labels } = await prepareCorpus({ ...fixture, split: "calibration" });
     expect(manifest).toMatchObject({
-      model: "jev-latest",
+      model: "clef-flash",
       threshold: 0.8,
       rulesFile: fixture.rulesPath,
     });

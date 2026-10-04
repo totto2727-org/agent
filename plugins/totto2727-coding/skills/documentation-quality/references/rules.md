@@ -20,10 +20,10 @@ Each guide contains a contextual anti-pattern, an improved sample, and exception
 For a custom rule not listed here, use that rule's supplied definition and review evidence rather than guessing a bundled equivalent.
 If the problem is missing context, obtain that context rather than copying an example into the document.
 
-## Jev boundaries
+## Decision Model boundaries
 
 These rules assess a page or a meaningful unit within it, not the architecture or maintenance ownership of a documentation set.
-Cross-document duplication and canonical ownership require a separate document-set review and are not bundled Jev checks.
+Cross-document duplication and canonical ownership require a separate document-set review and are not bundled Decision Model checks.
 
 The executable definitions live in [rules.json](rules.json); the linked Markdown examples are for follow-up review, not automatic model input.
 Keep `fail`, low confidence, `not_applicable`, `insufficient_context`, and infrastructure errors distinct from a positive pass.
