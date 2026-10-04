@@ -43,27 +43,20 @@ Provides general-purpose utility skills.
 ### `totto2727-coding`
 
 Provides reusable coding and testing guidance, [documentation-principles](plugins/totto2727-coding/skills/documentation-principles/SKILL.md) for shared writing principles, [share-test-design](plugins/totto2727-coding/skills/share-test-design/SKILL.md) for test-design decisions, and [share-artifact](plugins/totto2727-coding/skills/share-artifact/SKILL.md) for adaptable README, AGENTS.md, and ADR structures.
-Jinja templates show the overall document shape; they do not require a renderer or exact reproduction.
-Use [documentation-quality](plugins/totto2727-coding/skills/documentation-quality/SKILL.md) for rule-based document reviews and optional parallel Decision Model checks through Cloudflare AI.
+Use [documentation-quality](plugins/totto2727-coding/skills/documentation-quality/SKILL.md) to review developer documentation.
 
 ### `external-information`
 
 Provides six coordinated skills:
 
-- `open-connector`: references to the official `oo` skill and CLI documentation.
-- `monid`: a reference to the official Monid skill.
-- `web-search`: Monid/TinyFish search and Markdown retrieval with links enabled, saved responses and content-only `jq` reads, and Decision Model selection of related pages; Browser Run, specialized APIs, and Codex built-in Web Search remain available under its fallback policy.
-- `doc-search`: Context7 library lookup and documentation retrieval through the shared base.
-- [cloudflare-ai](plugins/external-information/skills/cloudflare-ai/SKILL.md): LLM and Decision Model inference through Cloudflare AI Gateway or Workers AI, with connection, request, response, and model-selection guidance.
-- [decision-model](plugins/external-information/skills/decision-model/SKILL.md): provider-independent typed judgment design for selection, ranking, routing, and verification; execution and implementation configuration belong to `cloudflare-ai`.
+- [open-connector](plugins/external-information/skills/open-connector/SKILL.md): use connected services through OpenConnector.
+- [monid](plugins/external-information/skills/monid/SKILL.md): use Monid for external information services.
+- [web-search](plugins/external-information/skills/web-search/SKILL.md): find and retrieve web sources for research.
+- [doc-search](plugins/external-information/skills/doc-search/SKILL.md): look up library and framework documentation.
+- [cloudflare-ai](plugins/external-information/skills/cloudflare-ai/SKILL.md): run LLM inference and typed Decision Model judgments with Cloudflare.
+- [decision-model](plugins/external-information/skills/decision-model/SKILL.md): design constrained semantic judgments for routing, ranking, selection, scoring, extraction, and verification.
 
-Configure a complete HTTPS gateway URL in `OPENCONNECTOR_BASE_URL` or trusted agent instructions and supply `OPENCONNECTOR_TOKEN` through a secret environment configuration.
-The [web-search](plugins/external-information/skills/web-search/SKILL.md) and [doc-search](plugins/external-information/skills/doc-search/SKILL.md) workflows own routing, gateway environment mapping, and saved-response handling.
-TinyFish requires the official `@monid-ai/cli` command `monid` and a separately configured active Monid key, not the OpenConnector token.
-See the [official CLI setup](https://monid.ai/docs/cli/overview.md) for installation and authentication; CLI or account setup is not performed automatically by these research skills.
-Context7 and Cloudflare Browser Run execute directly through OOMOL/OpenConnector and must never be routed through Monid.
-AI inference follows `cloudflare-ai` using already-configured Cloudflare environment variables; it is separate from the research connector.
-The [monid](plugins/external-information/skills/monid/SKILL.md) and [open-connector](plugins/external-information/skills/open-connector/SKILL.md) skills contain official references only; research-specific instructions belong to their callers.
+See each skill for its usage and service configuration requirements.
 When upgrading an installation that selected `external-search`, select `external-information` instead; `web-search` and `doc-search` keep their skill names.
 
 ### Upgrading existing installations

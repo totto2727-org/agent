@@ -7,7 +7,7 @@ description: >-
 # Decision Models
 
 Use a Decision Model as a small semantic judgment inside a workflow owned by code.
-For **execution, curl, model routing, authentication, connection URLs, billing, and implementation configuration**, follow [cloudflare-ai](../cloudflare-ai/SKILL.md).
+Use [cloudflare-ai](../cloudflare-ai/SKILL.md) to select and call a model.
 Do not invent a separate provider transport or silently change the configured model after a failed call.
 
 ## Design the judgment
@@ -41,7 +41,7 @@ Do not distribute a copied upstream skill.
 - Build candidates and requests from saved inputs with code rather than asking a generative model to recreate a large inventory.
   Preserve task-local stable IDs and exact provenance.
 - Normalize the selected transport's response using cloudflare-ai before reading judgments.
-  Native and universal Cloudflare envelopes differ; require a successful, completed result with exact question coverage.
+  Require a successful, completed result with exact question coverage.
 - Validate returned types, keys, choice membership, finite numeric ranges, and distributions at a typed boundary.
   Resolve selected IDs against the original candidate set; never execute a model-generated URL, code, or command.
 - Choice probabilities compare competitors within that question, not independent relevance across unrelated batches.
