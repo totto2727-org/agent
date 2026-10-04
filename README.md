@@ -58,17 +58,6 @@ TinyFish requires the official `@monid-ai/cli` command `monid` and a separately 
 See the [official CLI setup](https://monid.ai/docs/cli/overview.md) for installation and authentication; CLI or account setup is not performed automatically by these research skills.
 Context7, TypeSafe/Jev, and Cloudflare Browser Run execute directly through OOMOL/OpenConnector and must never be routed through Monid.
 The [monid](plugins/external-information/skills/monid/SKILL.md) and [open-connector](plugins/external-information/skills/open-connector/SKILL.md) skills contain official references only; research-specific instructions belong to their callers.
-When upgrading an installation that selected `external-search`, select `external-information` instead; `web-search` and `doc-search` keep their skill names.
-
-### Upgrading existing installations
-
-The `symphony` plugin and `macos-cli-rules` skill are no longer distributed.
-Remove stale installed copies if your installer does not remove them automatically.
-The `share-test-design-flow` skill is now `share-test-design`; update explicit skill references when upgrading.
-The `totto2727` utility plugin is no longer distributed; select `totto2727-coding` for `realpath` and `skill-reviewer` instead.
-The `csv-analysis`, `html-doc`, and `zmx` skills are no longer distributed; remove stale installed copies if your installer does not remove them automatically.
-
-Standalone skills from the source monorepo are intentionally not distributed; every public skill belongs to one of the two plugins above.
 
 ## Development
 
