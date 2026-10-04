@@ -99,8 +99,9 @@ Concurrency defaults to 4 and is bounded; raising it is not permission to exceed
 Do not retry `401`, `402`, or `403` by changing models, accounts, credentials, or billing routes.
 On these fatal responses the evaluator stops starting queued requests, records the failed item as `error` and unsent work as `skipped`, and retains a review-required report.
 Already-in-flight requests may finish; skipped work is not a pass.
-Every Gateway request includes the cache key, TTL, and skip-cache headers defined by cloudflare-ai.
-Equivalent work in one run shares a single pending or completed request, including failure outcomes; the evaluator does not automatically retry transient responses or timeouts.
+Every Gateway request includes the cache key, TTL, and skip-cache headers described by cloudflare-ai, and the evaluator selects a long TTL so identical document evaluations reuse a stable cached judgment.
+Equivalent work in one run shares a single pending or completed request, including failure outcomes.
+The evaluator makes one client attempt per logical request and does not automatically retry transient responses or timeouts; this describes only the evaluator's own client behavior, and it sends no request-level retry override, leaving the Gateway's configured retry behavior unchanged.
 Authentication, billing, incomplete-job, or malformed-response failures are not accepted as judgments.
 
 ## Read the report

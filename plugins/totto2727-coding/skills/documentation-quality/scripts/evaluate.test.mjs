@@ -34,6 +34,11 @@ const CREDENTIALS = {
 
 const temporaryDirectories = [];
 
+// The evaluator must not send a request-level retry override, so the Gateway's
+// own configured retry policy stays in effect.
+const hasRetryOverride = (call) =>
+  call.headers.some((header) => header.startsWith("cf-aig-max-attempts:"));
+
 async function fixture({ model = "clef-flash" } = {}) {
   const directory = await mkdtemp(resolve(tmpdir(), "documentation-quality-test-"));
   temporaryDirectories.push(directory);
@@ -463,10 +468,10 @@ describe("documentation quality evaluator public pipeline", () => {
         `cf-aig-gateway-id: ${GATEWAY_ID}`,
         "Content-Type: application/json",
         expect.stringMatching(/^cf-aig-cache-key: decision-v1-[0-9a-f]{64}$/),
-        "cf-aig-cache-ttl: 3600",
+        "cf-aig-cache-ttl: 2592000",
         "cf-aig-skip-cache: false",
-        "cf-aig-max-attempts: 1",
       ]);
+      expect(hasRetryOverride(call)).toBe(false);
       expect(Object.keys(call.payload)).toEqual(["model", "state", "questions"]);
       expect(call.payload.model).toBe("clef-flash");
       expect(call.payload.input).toBeUndefined();
@@ -495,11 +500,13 @@ describe("documentation quality evaluator public pipeline", () => {
         `header = "Authorization: Bearer ${API_KEY}"`,
         `header = "cf-aig-gateway-id: ${GATEWAY_ID}"`,
         'header = "Content-Type: application/json"',
-        'header = "cf-aig-cache-ttl: 3600"',
+        'header = "cf-aig-cache-ttl: 2592000"',
         'header = "cf-aig-skip-cache: false"',
-        'header = "cf-aig-max-attempts: 1"',
         'write-out = "\\n%{http_code}"',
       ]),
+    );
+    expect(configLines.some((line) => line.startsWith('header = "cf-aig-max-attempts:'))).toBe(
+      false,
     );
     expect(
       configLines.filter((line) => line.startsWith('header = "cf-aig-cache-key: ')).length,
@@ -527,9 +534,9 @@ describe("documentation quality evaluator public pipeline", () => {
       expect(Object.keys(call.payload.input)).toEqual(["state", "questions"]);
       expect(call.headers).toContain(`Authorization: Bearer ${API_KEY}`);
       expect(call.headers).toContain(`cf-aig-gateway-id: ${GATEWAY_ID}`);
-      expect(call.headers).toContain("cf-aig-cache-ttl: 3600");
+      expect(call.headers).toContain("cf-aig-cache-ttl: 2592000");
       expect(call.headers).toContain("cf-aig-skip-cache: false");
-      expect(call.headers).toContain("cf-aig-max-attempts: 1");
+      expect(hasRetryOverride(call)).toBe(false);
       expect(
         call.headers.some((header) => /^cf-aig-cache-key: decision-v1-[0-9a-f]{64}$/.test(header)),
       ).toBe(true);
@@ -548,9 +555,9 @@ describe("documentation quality evaluator public pipeline", () => {
     );
     expect(calls.length).toBeGreaterThan(0);
     for (const call of calls) {
-      expect(call.headers).toContain("cf-aig-cache-ttl: 3600");
+      expect(call.headers).toContain("cf-aig-cache-ttl: 2592000");
       expect(call.headers).toContain("cf-aig-skip-cache: false");
-      expect(call.headers).toContain("cf-aig-max-attempts: 1");
+      expect(hasRetryOverride(call)).toBe(false);
       expect(
         call.headers.some((header) => /^cf-aig-cache-key: decision-v1-[0-9a-f]{64}$/.test(header)),
       ).toBe(true);
@@ -558,7 +565,7 @@ describe("documentation quality evaluator public pipeline", () => {
     expect(report.requestCount).toBe(calls.length);
   });
 
-  it("does not retry transient failures and reports one attempt per logical request", async () => {
+  it("does not retry transient failures and makes one client attempt per logical request", async () => {
     const paths = await fixture();
     const { result: report, calls } = await withMock(paths, { statusSequence: "503,200" }, () =>
       evaluate({
@@ -571,8 +578,9 @@ describe("documentation quality evaluator public pipeline", () => {
     expect(report.requestCount).toBe(3);
     expect(calls).toHaveLength(3);
     expect(new Set(calls.map((call) => call.url)).size).toBe(1);
-    // The Gateway is told not to retry either, closing upstream retries.
-    expect(calls.every((call) => call.headers.includes("cf-aig-max-attempts: 1"))).toBe(true);
+    // The evaluator makes no client-side retry and sends no retry override, so
+    // the Gateway's configured retry policy is untouched rather than proven.
+    expect(calls.filter(hasRetryOverride)).toHaveLength(0);
     // The first logical request observes the mocked 503 once and is reported as
     // an error; the later distinct requests observe the mocked 200.
     expect(report.evaluations[0]).toMatchObject({ status: "error", answers: [] });
@@ -598,7 +606,7 @@ describe("documentation quality evaluator public pipeline", () => {
       );
       expect(report.requestCount).toBe(3);
       expect(calls).toHaveLength(3);
-      expect(calls.every((call) => call.headers.includes("cf-aig-max-attempts: 1"))).toBe(true);
+      expect(calls.filter(hasRetryOverride)).toHaveLength(0);
       expect(report.evaluations.every((entry) => entry.status === "error")).toBe(true);
       expect(report.evaluations[0].error).toContain(`HTTP ${status}`);
     },
@@ -619,7 +627,7 @@ describe("documentation quality evaluator public pipeline", () => {
     );
     expect(report.requestCount).toBe(3);
     expect(calls).toHaveLength(3);
-    expect(calls.every((call) => call.headers.includes("cf-aig-max-attempts: 1"))).toBe(true);
+    expect(calls.filter(hasRetryOverride)).toHaveLength(0);
     expect(report.evaluations.every((entry) => entry.status === "error")).toBe(true);
     expect(report.evaluations[0].error).toContain("transport failed");
     expect(report.evaluations[0].error).toContain("28");
@@ -643,7 +651,7 @@ describe("documentation quality evaluator public pipeline", () => {
       expect(report.requestCount).toBe(1);
       expect(calls).toHaveLength(1);
       expect(calls[0].url).toContain("@cf/cloudflare/clef-flash");
-      expect(calls[0].headers).toContain("cf-aig-max-attempts: 1");
+      expect(hasRetryOverride(calls[0])).toBe(false);
       expect(report.reviewRequired).toBe(true);
       expect(report.attentionRequired).toBe(true);
       expect(report.evaluations[0]).toMatchObject({ status: "error", answers: [] });

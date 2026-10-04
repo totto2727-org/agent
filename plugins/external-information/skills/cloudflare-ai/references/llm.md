@@ -1,9 +1,23 @@
 # LLM requests
 
+## Model selection
+
+1. For ordinary generation, coding, reasoning, and summarization, use OpenCode Go through the configured AI Gateway.
+   Default to **`custom-opencode-go/deepseek-v4.1-flash`**.
+2. Choose another available OpenCode Go model only when the task demonstrably requires substantially higher accuracy.
+   Establish that need from the task or observed failures, verify current availability and pricing, and bound the request.
+3. Use a non-OpenCode-Go provider only when OpenCode Go is actually unavailable for the required request.
+   A preference for another provider is not evidence of unavailability.
+   Confirm the relevant availability or capability failure, then choose the lowest-cost adequate model from the user's configured, authorized routes.
+   Explain the fallback and its cost before material spending; do not change accounts, credentials, or paid settings to force it.
+4. Treat top-tier Claude and GPT models as exceptional, not routine fallbacks.
+   Check current pricing, explain why cheaper models are inadequate, cap input/output tokens and calls, and ensure the user's authorization covers the expected cost.
+   Do not escalate merely because a response is inconvenient or a confidence value is low.
+
 ## Generic chat-compatible invocation
 
 The Gateway's compatibility endpoint accepts an OpenAI-style chat body with a configured `provider/model` ID.
-Replace the model template below with the ID selected using [model selection](model-routing.md).
+Replace the model template below with the ID selected using [model selection](#model-selection).
 Provider-specific fields and authentication remain part of that provider's invocation contract.
 For OpenCode Go, use the specialization below instead of executing this generic template.
 
@@ -100,7 +114,7 @@ jq -er '.choices[0].message.content | select(type == "string" and length > 0)' \
   "$RESPONSE_FILE"
 ```
 
-Use [connection and records](connection.md) for credentials, storage, failures, and route evidence.
+Use the [Cloudflare AI entry point](../SKILL.md) for shared connection and failure handling.
 
 ## Sources
 

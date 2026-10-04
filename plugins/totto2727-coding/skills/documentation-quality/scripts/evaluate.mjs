@@ -13,11 +13,10 @@ const FATAL_STATUS = new Set([401, 402, 403]);
 // request into caching even when caching is disabled gateway-wide, and the TTL
 // only controls the lifetime of already cacheable requests (60s minimum).
 export const CACHE_KEY_PREFIX = "decision-v1";
-export const CACHE_TTL_SECONDS = 3600;
+// Request up to 30 days of reuse for unchanged document evaluations.
+// Gateway cache storage remains volatile even within this TTL.
+export const CACHE_TTL_SECONDS = 2592000;
 export const CACHE_SKIP = "false";
-// One attempt at the Gateway: the evaluator performs no automatic retry, and
-// the Gateway itself must not silently retry an opted-in request either.
-export const GATEWAY_MAX_ATTEMPTS = 1;
 const CLOUDFLARE_API_ORIGIN = "https://api.cloudflare.com";
 const ACCOUNT_ID_PATTERN = /^[0-9a-f]{32}$/i;
 const GATEWAY_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]*$/;
@@ -455,7 +454,6 @@ function curlConfig(url, apiKey, gatewayId, cacheKey, requestFile, headersFile) 
     `header = "cf-aig-cache-key: ${escaped(cacheKey)}"`,
     `header = "cf-aig-cache-ttl: ${CACHE_TTL_SECONDS}"`,
     `header = "cf-aig-skip-cache: ${CACHE_SKIP}"`,
-    `header = "cf-aig-max-attempts: ${GATEWAY_MAX_ATTEMPTS}"`,
     `data-binary = "@${escaped(requestFile)}"`,
     `dump-header = "${escaped(headersFile)}"`,
     'write-out = "\\n%{http_code}"',
@@ -483,10 +481,11 @@ function parseCurlOutput(stdout) {
   return { status: Number(match[1]), body: stdout.slice(0, match.index) };
 }
 
-// One logical request is attempted exactly once. Transient statuses (429, 5xx),
-// timeouts, and other curl failures are reported as errors without an automatic
-// retry so that callers control retry policy and duplicate logical requests are
-// never re-submitted.
+// One logical request is attempted exactly once by this client. Transient statuses
+// (429, 5xx), timeouts, and other curl failures are reported as errors without an
+// automatic retry so that callers control retry policy and duplicate logical
+// requests are never re-submitted. No request-level retry override is sent, so
+// the Gateway's own configured retry behavior is left unchanged.
 async function actionRequest({ model, state, questions, credentials, cacheKey, metrics }) {
   const temporary = await mkdtemp(resolve(tmpdir(), "documentation-quality-"));
   try {
