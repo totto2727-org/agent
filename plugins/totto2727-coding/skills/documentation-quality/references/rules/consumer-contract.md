@@ -41,7 +41,7 @@ The distinction is relevance to the stated audience and goal, not a fixed divisi
 ## Relevance of historical context
 
 Assess whether describing the history helps the intended reader understand, decide, or act, or is itself part of the document's deliverable.
-Judge this need by purpose and surrounding context, not filename.
+Judge this need by purpose and surrounding context.
 For guidance about the current state or how to act now, prefer current supported behavior, requirements, recommendations, and necessary concrete grounds.
 Flag chronology, past decisions, retired names, incident narratives, and commit-recoverable information only when they add no value to that purpose.
 An earlier choice or event alone does not justify a current rule.

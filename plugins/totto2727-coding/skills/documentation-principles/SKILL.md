@@ -21,7 +21,7 @@ Distinguish learning, task execution, reference, and explanation without forcing
 
 ## State current guidance and its grounds
 
-Decide whether history belongs by the document's purpose, not its filename.
+Decide whether history belongs by the document's purpose.
 When documenting the current state or how to act now, state what is supported, required, or recommended.
 Include a reason only when the reader needs it to understand or apply that guidance, and ground it in a concrete constraint, verified behavior, or relevant evidence.
 Do not include change chronology, retired names, past decisions, or information recoverable from commits that adds no value to the current reader.
