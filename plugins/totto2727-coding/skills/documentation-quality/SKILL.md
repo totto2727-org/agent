@@ -19,7 +19,7 @@ Translation fidelity, source accuracy, runnable examples, and working links requ
 
 1. Establish the audience, purpose, and available evidence.
 2. Select applicable checks from the [rule index](references/rules.md), not every rule for every fragment.
-   For README.md, SKILL.md, and AGENTS.md, apply `consumer-contract` to check for current guidance and necessary concrete grounds rather than historical narration.
+   For documents about the current state or how to act now, apply `consumer-contract` to check for current guidance and necessary concrete grounds rather than historical narration. Judge applicability by purpose, not filename, and retain history when recording or analyzing it is essential to the deliverable.
 3. Review coherent paragraphs, heading sections, or complete small pages with their surrounding context.
    Keep code, tables, warnings, and their explanations intact; assess navigation and cross-page duplication at the wider scope.
 4. For a finding or uncertain judgment, open only that rule's linked guide for anti-patterns, an improved example, and exceptions.

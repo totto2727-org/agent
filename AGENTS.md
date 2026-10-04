@@ -36,7 +36,7 @@
 - When changing skill metadata, check it against the Agent Skills specification, using a skill validator when available.
 - When changing marketplace metadata or skill locations, verify generated manifests and affected reference paths.
 - Jinja templates illustrate document structure; do not require scripted generation, fixed render inputs, or byte-identical samples.
-- README.md, SKILL.md, and AGENTS.md must state current guidance and, when needed, concrete grounds, not change chronology or past decisions; express useful lessons as conclusions and grounds using [documentation-principles](plugins/totto2727-coding/skills/documentation-principles/SKILL.md#state-current-guidance-and-its-grounds).
+- Decide whether history belongs by the document's purpose, not its filename. Documents about the current state or how to act now must state current guidance and necessary concrete grounds. Retain history when recording or analyzing it is essential to the purpose, using [documentation-principles](plugins/totto2727-coding/skills/documentation-principles/SKILL.md#state-current-guidance-and-its-grounds).
 
 ## Task-specific documentation
 

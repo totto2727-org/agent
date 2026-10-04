@@ -38,22 +38,29 @@ The distinction is relevance to the stated audience and goal, not a fixed divisi
 - Specialist audiences may need detail that a general developer audience does not.
 - Do not remove a useful explanation merely because code or a table mentions the same subject.
 
-## Current guidance in README, SKILL, and AGENTS
+## Relevance of historical context
 
-README.md, SKILL.md, and AGENTS.md must explain what is supported, required, or recommended now.
-Flag change chronology, past decisions, retired names, incident narratives, and information recoverable from commits that adds no value to the current reader.
-If a reason is necessary, check that it identifies concrete grounds for the current guidance rather than merely citing an earlier choice or event.
-Translate useful lessons into their current conclusion, applicability, and supporting grounds without recounting their origin.
+Assess whether describing the history helps the intended reader understand, decide, or act, or is itself part of the document's deliverable.
+Judge this need by purpose and surrounding context, not filename.
+For guidance about the current state or how to act now, prefer current supported behavior, requirements, recommendations, and necessary concrete grounds.
+Flag chronology, past decisions, retired names, incident narratives, and commit-recoverable information only when they add no value to that purpose.
+An earlier choice or event alone does not justify a current rule.
+When the history is unnecessary but its lesson matters, retain the current conclusion, applicability, and supporting grounds without recounting its origin.
+When recording or analyzing history is part of the purpose, retain the relevant sequence, decisions, and evidence rather than replacing them with current instructions.
 
-**Problematic README**
+**Examples where history is generally unnecessary:** current-state descriptions, workflow guides, and usage documentation.
+
+**Examples where history may belong:** change records, architectural decision records, and incident investigations where the sequence of events or decisions is an essential deliverable.
+
+**Unnecessary chronology in a usage guide**
 
 > The utilities plugin was removed; its path skill was moved to the coding plugin.
 
-**Improved README**
+**Current usage guidance**
 
 > Use the coding plugin's path skill to calculate relative and canonical filesystem paths.
 
-**Problematic SKILL or AGENTS instruction**
+**Unnecessary incident narrative in workflow instructions**
 
 > We switched to argv arrays after a shell command broke on a filename containing spaces.
 
@@ -63,7 +70,7 @@ Translate useful lessons into their current conclusion, applicability, and suppo
 
 These are hypothetical editorial comparisons, not claims of verified behavior for a particular implementation.
 Preserve relevant current compatibility constraints, safety conditions, and required actions without presenting them as a migration history.
-Do not flag historical material in ADRs, changelogs, or documents explicitly intended to study history merely for being historical.
+Do not flag historical material merely for being historical when recording or analyzing it is essential to the document's purpose.
 
 ## Inspect and fix a failure
 
