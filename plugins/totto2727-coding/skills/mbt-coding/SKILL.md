@@ -28,7 +28,7 @@ Read only the relevant reference; already available principles need not be reloa
 ## Structured values
 
 - [`paths.md`](references/paths.md) — preserve `Path` values and join path segments structurally.
-- [`json.md`](references/json.md) — route MoonBit JSON and Lens work to the authoritative `$lens` skill, with a GitHub `main` raw-content fallback.
+- [`json.md`](references/json.md): route MoonBit JSON and Lens work to the authoritative [`lens`](https://github.com/totto2727-org/lens/blob/main/.agents/skills/lens/SKILL.md) skill, with a GitHub `main` raw-content fallback.
 
 ## Failures
 
@@ -49,6 +49,6 @@ Read only the relevant reference; already available principles need not be reloa
 
 ## Related skills
 
-- `$lens` — authoritative Lens usage and MoonBit JSON boundary guidance; use [`json.md`](references/json.md) for raw-content fallback routing.
-- `$moonbit-orientation` — official MoonBit source-of-truth routing. Use the local skill when installed; otherwise fetch the [official MoonBit documentation Markdown source index](https://raw.githubusercontent.com/moonbitlang/moonbit-docs/main/next/index.md) directly. For source links beginning with `/`, strip the leading slash and resolve the path under `https://raw.githubusercontent.com/moonbitlang/moonbit-docs/main/next/`.
+- [`lens`](https://github.com/totto2727-org/lens/blob/main/.agents/skills/lens/SKILL.md): authoritative Lens usage and MoonBit JSON boundary guidance; use [`json.md`](references/json.md) for raw-content fallback routing.
+- [`moonbit-orientation`](https://github.com/moonbitlang/skills/blob/master/skills/moonbit-orientation/SKILL.md): official MoonBit source-of-truth routing. Use the local skill when installed; otherwise fetch the [official MoonBit documentation Markdown source index](https://raw.githubusercontent.com/moonbitlang/moonbit-docs/main/next/index.md) directly. For source links beginning with `/`, strip the leading slash and resolve the path under `https://raw.githubusercontent.com/moonbitlang/moonbit-docs/main/next/`.
 - [`mbt-test`](../mbt-test/SKILL.md) — tests executable through repository Vite+ tasks or `moon test`.

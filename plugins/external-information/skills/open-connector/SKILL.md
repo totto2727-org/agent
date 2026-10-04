@@ -6,7 +6,7 @@ description: >-
 
 # OpenConnector
 
-Use the installed official `oo` skill when available.
+Use the installed official [`oo`](https://github.com/oomol-lab/oo-cli/blob/main/contrib/skills/shared/oo/SKILL.md) skill when available.
 Otherwise, consult the [official CLI reference](https://github.com/oomol-lab/oo-cli/blob/main/docs/commands.md) and [self-hosted connector guide](https://github.com/oomol-lab/oo-cli/blob/main/docs/self-hosted-connector.md).
 
 If `oo` fails with `EACCES` or `Permission denied`, follow [Executable permission errors](#executable-permission-errors) below and retry the CLI instead of switching to `curl`.

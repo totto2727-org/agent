@@ -1,7 +1,7 @@
 # Related-Link Selection with Jev
 
 Use this reference when a fetched page's saved `links` inventory is needed to find related pages.
-Prefer the installed official `typesafe-ai` skill from `typesafe-ai/skills`; if unavailable, read the [official documentation index](https://docs.typesafe.ai/llms.txt), [Choice](https://docs.typesafe.ai/primitives/choice), and [Score](https://docs.typesafe.ai/primitives/score) guidance as needed.
+Prefer the installed official [`typesafe-ai`](https://github.com/typesafe-ai/skills/blob/main/skills/typesafe-ai/SKILL.md) skill; if unavailable, read the [official documentation index](https://docs.typesafe.ai/llms.txt), [Choice](https://docs.typesafe.ai/primitives/choice), and [Score](https://docs.typesafe.ai/primitives/score) guidance as needed.
 Use [OpenConnector](../../open-connector/SKILL.md) for all Jev API access and `oo connector schema typesafe_ai.evaluate` for the current schema.
 Execute TypeSafe/Jev directly through OOMOL/OpenConnector, never through Monid, even if a Monid catalog endpoint offers the same model.
 Do not distribute a local copy of the official skill or route around a missing gateway connection.
