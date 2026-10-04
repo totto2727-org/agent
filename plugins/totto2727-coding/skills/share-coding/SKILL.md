@@ -105,13 +105,13 @@ Place discovery, resolution, and domain rules in the library that owns the conce
 
 - [`js-coding`](../js-coding/SKILL.md): TypeScript implementation.
 - [`mbt-coding`](../mbt-coding/SKILL.md): MoonBit implementation.
-- `$rust-coding`: Rust implementation when the skill is installed.
+- [`rust-coding`](../rust-coding/SKILL.md): Rust implementation.
 
 ## Related skills
 
 - [`share-test`](../share-test/SKILL.md), [`js-test`](../js-test/SKILL.md), and [`mbt-test`](../mbt-test/SKILL.md) — testing philosophy and executable tests.
-- `$rust-test` — executable Rust test guidance when the skill is installed.
+- [`rust-test`](../rust-test/SKILL.md): executable Rust test guidance.
 - [`share-test-design`](../share-test-design/SKILL.md) — test-design decisions and suitable evidence presentation.
-- `$moonbit-orientation` — official MoonBit documentation skill. Prefer the local skill when installed; otherwise fetch the [MoonBit documentation Markdown source index](https://raw.githubusercontent.com/moonbitlang/moonbit-docs/main/next/index.md) directly. Resolve source paths beginning with `/` under `https://raw.githubusercontent.com/moonbitlang/moonbit-docs/main/next/` after stripping the leading slash.
-- `$building-components` — official components.build documentation skill. Prefer the local skill when installed; otherwise fetch the Markdown-native [components.build specification](https://www.components.build/llms.txt) directly.
+- [`moonbit-orientation`](https://github.com/moonbitlang/skills/blob/master/skills/moonbit-orientation/SKILL.md): official MoonBit documentation skill. Prefer the local skill when installed; otherwise fetch the [MoonBit documentation Markdown source index](https://raw.githubusercontent.com/moonbitlang/moonbit-docs/main/next/index.md) directly. Resolve source paths beginning with `/` under `https://raw.githubusercontent.com/moonbitlang/moonbit-docs/main/next/` after stripping the leading slash.
+- [`building-components`](https://github.com/vercel/components.build/blob/main/skills/building-components/SKILL.md): official components.build documentation skill. Prefer the local skill when installed; otherwise fetch the Markdown-native [components.build specification](https://www.components.build/llms.txt) directly.
 - [`share-artifact`](../share-artifact/SKILL.md) — durable README, AGENTS, and ADR authoring.

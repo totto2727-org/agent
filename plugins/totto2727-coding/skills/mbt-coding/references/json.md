@@ -2,10 +2,10 @@
 
 > Document type: external skill routing.
 
-Use the `$lens` skill for MoonBit JSON boundary design and typed JSON operations.
+Use the [`lens`](https://github.com/totto2727-org/lens/blob/main/.agents/skills/lens/SKILL.md) skill for MoonBit JSON boundary design and typed JSON operations.
 Inspect the consumer's resolved Lens version, README, and generated package interface first; installed APIs and local repository constraints take precedence over examples.
 
-If `$lens` is not installed or otherwise unavailable, fetch its `main`-branch raw content from GitHub:
+If `lens` is not installed or otherwise unavailable, fetch its `main`-branch raw content from GitHub:
 
 - Skill entrypoint: <https://raw.githubusercontent.com/totto2727-org/lens/main/.agents/skills/lens/SKILL.md>
 - Concrete API usage: <https://raw.githubusercontent.com/totto2727-org/lens/main/.agents/skills/lens/references/usage.md>

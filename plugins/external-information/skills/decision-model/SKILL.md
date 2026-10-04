@@ -31,7 +31,7 @@ Do not invent a separate provider transport or silently change the configured mo
    Respect the selected model's current request, question, candidate, context, and modality limits.
    Do not assume every model supports the same input types or limits.
 
-Prefer the installed official `typesafe-ai` skill for the shared primitive-design guidance, not its provider setup or execution instructions.
+Prefer the installed official [`typesafe-ai`](https://github.com/typesafe-ai/skills/blob/main/skills/typesafe-ai/SKILL.md) skill for the shared primitive-design guidance, not its provider setup or execution instructions.
 When it is unavailable, use the [official documentation index](https://docs.typesafe.ai/llms.txt), [primitives](https://docs.typesafe.ai/primitives.md), and [confidence](https://docs.typesafe.ai/confidence.md) pages as needed.
 Use the selected model's own current documentation for model-specific limits.
 Do not distribute a copied upstream skill.
