@@ -30,8 +30,6 @@ Save command output with `--json > response.json`, then read the saved file with
    - Check version relevance and distinguish source identifiers from URLs rather than fabricating citations.
 3. If Context7 is unavailable or insufficient, use the [web-search](../web-search/SKILL.md) skill to research official documentation.
    - Disclose a missing connection or access restriction rather than changing user-managed configuration.
-   - Follow web-search's current retrieval policy: TinyFish through Monid by default, saved responses with content-only `jq` reads, and a Decision Model through cloudflare-ai for related-link selection.
-   - Preserve its authorized Browser Run, specialized-API, and Codex built-in fallbacks rather than hard-coding another provider order here.
 
 ## Content Trust
 

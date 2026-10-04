@@ -47,4 +47,4 @@ Read only the relevant reference; already available principles need not be reloa
 
 - `vite-plus` — repository toolchain and build orchestration.
 - `remix` — Remix application structure and framework conventions.
-- [`js-test`](../js-test/SKILL.md) — tests executable through Vite+ and Vitest.
+- [`js-test`](../js-test/SKILL.md): TypeScript test implementation.

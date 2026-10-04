@@ -19,6 +19,6 @@ Load only the reference that matches the implementation concern; already availab
 
 ## Related skills
 
-- [`rust-test`](../rust-test/SKILL.md) — Rust unit, white-box, integration, black-box, and rustdoc test placement.
+- [`rust-test`](../rust-test/SKILL.md): Rust test implementation.
 - [`share-test`](../share-test/SKILL.md) — language-independent test philosophy.
 - [`share-test-design`](../share-test-design/SKILL.md) — test-design decisions and suitable evidence presentation.

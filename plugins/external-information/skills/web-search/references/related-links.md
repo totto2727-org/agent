@@ -2,8 +2,7 @@
 
 Use this reference when a fetched page's saved `links` inventory is needed to find related pages.
 Use [decision-model](../../decision-model/SKILL.md) for primitive design, candidate semantics, limits, and uncertainty handling.
-Use [cloudflare-ai](../../cloudflare-ai/SKILL.md) for curl execution, authentication, endpoints, response normalization, and implementation configuration.
-Follow cloudflare-ai for Decision Model selection; do not route around an unavailable configured Gateway.
+Use [cloudflare-ai](../../cloudflare-ai/SKILL.md) to select and call a Decision Model.
 
 ## Keep Candidate Inventories out of the Main Context
 
@@ -22,7 +21,7 @@ When image files themselves are requested, derive candidates from `image_links` 
 Give the Decision Model the user's research goal and explicit interpretation when the request is ambiguous, plus the candidate IDs and URL strings.
 Only include anchor text, titles, or snippets if the provider actually supplied them; never invent missing context from the URL.
 Construct the state and questions from saved files with `jq --slurpfile` or a local serializer.
-Use cloudflare-ai's selected native or universal request envelope and curl-from-file procedure, save the complete response, and normalize it before reading answers with `jq`.
+Submit the judgment through cloudflare-ai and retain its normalized result for selection.
 Do not send the inventory to the main model merely to assemble the request.
 
 Choose the primitive according to the question, not the desired number of HTTP calls:

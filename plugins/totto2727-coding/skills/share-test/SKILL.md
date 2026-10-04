@@ -22,11 +22,7 @@ Use the test framework's native error, exception, rejection, or panic expectatio
 
 Catch an error explicitly only when its identity, variant, payload, message, or another property is itself part of the observable contract and the framework cannot assert it directly. Assert the failure type or variant and relevant payload instead of rendered text unless the text itself is the contract. Assert the captured property rather than using the catch merely to control whether the test passes.
 
-Follow the language-specific implementation guides for executable examples:
-
-- [`js-test`](../js-test/SKILL.md) — use semantic Vitest matchers, `toThrow`, and awaited `rejects`.
-- [`mbt-test`](../mbt-test/SKILL.md) — use inspection APIs for direct results and `panic_` plus `try!` for raised errors.
-- [`rust-test`](../rust-test/SKILL.md) — use structural Rust assertions and place white-box, black-box, and rustdoc tests correctly.
+Use the [concrete implementation skills](#concrete-implementation-skills) for language-specific assertion examples.
 
 ## Independence
 
@@ -73,9 +69,9 @@ Tests are consumers of the production contract. Do not weaken types, bypass cons
 
 ## Concrete implementation skills
 
-- [`js-test`](../js-test/SKILL.md) — tests executable through Vite+ and Vitest.
-- [`mbt-test`](../mbt-test/SKILL.md) — tests executable through repository Vite+ tasks or `moon test`.
-- [`rust-test`](../rust-test/SKILL.md) — Rust unit, integration, black-box, and documentation tests.
+- [`js-test`](../js-test/SKILL.md): TypeScript test implementation.
+- [`mbt-test`](../mbt-test/SKILL.md): MoonBit test implementation.
+- [`rust-test`](../rust-test/SKILL.md): Rust test implementation.
 
 ## Test design decisions
 
