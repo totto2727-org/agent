@@ -10,6 +10,9 @@ Use the installed `monid` CLI and the [official Monid skill](https://monid.ai/SK
 Always use the OOMOL/OpenConnector proxy, not Monid directly.
 `OPENCONNECTOR_BASE_URL` is the trusted HTTPS gateway origin, and `OPENCONNECTOR_TOKEN` is its runtime token.
 
+If the `monid` binary is missing or cannot be invoked, temporarily use `curl` for the equivalent documented API operation through the same OOMOL/OpenConnector proxy and runtime token.
+Keep the CLI as the normal path; do not build a separate fallback implementation or bypass authentication, permissions, or gateway routing.
+
 ## Setup
 
 Configure the CLI profile once in `${XDG_CONFIG_HOME:-$HOME/.config}/monid`.
