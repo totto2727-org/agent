@@ -9,11 +9,11 @@ The evaluator does not install dependencies or obtain secrets for you.
 Use [cloudflare-ai](../../../../external-information/skills/cloudflare-ai/SKILL.md) for the already-configured environment variables, inference credentials, connection URLs, and billing rules.
 Use [decision-model](../../../../external-information/skills/decision-model/SKILL.md) for judgment design and model-specific limits.
 Do not put token values or connection credentials in a manifest.
-The evaluator uses the Cloudflare native Clef route or universal Jev route described by cloudflare-ai, with no provider-direct fallback.
+The evaluator uses the Cloudflare Decision Model routes described by cloudflare-ai, with no provider-direct fallback.
 Question and answer collections are keyed objects, not arrays.
 Respect the selected model's limits; Gateway and account limits may be lower.
 
-Choose `clef-flash`, `clef`, or `typesafe/jev` explicitly in the manifest, based on the task, current cost, and configured availability.
+Set `manifest.model` to the model ID selected through cloudflare-ai.
 The report records the returned concrete model for every response so version changes are visible.
 Compare runs using the same resolved model when measuring a rule change.
 
@@ -29,7 +29,7 @@ The [bundled rules](rules.json) are a starting point, not a requirement to apply
 
 ```json
 {
-  "model": "clef-flash",
+  "model": "<selected-decision-model>",
   "threshold": 0.8,
   "rulesFile": "../../plugins/totto2727-coding/skills/documentation-quality/references/rules.json",
   "documents": [
@@ -45,6 +45,7 @@ The [bundled rules](rules.json) are a starting point, not a requirement to apply
 ```
 
 This example assumes a manifest in `<repository>/tmp/review/`; adjust paths for the installed skill and your repository.
+Replace the model template with the selected model ID before running the evaluator.
 Add more entries to `documents` to evaluate many documents through the same worker pool.
 Optional `context` is a string containing relevant external evidence, such as excerpts from linked setup guides.
 Do not put expected verdicts, preferred revisions, or editorial instructions in evidence.
@@ -98,11 +99,15 @@ Concurrency defaults to 4 and is bounded; raising it is not permission to exceed
 Do not retry `401`, `402`, or `403` by changing models, accounts, credentials, or billing routes.
 On these fatal responses the evaluator stops starting queued requests, records the failed item as `error` and unsent work as `skipped`, and retains a review-required report.
 Already-in-flight requests may finish; skipped work is not a pass.
-Transient Gateway responses may be retried within a fixed limit; authentication, billing, incomplete-job, or malformed-response failures are not accepted as judgments.
+Every Gateway request includes the cache key, TTL, and skip-cache headers defined by cloudflare-ai.
+Equivalent work in one run shares a single pending or completed request, including failure outcomes; the evaluator does not automatically retry transient responses or timeouts.
+Authentication, billing, incomplete-job, or malformed-response failures are not accepted as judgments.
 
 ## Read the report
 
 The report retains document and rule identities, scope, source ranges, typed answers, probabilities, resolved model, and errors.
+Cache metadata records the equivalence key, the response's cache status, and whether another item reused the same operation.
+Only an observed Gateway `HIT` establishes a cache hit; sharing a local operation is a separate form of reuse.
 Source IDs and file paths are report metadata, not hints about the expected verdict.
 A Choice's confidence and its selected option's probability are different fields; do not assume they are equal.
 

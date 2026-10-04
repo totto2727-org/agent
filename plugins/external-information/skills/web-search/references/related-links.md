@@ -3,7 +3,7 @@
 Use this reference when a fetched page's saved `links` inventory is needed to find related pages.
 Use [decision-model](../../decision-model/SKILL.md) for primitive design, candidate semantics, limits, and uncertainty handling.
 Use [cloudflare-ai](../../cloudflare-ai/SKILL.md) for curl execution, authentication, endpoints, response normalization, and implementation configuration.
-Choose a compatible Decision Model deliberately rather than making Jev mandatory; do not route around an unavailable configured Gateway.
+Follow cloudflare-ai for Decision Model selection; do not route around an unavailable configured Gateway.
 
 ## Keep Candidate Inventories out of the Main Context
 

@@ -1,16 +1,14 @@
 ---
 name: decision-model
 description: >-
-  Design and consume typed Decision Model judgments for routing, ranking, selection, scoring, extraction, and verification with Jev or Clef-compatible models. Use when code needs constrained answers and probabilities, not generated prose. Use cloudflare-ai for execution and implementation authentication/endpoints.
+  Design and consume typed Decision Model judgments for routing, ranking, selection, scoring, extraction, and verification. Use when code needs constrained answers and probabilities, not generated prose. Use cloudflare-ai for model selection, execution, and implementation authentication/endpoints.
 ---
 
 # Decision Models
 
 Use a Decision Model as a small semantic judgment inside a workflow owned by code.
-Jev, Clef, and Clef-flash are model choices, not different application workflows.
 For **execution, curl, model routing, authentication, connection URLs, billing, and implementation configuration**, follow [cloudflare-ai](../cloudflare-ai/SKILL.md).
 Do not invent a separate provider transport or silently change the configured model after a failed call.
-For ordinary generated text or reasoning, use that skill's OpenCode Go default instead.
 
 ## Design the judgment
 
@@ -36,7 +34,7 @@ For ordinary generated text or reasoning, use that skill's OpenCode Go default i
 Prefer the installed official `typesafe-ai` skill for the shared primitive-design guidance, not its provider setup or execution instructions.
 When it is unavailable, use the [official documentation index](https://docs.typesafe.ai/llms.txt), [primitives](https://docs.typesafe.ai/primitives.md), and [confidence](https://docs.typesafe.ai/confidence.md) pages as needed.
 Use the selected model's own current documentation for model-specific limits.
-Do not distribute a copied upstream skill or make Jev mandatory for a compatible task.
+Do not distribute a copied upstream skill.
 
 ## Compose and validate
 
