@@ -9,7 +9,8 @@ description: >-
 Use the installed official `oo` skill when available.
 Otherwise, consult the [official CLI reference](https://github.com/oomol-lab/oo-cli/blob/main/docs/commands.md) and [self-hosted connector guide](https://github.com/oomol-lab/oo-cli/blob/main/docs/self-hosted-connector.md).
 
-If the `oo` binary is missing or cannot be invoked, temporarily use `curl` for the equivalent documented API operation through the same trusted OpenConnector gateway and credentials.
+If `oo` fails with `EACCES` or `Permission denied`, follow [Executable permission errors](#executable-permission-errors) below and retry the CLI instead of switching to `curl`.
+If the `oo` binary is missing or cannot be invoked for another reason, temporarily use `curl` for the equivalent documented API operation through the same trusted OpenConnector gateway and credentials.
 Keep the CLI as the normal path; do not build a separate fallback implementation or bypass authentication, permissions, or gateway routing.
 
 ## Setup
