@@ -9,15 +9,6 @@ Run the preparation block and the selected request in the same Bash process.
 ```bash
 set +x
 set -euo pipefail
-: "${CLOUDFLARE_ACCOUNT_ID:?CLOUDFLARE_ACCOUNT_ID is required}"
-: "${CLOUDFLARE_AI_GATEWAY_API_KEY:?CLOUDFLARE_AI_GATEWAY_API_KEY is required}"
-: "${CLOUDFLARE_AI_GATEWAY_ID:?CLOUDFLARE_AI_GATEWAY_ID is required}"
-[[ "$CLOUDFLARE_ACCOUNT_ID" =~ ^[0-9a-fA-F]{32}$ ]]
-[[ "$CLOUDFLARE_AI_GATEWAY_ID" =~ ^[a-zA-Z0-9_-]+$ ]]
-[[ "$CLOUDFLARE_AI_GATEWAY_API_KEY" != *$'\n'* ]]
-[[ "$CLOUDFLARE_AI_GATEWAY_API_KEY" != *$'\r'* ]]
-[[ "$CLOUDFLARE_AI_GATEWAY_API_KEY" != *'"'* ]]
-[[ "$CLOUDFLARE_AI_GATEWAY_API_KEY" != *'\'* ]]
 umask 077
 mkdir -p tmp
 WORK_DIR="$(mktemp -d tmp/cloudflare-ai.XXXXXX)"
@@ -32,12 +23,10 @@ No example follows redirects or automatically retries a paid request.
 
 Keep `SESSION_ID` stable across requests belonging to one logical session.
 Prefer an existing client session ID; the fallback below generates an ID for this process.
-The value must be header-safe and is not an authentication secret.
+Use a header-safe session ID; it is not an authentication secret.
 
 ```bash
 SESSION_ID="${OPENCODE_SESSION_ID:-cloudflare-ai-$(date +%s)-$$}"
-[[ -n "$SESSION_ID" && "$SESSION_ID" != *$'\n'* && "$SESSION_ID" != *$'\r'* ]]
-[[ "$SESSION_ID" != *'"'* && "$SESSION_ID" != *'\'* ]]
 jq -n '{
   model: "custom-opencode-go/deepseek-v4.1-flash",
   messages: [{role: "user", content: "Evaluate 2 + 3. Reply with only the numeric result."}],
