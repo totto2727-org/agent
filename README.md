@@ -19,7 +19,7 @@ A concise audit summary identifying the user-facing README improvements, develop
 ## Key features
 
 - One plugin catalog distributed to Claude Code, Cursor, and Codex
-- General-purpose, coding, and external-information plugins
+- Coding and external-information plugins
 - Skills installed through `c-plugin`
 
 ## Prerequisites
@@ -36,15 +36,12 @@ c-plugin skill add totto2727-org/agent
 
 ## API
 
-### `totto2727`
-
-Provides general-purpose utility skills.
-
 ### `totto2727-coding`
 
 Provides reusable coding and testing guidance, [documentation-principles](plugins/totto2727-coding/skills/documentation-principles/SKILL.md) for shared writing principles, [share-test-design](plugins/totto2727-coding/skills/share-test-design/SKILL.md) for test-design decisions, and [share-artifact](plugins/totto2727-coding/skills/share-artifact/SKILL.md) for adaptable README, AGENTS.md, and ADR structures.
 Jinja templates show the overall document shape; they do not require a renderer or exact reproduction.
 Use [documentation-quality](plugins/totto2727-coding/skills/documentation-quality/SKILL.md) for rule-based document reviews and optional parallel Jev checks through OOMOL/OpenConnector.
+Use [realpath](plugins/totto2727-coding/skills/realpath/SKILL.md) for filesystem path calculations and [skill-reviewer](plugins/totto2727-coding/skills/skill-reviewer/SKILL.md) for Agent Skill reviews.
 
 ### `external-information`
 
@@ -68,8 +65,10 @@ When upgrading an installation that selected `external-search`, select `external
 The `symphony` plugin and `macos-cli-rules` skill are no longer distributed.
 Remove stale installed copies if your installer does not remove them automatically.
 The `share-test-design-flow` skill is now `share-test-design`; update explicit skill references when upgrading.
+The `totto2727` utility plugin is no longer distributed; select `totto2727-coding` for `realpath` and `skill-reviewer` instead.
+The `csv-analysis`, `html-doc`, and `zmx` skills are no longer distributed; remove stale installed copies if your installer does not remove them automatically.
 
-Standalone skills from the source monorepo are intentionally not distributed; every public skill belongs to one of the three plugins above.
+Standalone skills from the source monorepo are intentionally not distributed; every public skill belongs to one of the two plugins above.
 
 ## Development
 
