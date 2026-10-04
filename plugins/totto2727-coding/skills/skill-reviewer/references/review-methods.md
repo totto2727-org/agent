@@ -85,6 +85,8 @@ Check:
 - Whether detailed API material crowds out the actual task guidance.
 - Whether a short self-contained skill is being split into files without helping its reader.
 - Whether evaluation queries, expected answers, iteration logs, or generated results leak into normal skill execution.
+- Whether SKILL.md states current instructions and necessary concrete grounds rather than change chronology, past decisions, retired names, or incident narratives.
+  Apply [current-guidance principles](../../documentation-principles/SKILL.md#state-current-guidance-and-its-grounds): retain a useful lesson as its conclusion, applicability, and grounds, not its history.
 - Whether bundled scripts have discoverable invocations and dependencies, and complex repeated commands should instead be a tested helper.
 
 Use [script-design.md](script-design.md) for script interfaces, help, errors, output size, dependency provenance, and retry safeguards.

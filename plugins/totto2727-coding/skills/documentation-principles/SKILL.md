@@ -19,6 +19,21 @@ Choose the audience, task, and document type before deciding what belongs.
 Include information because it helps that reader, not merely because it is available.
 Distinguish learning, task execution, reference, and explanation without forcing every document into one format.
 
+## State current guidance and its grounds
+
+Decide whether history belongs by the document's purpose.
+When documenting the current state or how to act now, state what is supported, required, or recommended.
+Include a reason only when the reader needs it to understand or apply that guidance, and ground it in a concrete constraint, verified behavior, or relevant evidence.
+Do not include change chronology, retired names, past decisions, or information recoverable from commits that adds no value to the current reader.
+An earlier choice or incident is not itself a justification for a current rule.
+When experience yields a useful lesson, state the resulting conclusion, its applicability, and its supporting grounds rather than narrating the experience.
+Keep any necessary compatibility constraint or action as current guidance, not as a story of how it arose.
+Include history when recording or analyzing it is essential to the document's purpose.
+
+**Examples where history is generally unnecessary:** documents describing the intended current state, such as README.md, AGENTS.md, workflow guides based on SKILL.md, and usage documentation.
+
+**Examples where history may belong:** changelogs, ADRs, and documents where the chronology itself is an essential deliverable, such as incident investigations.
+
 ## Lead with the useful answer
 
 State the action, result, or decision before supporting background.

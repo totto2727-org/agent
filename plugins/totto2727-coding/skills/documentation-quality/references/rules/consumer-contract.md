@@ -38,6 +38,40 @@ The distinction is relevance to the stated audience and goal, not a fixed divisi
 - Specialist audiences may need detail that a general developer audience does not.
 - Do not remove a useful explanation merely because code or a table mentions the same subject.
 
+## Relevance of historical context
+
+Assess whether describing the history helps the intended reader understand, decide, or act, or is itself part of the document's deliverable.
+Judge this need by purpose and surrounding context.
+For guidance about the current state or how to act now, prefer current supported behavior, requirements, recommendations, and necessary concrete grounds.
+Flag chronology, past decisions, retired names, incident narratives, and commit-recoverable information only when they add no value to that purpose.
+An earlier choice or event alone does not justify a current rule.
+When the history is unnecessary but its lesson matters, retain the current conclusion, applicability, and supporting grounds without recounting its origin.
+When recording or analyzing history is part of the purpose, retain the relevant sequence, decisions, and evidence rather than replacing them with current instructions.
+
+**Examples where history is generally unnecessary:** current-state descriptions, workflow guides, and usage documentation.
+
+**Examples where history may belong:** change records, architectural decision records, and incident investigations where the sequence of events or decisions is an essential deliverable.
+
+**Unnecessary chronology in a usage guide**
+
+> The utilities plugin was removed; its path skill was moved to the coding plugin.
+
+**Current usage guidance**
+
+> Use the coding plugin's path skill to calculate relative and canonical filesystem paths.
+
+**Unnecessary incident narrative in workflow instructions**
+
+> We switched to argv arrays after a shell command broke on a filename containing spaces.
+
+**Improved instruction**
+
+> Pass subprocess arguments as an argv array so paths containing spaces remain single arguments without shell interpretation.
+
+These are hypothetical editorial comparisons, not claims of verified behavior for a particular implementation.
+Preserve relevant current compatibility constraints, safety conditions, and required actions without presenting them as a migration history.
+Do not flag historical material merely for being historical when recording or analyzing it is essential to the document's purpose.
+
 ## Inspect and fix a failure
 
 1. State who the passage is for and what they need to understand, decide, or do.
