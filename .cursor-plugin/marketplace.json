@@ -2,10 +2,6 @@
   "name": "totto2727",
   "plugins": [
     {
-      "name": "totto2727",
-      "source": "./plugins/totto2727"
-    },
-    {
       "name": "totto2727-coding",
       "source": "./plugins/totto2727-coding"
     },

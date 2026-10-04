@@ -9,6 +9,8 @@ The [template](template.md) suggests a structure, and the [sample](sample.md) sh
 Include build, test, lint, deploy, architecture, tools, and execution constraints when relevant to repository work.
 Consumer installation, usage, public API reference, and license information belong in the [README](../readme/spec.md).
 Link to consumer setup instead of maintaining a second copy.
+State the current maintenance rules and constraints, with concrete grounds when needed to apply them safely.
+Do not retain change logs, past decisions, or incident narratives; express any useful lesson as a current rule and its grounds using [current-guidance principles](../../documentation-principles/SKILL.md#state-current-guidance-and-its-grounds).
 
 ## Suggested sections
 

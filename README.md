@@ -19,7 +19,7 @@ A concise audit summary identifying the user-facing README improvements, develop
 ## Key features
 
 - One plugin catalog distributed to Claude Code, Cursor, and Codex
-- General-purpose, coding, and external-information plugins
+- Coding and external-information plugins
 - Skills installed through `c-plugin`
 
 ## Prerequisites
@@ -36,14 +36,11 @@ c-plugin skill add totto2727-org/agent
 
 ## API
 
-### `totto2727`
-
-Provides general-purpose utility skills.
-
 ### `totto2727-coding`
 
 Provides reusable coding and testing guidance, [documentation-principles](plugins/totto2727-coding/skills/documentation-principles/SKILL.md) for shared writing principles, [share-test-design](plugins/totto2727-coding/skills/share-test-design/SKILL.md) for test-design decisions, and [share-artifact](plugins/totto2727-coding/skills/share-artifact/SKILL.md) for adaptable README, AGENTS.md, and ADR structures.
 Use [documentation-quality](plugins/totto2727-coding/skills/documentation-quality/SKILL.md) to review developer documentation.
+Use [realpath](plugins/totto2727-coding/skills/realpath/SKILL.md) for filesystem path calculations and [skill-reviewer](plugins/totto2727-coding/skills/skill-reviewer/SKILL.md) for Agent Skill reviews.
 
 ### `external-information`
 
@@ -57,15 +54,6 @@ Provides six coordinated skills:
 - [decision-model](plugins/external-information/skills/decision-model/SKILL.md): design constrained semantic judgments for routing, ranking, selection, scoring, extraction, and verification.
 
 See each skill for its usage and service configuration requirements.
-When upgrading an installation that selected `external-search`, select `external-information` instead; `web-search` and `doc-search` keep their skill names.
-
-### Upgrading existing installations
-
-The `symphony` plugin and `macos-cli-rules` skill are no longer distributed.
-Remove stale installed copies if your installer does not remove them automatically.
-The `share-test-design-flow` skill is now `share-test-design`; update explicit skill references when upgrading.
-
-Standalone skills from the source monorepo are intentionally not distributed; every public skill belongs to one of the three plugins above.
 
 ## Development
 

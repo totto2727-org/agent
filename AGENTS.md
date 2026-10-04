@@ -35,8 +35,9 @@
 - Keep secrets out of skills, templates, examples, and workflows; refer to environment variables instead.
 - When changing skill metadata, check it against the Agent Skills specification, using a skill validator when available.
 - When changing marketplace metadata or skill locations, verify generated manifests and affected reference paths.
+- Decide whether history belongs by the document's purpose. Documents about the current state or how to act now must state current guidance and necessary concrete grounds. Retain history when recording or analyzing it is essential to the purpose, using [documentation-principles](plugins/totto2727-coding/skills/documentation-principles/SKILL.md#state-current-guidance-and-its-grounds).
 
 ## Task-specific documentation
 
 - When maintaining README, AGENTS, or ADR guidance, use the matching slice linked from [share-artifact](plugins/totto2727-coding/skills/share-artifact/SKILL.md).
-- When changing skill metadata or activation scope, use the relevant format and triggering criteria in [skill-reviewer](plugins/totto2727/skills/skill-reviewer/SKILL.md).
+- When changing skill metadata or activation scope, use the relevant format and triggering criteria in [skill-reviewer](plugins/totto2727-coding/skills/skill-reviewer/SKILL.md).

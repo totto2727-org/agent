@@ -11,21 +11,19 @@ Keep complete command responses and link inventories on disk, and bring only tas
 
 ## Dependencies and Routing
 
-- Use [monid](../monid/SKILL.md) for the official Monid CLI reference.
-  Run Monid operations with the official CLI, not a custom HTTP client.
-- Use [open-connector](../open-connector/SKILL.md) for the official `oo` reference before using Cloudflare Browser Run.
-  Use `oo connector` with the user's configured gateway, not direct provider clients.
-  Map trusted `OPENCONNECTOR_BASE_URL` and `OPENCONNECTOR_TOKEN` values to the CLI's `OO_CONNECTOR_URL` and `OO_CONNECTOR_TOKEN` when those conventions are used; do not silently select another account or gateway.
+- Use [monid](../monid/SKILL.md) for Monid operations, following that skill's Setup and Run instructions.
+- Use [open-connector](../open-connector/SKILL.md) for Cloudflare Browser Run, following that skill's Setup and Run instructions.
   **Context7 and Cloudflare Browser Run must execute directly through OOMOL/OpenConnector and must never use Monid**, including as a fallback for missing connections or failed calls.
   Context7 library lookup belongs to [doc-search](../doc-search/SKILL.md), not Monid discovery.
-- For related-link selection, use [decision-model](../decision-model/SKILL.md) for typed judgment design and [cloudflare-ai](../cloudflare-ai/SKILL.md) for execution, authentication, and endpoints.
+- If a required skill cannot run, report the blocker and follow the failure rules below; do not bypass its gateway requirements.
+- For related-link selection, use [decision-model](../decision-model/SKILL.md) for typed judgment design and [cloudflare-ai](../cloudflare-ai/SKILL.md) to select and call a model.
   Follow [related-link selection](references/related-links.md) for this workflow's context and candidate-handling rules.
 - Preserve Codex's built-in Web Search as a permitted platform-native alternative when explicitly requested or when the managed workflow is unavailable or insufficient.
   It is not a reason to replace the TinyFish default silently, and it does not exempt other provider APIs from their gateway requirements.
 
 | Need                                                                           | Preferred route                                                |
 | ------------------------------------------------------------------------------ | -------------------------------------------------------------- |
-| Ordinary web search or page text                                               | Monid CLI: TinyFish `/search` or `/fetch`                      |
+| Ordinary web search or page text                                               | Gateway-configured Monid CLI: TinyFish `/search` or `/fetch`   |
 | Choose related pages from returned URLs                                        | Decision Model through Cloudflare AI, then fetch selected URLs |
 | Browser interaction, rendering control, or extraction TinyFish cannot preserve | Cloudflare Browser Run through OpenConnector                   |
 | Social timelines, transcripts, or other specialized data                       | Discover and inspect a suitable Monid API                      |
@@ -38,14 +36,13 @@ Inspect current capabilities and pricing and keep calls within the user's author
 
 1. Establish the question, freshness requirements, and any supplied URL.
    Search only when needed, target official sources, and keep result counts and retrieval batches small.
-2. Inspect Monid's current TinyFish schema and price with `monid inspect`, then use `monid run` to search with `/search` or fetch the supplied URL with `/fetch`.
+2. Use the Monid skill to inspect TinyFish's current schema and price, then search with `/search` or fetch the supplied URL with `/fetch`.
    - Use `format: "markdown"` and **`links: true` by default** for TinyFish page retrieval, including subsequent pages.
    - Disable links only for an explicit task requirement or a documented incompatibility, and state the exception.
    - Add `image_links: true` when image-file URLs matter; this is separate from finding documentation about images.
    - Set cache freshness deliberately. Use `ttl: 0` for a live fetch when freshness is required, not for every repeated read.
 3. **Save every complete response before reading it**, including discovery, schema, run, polling, Decision Model, and fallback responses.
-   - For Monid, redirect complete official CLI output with `monid ... --json > response.json`, then use `jq` on the saved file.
-     Save `oo` output with `--json > response.json` in the same way.
+   - Save complete results using the respective skill, then use `jq` on the saved files.
    - Use unique task-local artifacts under the working repository's `tmp/`, or the approved temporary location outside a repository.
    - Keep requests and responses separate, protect potentially sensitive content, exclude artifacts from commits, and never save authorization headers or secrets.
    - Follow the official CLI's error handling and read the completed result from the saved file.
@@ -72,7 +69,7 @@ A Decision Model can reduce the main model's context load, but its own token usa
 
 ## Failure and Trust Boundaries
 
-- Follow the official CLI workflow for asynchronous runs and per-URL failures, saving responses before reading completed content.
+- Follow the respective skill for asynchronous runs and per-URL failures, saving responses before reading completed content.
   A successful HTTP request or completed run does not prove that the intended content was retrieved.
 - Missing credentials, insufficient balance, denied access, or login requirements are user-controlled prerequisites.
   Do not change connections, grants, account settings, or payment arrangements to force retrieval.

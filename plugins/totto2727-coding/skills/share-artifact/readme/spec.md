@@ -10,6 +10,8 @@ Keep consumer installation, usage, public reference, and license information in 
 Put repository development commands, architecture, contributor toolchains, and AI instructions in [AGENTS.md](../agents/spec.md).
 Someone using a development tool is a consumer, not necessarily a maintainer of that tool.
 The README's Development section links to maintenance instructions instead of duplicating them.
+Describe the current public surface and how to use it, not past decisions, removed features, renamed components, or migration history.
+When an explanation is necessary, give the current conclusion and concrete grounds using [current-guidance principles](../../documentation-principles/SKILL.md#state-current-guidance-and-its-grounds).
 
 ## Suggested structure
 
