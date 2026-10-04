@@ -40,4 +40,4 @@
 ## Task-specific documentation
 
 - When maintaining README, AGENTS, or ADR guidance, use the matching slice linked from [share-artifact](plugins/totto2727-coding/skills/share-artifact/SKILL.md).
-- When changing skill metadata or activation scope, use the relevant format and triggering criteria in [skill-reviewer](plugins/totto2727/skills/skill-reviewer/SKILL.md).
+- When changing skill metadata or activation scope, use the relevant format and triggering criteria in [skill-reviewer](plugins/totto2727-coding/skills/skill-reviewer/SKILL.md).
