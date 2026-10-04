@@ -38,6 +38,33 @@ The distinction is relevance to the stated audience and goal, not a fixed divisi
 - Specialist audiences may need detail that a general developer audience does not.
 - Do not remove a useful explanation merely because code or a table mentions the same subject.
 
+## Current guidance in README, SKILL, and AGENTS
+
+README.md, SKILL.md, and AGENTS.md must explain what is supported, required, or recommended now.
+Flag change chronology, past decisions, retired names, incident narratives, and information recoverable from commits that adds no value to the current reader.
+If a reason is necessary, check that it identifies concrete grounds for the current guidance rather than merely citing an earlier choice or event.
+Translate useful lessons into their current conclusion, applicability, and supporting grounds without recounting their origin.
+
+**Problematic README**
+
+> The utilities plugin was removed; its path skill was moved to the coding plugin.
+
+**Improved README**
+
+> Use the coding plugin's path skill to calculate relative and canonical filesystem paths.
+
+**Problematic SKILL or AGENTS instruction**
+
+> We switched to argv arrays after a shell command broke on a filename containing spaces.
+
+**Improved instruction**
+
+> Pass subprocess arguments as an argv array so paths containing spaces remain single arguments without shell interpretation.
+
+These are hypothetical editorial comparisons, not claims of verified behavior for a particular implementation.
+Preserve relevant current compatibility constraints, safety conditions, and required actions without presenting them as a migration history.
+Do not flag historical material in ADRs, changelogs, or documents explicitly intended to study history merely for being historical.
+
 ## Inspect and fix a failure
 
 1. State who the passage is for and what they need to understand, decide, or do.

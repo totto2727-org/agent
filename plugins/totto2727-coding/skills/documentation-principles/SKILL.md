@@ -19,6 +19,16 @@ Choose the audience, task, and document type before deciding what belongs.
 Include information because it helps that reader, not merely because it is available.
 Distinguish learning, task execution, reference, and explanation without forcing every document into one format.
 
+## State current guidance and its grounds
+
+README.md, SKILL.md, and AGENTS.md describe what is supported, required, or recommended now.
+Include a reason only when the reader needs it to understand or apply that guidance, and ground it in a concrete constraint, verified behavior, or relevant evidence.
+Do not include change chronology, retired names, past decisions, or information recoverable from commits that adds no value to the current reader.
+An earlier choice or incident is not itself a justification for a current rule.
+When experience yields a useful lesson, state the resulting conclusion, its applicability, and its supporting grounds rather than narrating the experience.
+Keep any necessary compatibility constraint or action as current guidance, not as a story of how it arose.
+This boundary does not prohibit history in a document whose purpose is to record it, such as an ADR or changelog.
+
 ## Lead with the useful answer
 
 State the action, result, or decision before supporting background.
