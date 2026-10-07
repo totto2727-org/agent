@@ -96,7 +96,6 @@ Use the standard's permitted terminology where applicable before considering a l
 Give detailed guidance one canonical home and link to it from relevant entry points.
 Document-set ownership and cross-page duplication require decisions beyond the wording of an individual passage.
 Separate choosing a path from following it, and make linked prerequisites and destinations available at the point of use.
-Use the repository's document conventions; default to GitHub Flavored Markdown when none are specified.
 
 ### Verify claims against their evidence
 
@@ -104,6 +103,16 @@ STE compliance does not establish that an API behaves as described, an example r
 Check claims against the relevant specification, implementation, or observed behavior, and distinguish verified facts from assumptions.
 Preserve requirements, compatibility constraints, failure conditions, and meaningful trade-offs when selecting content or replacing prose with another representation.
 Do not invent a prerequisite, consequence, or remedy to make a passage look complete.
+
+## Project conventions and Markdown
+
+Follow explicit project documentation conventions before these format defaults.
+If a project convention requires a departure from STE, record the conflict under the exception policy rather than silently claiming compliance.
+
+For Markdown, conform to [GitHub Flavored Markdown](https://github.github.com/gfm/).
+Make full use of GitHub-supported formatting features, including alerts, to distinguish content by its role and importance.
+Choose visual forms that make instructions, warnings, examples, and reference information easy to tell apart, rather than presenting everything as undifferentiated prose.
+Use formatting to convey meaningful distinctions, not decoration or repeated emphasis.
 
 ## Translated editions
 
