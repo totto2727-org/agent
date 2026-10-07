@@ -47,10 +47,28 @@ If STE already covers a requirement, use the standard rather than maintaining a 
 
 ### Serve a reader's purpose
 
-Choose the audience, task, and document type before selecting content.
-Distinguish learning, task execution, reference, and explanation without forcing them into one format.
-Language compliance alone does not establish whether information belongs in a document: include it because it helps the intended reader act, understand, decide, or look something up.
-Match implementation detail to that purpose, rather than treating every reader as an application user.
+Identify the intended audience and its assumed knowledge before selecting content.
+Distinguish four audience groups, or five when contributors and maintainers need separate guidance:
+
+- Beginner users: use the subject for the first time and need a supported path to their first useful result.
+- Intermediate users: know the basics and need to use the subject in practical tasks.
+- Advanced users: need detailed behavior or internal knowledge to use the subject correctly for their purpose.
+- Developers of the subject: change the subject itself. Separate contributors from maintainers when contribution tasks and maintenance responsibilities require different guidance.
+
+Classify readers by their relationship to the subject, not their profession.
+A developer who consumes a library or API is a user of that subject, not its developer.
+An advanced user does not become a contributor or maintainer merely by understanding internals.
+
+Every document must identify which groups it serves and respect their assumed knowledge.
+Give each task or explanation a clear audience, and separate guidance for different groups into distinct sections or pages with explicit onward links.
+Do not require readers to filter out material intended for another group or include all groups in every document.
+
+Do not expose implementation internals to beginner or intermediate users unless that knowledge is indispensable to correct use.
+For such an exception, explain only the behavior, conditions, and consequences the reader must understand; include the underlying mechanism only when those facts alone are insufficient.
+Possible future interest, completeness, and the availability of implementation details do not justify an exception.
+
+Choose learning, task execution, reference, or explanation by the intended group's purpose.
+Include information only when it helps that group act, understand, decide, or look something up.
 
 ### State current guidance and its grounds
 
