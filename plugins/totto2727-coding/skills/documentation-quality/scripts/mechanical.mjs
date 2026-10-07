@@ -118,6 +118,37 @@ export function inspectMarkdown(markdown) {
     });
     exclude(containerFence.index, markdown.length, "unsupported-container-fence");
   }
+  // Indented blocks after a list marker can be continuation prose, nested
+  // fences, or actual code depending on the container's indentation rules.
+  // Keep uncertainty local to those blocks instead of silently dropping them
+  // as indented code or tainting subsequent independent top-level content.
+  let listIndent = null;
+  for (const line of lines) {
+    if (frontmatter && line.index < frontmatter.end) continue;
+    if (uncertainties.some((range) => line.index >= range.start && line.index < range.end))
+      continue;
+    const fence = fences.find(
+      (candidate) => line.index >= candidate.start && line.index < candidate.end,
+    );
+    if (fence && line.index !== fence.start) continue;
+    if (/^[ \t\r\n]*$/.test(line[0])) continue;
+    const indentation = /^[ \t]*/.exec(line[0])[0].replaceAll("\t", "    ").length;
+    const listMarker = /^[ \t]*(?:[-+*]|\d+[.)])[ \t]+/.test(line[0]);
+    if (listMarker) {
+      listIndent = listIndent === null ? indentation : Math.min(listIndent, indentation);
+      continue;
+    }
+    if (listIndent !== null && indentation > listIndent) {
+      const end = fence?.end ?? line.index + line[0].length;
+      uncertainties.push({
+        start: line.index,
+        end,
+        reason:
+          "Indented list continuation may be prose or a nested code block and requires contextual Markdown parsing.",
+      });
+      exclude(line.index, end, "unsupported-list-continuation");
+    } else listIndent = null;
+  }
   const mask = () => {
     const characters = markdown.split("");
     for (const { start, end } of exclusions)
@@ -174,6 +205,17 @@ export function paragraphUnits(markdown, sections) {
   const flush = () => {
     if (start === null) return;
     const range = sourceRange(markdown, start, end);
+    const partial = sections.find(
+      (candidate) =>
+        candidate.sourceRange.startByte < range.endByte &&
+        candidate.sourceRange.endByte > range.startByte &&
+        (candidate.sourceRange.startByte > range.startByte ||
+          candidate.sourceRange.endByte < range.endByte),
+    );
+    if (partial)
+      throw new Error(
+        `Section ${partial.id} selects only part of a paragraph (paragraph lines ${range.startLine}-${range.endLine}). Expand the source range to include the complete paragraph.`,
+      );
     const section = sections.find(
       (candidate) =>
         candidate.sourceRange.startByte <= range.startByte &&
@@ -202,14 +244,7 @@ export function paragraphUnits(markdown, sections) {
       }
       continue;
     }
-    if (
-      /^\s*$/.test(line[0]) ||
-      /^ {0,3}#{1,6}\s/.test(line[0]) ||
-      sections.some(
-        (section) =>
-          section.sourceRange.startByte === Buffer.byteLength(markdown.slice(0, line.index)),
-      )
-    ) {
+    if (/^\s*$/.test(line[0]) || /^ {0,3}#{1,6}\s/.test(line[0])) {
       flush();
       if (/^\s*$/.test(line[0]) || /^ {0,3}#{1,6}\s/.test(line[0])) continue;
     }
@@ -230,7 +265,8 @@ export function runMechanical(check, markdown, targetRange) {
   let applicable = false;
   if (check.kind === "fenced-code-language") {
     for (const fence of fences) {
-      if (uncertainties.some((range) => fence.start >= range.start)) continue;
+      if (uncertainties.some((range) => fence.start < range.end && fence.end > range.start))
+        continue;
       if (!within(fence.start, fence.end)) continue;
       applicable = true;
       if (!fence.closed)

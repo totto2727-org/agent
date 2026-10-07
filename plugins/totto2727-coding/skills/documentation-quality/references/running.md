@@ -65,6 +65,7 @@ A mechanically decidable property belongs in a mechanical rule:
 For exact project vocabulary restrictions, use `check.kind: "prohibited-terms"`, `terms`, optional `protectedTerms`, and optional `caseSensitive`.
 This is a literal token check, not a guessed STE dictionary.
 See [mechanical boundaries](rules/mechanical.md).
+Unsupported container fences and ambiguous list-continuation syntax produce parser warnings and `insufficient_context`, not a partial-scan pass.
 
 A contextual rule uses `engine: "decision"` and supplies `instructions`, `pass`, and `fail`.
 Legacy contextual definitions without `engine` default to `decision`.
@@ -90,6 +91,7 @@ For deliberate inclusive one-based ranges, add `sections` to the document entry:
 ```
 
 Inspect the selected source range and do not split a fence or another necessary representation.
+When paragraph rules are selected, a range that cuts a natural paragraph is rejected before inference rather than silently dropping part of the selection.
 Page rules still inspect the complete page.
 The request supplies the target unit and same-page context, not evidence from another document.
 Nonempty legacy `context` is rejected.

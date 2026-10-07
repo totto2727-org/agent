@@ -1170,6 +1170,173 @@ async function localFixture({
 }
 
 describe("local mechanical and semantic engine boundaries", () => {
+  it.each([
+    {
+      markdown:
+        "- Example:\n\n    ```\n    const value=1;\n    ```\n\n```js\nconst valid=2;\n```\n",
+      rule: fenceRule,
+    },
+    {
+      markdown: "Good text.\n\n- A list item:\n\n    forbidden\n",
+      rule: {
+        ...lexicalRule,
+        scope: "page",
+        check: { kind: "prohibited-terms", terms: ["forbidden"] },
+      },
+    },
+    {
+      markdown: "1. Example:\n\n  ```\n  nested();\n  ```\n\n```js\nvalid();\n```\n",
+      rule: fenceRule,
+    },
+  ])(
+    "reports ambiguous indented list continuation through the public CLI instead of a false pass: %j",
+    async ({ markdown, rule }) => {
+      const paths = await localFixture({ markdown, rules: [rule] });
+      const { result: report, calls } = await withMock(paths, {}, async () => {
+        const environment = { ...process.env };
+        for (const key of Object.keys(CREDENTIALS)) delete environment[key];
+        await expect(
+          execute(
+            process.execPath,
+            [
+              script,
+              "--manifest",
+              paths.manifestPath,
+              "--output",
+              paths.outputPath,
+              "--mechanical-only",
+            ],
+            { env: environment },
+          ),
+        ).rejects.toMatchObject({ code: 1 });
+        return JSON.parse(await readFile(paths.outputPath, "utf8"));
+      });
+      expect(calls).toEqual([]);
+      expect(report).toMatchObject({
+        requestCount: 0,
+        failed: false,
+        incomplete: true,
+        reviewRequired: true,
+        attentionRequired: true,
+      });
+      expect(report.evaluations[0].answers[0]).toMatchObject({
+        choice: "insufficient_context",
+        findings: [],
+        reviewRequired: true,
+      });
+      expect(
+        report.evaluations[0].answers[0].coverage.parserWarnings.some((warning) =>
+          warning.reason.includes("Indented list continuation"),
+        ),
+      ).toBe(true);
+    },
+  );
+
+  it("keeps list uncertainty local and evaluates independent later top-level sections normally", async () => {
+    const markdown =
+      "# Ambiguous\n\n- Example:\n\n    ```\n    forbidden();\n    ```\n\n# Independent\n\nClean prose.\n\n```js\nvalid();\n```\n";
+    const paths = await localFixture({
+      markdown,
+      rules: [
+        { ...fenceRule, scope: "section" },
+        {
+          ...lexicalRule,
+          scope: "section",
+          check: { kind: "prohibited-terms", terms: ["forbidden"] },
+        },
+      ],
+    });
+    const report = await evaluate({ ...paths, environment: {} });
+    expect(report.evaluations.map((entry) => entry.answers.map((answer) => answer.choice))).toEqual(
+      [
+        ["insufficient_context", "insufficient_context"],
+        ["pass", "pass"],
+      ],
+    );
+    for (const answer of report.evaluations[1].answers)
+      expect(answer.coverage.parserWarnings).toEqual([]);
+    expect(report.evaluations[0].answers[0].coverage.parserWarnings[0].sourceRange).toMatchObject({
+      startLine: 5,
+      endLine: 5,
+    });
+  });
+
+  it.each([
+    { startLine: 5, endLine: 5 },
+    { startLine: 6, endLine: 6 },
+  ])(
+    "rejects a partial paragraph range even when another complete target exists through the public CLI: %j",
+    async (partial) => {
+      const paths = await localFixture({
+        markdown: "# Guide\n\nComplete paragraph.\n\nFirst part.\nSecond part.\n",
+        rules: [
+          {
+            id: "paragraph-check",
+            scope: "paragraph",
+            instructions: "Judge the paragraph.",
+            pass: "Good.",
+            fail: "Bad.",
+          },
+        ],
+        documents: [
+          {
+            id: "guide",
+            path: "guide.md",
+            purpose: "Read.",
+            audience: "Reviewer.",
+            sections: [
+              { id: "complete", startLine: 3, endLine: 3 },
+              { id: "partial", ...partial },
+            ],
+          },
+        ],
+      });
+      const { result: error, calls } = await withMock(paths, {}, () =>
+        execute(process.execPath, [
+          script,
+          "--manifest",
+          paths.manifestPath,
+          "--output",
+          paths.outputPath,
+          "--mechanical-only",
+        ]).catch((failure) => failure),
+      );
+      expect(error).toMatchObject({ code: 2 });
+      expect(error.stderr).toContain("Section partial selects only part of a paragraph");
+      expect(error.stderr).toContain("paragraph lines 5-6");
+      expect(calls).toEqual([]);
+      await expect(readFile(paths.outputPath, "utf8")).rejects.toMatchObject({ code: "ENOENT" });
+    },
+  );
+
+  it("preserves explicit partial prose ranges when only section checks are selected", async () => {
+    const paths = await localFixture({
+      markdown: "# Guide\n\nComplete paragraph.\n\nforbidden\nSecond part.\n",
+      rules: [
+        {
+          ...lexicalRule,
+          scope: "section",
+          check: { kind: "prohibited-terms", terms: ["forbidden"] },
+        },
+      ],
+      documents: [
+        {
+          id: "guide",
+          path: "guide.md",
+          purpose: "Read.",
+          audience: "Reviewer.",
+          sections: [
+            { id: "complete", startLine: 3, endLine: 3 },
+            { id: "partial", startLine: 5, endLine: 5 },
+          ],
+        },
+      ],
+    });
+    const report = await evaluate({ ...paths, environment: {} });
+    expect(report.evaluations.map((entry) => entry.answers[0].choice)).toEqual(["pass", "fail"]);
+    expect(report.requestCount).toBe(0);
+  });
+
   it("rejects legacy context through the public CLI before any request with a migration error", async () => {
     const paths = await localFixture({
       documents: [

@@ -442,13 +442,11 @@ export async function buildWork(manifest, manifestPath) {
       ? explicitSections(document.sections, page)
       : segmentMarkdown(page);
     for (const section of sections) addItem(document, path, "section", section, page);
-    const paragraphs = paragraphUnits(page, sections);
-    if (
-      !paragraphs.length &&
-      manifest.rules.some(
-        (rule) => rule.scope === "paragraph" && document.ruleIds.includes(rule.id),
-      )
-    )
+    const hasParagraphRules = manifest.rules.some(
+      (rule) => rule.scope === "paragraph" && document.ruleIds.includes(rule.id),
+    );
+    const paragraphs = hasParagraphRules ? paragraphUnits(page, sections) : [];
+    if (!paragraphs.length && hasParagraphRules)
       paragraphs.push({
         id: "paragraph-unavailable",
         headingPath: [],
