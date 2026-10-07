@@ -9,7 +9,7 @@ Semantic checks additionally require `curl` and the configured Cloudflare enviro
 
 Paths are relative to the manifest file unless absolute.
 Use exactly one of `rulesFile` or inline `rules`.
-Keep the [coverage record](coverage.md) with the report: the bundled catalog does not cover the full standard.
+Keep the [coverage record](coverage.md) with the report: the catalog maps the numbered Issue 9 rules, but bounded checks and missing evidence do not establish full compliance.
 
 ```json
 {
@@ -24,7 +24,7 @@ Keep the [coverage record](coverage.md) with the report: the bundled catalog doe
       "sourceLanguage": "en",
       "purpose": "Create a project and run its default page.",
       "audience": "Beginner users of the package, including programmers consuming its API.",
-      "ruleIds": ["code-fence-language", "audience-boundary", "ste-faq-procedural-instructions"]
+      "ruleIds": ["code-fence-language", "audience-boundary", "ste-5-3"]
     }
   ]
 }
@@ -32,7 +32,8 @@ Keep the [coverage record](coverage.md) with the report: the bundled catalog doe
 
 This example assumes a manifest in `<repository>/tmp/review/`.
 Adjust paths for the installed skill and target repository.
-Replace the example model with the supported model selected through cloudflare-ai; the example is not a cost or accuracy recommendation.
+Replace the example model with the supported model selected through cloudflare-ai.
+The example is not a cost or accuracy recommendation.
 A mixed semantic plan requires a selected model, while `--mechanical-only` does not.
 When `englishOnly` is true, declare `sourceLanguage` for every entry.
 Non-English entries are excluded with an explicit reason instead of being evaluated as English or silently counted as passes.
@@ -69,7 +70,124 @@ Unsupported container fences and ambiguous list-continuation syntax produce pars
 
 A contextual rule uses `engine: "decision"` and supplies `instructions`, `pass`, and `fail`.
 Legacy contextual definitions without `engine` default to `decision`.
-Keep questions local and typed; do not ask the model to execute commands, verify another page, count a mechanically decidable property, or generate a correction as an authoritative result.
+Keep questions local and typed.
+Do not ask the model to execute commands, verify another page, count a mechanically decidable property, or generate a correction as an authoritative result.
+
+## Declare STE counting context
+
+Declare the local writing mode before running mode-dependent counts.
+Use `document.ste.writingMode` for a uniform source unit and `document.sections[].ste.writingMode` for a selected unit with a different mode.
+Supported modes are `procedural` and `descriptive`.
+Classify a safety instruction locally as `procedural`, even within a descriptive page.
+Do not give a mixed page a uniform mode just to avoid a missing-context result.
+A procedural note is descriptive, but a note must not contain an instruction, limit, or required result.
+A safety instruction retains the procedural sentence limit even within a descriptive page.
+
+```json
+{
+  "ste": {
+    "writingMode": "descriptive",
+    "wordGroups": [
+      { "text": "OpenJS Foundation", "category": "proper-noun" },
+      { "text": "Documentation Quality", "category": "title" }
+    ],
+    "measurementUnits": ["milliseconds"]
+  }
+}
+```
+
+Verify each declared group against the passage and the applicable counting rule.
+Use `wordGroups` only for actual numbers, measurements, abbreviations, alphanumeric identifiers, quoted material or formulas, fixed titles, and proper nouns covered by Issue 9.
+Do not declare an ordinary technical multi-word noun as a single word merely because it is a familiar term.
+Typography or capitalization alone does not establish a quoted label or a proper noun.
+Group declarations are reviewer-supplied evidence, not automatically verified facts or exceptions.
+The counter must preserve ambiguity and unsupported source syntax as review-required instead of reporting a partial-scan pass.
+
+## Declare noun-group evidence
+
+Rules `ste-1-9`, `ste-2-1`, and `ste-2-2` declare `requiresNounGroupCounts: true`.
+Their numeric criteria use engine-computed evidence, not a model count or a caller-supplied total.
+Declare selected literal noun groups in `document.ste.nounGroups` or the selected `document.sections[].ste.nounGroups` override:
+
+```json
+{
+  "ste": {
+    "nounGroups": [
+      {
+        "text": "filter-housing support bracket",
+        "kind": "multi-word",
+        "source": "Illustrative local terminology record. Verify its role and relationships before use."
+      }
+    ]
+  }
+}
+```
+
+This example demonstrates the input shape, not verified terminology or permission to add a hyphen.
+Each record contains only `text`, `kind`, and `source`.
+Supported kinds are `new-technical`, `multi-word`, and `official`.
+`text` and `source` are nonempty literal strings of at most 512 characters, with no leading or trailing whitespace or control characters.
+At most 1000 records are accepted, and extra properties, including submitted numeric counts, are rejected.
+Section overrides replace the corresponding document-level noun-group array rather than merging it.
+
+The engine selects exact case-sensitive matches with token boundaries wholly inside the target range and outside protected source regions.
+It computes `wordCount` and `hyphenComponentCounts`, with a genuine hyphenated token counted as one word and its underlying component count retained.
+For the example literal, the numeric result is three tokens and component counts `[2, 1, 1]`.
+The current noun-group counter accepts ASCII alphabetic words separated by single spaces, with single word-internal hyphens.
+Other group syntax or a match overlapping an uncertain parse remains `insufficient_context`, not a guessed count.
+The request receives only matched `nounGroupCounts` records in its local target evidence, or page evidence for a page-scoped check, with status and source ranges.
+With no decidable local noun-group match, these questions defer without an inference request.
+An attempted model pass is guarded when the supplied matched group evidence is incomplete or unsupported.
+
+`nounGroups` identify selected groups for noun-specific limits under 1.9 and section 2.
+They do not collapse ordinary technical nouns into one sentence-count word under 8.6.
+Sentence token grouping uses the separate audited `wordGroups` counting context above.
+The engine proves only the computed numbers for the selected literal matches.
+It does not discover all noun phrases, verify the declared role or official status, approve new hyphen relationships, or certify an exhaustive noun-group inventory.
+Reviewers must establish the actual head noun, modifiers, term authority, category, and applicable exceptions from local evidence.
+An undeclared necessary group, an ambiguous boundary, or missing authority remains unresolved even if other supplied groups were counted successfully.
+Do not use selective declarations to suppress a violation or claim complete 1.9/2.1/2.2 compliance.
+
+## Supply private dictionary evidence
+
+Set `document.ste.vocabularyFile` to a private JSON file whose path is relative to the manifest.
+Use only entries verified against the actual Issue 9 dictionary, with the entry's permitted meaning, part of speech, and listed forms.
+Do not distribute the PDF or a copied dictionary with the skill.
+
+```json
+{
+  "issue": 9,
+  "source": "ASD-STE100 Issue 9, Part 2; independently verified local entries",
+  "entries": [
+    {
+      "word": "<verified entry>",
+      "approved": true,
+      "partOfSpeech": "n",
+      "meaning": "<verified meaning>",
+      "forms": ["<verified permitted form>"]
+    }
+  ],
+  "technicalTerms": ["<locally verified technical noun or verb>"]
+}
+```
+
+This is an input shape, not usable dictionary data.
+Exact lookup produces lexical candidates for contextual review.
+It does not establish permitted use in that sentence.
+An approved spelling can still have an unapproved meaning or part of speech.
+A term absent from a partial inventory is not automatically prohibited, and a listed unapproved term may qualify as a technical noun or verb only in a permitted context.
+Do not infer forms by stemming or call a partial PDF extraction a complete dictionary.
+Treat declared technical terms as claims that require their category and local meaning to be verified, not a blanket whitelist.
+A literal `technicalTerms` string is only a lookup candidate.
+For source-declared evidence, use `{ "text": "<exact term>", "kind": "noun", "category": 19, "source": "<verified category and local meaning>" }`.
+The noun category must be 1 through 22, and the verb category must be 1 through 4.
+The engine sends only exact locally matched entries and technical-term records to the contextual request.
+It does not send the private file path, unmatched entries, or the complete vocabulary.
+Dictionary-dependent rules declare `requiresDictionaryEntries: true`.
+With no matched source evidence, these questions are deferred without a model request.
+An attempted model pass remains insufficient when local coverage is incomplete.
+Record the evidence guard separately from the provider's original answer, not as a new high-confidence model judgment.
+Keep unresolved evidence visible and use only the relevant verified entries in a contextual review, not the entire dictionary as model state.
 
 ## Select source units
 
@@ -120,7 +238,8 @@ node plugins/totto2727-coding/skills/documentation-quality/scripts/evaluate.mjs 
   --mechanical-only
 ```
 
-Dry runs plan work; they do not establish acceptance.
+Dry runs plan work.
+They do not establish acceptance.
 Mechanical-only runs execute mechanical rules and retain semantic checks as deferred, `insufficient_context`, and review-required.
 A mixed catalog cannot receive overall semantic acceptance from this mode.
 
@@ -132,7 +251,8 @@ Set `manifest.model` only for the selected supported Decision Model.
 The evaluator uses Cloudflare's documented native or universal Decision Model route.
 Even when a model identifier names another provider, do not operate that provider directly or add a provider-direct fallback.
 Question and answer collections are keyed objects.
-The report records the returned concrete model; keep that model stable when comparing rubric changes.
+The report records the returned concrete model.
+Keep that model stable when comparing rubric changes.
 
 Do not copy a universal confidence threshold from an example.
 Calibrate `manifest.threshold` against independently labeled representative success, failure, ambiguity, and boundary cases for the intended task and model.
@@ -141,11 +261,13 @@ A configured number alone does not establish calibration quality.
 
 Inspect the dry-run ranges, rules, exclusions, and requests before sending private content.
 Confirm that the configured Gateway and model provider may receive the selected contents.
-Remove `--dry-run`, choose a new report path, and use bounded concurrency; the default is 4.
+Remove `--dry-run`, choose a new report path, and use bounded concurrency.
+The default is 4.
 Do not exceed account or model limits.
 
 Every inference request includes the Gateway cache key, TTL, and skip-cache headers described by cloudflare-ai.
-Equivalent work in a run shares one operation; only an observed Gateway `HIT` proves a remote cache hit.
+Equivalent work in a run shares one operation.
+Only an observed Gateway `HIT` proves a remote cache hit.
 The evaluator makes one client attempt per logical request and does not override the Gateway's configured retry behavior.
 For `401`, `402`, or `403`, it stops queued inference work, retains errors and skipped work, and does not change model, account, credentials, or billing route.
 Already-in-flight work may finish.

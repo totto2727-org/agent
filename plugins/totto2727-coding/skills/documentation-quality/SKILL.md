@@ -15,9 +15,10 @@ Preserve template headings, order, sections, identifiers, and exact executable o
 A structural constraint is not a blanket exemption for the prose inside it.
 
 > [!IMPORTANT]
-> The bundled catalog currently implements verified public STE FAQ guidance and supplementary principles, not the complete Issue 9 standard.
-> Read the [coverage record](references/coverage.md) before reporting compliance.
-> Do not invent standard rule numbers, dictionary entries, word limits, or exceptions when the complete source is unavailable.
+> The rule catalog maps the 53 numbered writing rules in ASD-STE100 Issue 9 to local checks or explicit counting dependencies.
+> Read the [coverage record](references/coverage.md) for the source, dictionary evidence, and boundaries before reporting compliance.
+> A complete rule inventory is not proof that every passage has been evaluated or that a document complies with the standard.
+> Keep cross-page requirements in manual review, and report missing dictionary evidence or unsupported syntax rather than guessing.
 
 ## Review workflow
 
@@ -26,10 +27,16 @@ A structural constraint is not a blanket exemption for the prose inside it.
    Split subject developers into contributors and maintainers when their tasks differ.
    A programmer who consumes a library or API is its user.
 2. Load the [rule index](references/rules.md) and executable catalog.
-   Apply all applicable verified rules; use `not_applicable` only with a contextual justification, not to make the document pass.
+   Apply all applicable verified rules.
+   Use `not_applicable` only with a contextual justification, not to make the document pass.
    Keep unimplemented standard requirements visible as coverage gaps.
 3. Run mechanical checks first for properties that code can decide.
    Do not ask a Decision Model to count, look up a known restriction, or detect syntax that deterministic code can detect.
+   Establish the local writing mode and verify the declared word-count groups against their actual role in the passage.
+   A quoted interface label, title, or identifier is not permission to classify arbitrary prose as a one-word group.
+   Verify dictionary membership and forms from the actual entry before asking a contextual question about meaning or part of speech.
+   If the required entry or terminology evidence is missing, retain `insufficient_context`.
+   A model's memory of the dictionary is not evidence.
 4. Review complete paragraphs, sections, or pages with their local context.
    Keep instructions, conditions, examples, and warnings intact.
    Scripted review must not judge destination pages, cross-page duplication, document-set ownership, or unseen external evidence.

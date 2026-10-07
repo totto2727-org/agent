@@ -12,12 +12,14 @@ description: >-
 **Use ASD-STE100 as the baseline, not as a menu of optional writing advice.**
 Apply the standard strictly to English developer documentation across languages, tools, and project types.
 Relax a requirement only when compliance is operationally impossible, and only within the smallest necessary scope.
-Use the supplements below for developer-documentation needs that STE does not cover; do not duplicate its requirements as independent rules.
+Use the supplements below for developer-documentation needs that STE does not cover.
+Do not duplicate its requirements as independent rules.
 
 ## Standard and scope
 
 Use **ASD-STE100 Issue 9, January 2025**, including its writing rules and dictionary, as the authoritative reference.
-Consult the official standard for the applicable requirements and permitted uses; this skill does not reproduce its rule details.
+Consult the official standard for the applicable requirements and permitted uses.
+This skill does not reproduce its rule details.
 Use an available official copy, or obtain one through the [official distribution page](https://www.asd-ste100.org/STE_downloads.html).
 The [official overview](https://www.asd-ste100.org/about_STE.html) and [FAQ](https://www.asd-ste100.org/STE_faq.html) provide context, not substitutes for the standard.
 If the relevant requirements cannot be inspected, identify the unresolved requirement rather than inventing a rule, granting an exception, or claiming compliance.
@@ -33,7 +35,8 @@ Convenience, writing effort, existing habits, and stylistic preference are not s
 The party proposing an exception must establish why compliance cannot satisfy the document's operational requirements.
 
 Record the adopted issue, affected rule or dictionary requirement, exact scope, concrete incompatibility, and the requirement that remains in force instead.
-For example, an externally mandated statement might require exact wording; verify that constraint and limit any necessary exception to that statement, not its surrounding explanation.
+For example, an externally mandated statement might require exact wording.
+Verify that constraint and limit any necessary exception to that statement, not its surrounding explanation.
 Do not infer an exception from an unfamiliar technical term or disable a category of rules without establishing the incompatibility.
 Use an existing maintained project policy for recurring exceptions and identify a passage-specific exception where its scope is clear.
 These records explain current applicability, not work progress or a history of revisions.
@@ -64,7 +67,8 @@ Give each task or explanation a clear audience, and separate guidance for differ
 Do not require readers to filter out material intended for another group or include all groups in every document.
 
 Do not expose implementation internals to beginner or intermediate users unless that knowledge is indispensable to correct use.
-For such an exception, explain only the behavior, conditions, and consequences the reader must understand; include the underlying mechanism only when those facts alone are insufficient.
+For such an exception, explain only the behavior, conditions, and consequences the reader must understand.
+Include the underlying mechanism only when those facts alone are insufficient.
 Possible future interest, completeness, and the availability of implementation details do not justify an exception.
 
 Choose learning, task execution, reference, or explanation by the intended group's purpose.
@@ -81,14 +85,16 @@ This distinction governs which information belongs, not a separate English writi
 
 ### Treat code and diagrams as substantive documentation
 
-Code, commands, configuration, input/output examples, tables, and diagrams can carry the main explanation; they are not decoration subordinate to prose.
+Code, commands, configuration, input/output examples, tables, and diagrams can carry the main explanation.
+They are not decoration subordinate to prose.
 Evaluate each representation together with the context needed to use or interpret it.
 Do not repeat in prose what a sufficient example or diagram already communicates.
 Supply missing prerequisites, constraints, and result interpretation rather than generic introductions or summaries.
 
 Preserve executable syntax, API identifiers, configuration keys, and faithfully quoted output.
 Rewriting them to resemble controlled English can make an example incorrect or prevent readers from recognizing the actual interface.
-Do not infer a blanket exception for code comments, explanatory strings, captions, or surrounding prose; determine their applicability separately.
+Do not infer a blanket exception for code comments, explanatory strings, captions, or surrounding prose.
+Determine their applicability separately.
 Use the standard's permitted terminology where applicable before considering a local exception.
 
 ### Maintain document ownership and navigation
@@ -118,7 +124,8 @@ Use formatting to convey meaningful distinctions, not decoration or repeated emp
 
 ## Translated editions
 
-Write and assess the English source against this baseline; treat other editions as translations of that source.
+Write and assess the English source against this baseline.
+Treat other editions as translations of that source.
 Preserve meaning, terminology, conditions, and the role of code and diagrams in translation.
 Do not impose English-specific dictionary or grammar constraints mechanically on Japanese or create a separate principles system for it.
 Check translation fidelity and target-language correctness without treating translation as permission to change the source's requirements.

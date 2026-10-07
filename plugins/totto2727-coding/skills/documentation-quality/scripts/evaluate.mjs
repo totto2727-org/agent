@@ -7,11 +7,13 @@ import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
   inspectMarkdown,
+  nounGroupCounts,
   paragraphUnits,
   runMechanical,
   sourceRange,
   validateMechanicalCheck,
 } from "./mechanical.mjs";
+import { validateSteContext, validateSteVocabulary } from "./ste.mjs";
 
 const CHOICES = ["pass", "fail", "not_applicable", "insufficient_context"];
 const MAX_EVIDENCE_BYTES = 48 * 1024;
@@ -129,10 +131,30 @@ export function validateManifest(raw, { mechanicalOnly = false } = {}) {
       throw new EvaluationError(`rules[${index}].engine must be decision or mechanical`);
     if (engine === "decision" && rule.check !== undefined)
       throw new EvaluationError(`rules[${index}].check requires the mechanical engine`);
+    if (
+      rule.requiresDictionaryEntries !== undefined &&
+      (engine !== "decision" || typeof rule.requiresDictionaryEntries !== "boolean")
+    )
+      throw new EvaluationError(
+        `rules[${index}].requiresDictionaryEntries requires a boolean on a decision rule`,
+      );
+    if (
+      rule.requiresNounGroupCounts !== undefined &&
+      (engine !== "decision" || typeof rule.requiresNounGroupCounts !== "boolean")
+    )
+      throw new EvaluationError(
+        `rules[${index}].requiresNounGroupCounts requires a boolean on a decision rule`,
+      );
     return {
       id: rule.id,
       scope,
       engine,
+      ...(rule.requiresNounGroupCounts === undefined
+        ? {}
+        : { requiresNounGroupCounts: rule.requiresNounGroupCounts }),
+      ...(rule.requiresDictionaryEntries === undefined
+        ? {}
+        : { requiresDictionaryEntries: rule.requiresDictionaryEntries }),
       source: provenance(rule.source, `rules[${index}].source`),
       ...(engine === "mechanical"
         ? {
@@ -168,8 +190,11 @@ export function validateManifest(raw, { mechanicalOnly = false } = {}) {
       throw new EvaluationError(`documents[${index}].ruleIds contains an unknown rule`);
     if (document.sections !== undefined && !Array.isArray(document.sections))
       throw new EvaluationError(`documents[${index}].sections must be an array`);
+    const ste = validateSteContext(document.ste, `documents[${index}].ste`, EvaluationError);
+    if (ste) bounded(JSON.stringify(ste), `documents[${index}].ste`);
     return {
       ...document,
+      ste,
       templateConstraints: constraints(
         document.templateConstraints,
         `documents[${index}].templateConstraints`,
@@ -339,6 +364,7 @@ function explicitSections(sections, page) {
       throw new EvaluationError(`sections[${index}].headingPath must be an array of strings`);
     return {
       id: section.id ?? `explicit-${index + 1}`,
+      ste: validateSteContext(section.ste, `sections[${index}].ste`, EvaluationError),
       headingPath,
       text: content,
       sourceRange: {
@@ -365,7 +391,7 @@ function questionEntriesFor(document, rules, scope) {
       ruleId: rule.id,
       question: {
         type: "choice",
-        instructions: `${targetBinding} Do not judge other pages, document sets, or unseen link destinations. Preserve declared template constraints in evidence.document.templateConstraints. Do not require rewriting its prescribed structure. For prose criteria, excluded code, HTML, metadata, and quoted identifiers are not positive compliance evidence. Choose not_applicable when no applicable prose exists and insufficient_context when the required evidence is missing.\n\n${rule.instructions}`,
+        instructions: `${targetBinding} Do not judge other pages, document sets, or unseen link destinations. Preserve declared template constraints in evidence.document.templateConstraints. Do not require rewriting its prescribed structure. For prose criteria, excluded code, HTML, metadata, and quoted identifiers are not positive compliance evidence. Choose not_applicable when no applicable prose exists and insufficient_context when the required evidence is missing.${rule.requiresDictionaryEntries ? " Use only the supplied target-local dictionaryCandidates records for dictionary-dependent claims, never model memory. The source declares the record provenance, not verification of contextual meaning or part of speech. Unlisted tokens and technical-term candidates are not automatic violations or approvals. If a required entry or its context is missing, choose insufficient_context." : ""}${rule.requiresNounGroupCounts ? " Use only target-local nounGroupCounts for numeric noun-group claims. Counts and hyphenComponentCounts are computed by the engine, never count words yourself or accept a caller's numeric total. Declared noun role, official status, and source are reviewer claims, not mechanical semantic proof. Assess relationships and official exceptions from available local context. If a needed group, role, source, or count is missing or ambiguous, choose insufficient_context." : ""}\n\n${rule.instructions}`,
         criteria: {
           pass: rule.pass,
           fail: rule.fail,
@@ -379,9 +405,33 @@ function questionEntriesFor(document, rules, scope) {
 export async function buildWork(manifest, manifestPath) {
   const base = dirname(resolve(manifestPath));
   const work = [];
+  const vocabularies = new Map();
+  const localContext = async (context) => {
+    const ste = { ...context };
+    if (ste.vocabularyFile) {
+      const path = resolve(base, ste.vocabularyFile);
+      if (!vocabularies.has(path)) {
+        let source;
+        try {
+          source = await readFile(path, "utf8");
+        } catch (error) {
+          if (error.code === "ENOENT") return ste;
+          throw error;
+        }
+        if (Buffer.byteLength(source) > 8 * 1024 * 1024)
+          throw new EvaluationError("Private STE vocabulary exceeds 8 MiB");
+        vocabularies.set(
+          path,
+          validateSteVocabulary(JSON.parse(source), "STE vocabulary", EvaluationError),
+        );
+      }
+      ste.vocabulary = vocabularies.get(path);
+    }
+    return ste;
+  };
   let questionNumber = 0;
   const nextQuestionId = () => `q-${String(++questionNumber).padStart(6, "0")}`;
-  const addItem = (document, path, scope, section, page) => {
+  const addItem = (document, path, scope, section, page, ste) => {
     const mechanical = manifest.rules.filter(
       (rule) =>
         rule.engine === "mechanical" && rule.scope === scope && document.ruleIds.includes(rule.id),
@@ -398,37 +448,112 @@ export async function buildWork(manifest, manifestPath) {
         page,
         questions,
         engine: "mechanical",
+        ste,
         unavailable: section?.unavailable ?? false,
       });
     }
     const entries = questionEntriesFor(document, manifest.rules, scope);
     if (!entries.length) return;
-    const questions = {};
-    const requestQuestions = {};
-    const questionMap = {};
-    let localNumber = 0;
-    for (const { ruleId, question } of entries) {
-      // Report identities keep the run-wide numbering that existing consumers
-      // rely on. Requests use deterministic, request-local numbering so that
-      // equivalent work from duplicate documents/rules fingerprints identically.
-      const originalId = nextQuestionId();
-      const requestId = `q-${String(++localNumber).padStart(6, "0")}`;
-      questions[originalId] = { ...question, ruleId };
-      requestQuestions[requestId] = question;
-      questionMap[requestId] = originalId;
+    const target = section?.sourceRange ?? sourceRange(page, 0, page.length);
+    const dictionaryAnswer = ste?.vocabulary
+      ? runMechanical({ kind: "ste-dictionary-membership" }, page, target, ste)
+      : null;
+    const dictionaryEvidence = dictionaryAnswer
+      ? {
+          issue: 9,
+          source: ste.vocabulary.source,
+          completeness:
+            "Selected literal matches only, not a closed dictionary or a contextual compliance decision.",
+          candidates: dictionaryAnswer.lexicalCandidates,
+        }
+      : null;
+    const boundedDictionaryEvidence =
+      dictionaryEvidence &&
+      Buffer.byteLength(JSON.stringify(dictionaryEvidence)) <= MAX_EVIDENCE_BYTES;
+    const hasDictionaryMatches =
+      boundedDictionaryEvidence &&
+      dictionaryAnswer.lexicalCandidates.some(
+        (candidate) => candidate.records.length || candidate.technicalRecords.length,
+      );
+    const requiresDictionary = (entry) =>
+      manifest.rules.find((rule) => rule.id === entry.ruleId)?.requiresDictionaryEntries;
+    const nounEvidence = nounGroupCounts(page, target, ste?.nounGroups);
+    const boundedNounEvidence =
+      Buffer.byteLength(JSON.stringify(nounEvidence)) <= MAX_EVIDENCE_BYTES;
+    const hasNounCounts =
+      boundedNounEvidence && nounEvidence.some((entry) => entry.status === "counted");
+    const requiresNouns = (entry) =>
+      manifest.rules.find((rule) => rule.id === entry.ruleId)?.requiresNounGroupCounts;
+    const isBlocked = (entry) =>
+      (requiresDictionary(entry) && !hasDictionaryMatches) ||
+      (requiresNouns(entry) && !hasNounCounts);
+    const eligible = entries.filter((entry) => !isBlocked(entry));
+    const blocked = entries.filter(isBlocked);
+    for (const group of [eligible, blocked]) {
+      if (!group.length) continue;
+      const questions = {};
+      const requestQuestions = {};
+      const questionMap = {};
+      let localNumber = 0;
+      for (const { ruleId, question } of group) {
+        // Report identities keep the run-wide numbering that existing consumers
+        // rely on. Requests use deterministic, request-local numbering so that
+        // equivalent work from duplicate documents/rules fingerprints identically.
+        const originalId = nextQuestionId();
+        const requestId = `q-${String(++localNumber).padStart(6, "0")}`;
+        questions[originalId] = { ...question, ruleId };
+        requestQuestions[requestId] = question;
+        questionMap[requestId] = originalId;
+      }
+      work.push({
+        document,
+        path,
+        scope,
+        section,
+        page,
+        questions,
+        requestQuestions,
+        questionMap,
+        engine: "decision",
+        ste,
+        nounEvidence: boundedNounEvidence
+          ? nounEvidence
+          : [
+              {
+                status: "insufficient_context",
+                reason: "Selected noun-group counts exceed the evidence limit.",
+              },
+            ],
+        nounCoverageComplete:
+          hasNounCounts && nounEvidence.every((entry) => entry.status === "counted"),
+        dictionaryEvidence: boundedDictionaryEvidence
+          ? dictionaryEvidence
+          : dictionaryEvidence
+            ? {
+                issue: 9,
+                unavailable:
+                  "Selected local dictionary evidence exceeds the bounded evidence limit. Abstain on dictionary-dependent judgments.",
+              }
+            : null,
+        dictionaryCoverageComplete: Boolean(
+          boundedDictionaryEvidence &&
+          dictionaryAnswer.lexicalCandidates.length &&
+          dictionaryAnswer.lexicalCandidates.every(
+            (candidate) => candidate.records.length || candidate.technicalRecords.length,
+          ) &&
+          dictionaryAnswer.coverage.parserWarnings.every((entry) =>
+            entry.reason.startsWith("Literal dictionary/inflection membership"),
+          ),
+        ),
+        unavailable: (section?.unavailable ?? false) || group === blocked,
+        unavailableReason:
+          group === blocked
+            ? group.some((entry) => requiresNouns(entry) && !hasNounCounts)
+              ? "Required noun-group counts are not available for this local target. No model request is made and model counting is not a substitute."
+              : "Required dictionary entries are not available for this local target. No model request is made and model memory is not a substitute."
+            : undefined,
+      });
     }
-    work.push({
-      document,
-      path,
-      scope,
-      section,
-      page,
-      questions,
-      requestQuestions,
-      questionMap,
-      engine: "decision",
-      unavailable: section?.unavailable ?? false,
-    });
   };
   for (const original of manifest.documents) {
     if (manifest.englishOnly && !/^en(?:-|$)/i.test(original.sourceLanguage)) continue;
@@ -441,7 +566,15 @@ export async function buildWork(manifest, manifestPath) {
     const sections = document.sections
       ? explicitSections(document.sections, page)
       : segmentMarkdown(page);
-    for (const section of sections) addItem(document, path, "section", section, page);
+    for (const section of sections)
+      addItem(
+        document,
+        path,
+        "section",
+        section,
+        page,
+        await localContext({ ...document.ste, ...section.ste }),
+      );
     const hasParagraphRules = manifest.rules.some(
       (rule) => rule.scope === "paragraph" && document.ruleIds.includes(rule.id),
     );
@@ -454,14 +587,30 @@ export async function buildWork(manifest, manifestPath) {
         sourceRange: sourceRange(page, 0, page.length),
         unavailable: true,
       });
-    for (const paragraph of paragraphs) addItem(document, path, "paragraph", paragraph, page);
-    addItem(document, path, "page", null, page);
+    for (const paragraph of paragraphs)
+      addItem(
+        document,
+        path,
+        "paragraph",
+        paragraph,
+        page,
+        await localContext({ ...document.ste, ...paragraph.ste }),
+      );
+    const pageContext = { ...document.ste };
+    if (
+      sections.some(
+        (section) =>
+          section.ste?.writingMode && section.ste.writingMode !== document.ste?.writingMode,
+      )
+    )
+      delete pageContext.writingMode;
+    addItem(document, path, "page", null, page, await localContext(pageContext));
   }
   return work;
 }
 
 function stateFor(item) {
-  return {
+  const state = {
     evidence: {
       document: {
         purpose: item.document.purpose,
@@ -480,6 +629,13 @@ function stateFor(item) {
           : null,
     },
   };
+  if (item.dictionaryEvidence) {
+    const evidence = state.evidence.local ?? state.evidence.page;
+    evidence.dictionaryCandidates = item.dictionaryEvidence;
+  }
+  if (item.nounEvidence?.length)
+    (state.evidence.local ?? state.evidence.page).nounGroupCounts = item.nounEvidence;
+  return state;
 }
 
 export function isNativeModel(model) {
@@ -770,6 +926,7 @@ export async function evaluate({
       engine: item.engine,
       templateConstraints: item.document.templateConstraints,
       sourceLanguage: item.document.sourceLanguage ?? null,
+      ...(item.nounEvidence?.length ? { nounGroupCounts: item.nounEvidence } : {}),
       sourceRange: item.section?.sourceRange ?? sourceRange(item.page, 0, item.page.length),
       section: item.section
         ? {
@@ -796,7 +953,7 @@ export async function evaluate({
                 findings: [],
                 reason: "No paragraph target is available.",
               }
-            : runMechanical(question.check, item.page, base.sourceRange)),
+            : runMechanical(question.check, item.page, base.sourceRange, item.ste)),
         })),
       };
     }
@@ -805,7 +962,7 @@ export async function evaluate({
         ...base,
         status: "deferred",
         reason: item.unavailable
-          ? "No paragraph target is available."
+          ? (item.unavailableReason ?? "No paragraph target is available.")
           : "Semantic checks are not executed in mechanical-only mode.",
         cache: null,
         answers: reportQuestions.map((question) => ({
@@ -869,11 +1026,31 @@ export async function evaluate({
         status: "complete",
         model: validated.model,
         usage: validated.usage,
-        answers: validated.answers.map((answer) => ({
-          ...answer,
-          questionId: item.questionMap[answer.questionId],
-          reviewRequired: reviewFor(answer, manifest.threshold),
-        })),
+        answers: validated.answers.map((answer) => {
+          const questionId = item.questionMap[answer.questionId];
+          const rule = manifest.rules.find(
+            (candidate) => candidate.id === item.questions[questionId].ruleId,
+          );
+          if (
+            answer.choice === "pass" &&
+            ((rule.requiresDictionaryEntries && !item.dictionaryCoverageComplete) ||
+              (rule.requiresNounGroupCounts && !item.nounCoverageComplete))
+          )
+            return {
+              type: "choice",
+              questionId,
+              choice: "insufficient_context",
+              confidence: 0,
+              reviewRequired: true,
+              origin: "evidence-guard",
+              providerAnswer: { ...answer, questionId },
+              reason:
+                rule.requiresNounGroupCounts && !item.nounCoverageComplete
+                  ? "A model pass cannot establish noun-group compliance while required local machine counts are unavailable."
+                  : "A model pass cannot establish dictionary-dependent compliance while local entries or parsing context are missing.",
+            };
+          return { ...answer, questionId, reviewRequired: reviewFor(answer, manifest.threshold) };
+        }),
         cache: { key, status: cacheStatus, reused, ray },
       };
     } catch (error) {

@@ -29,6 +29,50 @@ import {
 const execute = promisify(execFile);
 const script = fileURLToPath(new URL("./evaluate.mjs", import.meta.url));
 
+async function dictionaryFixture({ complete = false, vocabulary = true } = {}) {
+  const paths = await fixture();
+  await writeFile(
+    resolve(paths.directory, "guide.md"),
+    "Check the panel.\n\n# Elsewhere\n\nUnrelated evidence.\n",
+  );
+  const manifest = JSON.parse(await readFile(paths.manifestPath, "utf8"));
+  manifest.rules = [
+    {
+      id: "dictionary-context",
+      scope: "paragraph",
+      requiresDictionaryEntries: true,
+      instructions: "Evaluate the listed meaning and part of speech in this target.",
+      pass: "All target uses obey supplied entries.",
+      fail: "A supplied entry demonstrates a contextual violation.",
+    },
+  ];
+  manifest.documents[0].ruleIds = ["dictionary-context"];
+  manifest.documents[0].sections = [{ startLine: 1, endLine: 1 }];
+  manifest.documents[0].ste = vocabulary ? { vocabularyFile: "private-vocabulary.json" } : {};
+  const entry = (word, meaning) => ({
+    word,
+    approved: true,
+    partOfSpeech: "synthetic",
+    meaning,
+    forms: [],
+  });
+  const data = {
+    issue: 9,
+    source: "Original bounded source declaration for tests, not STE dictionary data.",
+    entries: [
+      entry("check", "Selected local meaning."),
+      entry("unrelated", "UNMATCHED-PRIVATE-MEANING"),
+      ...(complete
+        ? [entry("the", "Synthetic determiner."), entry("panel", "Synthetic object.")]
+        : []),
+    ],
+  };
+  if (vocabulary)
+    await writeFile(resolve(paths.directory, "private-vocabulary.json"), JSON.stringify(data));
+  await writeFile(paths.manifestPath, JSON.stringify(manifest));
+  return { ...paths, data };
+}
+
 const ACCOUNT_ID = "0123456789abcdef0123456789abcdef";
 const API_KEY = "test-gateway-key";
 const GATEWAY_ID = "test-gateway";
@@ -275,6 +319,189 @@ afterEach(async () => {
       .splice(0)
       .map((directory) => rm(directory, { recursive: true, force: true })),
   );
+});
+
+describe("private dictionary evidence boundaries", () => {
+  it("guards a provider pass when matched noun evidence contains an unsupported local group", async () => {
+    const paths = await dictionaryFixture({ vocabulary: false });
+    await writeFile(
+      resolve(paths.directory, "guide.md"),
+      "Check the upper status panel and panel (upper) assembly.\n",
+    );
+    const manifest = JSON.parse(await readFile(paths.manifestPath, "utf8"));
+    delete manifest.rules[0].requiresDictionaryEntries;
+    manifest.rules[0].requiresNounGroupCounts = true;
+    manifest.documents[0].ste = {
+      nounGroups: [
+        { text: "upper status panel", kind: "multi-word", source: "Original local role claim." },
+        {
+          text: "panel (upper) assembly",
+          kind: "new-technical",
+          source: "Original ambiguous role claim.",
+        },
+      ],
+    };
+    await writeFile(paths.manifestPath, JSON.stringify(manifest));
+    const { result: report, calls } = await withMock(paths, {}, () =>
+      evaluate({ ...paths, environment: CREDENTIALS }),
+    );
+    expect(calls).toHaveLength(1);
+    expect(
+      calls[0].payload.state.evidence.local.nounGroupCounts.map((entry) => [
+        entry.status,
+        entry.wordCount,
+      ]),
+    ).toEqual([
+      ["counted", 3],
+      ["insufficient_context", null],
+    ]);
+    expect(report.evaluations[0].nounGroupCounts).toEqual(
+      calls[0].payload.state.evidence.local.nounGroupCounts,
+    );
+    expect(report.evaluations[0].answers[0]).toMatchObject({
+      choice: "insufficient_context",
+      confidence: 0,
+      origin: "evidence-guard",
+      reviewRequired: true,
+      providerAnswer: { choice: "pass", confidence: 0.94, probabilities: { pass: 0.96 } },
+    });
+    expect(report.evaluations[0].answers[0].reason).toContain("machine counts");
+  });
+
+  it("allows source-declared technical terms to supply local contextual evidence without ordinary dictionary membership", async () => {
+    const paths = await dictionaryFixture({ complete: true });
+    await writeFile(resolve(paths.directory, "guide.md"), "Check the status panel.\n");
+    paths.data.technicalTerms = [
+      {
+        text: "status panel",
+        kind: "noun",
+        category: 19,
+        source: "Original company glossary fixture.",
+      },
+    ];
+    await writeFile(
+      resolve(paths.directory, "private-vocabulary.json"),
+      JSON.stringify(paths.data),
+    );
+    const { result: report, calls } = await withMock(paths, {}, () =>
+      evaluate({ ...paths, environment: CREDENTIALS }),
+    );
+    expect(calls).toHaveLength(1);
+    const candidate = calls[0].payload.state.evidence.local.dictionaryCandidates.candidates.find(
+      (entry) => entry.term === "status panel",
+    );
+    expect(candidate).toMatchObject({
+      membership: "unlisted",
+      records: [],
+      technicalRecords: paths.data.technicalTerms,
+    });
+    expect(report.evaluations[0].answers[0]).toMatchObject({
+      choice: "pass",
+      confidence: 0.94,
+      reviewRequired: false,
+    });
+  });
+
+  it("defers oversized selected dictionary evidence before credentials or billing", async () => {
+    const paths = await dictionaryFixture({ complete: true });
+    paths.data.entries[0].meaning = "x".repeat(50000);
+    await writeFile(
+      resolve(paths.directory, "private-vocabulary.json"),
+      JSON.stringify(paths.data),
+    );
+    const report = await evaluate({ ...paths, environment: {} });
+    expect(report).toMatchObject({ requestCount: 0, reviewRequired: true, incomplete: true });
+    expect(report.evaluations[0]).toMatchObject({
+      status: "deferred",
+      answers: [{ choice: "insufficient_context" }],
+    });
+  });
+
+  it("defers dictionary-dependent judgments without matched entries and without credentials or requests", async () => {
+    const paths = await dictionaryFixture({ vocabulary: false });
+    const report = await evaluate({ ...paths, environment: {} });
+    expect(report).toMatchObject({ requestCount: 0, incomplete: true, reviewRequired: true });
+    expect(report.evaluations[0]).toMatchObject({
+      status: "deferred",
+      answers: [{ choice: "insufficient_context", reviewRequired: true }],
+    });
+    expect(report.evaluations[0].reason).toContain("Required dictionary entries");
+  });
+
+  it("sends only target-matched records, no private path or unrelated records, and rejects an unsupported model pass", async () => {
+    const paths = await dictionaryFixture();
+    const { result: report, calls } = await withMock(paths, {}, () =>
+      evaluate({ ...paths, environment: CREDENTIALS }),
+    );
+    expect(calls).toHaveLength(1);
+    const payload = calls[0].payload;
+    const selected = payload.state.evidence.local.dictionaryCandidates;
+    expect(selected).toMatchObject({ issue: 9, source: paths.data.source });
+    expect(selected.candidates[0]).toMatchObject({
+      term: "Check",
+      membership: "approved-form",
+      records: [
+        {
+          word: "check",
+          approved: true,
+          partOfSpeech: "synthetic",
+          meaning: "Selected local meaning.",
+          listedForms: ["check"],
+        },
+      ],
+      sourceRange: { startLine: 1, endLine: 1, startByte: 0, endByte: 5 },
+    });
+    expect(JSON.stringify(selected)).not.toContain("UNMATCHED-PRIVATE-MEANING");
+    expect(JSON.stringify(payload)).not.toContain("private-vocabulary.json");
+    expect(Object.values(payload.questions)[0].instructions).toContain("never model memory");
+    expect(report.evaluations[0].answers[0]).toMatchObject({
+      choice: "insufficient_context",
+      confidence: 0,
+      origin: "evidence-guard",
+      reviewRequired: true,
+      providerAnswer: {
+        choice: "pass",
+        confidence: 0.94,
+        probabilities: { pass: 0.96, fail: 0.03, not_applicable: 0, insufficient_context: 0.01 },
+      },
+    });
+    expect(report.evaluations[0].answers[0].reason).toContain("model pass");
+  });
+
+  it("retains a calibrated contextual model result when every local token has declared evidence", async () => {
+    const paths = await dictionaryFixture({ complete: true });
+    const { result: report } = await withMock(paths, {}, () =>
+      evaluate({ ...paths, environment: CREDENTIALS }),
+    );
+    expect(report.evaluations[0].answers[0]).toMatchObject({
+      choice: "pass",
+      confidence: 0.94,
+      reviewRequired: false,
+    });
+  });
+
+  it("includes selected meanings in the cache key but excludes unmatched private entry changes", async () => {
+    const paths = await dictionaryFixture({ complete: true });
+    const { result: keys, calls } = await withMock(paths, {}, async () => {
+      const first = await evaluate({ ...paths, environment: CREDENTIALS });
+      paths.data.entries[1].meaning = "DIFFERENT-UNMATCHED-PRIVATE-MEANING";
+      await writeFile(
+        resolve(paths.directory, "private-vocabulary.json"),
+        JSON.stringify(paths.data),
+      );
+      const second = await evaluate({ ...paths, environment: CREDENTIALS });
+      paths.data.entries[0].meaning = "Different selected local meaning.";
+      await writeFile(
+        resolve(paths.directory, "private-vocabulary.json"),
+        JSON.stringify(paths.data),
+      );
+      const third = await evaluate({ ...paths, environment: CREDENTIALS });
+      return [first, second, third].map((report) => report.evaluations[0].cache.key);
+    });
+    expect(calls).toHaveLength(3);
+    expect(keys[0]).toBe(keys[1]);
+    expect(keys[2]).not.toBe(keys[1]);
+  });
 });
 
 describe("documentation quality evaluator public pipeline", () => {
