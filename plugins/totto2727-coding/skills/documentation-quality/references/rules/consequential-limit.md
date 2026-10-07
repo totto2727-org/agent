@@ -3,7 +3,9 @@
 ## Applicability and context
 
 Use `consequential-limit` when a developer-documentation passage describes a limitation affecting the reader's intended use or understanding.
-Establish where it applies, what it means for the reader, and any known available remedy or alternative.
+Establish where it applies, what it means for the reader, and any known available remedy or alternative using this page's evidence only.
+Do not inspect unseen destination content or invent a remedy.
+Preserve the required template structure.
 Review English source documents, not translated editions.
 Use these examples for follow-up review, not as samples or expected labels in blind model input.
 

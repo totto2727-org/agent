@@ -1,57 +1,80 @@
 # Running document evaluations
 
-Use Node.js 22 or later and `curl`.
+Use Node.js 22 or later.
 In this repository, prefix commands with `nix develop --command` to use the pinned environment.
-The evaluator does not install dependencies or obtain secrets for you.
-
-## Configure the gateway
-
-Use [cloudflare-ai](../../../../external-information/skills/cloudflare-ai/SKILL.md) for the already-configured environment variables, inference credentials, connection URLs, and billing rules.
-Use [decision-model](../../../../external-information/skills/decision-model/SKILL.md) for judgment design and model-specific limits.
-Do not put token values or connection credentials in a manifest.
-The evaluator uses the Cloudflare Decision Model routes described by cloudflare-ai, with no provider-direct fallback.
-Question and answer collections are keyed objects, not arrays.
-Respect the selected model's limits; Gateway and account limits may be lower.
-
-Set `manifest.model` to the model ID selected through cloudflare-ai.
-The report records the returned concrete model for every response so version changes are visible.
-Compare runs using the same resolved model when measuring a rule change.
+Mechanical checks need no model, credentials, or network.
+Semantic checks additionally require `curl` and the configured Cloudflare environment.
 
 ## Prepare a manifest
 
-Select English source documentation by default and exclude translated editions from `documents`.
-Review the English source before translation; assess translation fidelity and target-language correctness separately rather than applying this rubric again after translation.
-The evaluator does not automatically detect source language or translation status, so enforce this scope when preparing the manifest.
-
 Paths are relative to the manifest file unless absolute.
 Use exactly one of `rulesFile` or inline `rules`.
-The [bundled rules](rules.json) are a starting point, not a requirement to apply every rule to every document.
+Keep the [coverage record](coverage.md) with the report: the bundled catalog does not cover the full standard.
 
 ```json
 {
-  "model": "<selected-decision-model>",
-  "threshold": 0.8,
+  "model": "clef-flash",
+  "englishOnly": true,
+  "templateConstraints": ["Preserve required headings, order, sections, and exact identifiers."],
   "rulesFile": "../../plugins/totto2727-coding/skills/documentation-quality/references/rules.json",
   "documents": [
     {
       "id": "guide",
       "path": "../../docs/guide.md",
+      "sourceLanguage": "en",
       "purpose": "Create a project and run its default page.",
-      "audience": "Developers using the public package.",
-      "ruleIds": ["consumer-contract", "focused-unit", "reader-route"]
+      "audience": "Beginner users of the package, including programmers consuming its API.",
+      "ruleIds": ["code-fence-language", "audience-boundary", "ste-faq-procedural-instructions"]
     }
   ]
 }
 ```
 
-This example assumes a manifest in `<repository>/tmp/review/`; adjust paths for the installed skill and your repository.
-Replace the model template with the selected model ID before running the evaluator.
-Add more entries to `documents` to evaluate many documents through the same worker pool.
-Optional `context` is a string containing relevant external evidence, such as excerpts from linked setup guides.
-Do not put expected verdicts, preferred revisions, or editorial instructions in evidence.
+This example assumes a manifest in `<repository>/tmp/review/`.
+Adjust paths for the installed skill and target repository.
+Replace the example model with the supported model selected through cloudflare-ai; the example is not a cost or accuracy recommendation.
+A mixed semantic plan requires a selected model, while `--mechanical-only` does not.
+When `englishOnly` is true, declare `sourceLanguage` for every entry.
+Non-English entries are excluded with an explicit reason instead of being evaluated as English or silently counted as passes.
+Language metadata is a declaration, not automatic language detection.
+Review translation fidelity separately against the English source.
+Document-level `templateConstraints` supplement the manifest-level constraints.
+Do not place expected verdicts, labeled examples, secrets, or instructions to override the rubric in the metadata.
 
-By default, the evaluator uses Markdown heading sections and preserves fenced code.
-For selected paragraph groups, supply inclusive one-based source ranges:
+Apply all applicable verified rules when reviewing a document.
+Use `ruleIds` only to select a deliberate review boundary and report that boundary, not to suppress inconvenient failures.
+
+## Define rules
+
+A rule's scope is `page`, `section`, or `paragraph`.
+Cross-page or document-set scopes are not supported.
+Source metadata identifies the actual standard-derived guidance or supplementary principle.
+
+A mechanically decidable property belongs in a mechanical rule:
+
+```json
+{
+  "id": "code-fence-language",
+  "scope": "page",
+  "engine": "mechanical",
+  "check": { "kind": "fenced-code-language" },
+  "source": { "kind": "supplement", "reference": "project Markdown convention" }
+}
+```
+
+For exact project vocabulary restrictions, use `check.kind: "prohibited-terms"`, `terms`, optional `protectedTerms`, and optional `caseSensitive`.
+This is a literal token check, not a guessed STE dictionary.
+See [mechanical boundaries](rules/mechanical.md).
+
+A contextual rule uses `engine: "decision"` and supplies `instructions`, `pass`, and `fail`.
+Legacy contextual definitions without `engine` default to `decision`.
+Keep questions local and typed; do not ask the model to execute commands, verify another page, count a mechanically decidable property, or generate a correction as an authoritative result.
+
+## Select source units
+
+The runner selects heading sections and coherent paragraphs from the actual source.
+Preserve code, tables, lists, warnings, and their explanations as complete units.
+For deliberate inclusive one-based ranges, add `sections` to the document entry:
 
 ```json
 {
@@ -66,72 +89,85 @@ For selected paragraph groups, supply inclusive one-based source ranges:
 }
 ```
 
-Add this field to a document entry, not to the manifest root.
-The runner extracts the actual source range rather than accepting an unrelated replacement string.
-Inspect the selected range to keep paragraphs, tables, lists, warnings, and their explanations complete.
-Fenced code must not be cut in half.
-Explicit selections evaluate only those sections, while page rules still examine the complete page.
-
-Each request contains the reader purpose, audience, selected unit, heading context, and complete page.
+Inspect the selected source range and do not split a fence or another necessary representation.
+Page rules still inspect the complete page.
+The request supplies the target unit and same-page context, not evidence from another document.
+Nonempty legacy `context` is rejected.
+Move task metadata to `purpose`, `audience`, and `templateConstraints`, and keep external evidence in a separate review instead of the local request.
 Large evidence is rejected rather than silently truncated.
-The byte guard is not a tokenizer or a guarantee that a provider's token limit will be met.
-For a long page, choose coherent smaller source documents with the context they need, or use a reasoning reviewer instead.
+A byte guard is not a tokenizer or proof that the provider's token limit will be met.
+For oversized pages, use a reasoning reviewer or a genuinely independent smaller source unit rather than a copied fragment presented as a complete page.
 
-## Inspect before sending
+## Run without inference
 
-Create the output directory, then run:
+Create the output directory, then inspect a plan:
 
 ```bash
 node plugins/totto2727-coding/skills/documentation-quality/scripts/evaluate.mjs \
   --manifest tmp/review/manifest.json \
   --output tmp/review/plan.json \
-  --concurrency 4 \
   --dry-run
 ```
 
-Dry runs do not require gateway credentials and do not make network calls.
-Inspect the planned ranges, evidence, requests, and questions before authorizing a live run.
-Confirm that both the gateway and its configured model provider may receive the document contents.
-Do not publish the plan if its source text is private.
+Run actual mechanical checks without model credentials:
 
-Remove `--dry-run` and choose a new report path to evaluate through the configured Cloudflare route.
-Concurrency defaults to 4 and is bounded; raising it is not permission to exceed the account's rate limit.
-Do not retry `401`, `402`, or `403` by changing models, accounts, credentials, or billing routes.
-On these fatal responses the evaluator stops starting queued requests, records the failed item as `error` and unsent work as `skipped`, and retains a review-required report.
-Already-in-flight requests may finish; skipped work is not a pass.
-Every Gateway request includes the cache key, TTL, and skip-cache headers described by cloudflare-ai, and the evaluator selects a long TTL so identical document evaluations reuse a stable cached judgment.
-Equivalent work in one run shares a single pending or completed request, including failure outcomes.
-The evaluator makes one client attempt per logical request and does not automatically retry transient responses or timeouts; this describes only the evaluator's own client behavior, and it sends no request-level retry override, leaving the Gateway's configured retry behavior unchanged.
-Authentication, billing, incomplete-job, or malformed-response failures are not accepted as judgments.
+```bash
+node plugins/totto2727-coding/skills/documentation-quality/scripts/evaluate.mjs \
+  --manifest tmp/review/manifest.json \
+  --output tmp/review/mechanical.json \
+  --mechanical-only
+```
+
+Dry runs plan work; they do not establish acceptance.
+Mechanical-only runs execute mechanical rules and retain semantic checks as deferred, `insufficient_context`, and review-required.
+A mixed catalog cannot receive overall semantic acceptance from this mode.
+
+## Configure semantic inference
+
+Use [decision-model](../../../../external-information/skills/decision-model/SKILL.md) for judgment design and task-specific calibration.
+Use [cloudflare-ai](../../../../external-information/skills/cloudflare-ai/SKILL.md) for current model selection, credentials, account and Gateway configuration, and billing rules.
+Set `manifest.model` only for the selected supported Decision Model.
+The evaluator uses Cloudflare's documented native or universal Decision Model route.
+Even when a model identifier names another provider, do not operate that provider directly or add a provider-direct fallback.
+Question and answer collections are keyed objects.
+The report records the returned concrete model; keep that model stable when comparing rubric changes.
+
+Do not copy a universal confidence threshold from an example.
+Calibrate `manifest.threshold` against independently labeled representative success, failure, ambiguity, and boundary cases for the intended task and model.
+Without a threshold, semantic judgments remain `uncalibrated` and require review even when the selected answer is `pass`.
+A configured number alone does not establish calibration quality.
+
+Inspect the dry-run ranges, rules, exclusions, and requests before sending private content.
+Confirm that the configured Gateway and model provider may receive the selected contents.
+Remove `--dry-run`, choose a new report path, and use bounded concurrency; the default is 4.
+Do not exceed account or model limits.
+
+Every inference request includes the Gateway cache key, TTL, and skip-cache headers described by cloudflare-ai.
+Equivalent work in a run shares one operation; only an observed Gateway `HIT` proves a remote cache hit.
+The evaluator makes one client attempt per logical request and does not override the Gateway's configured retry behavior.
+For `401`, `402`, or `403`, it stops queued inference work, retains errors and skipped work, and does not change model, account, credentials, or billing route.
+Already-in-flight work may finish.
+Incomplete, malformed, authentication, or billing responses are not judgments.
 
 ## Read the report
 
-The report retains document and rule identities, scope, source ranges, typed answers, probabilities, resolved model, and errors.
-Cache metadata records the equivalence key, the response's cache status, and whether another item reused the same operation.
-Only an observed Gateway `HIT` establishes a cache hit; sharing a local operation is a separate form of reuse.
-Source IDs and file paths are report metadata, not hints about the expected verdict.
-A Choice's confidence and its selected option's probability are different fields; do not assume they are equal.
+The report retains rule and document identities, source metadata, engine, scope, ranges, template constraints, exclusions, answers, probabilities, concrete model, and errors.
+A Choice's confidence and its selected option's probability are different fields.
+Mechanical evidence and deferred semantic results remain distinguishable.
 
-| Process exit | Meaning                                                                                            |
-| ------------ | -------------------------------------------------------------------------------------------------- |
-| `0`          | Dry run completed, or every submitted live check passed above the threshold                        |
-| `1`          | At least one live result failed, abstained, had low confidence, or encountered an evaluation error |
-| `2`          | The manifest, environment, source ranges, output path, or invocation could not be prepared         |
+| Process exit | Meaning                                                                                                                                      |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `0`          | Planning completed, or all executed checks satisfied the configured acceptance conditions                                                    |
+| `1`          | At least one result requires review, including a defect, deferred or uncalibrated judgment, abstention, low confidence, or execution failure |
+| `2`          | Preparation failed because of the manifest, environment, ranges, paths, or invocation                                                        |
 
-A successful dry run is not an acceptance result.
-`not_applicable` and `insufficient_context` stay visible for review rather than silently reducing the coverage denominator.
+Match `answers[].questionId` to `questions[].id` and use `questions[].rule.id` to open the [rule guide](rules.md).
+Inspect the actual source before changing it.
+Do not infer a rationale that the model did not provide, average away a critical failure, or count missing coverage as a pass.
+For `error` or `skipped`, resolve the execution problem instead of rewriting prose.
+Keep earlier reports under ignored `tmp/` and choose a new path for each run.
 
-For a failing or uncertain answer, match `answers[].questionId` to `questions[].id` within the same evaluation and use its `rule.id` in the [rule index](rules.md).
-Read only that rule's guide, then compare the actual source range and page context with its example and exceptions.
-Do not send the guide's labeled samples back as evidence in a blind evaluation or infer a rationale that the Decision Model did not return.
-Keep `not_applicable`, `insufficient_context`, low confidence, and missing results separate from positive passes; do not average away a critical failure.
-
-For an evaluation with `status: "error"` or `status: "skipped"`, inspect its `error` field and the Gateway or response validation failure rather than editing document prose.
-Resolve access or request-format problems through the configured gateway, without bypassing authentication or silently accepting missing answers.
-If preparation exits `2`, correct the manifest, environment, source range, or output path before retrying.
-Keep earlier reports and use a new output path so a failed run remains inspectable.
-
-## Validate the local implementation
+## Validate implementation and use
 
 ```bash
 nix develop --command vp test run plugins/totto2727-coding/skills/documentation-quality/scripts
@@ -139,6 +175,7 @@ nix develop --command vp check
 git diff --check
 ```
 
-The local tests validate segmentation, request/response boundaries, aggregation, and failure behavior with controlled transport.
-They do not prove a Decision Model's semantic accuracy or Gateway availability.
-A live evaluation against independently labeled examples supplies separate evidence of accuracy for those examples and the returned model.
+Maintained tests verify local segmentation, engines, metadata, transport boundaries, aggregation, and failure behavior.
+They do not prove standard coverage, inference availability, semantic accuracy, executable examples, or site rendering.
+Apply the public CLI to actual project files and run the affected project's real content, build, and browser checks separately.
+Report exactly which checks passed and which acceptance requirements remain blocked.

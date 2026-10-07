@@ -1,37 +1,152 @@
 [
   {
+    "id": "code-fence-language",
+    "engine": "mechanical",
+    "scope": "page",
+    "check": { "kind": "fenced-code-language" },
+    "source": {
+      "kind": "supplement",
+      "reference": "documentation-principles#project-conventions-and-markdown"
+    }
+  },
+  {
     "id": "consumer-contract",
+    "engine": "decision",
     "scope": "section",
-    "instructions": "Judge relevance to the stated audience and the target unit's purpose, using its heading and surrounding page. Does each substantive part help the reader act, understand, decide, or look up the information they need? Decide whether historical context belongs by the document's purpose and reader's needs. Documents about the current state or how to act now should state current supported behavior, requirements, or recommendations, with concrete grounds when necessary to understand or apply them. Flag change chronology, retired names, past decisions, incident narratives, and commit-recoverable information that adds no current reader value. A historical choice or event alone does not justify a current rule. Preserve lessons as current conclusions, applicability, and grounds instead of narrating their origin. Necessary compatibility constraints and actions belong as current guidance, not as history. Preserve relevant history when recording or analyzing the sequence of events or decisions is essential to the deliverable, as in change records, architectural decision records, or incident investigations. Implementation details, rationale, and operational constraints are appropriate when they serve the reader's purpose; technical terminology is not itself a defect. An otherwise useful passage does not excuse an unrelated aside. Judge the reader's needs rather than assuming every reader is an application user. Return insufficient_context when decisive audience or purpose information is missing.",
-    "pass": "The unit's content supports its intended reader's task or understanding, including any necessary technical detail or rationale.",
-    "fail": "The unit includes explanation, repetition, or background that adds no useful information for its stated reader and purpose."
+    "source": {
+      "kind": "supplement",
+      "reference": "documentation-principles#state-current-guidance-and-its-grounds"
+    },
+    "instructions": "Judge only the target unit's relevance to the declared reader and purpose. For guidance about the current state, retain supported behavior, requirements, recommendations, and necessary concrete grounds. A past decision or incident alone does not justify a current requirement. Flag history, repetition, or implementation detail that adds no value to that reader. Retain chronology when recording or analyzing it is the document's purpose, including ADRs, changelogs, and incident investigations. Preserve required template sections and judge their content, not whether a different document structure would be preferable. Do not assess another page or verify external facts. Return insufficient_context when audience or purpose cannot be established.",
+    "pass": "The content serves the declared reader and purpose, with any history or grounds justified by that purpose.",
+    "fail": "The unit includes material that does not serve its reader or treats history alone as current justification."
+  },
+  {
+    "id": "audience-boundary",
+    "engine": "decision",
+    "scope": "section",
+    "source": {
+      "kind": "supplement",
+      "reference": "documentation-principles#serve-a-readers-purpose"
+    },
+    "instructions": "Distinguish beginner users, intermediate users, advanced users, and developers of the subject itself. Split the last group into contributors and maintainers only when their tasks differ. A programmer consuming a library or API is its user, not its developer. Judge the selected unit against the declared group and assumed knowledge. Beginner and intermediate guidance must not expose implementation internals unless the knowledge is indispensable to correct use. In that case, prefer necessary behavior, conditions, and consequences; an underlying mechanism is justified only when those facts are insufficient. Technical public interfaces required by the task are not automatically internals. Advanced users may need internals without contributing to the subject. Respect imposed structure and do not demand all groups in every page, a generic audience paragraph, or a new heading. Use only this page and declared task metadata. Return insufficient_context for an unresolved audience or indispensable-knowledge question.",
+    "pass": "The unit serves its intended group without requiring it to filter out another group's unnecessary content.",
+    "fail": "The unit conflates users with subject developers or exposes unnecessary internals to beginner or intermediate users."
   },
   {
     "id": "actionable-example",
+    "engine": "decision",
     "scope": "section",
-    "instructions": "When understanding or carrying out the target requires a concrete demonstration, does the supplied page provide one with the necessary inputs, steps or relationships, and result or interpretation relevant to its purpose? A demonstration may use commands, configuration, code, input/output, a worked example, or a diagram with appropriate explanation. Choose by reader need, not by a preferred technology or format. Naming an operation or saying to configure something is insufficient when the necessary operation remains unexplained. Existing context can supply unchanged setup. Return not_applicable for a self-sufficient fact, navigation, warning, or general principle that does not need a demonstration. Return insufficient_context if a decisive referenced example or prerequisite cannot be inspected.",
-    "pass": "The needed operation or mechanism is demonstrated concretely enough for the stated reader, using a suitable form and explicit context.",
-    "fail": "The target requires a demonstration but provides only abstract descriptions, unexplained placeholders, or an example missing the essential steps, relationships, or outcome."
+    "source": {
+      "kind": "supplement",
+      "reference": "documentation-principles#treat-code-and-diagrams-as-substantive-documentation"
+    },
+    "instructions": "When the target needs a demonstration, judge the local code, commands, configuration, input/output, table, or diagram together with its explanation. It must show the inputs, relationships or actions, and result or interpretation needed for the task. A substantive representation can supply the main answer without redundant prose. Preserve runnable syntax and quoted output rather than applying English language rules to them. Do not verify an external API, execute code, or inspect a linked page. A deliberately delegated demonstration is not automatically missing; if the judgment depends on its unseen content, return insufficient_context. Return not_applicable when the fact, warning, principle, or navigation is self-sufficient without a demonstration.",
+    "pass": "The supplied representation and context demonstrate what the intended reader needs without redundant prose.",
+    "fail": "A necessary local demonstration is abstract, unexplained, or missing an essential input, action, relationship, or result."
   },
   {
     "id": "consequential-limit",
+    "engine": "decision",
     "scope": "section",
-    "instructions": "When the target communicates a limitation that affects the reader's intended use, does it identify the affected condition or behavior, its observable consequence, and a remedy or alternative when one is known and available? Keep the scope precise and the information near the affected decision; necessary context may be explicitly supplied by the surrounding page. Do not infer consequences solely from implementation terms, invent a remedy, or require a workaround when none exists. Return not_applicable if no consequential limitation is discussed. Return insufficient_context if decisive behavior or context needed to assess an asserted limitation is unavailable.",
-    "pass": "The reader can identify when the limitation applies, what it changes, and what to do when an available next action exists, with appropriate prominence.",
-    "fail": "A consequential limitation obscures its applicability or effect, overstates its scope, or omits a known available next action needed by the reader."
+    "source": {
+      "kind": "supplement",
+      "reference": "documentation-principles#verify-claims-against-their-evidence"
+    },
+    "instructions": "For a limitation communicated in the selected unit, identify its affected condition or behavior, observable consequence, and available next action when the page establishes one. This checks the content of a limitation, not a second definition of STE language rules. Do not invent a remedy, infer behavior from implementation names, require a nonexistent workaround, or judge an unseen linked document. Return not_applicable if no consequential limitation is communicated. Return insufficient_context if the supplied page does not establish a fact required to judge the claimed limitation.",
+    "pass": "The local limitation states its applicability, consequence, and known available next action accurately within the supplied evidence.",
+    "fail": "The limitation obscures or overstates its local applicability or effect, or omits a next action established as necessary and available in the supplied page."
   },
   {
     "id": "focused-unit",
+    "engine": "decision",
     "scope": "section",
-    "instructions": "Evaluate the target unit's own coherent reader question in the context of the page purpose and headings. Do its parts contribute necessary information without redundant framing or unrelated detours? A document may contain several related tasks; do not require every section to perform the entire document's task. Keep prerequisites, constraints, explanations, and useful onward links that serve the unit. A short paragraph, list, or diagram needs no generic introduction or summary. Return insufficient_context when missing purpose or neighboring material prevents a relevance judgment.",
-    "pass": "The unit answers a coherent reader question without unnecessary repetition or detours, at whatever length its purpose requires.",
-    "fail": "The unit mixes independent tasks without a useful relationship, repeats information without added value, or includes filler that can be removed without losing necessary context."
+    "source": {
+      "kind": "supplement",
+      "reference": "documentation-principles#serve-a-readers-purpose"
+    },
+    "instructions": "Judge whether the selected unit answers a coherent question for its intended reader. Keep necessary prerequisites, constraints, representations, and explanation together. Flag unrelated tasks, redundant framing, or removable repetition, not technical detail required by that audience. Do not impose a word count or require an introduction and summary around a self-sufficient unit. Preserve fixed template headings, order, and sections; recommend content corrections within them rather than restructuring the template. Judge only this unit in its page context.",
+    "pass": "The unit answers its reader's question without unrelated content or unnecessary repetition.",
+    "fail": "The unit mixes unrelated reader tasks or contains repetition or framing that adds no useful information."
   },
   {
     "id": "reader-route",
+    "engine": "decision",
     "scope": "page",
-    "instructions": "For a page that guides action, develops an explanation, or helps readers find related guidance, can the stated reader follow a coherent route to the intended outcome? Check that prerequisites appear before they are needed, steps and decisions are ordered clearly, and links lead to the appropriate level of guidance. Explain a documented normal path before optional branches when such a path exists, but do not invent a default or require a particular tool, automation method, environment, or document layout. Judge delegated prerequisites using supplied destination evidence, not assumptions. Return not_applicable for an isolated factual entry or a lookup-only reference with no meaningful ordering or navigation responsibility. Return insufficient_context when a decisive destination or required prerequisite is unseen.",
-    "pass": "The page provides an understandable route for its stated purpose, with usable ordering, clear choices, and prerequisites available at the relevant point.",
-    "fail": "The page requires avoidable detours, introduces necessary prerequisites too late, presents competing or circular instructions, or leaves the reader to reconstruct the route from disconnected guidance."
+    "source": {
+      "kind": "supplement",
+      "reference": "documentation-principles#maintain-document-ownership-and-navigation"
+    },
+    "instructions": "Judge only the route visible within this page: locally stated prerequisites, ordered actions, choices, and descriptions of onward links. Present a documented normal path before optional branches when one exists, without inventing a default or requiring a different template. Respect required headings and order, and judge whether their content supplies the necessary route. Do not judge whether a link works, whether its destination contains enough guidance, canonical ownership, or cross-page duplication; these are outside this automated check. If a decisive prerequisite or destination is unseen, return insufficient_context instead of asserting a defect. Return not_applicable for an isolated lookup entry with no navigation or ordering responsibility.",
+    "pass": "The locally supplied content provides a coherent route and clearly identifies the next action or onward guidance.",
+    "fail": "The page's own instructions introduce necessary local prerequisites too late or contain competing, circular, or disconnected actions."
+  },
+  {
+    "id": "visual-role",
+    "engine": "decision",
+    "scope": "section",
+    "source": {
+      "kind": "supplement",
+      "reference": "documentation-principles#project-conventions-and-markdown"
+    },
+    "instructions": "When the target contains materially different content roles, judge whether its Markdown presentation makes instructions, warnings, examples, and reference information easy to distinguish. Use project formatting constraints first. Code, tables, diagrams, lists, and GitHub alerts can communicate the distinctions. Do not demand an alert or another decoration merely because the feature exists; a self-sufficient existing representation is acceptable. Do not inspect rendering on a different page or claim a renderer supports a feature without local evidence. Respect the template's structure and exact quoted material. Return not_applicable when no meaningful visual distinction is needed.",
+    "pass": "Meaningful content roles are distinguishable using the permitted visual forms without decorative or repeated emphasis.",
+    "fail": "Different consequential roles are buried in undifferentiated prose despite an available permitted form, or formatting obscures their meaning."
+  },
+  {
+    "id": "ste-faq-procedural-instructions",
+    "engine": "decision",
+    "scope": "paragraph",
+    "source": {
+      "kind": "official-faq",
+      "url": "https://www.asd-ste100.org/STE_faq.html",
+      "edition": "Issue 9",
+      "coverage": "public-guidance-only"
+    },
+    "instructions": "This check implements the official STE FAQ's published procedural-writing guidance, not the full standard. In procedural prose, give a direct instruction to the reader with the imperative form instead of passive or narrative instructions. Evaluate prose only, not executable syntax, exact identifiers, quotes, or a description of system behavior that is not an instruction. Preserve fixed template structure. A locally recorded unavoidable exact-wording constraint requires review, not an automatic waiver. Return not_applicable for nonprocedural prose, and insufficient_context if applicability or an asserted exception requires an unavailable part of the standard.",
+    "pass": "The procedural prose directly tells the reader what to do in imperative form.",
+    "fail": "An actual work instruction is expressed as narrative or passive prose rather than a direct command."
+  },
+  {
+    "id": "ste-faq-active-description",
+    "engine": "decision",
+    "scope": "paragraph",
+    "source": {
+      "kind": "official-faq",
+      "url": "https://www.asd-ste100.org/STE_faq.html",
+      "edition": "Issue 9",
+      "coverage": "public-guidance-only"
+    },
+    "instructions": "Apply the official STE FAQ's descriptive-writing guidance: use active voice; passive voice is permitted when the agent is unknown. Judge descriptive prose, not procedural instructions, code, identifiers, exact output, or protected quotes. Distinguish an agent actually unknown in the supplied evidence from one merely omitted by the writer. Do not invent an agent or rewrite verified behavior. Return not_applicable outside descriptive prose, and insufficient_context when agent knowledge or a purported standard exception cannot be established.",
+    "pass": "The description uses active voice or the supplied evidence supports an unknown-agent passive construction.",
+    "fail": "Descriptive prose uses passive voice although its agent is known in the supplied evidence and no applicable exception is established."
+  },
+  {
+    "id": "ste-faq-condition-first",
+    "engine": "decision",
+    "scope": "paragraph",
+    "source": {
+      "kind": "official-faq",
+      "url": "https://www.asd-ste100.org/STE_faq.html",
+      "edition": "Issue 9",
+      "coverage": "public-guidance-only"
+    },
+    "instructions": "Apply the official STE FAQ's conditional-work-step guidance: a condition the reader must know before doing the work belongs before the instruction or consequence that depends on it. Do not turn this into a rule that every conditional clause must always come first. Judge the selected paragraph using its page context, preserve exact code and quotes, and do not invent missing operational conditions. Return not_applicable when no such pre-action condition is expressed, and insufficient_context when the need to know the condition before action cannot be established locally.",
+    "pass": "The necessary pre-action condition precedes the instruction or consequence it governs.",
+    "fail": "A condition required before action is disclosed only after the dependent instruction or consequence."
+  },
+  {
+    "id": "ste-faq-one-topic",
+    "engine": "decision",
+    "scope": "paragraph",
+    "source": {
+      "kind": "official-faq",
+      "url": "https://www.asd-ste100.org/STE_faq.html",
+      "edition": "Issue 9",
+      "coverage": "public-guidance-only"
+    },
+    "instructions": "Apply the official STE FAQ's one-topic-per-sentence guidance to prose sentences in the selected paragraph. A necessary condition, explanation, or consequence belonging to the same topic is not an independent topic. Do not impose an unverified sentence-length limit, a paragraph topic limit, or a ban on every conjunction. Exclude code, formulas, exact output, protected quotes, headings, and labels from sentence judgments. Return not_applicable when no prose sentence can be judged, and insufficient_context for a purported exception whose basis is unavailable.",
+    "pass": "Each prose sentence communicates one coherent topic with its necessary dependent context.",
+    "fail": "A prose sentence combines independent topics that the intended reader must disentangle."
   }
 ]

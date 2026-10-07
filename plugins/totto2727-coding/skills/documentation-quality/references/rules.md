@@ -1,33 +1,63 @@
 # Rule index
 
-Select a rule by the reader's task and the evidence available.
-Open its guide only when needed to interpret a finding or resolve uncertainty; do not load every example for a normal review.
-These checks cover selected [documentation principles](../../documentation-principles/SKILL.md), not every aspect of documentation quality.
-Apply them across developer guides, references, design explanations, and operational procedures without requiring a particular stack, tool, or document layout.
+Apply every applicable verified rule to English source content within its required structure.
+These checks operate on one page or a unit within that page.
+Read the [coverage record](coverage.md) before making a compliance claim.
 
-| Rule and follow-up guide                            | Scope   | Evidence needed                                                |
-| --------------------------------------------------- | ------- | -------------------------------------------------------------- |
-| [consumer-contract](rules/consumer-contract.md)     | Section | Reader purpose, audience, and necessary technical context      |
-| [actionable-example](rules/actionable-example.md)   | Section | Operation or mechanism and any supporting examples or setup    |
-| [consequential-limit](rules/consequential-limit.md) | Section | Affected behavior, observable consequence, known remedy        |
-| [focused-unit](rules/focused-unit.md)               | Section | The unit's question and neighboring explanation                |
-| [reader-route](rules/reader-route.md)               | Page    | Complete page, intended outcome, relevant destination excerpts |
+## Mechanical checks
+
+| Rule                                           | Scope                       | Property                                              |
+| ---------------------------------------------- | --------------------------- | ----------------------------------------------------- |
+| [code-fence-language](rules/mechanical.md)     | Page                        | Each fenced code block declares a language            |
+| [Custom prohibited terms](rules/mechanical.md) | Page, section, or paragraph | Exact project-defined tokens outside protected syntax |
+
+The second check is available for explicit project restrictions and is not enabled by the bundled catalog.
+Neither check needs a model or credentials.
+Neither establishes code correctness, rendering support, or the full STE dictionary.
+
+## Published STE guidance
+
+These IDs identify FAQ-derived checks, not numbered rules of the complete standard.
+Their executable source metadata preserves that distinction.
+
+| Rule                              | Scope     | Follow-up                                                                                 |
+| --------------------------------- | --------- | ----------------------------------------------------------------------------------------- |
+| `ste-faq-procedural-instructions` | Paragraph | [Direct procedural instructions](rules/ste-faq.md#direct-procedural-instructions)         |
+| `ste-faq-active-description`      | Paragraph | [Active descriptions](rules/ste-faq.md#active-descriptions)                               |
+| `ste-faq-condition-first`         | Paragraph | [Necessary conditions before action](rules/ste-faq.md#necessary-conditions-before-action) |
+| `ste-faq-one-topic`               | Paragraph | [One topic per sentence](rules/ste-faq.md#one-topic-per-sentence)                         |
+
+## Supplementary principles
+
+These checks address documentation needs not settled by the language guidance.
+Do not introduce overlapping language requirements through them.
+
+| Rule                                                | Scope   | Evidence needed                                                  |
+| --------------------------------------------------- | ------- | ---------------------------------------------------------------- |
+| [consumer-contract](rules/consumer-contract.md)     | Section | Reader purpose and relevance of current guidance or history      |
+| [audience-boundary](rules/audience-boundary.md)     | Section | Intended reader group and indispensable task knowledge           |
+| [actionable-example](rules/actionable-example.md)   | Section | Necessary representation, inputs, actions, and interpretation    |
+| [consequential-limit](rules/consequential-limit.md) | Section | Locally stated applicability, consequence, and known next action |
+| [focused-unit](rules/focused-unit.md)               | Section | A coherent reader question within the required structure         |
+| [reader-route](rules/reader-route.md)               | Page    | Prerequisites, steps, and onward descriptions on this page only  |
+| [visual-role](rules/visual-role.md)                 | Section | Consequential content roles and allowed presentation forms       |
 
 ## Resolve a finding
 
-Match the report's `answers[].questionId` to `questions[].id` in the same evaluation, then use `questions[].rule.id` to select the guide above.
-Each guide contains a contextual anti-pattern, an improved sample, and exceptions to check before editing.
-For a custom rule not listed here, use that rule's supplied definition and review evidence rather than guessing a bundled equivalent.
-If the problem is missing context, obtain that context rather than copying an example into the document.
+Match `answers[].questionId` to `questions[].id`, then select the guide by `questions[].rule.id`.
+Mechanical evidence gives the checked source location; semantic answers are typed judgments, not verified rationales.
+Compare every proposed correction with the actual passage, required structure, public contract, and verified rule source.
+Examples explain applicability but do not establish model accuracy or prescribe mandatory wording.
 
-## Decision Model boundaries
+Keep defects, `not_applicable`, `insufficient_context`, deferred checks, uncalibrated passes, exclusions, and request errors separate.
+Missing evidence requires evidence, not an invented correction.
+Record unavoidable exception candidates with the precise rule, passage, operational reason, and smallest relaxation, and leave them unchanged pending approval.
 
-These rules assess a page or a meaningful unit within it, not the architecture or maintenance ownership of a documentation set.
-Cross-document duplication and canonical ownership require a separate document-set review and are not bundled Decision Model checks.
+## Excluded script scope
 
-The executable definitions live in [rules.json](rules.json); the linked Markdown examples are for follow-up review, not automatic model input.
-Keep `fail`, low confidence, `not_applicable`, `insufficient_context`, and infrastructure errors distinct from a positive pass.
-The [execution guide](running.md#read-the-report) explains report fields and errors.
+Do not automate cross-page duplication, canonical ownership, destination content, translation fidelity, working links, external API accuracy, or executable behavior through this evaluator.
+These require separate source, renderer, runtime, or document-set checks.
+A local rule cannot pass or fail unseen material merely because its page contains a link.
 
-The rubric is advisory: a high-confidence judgment can still be wrong.
-Examples explain the intended decision but do not establish model accuracy.
+The executable catalog is [rules.json](rules.json).
+The [execution guide](running.md#read-the-report) describes manifest boundaries, engines, calibration, and failures.

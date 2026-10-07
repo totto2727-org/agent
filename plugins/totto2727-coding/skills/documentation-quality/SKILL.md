@@ -1,43 +1,69 @@
 ---
 name: documentation-quality
 description: >-
-  Review developer documentation across languages, tools, and project types, with on-demand anti-patterns and examples.
-  Use for documentation quality checks and optional parallel Decision Model evaluation through Cloudflare AI.
-  Apply primarily to English source documentation, not translated editions.
-  Use documentation-principles for writing principles and share-artifact for document formats.
-compatibility: Node.js 22 or later and curl for the optional evaluator. Live checks require the configured Cloudflare environment from cloudflare-ai.
+  Review English source documentation against ASD-STE100 and supplementary documentation principles.
+  Use local mechanical checks for decidable rules and Cloudflare Decision Models only for contextual judgments.
+  Exclude cross-page judgments from scripted review and review translations separately.
+compatibility: Node.js 22 or later. Semantic evaluation additionally requires curl and the configured Cloudflare environment from cloudflare-ai.
 ---
 
 # Documentation Quality
 
-Apply [documentation-principles](../documentation-principles/SKILL.md) to the reader's task, not a document-length target.
-Select criteria by the document's purpose rather than a particular technology or development workflow.
-Review English source documentation by default and exclude translated editions from evaluations.
-Translation fidelity, source accuracy, runnable examples, and working links require separate checks.
+Apply [documentation-principles](../documentation-principles/SKILL.md) with ASD-STE100 as the strict default, not an optional selection of writing tips.
+Apply all applicable, verified rules to the content within the required document structure.
+Preserve template headings, order, sections, identifiers, and exact executable or quoted material.
+A structural constraint is not a blanket exemption for the prose inside it.
+
+> [!IMPORTANT]
+> The bundled catalog currently implements verified public STE FAQ guidance and supplementary principles, not the complete Issue 9 standard.
+> Read the [coverage record](references/coverage.md) before reporting compliance.
+> Do not invent standard rule numbers, dictionary entries, word limits, or exceptions when the complete source is unavailable.
 
 ## Review workflow
 
-1. Establish the audience, purpose, and available evidence.
-2. Select applicable checks from the [rule index](references/rules.md), not every rule for every fragment.
-   For documents about the current state or how to act now, apply `consumer-contract` to check for current guidance and necessary concrete grounds rather than historical narration. Judge applicability by purpose, and retain history when recording or analyzing it is essential to the deliverable.
-3. Review coherent paragraphs, heading sections, or complete small pages with their surrounding context.
-   Keep code, tables, warnings, and their explanations intact; assess navigation and cross-page duplication at the wider scope.
-4. For a finding or uncertain judgment, open only that rule's linked guide for anti-patterns, an improved example, and exceptions.
-   Inspect the actual passage before recommending a correction; examples illustrate decisions, not mandatory wording.
-5. Report the source range, rule ID, evidence, and next action.
-   Distinguish defects from missing context, inapplicable rules, and model errors rather than rewriting every flagged passage.
+1. Establish the English source, intended task, audience, and imposed template constraints.
+   Distinguish beginner, intermediate, and advanced users from developers of the subject itself.
+   Split subject developers into contributors and maintainers when their tasks differ.
+   A programmer who consumes a library or API is its user.
+2. Load the [rule index](references/rules.md) and executable catalog.
+   Apply all applicable verified rules; use `not_applicable` only with a contextual justification, not to make the document pass.
+   Keep unimplemented standard requirements visible as coverage gaps.
+3. Run mechanical checks first for properties that code can decide.
+   Do not ask a Decision Model to count, look up a known restriction, or detect syntax that deterministic code can detect.
+4. Review complete paragraphs, sections, or pages with their local context.
+   Keep instructions, conditions, examples, and warnings intact.
+   Scripted review must not judge destination pages, cross-page duplication, document-set ownership, or unseen external evidence.
+5. Use a Decision Model only for a bounded contextual judgment that remains undecidable by the mechanical checks.
+   Verify each finding against its actual passage and relevant source before editing.
+   Preserve required structure, technical meaning, public interfaces, and exact representations.
+6. Report the rule, source range, evidence, correction, and unresolved coverage.
+   Leave proposed exceptions unchanged until the user accepts their minimum scope and operational grounds.
+   Missing evidence, model errors, deferred checks, and untranslated exclusions are not passes.
 
-## Optional parallel checks
+## Rule details and exceptions
 
-Use [running evaluations](references/running.md) for manifests, gateway setup, dry runs, bounded concurrency, and report interpretation.
-Use [decision-model](../../../external-information/skills/decision-model/SKILL.md) for judgment design and [cloudflare-ai](../../../external-information/skills/cloudflare-ai/SKILL.md) for execution, authentication, and endpoint configuration.
-Send content only through the selected Cloudflare inference route; do not substitute a provider-direct transport.
-Keep review examples and expected labels out of blind evaluation requests.
+The [rule index](references/rules.md) separates standard-derived guidance from supplements.
+Open its linked guide only when interpreting a finding or resolving applicability.
+Supplementary rules cover audience boundaries, substantive representations, navigation, and visual roles that the language standard does not itself settle.
+Do not restate these supplements as new STE requirements.
+
+Record an exception candidate with its affected rule, precise passage, unavoidable operational constraint, and smallest proposed relaxation.
+Do not exempt all technical prose, all advanced documentation, or all unfamiliar words.
+Treat protected syntax, names, and exact quotations according to their role and the verified standard, not a model's vocabulary guess.
+
+## Scripted and semantic evaluation
+
+Use [running evaluations](references/running.md) for manifests, local execution, Cloudflare routes, and report interpretation.
+Use [decision-model](../../../external-information/skills/decision-model/SKILL.md) for typed judgment design and calibration, and [cloudflare-ai](../../../external-information/skills/cloudflare-ai/SKILL.md) for model selection, transport, and authentication.
+Never substitute direct Typesafe or another provider's transport for the selected Cloudflare route.
+A supported model name is not authorization to operate that provider directly.
 
 > [!WARNING]
-> Decision Model judgments are review assistance, not an unattended approval gate.
-> High confidence does not guarantee correctness; low confidence, abstentions, and request errors are not passes.
+> A Decision Model is review assistance, not an unattended approval gate.
+> An uncalibrated confidence threshold cannot establish semantic acceptance.
+> High confidence does not establish correctness, and absence of a flagged defect does not establish full STE compliance.
 
-For `fail` or an uncertain answer, match its question ID to the report's `rule.id`, then open that rule in the [index](references/rules.md).
-For transport or response-format errors, follow the [execution guide](references/running.md#read-the-report) instead of changing document prose.
-A reasoning reviewer must verify any proposed correction in context; a Decision Model does not supply a verified rationale.
+Keep labeled examples and expected verdicts out of blind requests.
+Run representative public workflows separately to verify runnable examples, rendering, links, source accuracy, and packaging.
+Translation fidelity requires a separate review against the English source.
+The local tests establish evaluator behavior, not standard coverage or model accuracy.
