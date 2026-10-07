@@ -1,86 +1,101 @@
 ---
 name: documentation-principles
 description: >-
-  Shared principles for creating, editing, and planning developer documentation across languages, tools, and project types.
-  Apply primarily to English source documentation, not translated editions.
-  Use documentation-quality for reviews and rule-specific examples, and share-artifact for document formats.
+  Apply ASD-STE100 as the default standard when creating, editing, or planning English developer documentation.
+  Use only unavoidable, documented exceptions and supplements for needs the standard does not cover.
+  Treat translated editions as translations of the English source.
+  Use documentation-quality for review procedures and share-artifact for document formats.
 ---
 
 # Documentation Principles
 
-**Minimize the reader's effort to find, understand, and use the information they need.**
-Choose guidance by the reader's purpose, not a particular language, framework, or project structure.
-Apply these principles primarily to English source documentation before translation, not as a rewriting or quality-review pass on translated editions.
-Review translation fidelity and target-language correctness separately.
+**Use ASD-STE100 as the baseline, not as a menu of optional writing advice.**
+Apply the standard strictly to English developer documentation across languages, tools, and project types.
+Relax a requirement only when compliance is operationally impossible, and only within the smallest necessary scope.
+Use the supplements below for developer-documentation needs that STE does not cover; do not duplicate its requirements as independent rules.
 
-## Serve a reader's purpose
+## Standard and scope
 
-Choose the audience, task, and document type before deciding what belongs.
-Include information because it helps that reader, not merely because it is available.
-Distinguish learning, task execution, reference, and explanation without forcing every document into one format.
+Use **ASD-STE100 Issue 9, January 2025**, including its writing rules and dictionary, as the authoritative reference.
+Consult the official standard for the applicable requirements and permitted uses; this skill does not reproduce its rule details.
+Use an available official copy, or obtain one through the [official distribution page](https://www.asd-ste100.org/STE_downloads.html).
+The [official overview](https://www.asd-ste100.org/about_STE.html) and [FAQ](https://www.asd-ste100.org/STE_faq.html) provide context, not substitutes for the standard.
+If the relevant requirements cannot be inspected, identify the unresolved requirement rather than inventing a rule, granting an exception, or claiming compliance.
 
-## State current guidance and its grounds
+Apply this baseline to English prose in guides, references, design explanations, and operational procedures.
+Distinguish material outside the standard's applicability and uses already permitted by the standard from local exceptions.
+Do not treat a permitted use as a disabled rule.
 
-Decide whether history belongs by the document's purpose.
-When documenting the current state or how to act now, state what is supported, required, or recommended.
-Include a reason only when the reader needs it to understand or apply that guidance, and ground it in a concrete constraint, verified behavior, or relevant evidence.
-Do not include change chronology, retired names, past decisions, or information recoverable from commits that adds no value to the current reader.
-An earlier choice or incident is not itself a justification for a current rule.
-When experience yields a useful lesson, state the resulting conclusion, its applicability, and its supporting grounds rather than narrating the experience.
-Keep any necessary compatibility constraint or action as current guidance, not as a story of how it arose.
-Include history when recording or analyzing it is essential to the document's purpose.
+## Unavoidable exceptions
 
-**Examples where history is generally unnecessary:** documents describing the intended current state, such as README.md, AGENTS.md, workflow guides based on SKILL.md, and usage documentation.
+Try a compliant formulation and the standard's permitted uses before requesting an exception.
+Convenience, writing effort, existing habits, and stylistic preference are not sufficient grounds for relaxation.
+The party proposing an exception must establish why compliance cannot satisfy the document's operational requirements.
 
-**Examples where history may belong:** changelogs, ADRs, and documents where the chronology itself is an essential deliverable, such as incident investigations.
+Record the adopted issue, affected rule or dictionary requirement, exact scope, concrete incompatibility, and the requirement that remains in force instead.
+For example, an externally mandated statement might require exact wording; verify that constraint and limit any necessary exception to that statement, not its surrounding explanation.
+Do not infer an exception from an unfamiliar technical term or disable a category of rules without establishing the incompatibility.
+Use an existing maintained project policy for recurring exceptions and identify a passage-specific exception where its scope is clear.
+These records explain current applicability, not work progress or a history of revisions.
+Do not describe text with local exceptions as unqualified ASD-STE100 compliance.
 
-## Lead with the useful answer
+## Developer-documentation supplements
 
-State the action, result, or decision before supporting background.
-When a task has a supported normal path, present it before optional alternatives and disclose detail when it becomes necessary.
-Match technical detail to the reader's goal, whether usage, operation, implementation, or design.
+These supplements govern content selection, non-prose evidence, and relationships between documents.
+They do not replace STE's language requirements or justify weaker wording rules.
+If STE already covers a requirement, use the standard rather than maintaining a second definition here.
 
-## Give each unit one responsibility
+### Serve a reader's purpose
 
-Organize pages, sections, and paragraphs around coherent reader questions.
-Choose boundaries by meaning and keep dependent explanation together.
-A short unit is complete when it answers its question with the context its reader needs.
+Choose the audience, task, and document type before selecting content.
+Distinguish learning, task execution, reference, and explanation without forcing them into one format.
+Language compliance alone does not establish whether information belongs in a document: include it because it helps the intended reader act, understand, decide, or look something up.
+Match implementation detail to that purpose, rather than treating every reader as an application user.
 
-## Keep information discoverable and local
+### State current guidance and its grounds
 
-Put prerequisites and consequences where the reader needs them.
-Maintain one clear home for detailed guidance and link to it from relevant entry points.
-Separate choosing a path from following the chosen task.
+For documents about the current state or how to act now, state supported behavior, requirements, or recommendations.
+Give concrete grounds when the reader needs them to understand or apply the guidance.
+A past decision or incident alone does not justify a current rule, and commit-recoverable history does not belong merely because it is available.
+Preserve a useful lesson as its current conclusion, applicability, and evidence.
+Retain chronology when it is part of the document's purpose, such as a changelog, ADR, or incident investigation.
+This distinction governs which information belongs, not a separate English writing style.
 
-## Use the minimum sufficient form
+### Treat code and diagrams as substantive documentation
 
-Prefer direct, concrete wording and descriptive headings.
-Remove repetition and material that adds no reader value, not necessary context.
+Code, commands, configuration, input/output examples, tables, and diagrams can carry the main explanation; they are not decoration subordinate to prose.
+Evaluate each representation together with the context needed to use or interpret it.
+Do not repeat in prose what a sufficient example or diagram already communicates.
+Supply missing prerequisites, constraints, and result interpretation rather than generic introductions or summaries.
 
-## Prefer examples over prose
+Preserve executable syntax, API identifiers, configuration keys, and faithfully quoted output.
+Rewriting them to resemble controlled English can make an example incorrect or prevent readers from recognizing the actual interface.
+Do not infer a blanket exception for code comments, explanatory strings, captions, or surrounding prose; determine their applicability separately.
+Use the standard's permitted terminology where applicable before considering a local exception.
 
-Prefer concrete examples, code, and diagrams over prose describing the same behavior or relationships.
-Use prose to supply context, constraints, and consequences that the examples cannot convey.
-Choose the form that makes the information easiest to understand.
+### Maintain document ownership and navigation
 
-## Preserve accuracy and consequences
-
-Accuracy takes precedence over brevity.
-Keep requirements, constraints, failure conditions, and meaningful trade-offs explicit, with consistent terminology.
-Distinguish verified facts from assumptions, make consequential limitations visible, and state a next action when one is available.
-
-## Apply the principles
-
-Before adding material, ask whether the reader needs it for this document's purpose.
-Before removing material, ask whether doing so loses accuracy, context, or a necessary decision.
+Give detailed guidance one canonical home and link to it from relevant entry points.
+Document-set ownership and cross-page duplication require decisions beyond the wording of an individual passage.
+Separate choosing a path from following it, and make linked prerequisites and destinations available at the point of use.
 Use the repository's document conventions; default to GitHub Flavored Markdown when none are specified.
 
-Use [documentation-quality](../documentation-quality/SKILL.md) for review procedures, anti-patterns, and rule-specific examples.
+### Verify claims against their evidence
+
+STE compliance does not establish that an API behaves as described, an example runs, or a link reaches the intended guidance.
+Check claims against the relevant specification, implementation, or observed behavior, and distinguish verified facts from assumptions.
+Preserve requirements, compatibility constraints, failure conditions, and meaningful trade-offs when selecting content or replacing prose with another representation.
+Do not invent a prerequisite, consequence, or remedy to make a passage look complete.
+
+## Translated editions
+
+Write and assess the English source against this baseline; treat other editions as translations of that source.
+Preserve meaning, terminology, conditions, and the role of code and diagrams in translation.
+Do not impose English-specific dictionary or grammar constraints mechanically on Japanese or create a separate principles system for it.
+Check translation fidelity and target-language correctness without treating translation as permission to change the source's requirements.
+
+## Related skills
+
+Use [documentation-quality](../documentation-quality/SKILL.md) for review procedures.
+This principles skill does not contain a rule-by-rule rubric or certify the coverage of a separate review tool.
 Use [share-artifact](../share-artifact/SKILL.md) for README, AGENTS.md, and ADR structure.
-These principles do not prescribe a research, editing, or agent-execution workflow.
-
-## Sources
-
-- [Diátaxis](https://diataxis.fr/): distinguish reader needs and document types.
-- [StrictDoc technical writing guidance](https://github.com/strictdoc-project/technical_writing_skill/blob/main/SKILL.md): direct wording, bottom-line-first structure, and concision.
-- [Next.js documentation](https://nextjs.org/docs) and [agent guidance](https://github.com/vercel/next.js/blob/canary/.agents/skills/README.md): task-oriented structure and progressive disclosure.
