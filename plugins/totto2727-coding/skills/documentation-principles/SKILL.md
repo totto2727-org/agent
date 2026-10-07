@@ -107,6 +107,8 @@ Do not invent a prerequisite, consequence, or remedy to make a passage look comp
 ## Project conventions and Markdown
 
 Follow explicit project documentation conventions before these format defaults.
+When a template or project convention fixes the document structure, preserve its required headings, order, and sections, and apply these principles to the content within that structure.
+Do not add, remove, or reorder required structural elements merely to satisfy a preferred organization or review rubric.
 If a project convention requires a departure from STE, record the conflict under the exception policy rather than silently claiming compliance.
 
 For Markdown, conform to [GitHub Flavored Markdown](https://github.github.com/gfm/).
