@@ -32,9 +32,9 @@ Keep the [coverage record](coverage.md) with the report: the catalog maps the nu
 
 This example assumes a manifest in `<repository>/tmp/review/`.
 Adjust paths for the installed skill and target repository.
-Use `typesafe/jev` as the default semantic-review model through Cloudflare Workers AI with the configured AI Gateway.
-Keep the explicit model field in the manifest so the selected route is recorded.
-Change it only for an explicit request or a justified override under cloudflare-ai.
+Use `typesafe/jev` as the default semantic-review model.
+Keep the explicit model field in the manifest so the selected model is recorded.
+Follow cloudflare-ai for model overrides and execution.
 This default is an operational policy, not proof of superior accuracy or lower cost.
 A mixed semantic plan requires a selected model, while `--mechanical-only` does not.
 When `englishOnly` is true, declare `sourceLanguage` for every entry.

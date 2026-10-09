@@ -40,9 +40,8 @@ A structural constraint is not a blanket exemption for the prose inside it.
 4. Review complete paragraphs, sections, or pages with their local context.
    Keep instructions, conditions, examples, and warnings intact.
    Scripted review must not judge destination pages, cross-page duplication, document-set ownership, or unseen external evidence.
-5. Use `typesafe/jev` through Cloudflare Workers AI with the configured AI Gateway for a bounded contextual judgment that remains undecidable by the mechanical checks.
-   Keep Jev as the default for documentation review.
-   Use another supported model only for an explicit request or a justified override under cloudflare-ai, never as a silent fallback.
+5. Use `typesafe/jev` by default for a bounded contextual judgment that remains undecidable by the mechanical checks.
+   Follow cloudflare-ai for model overrides and execution.
    Verify each finding against its actual passage and relevant source before editing.
    Preserve required structure, technical meaning, public interfaces, and exact representations.
 6. Report the rule, source range, evidence, correction, and unresolved coverage.

@@ -9,7 +9,6 @@ Native Clef models use `{model, state, questions}`; universal `typesafe/jev` use
 ## Prepare the request and record paths
 
 This example prepares the default universal `typesafe/jev` request.
-Use the native variant below only for a selected Clef override.
 
 ```bash
 set +x
@@ -58,28 +57,34 @@ prepare_cache_headers() {
 prepare_cache_headers
 ```
 
-### Optional native Clef request
+### Universal Jev request shape
 
-For an explicitly selected `clef` or `clef-flash` override, convert the prepared universal request before execution:
+The preparation above already uses this envelope.
+To adapt a saved state and questions, apply this before execution:
 
 ```bash
-MODEL=clef-flash
-URL="https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/ai/run/@cf/cloudflare/${MODEL}"
-jq --arg model "$MODEL" '.input + {model: $model}' \
+MODEL=typesafe/jev
+URL="https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/ai/run"
+jq --arg model "$MODEL" '{model: $model, input: (.input // del(.model))}' \
   "$WORK_DIR/decision-input.json" > "$WORK_DIR/decision-request.json"
 REQUEST_FILE="$WORK_DIR/decision-request.json"
 prepare_cache_headers
 ```
 
-The default `typesafe/jev` is a universal third-party model ID, not a native `@cf/typesafe/jev` path.
+This is a universal third-party model ID, not a native `@cf/typesafe/jev` path.
 Its Gateway selection remains explicit.
 The native Workers AI catalog and universal third-party model IDs are different catalogs; absence from native search does not rule out a universal route.
 
 ### Direct native Workers AI
 
-For a direct native `clef` or `clef-flash` request, retain the native URL and body and omit the Gateway header before execution:
+For an explicitly selected direct native `clef` or `clef-flash` request, convert the prepared request to the native URL and body and omit the Gateway header:
 
 ```bash
+MODEL=clef-flash
+URL="https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/ai/run/@cf/cloudflare/${MODEL}"
+jq --arg model "$MODEL" '(.input // del(.model)) + {model: $model}' \
+  "$WORK_DIR/decision-input.json" > "$WORK_DIR/decision-native-request.json"
+REQUEST_FILE="$WORK_DIR/decision-native-request.json"
 GATEWAY_HEADERS=()
 ```
 
