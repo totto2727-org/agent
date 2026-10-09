@@ -1,13 +1,20 @@
 ---
 name: js-coding
 description: >-
-  TypeScript implementation guidance for dependency versions, Effect, Hono, Remix, browser IME input, typed boundaries, and collections. Use when implementing or reviewing these concerns, or changing JavaScript or TypeScript dependencies.
+  TypeScript implementation guidance for package management, dependency versions, Effect, Hono, Remix, browser IME input, typed boundaries, and collections. Use when implementing or reviewing these concerns, or changing JavaScript or TypeScript dependencies or package managers.
 ---
 
 # TypeScript Coding Index
 
 All references below are concrete TypeScript implementation guidance or an explicit upstream source index. Use [`share-coding`](../share-coding/SKILL.md) for language-independent design decisions.
 Read only the relevant reference; already available principles need not be reloaded.
+
+## Package manager
+
+- Use Bun as the default package manager for JavaScript and TypeScript projects maintained by the user. Keep one package manager and one authoritative lockfile.
+- If a fork intentionally keeps changes from upstream to a minimum, preserve its upstream package manager unless the user specifically directs a change.
+- When adopting Bun, preserve the existing release-age window. Convert units without reducing the duration, for example, 24 hours to 86400 seconds.
+- Package-manager choice is separate from runtime choice. Using Bun for dependency management does not require changing a library's supported runtimes or its Deno design.
 
 ## Dependency versions
 
