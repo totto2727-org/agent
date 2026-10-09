@@ -13,7 +13,7 @@ Keep the [coverage record](coverage.md) with the report: the catalog maps the nu
 
 ```json
 {
-  "model": "clef-flash",
+  "model": "typesafe/jev",
   "englishOnly": true,
   "templateConstraints": ["Preserve required headings, order, sections, and exact identifiers."],
   "rulesFile": "../../plugins/totto2727-coding/skills/documentation-quality/references/rules.json",
@@ -32,8 +32,10 @@ Keep the [coverage record](coverage.md) with the report: the catalog maps the nu
 
 This example assumes a manifest in `<repository>/tmp/review/`.
 Adjust paths for the installed skill and target repository.
-Replace the example model with the supported model selected through cloudflare-ai.
-The example is not a cost or accuracy recommendation.
+Use `typesafe/jev` as the default semantic-review model through Cloudflare Workers AI with the configured AI Gateway.
+Keep the explicit model field in the manifest so the selected route is recorded.
+Change it only for an explicit request or a justified override under cloudflare-ai.
+This default is an operational policy, not proof of superior accuracy or lower cost.
 A mixed semantic plan requires a selected model, while `--mechanical-only` does not.
 When `englishOnly` is true, declare `sourceLanguage` for every entry.
 Non-English entries are excluded with an explicit reason instead of being evaluated as English or silently counted as passes.

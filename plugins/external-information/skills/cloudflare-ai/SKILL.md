@@ -14,7 +14,9 @@ Use this skill for inference through the configured Cloudflare AI Gateway or Wor
 - **LLM:** for generated text, coding, reasoning, or summarization, follow [LLM requests](references/llm.md) for model selection and invocation.
 - **Decision Model:** for constrained choices, scores, and probabilities, follow [Decision Model requests](references/decision-models.md).
   OpenCode Go currently does not provide this typed interface.
-  Select a configured Decision Model by current cost, capabilities, and task accuracy; do not assume one is always cheapest or use these routes for ordinary generated text.
+  Default to **`typesafe/jev` through Cloudflare Workers AI with the configured AI Gateway**.
+  Use another configured Decision Model only when explicitly requested or justified by task requirements and representative accuracy and total-cost evidence.
+  Do not switch models after authentication or billing failures, assume one is always cheapest, or use these routes for ordinary generated text.
   Use [decision-model](../decision-model/SKILL.md) to design the judgment and application acceptance criteria.
 
 Keep call budgets and batches small, reuse relevant results when freshness permits, and count Decision Model calls as paid work too.

@@ -7,7 +7,9 @@ description: >-
 # Decision Models
 
 Use a Decision Model as a small semantic judgment inside a workflow owned by code.
-Use [cloudflare-ai](../cloudflare-ai/SKILL.md) to select and call a model.
+Default to `typesafe/jev` through Cloudflare Workers AI with the configured AI Gateway.
+Use [cloudflare-ai](../cloudflare-ai/SKILL.md) for the request contract and any justified model override.
+Do not use the Typesafe API directly.
 Do not invent a separate provider transport or silently change the configured model after a failed call.
 
 ## Design the judgment
