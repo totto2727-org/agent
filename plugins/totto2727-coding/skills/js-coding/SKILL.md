@@ -1,13 +1,21 @@
 ---
 name: js-coding
 description: >-
-  TypeScript implementation guidance for Effect, Hono, Remix, browser IME input, typed boundaries, and collections. Use when implementing or reviewing these concerns.
+  TypeScript implementation guidance for dependency versions, Effect, Hono, Remix, browser IME input, typed boundaries, and collections. Use when implementing or reviewing these concerns, or changing JavaScript or TypeScript dependencies.
 ---
 
 # TypeScript Coding Index
 
 All references below are concrete TypeScript implementation guidance or an explicit upstream source index. Use [`share-coding`](../share-coding/SKILL.md) for language-independent design decisions.
 Read only the relevant reference; already available principles need not be reloaded.
+
+## Dependency versions
+
+- Use caret ranges such as `^1.2.3` for external dependency declarations. Do not use exact versions unless an unavoidable compatibility requirement needs them. Record the reason and its supporting evidence.
+- Select the newest compatible version that the package manager can install with its default minimum release age and supply-chain waiting period in force. Do not select an ineligible release merely because it is the latest published version.
+- Do not disable or shorten those waiting periods, or add `minimumReleaseAgeExclude`, for routine updates. Permit only a genuinely urgent exception, such as a critical security fix. Record the urgency, evidence, and smallest necessary scope before applying it.
+- Do not use `overrides` or `resolutions` by default. Use them only for an unavoidable requirement, such as an official Vite+ toolchain requirement. Record the reason, affected packages, and official source or other concrete evidence.
+- These rules concern external dependency declarations, not a package's own `version`, concrete lockfile resolutions, or internal `workspace:` references. Preserve those values and protocols unless the task requires their change.
 
 ## Type boundaries
 
