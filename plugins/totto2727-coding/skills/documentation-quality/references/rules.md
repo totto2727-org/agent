@@ -6,6 +6,9 @@ The [Issue 9 operational map](rules/ste-issue9.md) gives original rubrics, print
 
 ## Mechanical checks
 
+Use the skill-local textlint preset for these deterministic checks and markdownlint separately for standard Markdown rules.
+The existing counter and source exclusions run inside the textlint rules.
+
 | Executable ID                                  | Scope                       | Decidable property                                                   |
 | ---------------------------------------------- | --------------------------- | -------------------------------------------------------------------- |
 | `ste-5-1`                                      | Paragraph                   | Procedural 20-word sentence limit, including safety instructions     |
@@ -58,6 +61,9 @@ The [former FAQ-only checks](rules/ste-faq.md) are superseded by the correspondi
 
 These checks cover documentation needs not settled by the language standard.
 Do not restate them as STE requirements or duplicate language checks through them.
+Use their [custom jevlint rubrics](jevlint/) with the explicitly prepared page context described in [running evaluations](running.md).
+The exporter also prepares 27 local STE contextual checks from the catalog.
+The remaining 18 dictionary-, noun-group-, or related-evidence-dependent checks use the evidence-aware evaluator.
 
 | Rule                                                | Scope   | Evidence needed                                               |
 | --------------------------------------------------- | ------- | ------------------------------------------------------------- |
@@ -71,7 +77,9 @@ Do not restate them as STE requirements or duplicate language checks through the
 
 ## Resolve a finding
 
-Match `answers[].questionId` to `questions[].id`, then resolve `questions[].rule.id` against the catalog.
+For the retained evaluator, match `answers[].questionId` to `questions[].id`, then resolve `questions[].rule.id` against the catalog.
+For textlint, use the reported custom rule ID and source location.
+For jevlint, map the prepared job ID through `export.json` to the original document, source range, and catalog rule.
 Mechanical evidence identifies the checked source range.
 A typed semantic answer is not a verified rationale or complete compliance finding.
 Compare the actual passage, technical meaning, template constraints, public contract, and source-backed rubric before editing.

@@ -2,9 +2,9 @@
 name: documentation-quality
 description: >-
   Review English source documentation against ASD-STE100 and supplementary documentation principles.
-  Use local mechanical checks for decidable rules and Cloudflare Decision Models only for contextual judgments.
+  Use markdownlint and textlint for static checks, custom jevlint rules through Cloudflare AI Gateway for supported contextual judgments, and the evidence-aware Decision Model evaluator for remaining checks.
   Exclude cross-page judgments from scripted review and review translations separately.
-compatibility: Node.js 22 or later. Semantic evaluation additionally requires curl and the configured Cloudflare environment from cloudflare-ai.
+compatibility: Node.js 24 or later for jevlint. Install the skill-local static dependencies. Contextual evaluation requires the configured Cloudflare environment from cloudflare-ai, and the retained evaluator also requires curl.
 ---
 
 # Documentation Quality
@@ -30,7 +30,12 @@ A structural constraint is not a blanket exemption for the prose inside it.
    Apply all applicable verified rules.
    Use `not_applicable` only with a contextual justification, not to make the document pass.
    Keep unimplemented standard requirements visible as coverage gaps.
-3. Run mechanical checks first for properties that code can decide.
+3. Run markdownlint and textlint separately before contextual review.
+   Enable all standard markdownlint rules.
+   Preserve every rule and default option from the selected mdts-derived textlint language preset, including its disabled defaults, and run every rule enabled by mdts.
+   Use the skill-local JavaScript textlint rules for deterministic documentation requirements.
+   These rules reuse the existing STE counter and protected-source handling, not generic character counts.
+   Pass explicit configuration paths. Do not search the target repository for rule packs or invent repository-specific configuration.
    Do not ask a Decision Model to count, look up a known restriction, or detect syntax that deterministic code can detect.
    Establish the local writing mode and verify the declared word-count groups against their actual role in the passage.
    A quoted interface label, title, or identifier is not permission to classify arbitrary prose as a one-word group.
@@ -40,7 +45,11 @@ A structural constraint is not a blanket exemption for the prose inside it.
 4. Review complete paragraphs, sections, or pages with their local context.
    Keep instructions, conditions, examples, and warnings intact.
    Scripted review must not judge destination pages, cross-page duplication, document-set ownership, or unseen external evidence.
-5. Use `typesafe/jev` by default for a bounded contextual judgment that remains undecidable by the mechanical checks.
+5. Run the custom-only `@totto2727/jevlint` package separately for supported contextual rules.
+   Prepare the bounded review inputs from the manifest, then invoke its `jev-lint` command with explicit rules and configuration.
+   Do not use the upstream package's bundled rules or replace this command with an integrated linter application.
+   Keep checks that require evidence unavailable to the jevlint rule in the retained Decision Model evaluator.
+   Use `typesafe/jev` by default for contextual judgment.
    Follow cloudflare-ai for model overrides and execution.
    Verify each finding against its actual passage and relevant source before editing.
    Preserve required structure, technical meaning, public interfaces, and exact representations.
@@ -61,7 +70,10 @@ Treat protected syntax, names, and exact quotations according to their role and 
 
 ## Scripted and semantic evaluation
 
-Use [running evaluations](references/running.md) for manifests, local execution, Cloudflare routes, and report interpretation.
+Use [running evaluations](references/running.md) for the independent tool commands, manifests, Cloudflare routes, and report interpretation.
+The published fork package is a prerequisite for the distributable jevlint workflow.
+Do not commit a dependency on a local fork checkout or a workspace-specific binary path.
+Static and contextual results remain separate reports. Review-required results and transport failures are not passes.
 Use [decision-model](../../../external-information/skills/decision-model/SKILL.md) for typed judgment design and calibration, and [cloudflare-ai](../../../external-information/skills/cloudflare-ai/SKILL.md) for model selection, transport, and authentication.
 Never substitute direct Typesafe or another provider's transport for the selected Cloudflare route.
 A supported model name is not authorization to operate that provider directly.

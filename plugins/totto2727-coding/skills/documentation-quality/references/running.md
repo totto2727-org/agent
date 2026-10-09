@@ -1,9 +1,109 @@
 # Running document evaluations
 
-Use Node.js 22 or later.
+Use Node.js 24 or later for the complete workflow.
 In this repository, prefix commands with `nix develop --command` to use the pinned environment.
 Mechanical checks need no model, credentials, or network.
 Semantic checks additionally require `curl` and the configured Cloudflare environment.
+
+## Run the independent linters
+
+Run markdownlint, textlint, and jevlint as separate tools.
+There is no combined lint command, normalized report, or target-repository rule discovery.
+Use an absolute path to the installed skill and the target document:
+
+```bash
+SKILL="/absolute/path/to/documentation-quality"
+STATIC="$SKILL/static"
+DOCUMENT="/absolute/path/to/guide.md"
+
+vp -C "$STATIC" install --frozen-lockfile
+vp -C "$STATIC" run markdownlint "$DOCUMENT"
+vp -C "$STATIC" exec textlint \
+  --config "$STATIC/config/textlint-en.cjs" "$DOCUMENT"
+```
+
+Install dependencies once, not for each document.
+The markdownlint-only task calls the public library API with all standard rules enabled, including line length.
+It does not invoke textlint or jevlint, or load target-repository configuration.
+Inline markdownlint-disable comments do not suppress this all-rules review.
+The task runner can prefix its own execution log; for a machine-readable markdownlint report, call the same entry point directly with `node "$STATIC/markdownlint.mjs" "$DOCUMENT"`.
+Do not disable a rule to reconcile an existing document with the default configuration without an explicit policy decision.
+The English textlint configuration preserves every rule and default option from mdts's `slopless` preset, including disabled defaults, and adds the skill-local deterministic rules.
+For Japanese, use `textlint-ja.cjs`, which preserves mdts's `textlint-rule-preset-ja-technical-writing` preset and its default options.
+Every rule enabled by mdts remains enabled; do not turn a preset's disabled default into a new requirement merely because it is listed in the package.
+The Japanese configuration excludes English STE rules at the language boundary, not the mdts Japanese preset rules.
+Neither configuration establishes translation fidelity.
+
+The local textlint rules call the existing STE counter and source-exclusion implementation internally.
+The normal static workflow does not require a separate invocation of the old mechanical evaluator.
+Missing writing-mode, dictionary, or other required evidence remains review-required.
+For evidence-aware English checks, create an explicit CommonJS textlint configuration under the target repository's ignored `tmp/` directory:
+
+```javascript
+const createTextlintConfig = require("/absolute/path/to/documentation-quality/static/config/textlint.cjs");
+
+module.exports = createTextlintConfig({
+  language: "en",
+  ste: {
+    writingMode: "descriptive",
+    vocabularyFile: "/absolute/path/to/private/verified-vocabulary.json",
+    wordGroups: [],
+    measurementUnits: [],
+    nounGroups: [],
+  },
+  sections: [],
+});
+```
+
+Use the same verified counting and vocabulary evidence described below.
+Do not declare a mixed page uniformly descriptive to remove an unresolved-context result.
+Pass this configuration through `vp -C "$STATIC" exec textlint --config /absolute/path/to/repository/tmp/textlint.cjs "$DOCUMENT"`; do not install it as a repository-wide policy.
+Keep the working directory at the installed static package so the target repository's `.textlintignore` cannot silently exclude the selected document.
+An explicit `--config` alone does not isolate the raw textlint CLI's ignore-file search.
+
+## Prepare and run custom jevlint review
+
+The distributable workflow requires the published [`@totto2727/jevlint` fork](https://github.com/totto2727-org/jevlint).
+It is not the upstream `jev-lint` package.
+Package publication is a release prerequisite, not an action performed by this skill.
+Do not commit a local checkout dependency or a workspace-specific binary path as a substitute for publication.
+
+Prepare a bounded review job from the manifest described below, then call the installed fork's binary directly:
+Create the output directory's parent first and choose a new job directory.
+Preparation refuses an existing job directory so stale targets cannot expand the next review.
+
+```bash
+node "$SKILL/scripts/evaluate.mjs" \
+  --manifest /absolute/path/to/manifest.json \
+  --export-jevlint --output /absolute/path/to/repository/tmp/jev-review
+
+jev-lint check \
+  --config /absolute/path/to/repository/tmp/jev-review/config.yaml \
+  --rules /absolute/path/to/repository/tmp/jev-review/rules \
+  /absolute/path/to/repository/tmp/jev-review/targets \
+  --dry-run --cache none
+```
+
+Input preparation does not invoke a model or either static linter.
+The job preserves the bounded target, same-page context, task metadata, and original source ranges.
+Inspect the prepared data before sending private content to the selected Cloudflare route.
+Remove `--dry-run` for contextual review after configuring the Gateway.
+Use only the explicit custom rules, not an upstream rule pack or rules discovered in the target repository.
+
+The jevlint migration covers seven supplementary rules and 27 local STE contextual rules.
+The 18 remaining STE contextual rules require dictionary, noun-group, or related evidence adapters and retain the evidence-aware evaluator.
+Inspect `export.json` for migrated, retained, and skipped checks and their evidence boundaries.
+If it names `legacyManifestPath`, run the retained evaluator against that generated manifest to avoid repeating migrated rules:
+
+```bash
+node "$SKILL/scripts/evaluate.mjs" \
+  --manifest /absolute/path/to/repository/tmp/jev-review/legacy-manifest.json \
+  --output /absolute/path/to/repository/tmp/retained-review.json
+```
+
+Uncalibrated contextual findings assist review and do not establish unattended acceptance or full STE compliance.
+Read each tool's own report and exit semantics separately.
+Transport errors, abstentions, and missing evidence are not clean verdicts.
 
 ## Prepare a manifest
 
@@ -220,7 +320,11 @@ Large evidence is rejected rather than silently truncated.
 A byte guard is not a tokenizer or proof that the provider's token limit will be met.
 For oversized pages, use a reasoning reviewer or a genuinely independent smaller source unit rather than a copied fragment presented as a complete page.
 
-## Run without inference
+## Retained evaluator and compatibility commands
+
+Use the evidence-aware evaluator for contextual checks that have not migrated to jevlint.
+Limit its manifest to those rules instead of repeating the migrated supplementary checks.
+The mechanical-only command remains available for compatibility and diagnosis, not as an additional normal static-lint stage.
 
 Create the output directory, then inspect a plan:
 
@@ -296,12 +400,14 @@ Keep earlier reports under ignored `tmp/` and choose a new path for each run.
 ## Validate implementation and use
 
 ```bash
-nix develop --command vp test run plugins/totto2727-coding/skills/documentation-quality/scripts
+nix develop --command vp run test:documentation-quality
+nix develop --command vp run test:documentation-quality-static
 nix develop --command vp check
 git diff --check
 ```
 
 Maintained tests verify local segmentation, engines, metadata, transport boundaries, aggregation, and failure behavior.
+After the fork package is installed, set `JEVLINT_CLI` to its installed JavaScript CLI entry point to enable the explicit cross-package dry-run test.
 They do not prove standard coverage, inference availability, semantic accuracy, executable examples, or site rendering.
 Apply the public CLI to actual project files and run the affected project's real content, build, and browser checks separately.
 Report exactly which checks passed and which acceptance requirements remain blocked.

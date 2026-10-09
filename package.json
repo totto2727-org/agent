@@ -1,4 +1,8 @@
 {
   "name": "@totto2727/agent",
-  "private": true
+  "private": true,
+  "scripts": {
+    "test:documentation-quality": "vp test run --exclude 'tmp/**' plugins/totto2727-coding/skills/documentation-quality/scripts",
+    "test:documentation-quality-static": "vp -C plugins/totto2727-coding/skills/documentation-quality/static run test"
+  }
 }

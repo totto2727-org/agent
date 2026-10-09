@@ -1,0 +1,130 @@
+[
+  {
+    "ruleId": "consumer-contract",
+    "state": "no_evidenced_defect",
+    "audience": "Maintainers",
+    "purpose": "Record an incident investigation",
+    "markdown": "# Timeline\nAt 09:00 the service failed. At 09:10 the on-call restored the snapshot.\n",
+    "ground": "Retain chronology when recording or analyzing it"
+  },
+  {
+    "ruleId": "consumer-contract",
+    "state": "defect",
+    "audience": "Library users",
+    "purpose": "Explain current setup requirements",
+    "markdown": "# Setup\nUse the legacy switch because a 2019 team discussion chose it. No current behavior requires it.\n",
+    "ground": "history alone as current justification"
+  },
+  {
+    "ruleId": "audience-boundary",
+    "state": "no_evidenced_defect",
+    "audience": "Beginner API users",
+    "purpose": "Send a request",
+    "markdown": "# Request\nSet the required Authorization header to the environment-provided token.\n",
+    "ground": "Technical public interfaces required by the task are not automatically internals"
+  },
+  {
+    "ruleId": "audience-boundary",
+    "state": "defect",
+    "audience": "Beginner API users",
+    "purpose": "Send a request",
+    "markdown": "# Request\nBefore sending a request, study allocator internals. They do not change any request behavior or requirement.\n",
+    "ground": "exposes unnecessary internals"
+  },
+  {
+    "ruleId": "actionable-example",
+    "state": "no_evidenced_defect",
+    "audience": "CLI users",
+    "purpose": "Print the version",
+    "markdown": "# Version\nRun this command. It prints the installed version.\n```sh\napp --version\n```\n",
+    "ground": "Preserve runnable syntax and quoted output"
+  },
+  {
+    "ruleId": "actionable-example",
+    "state": "defect",
+    "audience": "CLI users",
+    "purpose": "Print the version",
+    "markdown": "# Version\nA command is required to print the installed version. Invoke the appropriate command with the right arguments.\n",
+    "ground": "missing an essential input, action, relationship, or result"
+  },
+  {
+    "ruleId": "consequential-limit",
+    "state": "no_evidenced_defect",
+    "audience": "Import users",
+    "purpose": "Handle input limits",
+    "markdown": "# Input size\nInputs above 10 MiB are rejected without changes. Split the file into inputs below 10 MiB and retry.\n",
+    "ground": "available next action when the page establishes one"
+  },
+  {
+    "ruleId": "consequential-limit",
+    "state": "defect",
+    "audience": "Import users",
+    "purpose": "Handle input limits",
+    "markdown": "# Input size\nInputs above 10 MiB are rejected without changes. Splitting inputs below 10 MiB is the available recovery action.\n## Warning\nSome inputs may have issues. No action is available.\n",
+    "ground": "obscures or overstates its local applicability or effect"
+  },
+  {
+    "ruleId": "focused-unit",
+    "state": "no_evidenced_defect",
+    "audience": "CLI users",
+    "purpose": "Install the CLI",
+    "markdown": "# Install\nInstall the package. The installation requires Node 24.\n",
+    "ground": "Keep necessary prerequisites, constraints, representations, and explanation together"
+  },
+  {
+    "ruleId": "focused-unit",
+    "state": "defect",
+    "audience": "CLI users",
+    "purpose": "Install the CLI",
+    "markdown": "# Install\nInstall the package. Also buy a new office chair. To reiterate, install the package. In summary, install it.\n",
+    "ground": "mixes unrelated reader tasks"
+  },
+  {
+    "ruleId": "reader-route",
+    "state": "no_evidenced_defect",
+    "audience": "CLI users",
+    "purpose": "Initialize a project",
+    "markdown": "# Initialize\nFirst install Node 24. Then run app init. Optionally add plugins afterwards.\n",
+    "ground": "normal path before optional branches"
+  },
+  {
+    "ruleId": "reader-route",
+    "state": "defect",
+    "audience": "CLI users",
+    "purpose": "Initialize a project",
+    "markdown": "# Initialize\nRun app init. This command fails unless Node 24 was installed first. Install Node 24 after running it.\n",
+    "ground": "introduce necessary local prerequisites too late"
+  },
+  {
+    "ruleId": "visual-role",
+    "state": "no_evidenced_defect",
+    "audience": "CLI users",
+    "purpose": "Delete a project",
+    "markdown": "# Delete\n> [!WARNING]\n> This command permanently deletes the project.\n\n```sh\napp delete\n```\n",
+    "ground": "Code, tables, diagrams, lists, and GitHub alerts"
+  },
+  {
+    "ruleId": "visual-role",
+    "state": "defect",
+    "audience": "CLI users",
+    "purpose": "Delete a project",
+    "markdown": "# Delete\nThe table lists harmless read commands. app delete permanently removes all project data. The next table lists report fields. All commands, warnings, and fields are concatenated in this paragraph although alerts and code blocks are permitted.\n",
+    "ground": "Different consequential roles are buried in undifferentiated prose"
+  },
+  {
+    "ruleId": "actionable-example",
+    "state": "not_applicable",
+    "audience": "CLI users",
+    "purpose": "Identify the license",
+    "markdown": "# License\nThis program is licensed under MIT.\n",
+    "ground": "self-sufficient without a demonstration"
+  },
+  {
+    "ruleId": "reader-route",
+    "state": "insufficient_context",
+    "audience": "CLI users",
+    "purpose": "Initialize a project",
+    "markdown": "# Initialize\nFollow the required setup in [the external guide](https://example.invalid/setup).\n",
+    "ground": "unseen decisive prerequisite or destination"
+  }
+]
