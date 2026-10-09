@@ -1,37 +1,954 @@
 [
   {
+    "id": "code-fence-language",
+    "engine": "mechanical",
+    "scope": "page",
+    "check": { "kind": "fenced-code-language" },
+    "source": {
+      "kind": "supplement",
+      "reference": "documentation-principles#project-conventions-and-markdown"
+    }
+  },
+  {
     "id": "consumer-contract",
+    "engine": "decision",
     "scope": "section",
-    "instructions": "Judge relevance to the stated audience and the target unit's purpose, using its heading and surrounding page. Does each substantive part help the reader act, understand, decide, or look up the information they need? Decide whether historical context belongs by the document's purpose and reader's needs. Documents about the current state or how to act now should state current supported behavior, requirements, or recommendations, with concrete grounds when necessary to understand or apply them. Flag change chronology, retired names, past decisions, incident narratives, and commit-recoverable information that adds no current reader value. A historical choice or event alone does not justify a current rule. Preserve lessons as current conclusions, applicability, and grounds instead of narrating their origin. Necessary compatibility constraints and actions belong as current guidance, not as history. Preserve relevant history when recording or analyzing the sequence of events or decisions is essential to the deliverable, as in change records, architectural decision records, or incident investigations. Implementation details, rationale, and operational constraints are appropriate when they serve the reader's purpose; technical terminology is not itself a defect. An otherwise useful passage does not excuse an unrelated aside. Judge the reader's needs rather than assuming every reader is an application user. Return insufficient_context when decisive audience or purpose information is missing.",
-    "pass": "The unit's content supports its intended reader's task or understanding, including any necessary technical detail or rationale.",
-    "fail": "The unit includes explanation, repetition, or background that adds no useful information for its stated reader and purpose."
+    "source": {
+      "kind": "supplement",
+      "reference": "documentation-principles#state-current-guidance-and-its-grounds"
+    },
+    "instructions": "Judge only the target unit's relevance to the declared reader and purpose. For guidance about the current state, retain supported behavior, requirements, recommendations, and necessary concrete grounds. A past decision or incident alone does not justify a current requirement. Flag history, repetition, or implementation detail that adds no value to that reader. Retain chronology when recording or analyzing it is the document's purpose, including ADRs, changelogs, and incident investigations. Preserve required template sections and judge their content, not whether a different document structure would be preferable. Do not assess another page or verify external facts. Return insufficient_context when audience or purpose cannot be established.",
+    "pass": "The content serves the declared reader and purpose, with any history or grounds justified by that purpose.",
+    "fail": "The unit includes material that does not serve its reader or treats history alone as current justification."
+  },
+  {
+    "id": "audience-boundary",
+    "engine": "decision",
+    "scope": "section",
+    "source": {
+      "kind": "supplement",
+      "reference": "documentation-principles#serve-a-readers-purpose"
+    },
+    "instructions": "Distinguish beginner users, intermediate users, advanced users, and developers of the subject itself. Split the last group into contributors and maintainers only when their tasks differ. A programmer consuming a library or API is its user, not its developer. Judge the selected unit against the declared group and assumed knowledge. Beginner and intermediate guidance must not expose implementation internals unless the knowledge is indispensable to correct use. In that case, prefer necessary behavior, conditions, and consequences; an underlying mechanism is justified only when those facts are insufficient. Technical public interfaces required by the task are not automatically internals. Advanced users may need internals without contributing to the subject. Respect imposed structure and do not demand all groups in every page, a generic audience paragraph, or a new heading. Use only this page and declared task metadata. Return insufficient_context for an unresolved audience or indispensable-knowledge question.",
+    "pass": "The unit serves its intended group without requiring it to filter out another group's unnecessary content.",
+    "fail": "The unit conflates users with subject developers or exposes unnecessary internals to beginner or intermediate users."
   },
   {
     "id": "actionable-example",
+    "engine": "decision",
     "scope": "section",
-    "instructions": "When understanding or carrying out the target requires a concrete demonstration, does the supplied page provide one with the necessary inputs, steps or relationships, and result or interpretation relevant to its purpose? A demonstration may use commands, configuration, code, input/output, a worked example, or a diagram with appropriate explanation. Choose by reader need, not by a preferred technology or format. Naming an operation or saying to configure something is insufficient when the necessary operation remains unexplained. Existing context can supply unchanged setup. Return not_applicable for a self-sufficient fact, navigation, warning, or general principle that does not need a demonstration. Return insufficient_context if a decisive referenced example or prerequisite cannot be inspected.",
-    "pass": "The needed operation or mechanism is demonstrated concretely enough for the stated reader, using a suitable form and explicit context.",
-    "fail": "The target requires a demonstration but provides only abstract descriptions, unexplained placeholders, or an example missing the essential steps, relationships, or outcome."
+    "source": {
+      "kind": "supplement",
+      "reference": "documentation-principles#treat-code-and-diagrams-as-substantive-documentation"
+    },
+    "instructions": "When the target needs a demonstration, judge the local code, commands, configuration, input/output, table, or diagram together with its explanation. It must show the inputs, relationships or actions, and result or interpretation needed for the task. A substantive representation can supply the main answer without redundant prose. Preserve runnable syntax and quoted output rather than applying English language rules to them. Do not verify an external API, execute code, or inspect a linked page. A deliberately delegated demonstration is not automatically missing; if the judgment depends on its unseen content, return insufficient_context. Return not_applicable when the fact, warning, principle, or navigation is self-sufficient without a demonstration.",
+    "pass": "The supplied representation and context demonstrate what the intended reader needs without redundant prose.",
+    "fail": "A necessary local demonstration is abstract, unexplained, or missing an essential input, action, relationship, or result."
   },
   {
     "id": "consequential-limit",
+    "engine": "decision",
     "scope": "section",
-    "instructions": "When the target communicates a limitation that affects the reader's intended use, does it identify the affected condition or behavior, its observable consequence, and a remedy or alternative when one is known and available? Keep the scope precise and the information near the affected decision; necessary context may be explicitly supplied by the surrounding page. Do not infer consequences solely from implementation terms, invent a remedy, or require a workaround when none exists. Return not_applicable if no consequential limitation is discussed. Return insufficient_context if decisive behavior or context needed to assess an asserted limitation is unavailable.",
-    "pass": "The reader can identify when the limitation applies, what it changes, and what to do when an available next action exists, with appropriate prominence.",
-    "fail": "A consequential limitation obscures its applicability or effect, overstates its scope, or omits a known available next action needed by the reader."
+    "source": {
+      "kind": "supplement",
+      "reference": "documentation-principles#verify-claims-against-their-evidence"
+    },
+    "instructions": "For a limitation communicated in the selected unit, identify its affected condition or behavior, observable consequence, and available next action when the page establishes one. This checks the content of a limitation, not a second definition of STE language rules. Do not invent a remedy, infer behavior from implementation names, require a nonexistent workaround, or judge an unseen linked document. Return not_applicable if no consequential limitation is communicated. Return insufficient_context if the supplied page does not establish a fact required to judge the claimed limitation.",
+    "pass": "The local limitation states its applicability, consequence, and known available next action accurately within the supplied evidence.",
+    "fail": "The limitation obscures or overstates its local applicability or effect, or omits a next action established as necessary and available in the supplied page."
   },
   {
     "id": "focused-unit",
+    "engine": "decision",
     "scope": "section",
-    "instructions": "Evaluate the target unit's own coherent reader question in the context of the page purpose and headings. Do its parts contribute necessary information without redundant framing or unrelated detours? A document may contain several related tasks; do not require every section to perform the entire document's task. Keep prerequisites, constraints, explanations, and useful onward links that serve the unit. A short paragraph, list, or diagram needs no generic introduction or summary. Return insufficient_context when missing purpose or neighboring material prevents a relevance judgment.",
-    "pass": "The unit answers a coherent reader question without unnecessary repetition or detours, at whatever length its purpose requires.",
-    "fail": "The unit mixes independent tasks without a useful relationship, repeats information without added value, or includes filler that can be removed without losing necessary context."
+    "source": {
+      "kind": "supplement",
+      "reference": "documentation-principles#serve-a-readers-purpose"
+    },
+    "instructions": "Judge whether the selected unit answers a coherent question for its intended reader. Keep necessary prerequisites, constraints, representations, and explanation together. Flag unrelated tasks, redundant framing, or removable repetition, not technical detail required by that audience. Do not impose a word count or require an introduction and summary around a self-sufficient unit. Preserve fixed template headings, order, and sections; recommend content corrections within them rather than restructuring the template. Judge only this unit in its page context.",
+    "pass": "The unit answers its reader's question without unrelated content or unnecessary repetition.",
+    "fail": "The unit mixes unrelated reader tasks or contains repetition or framing that adds no useful information."
   },
   {
     "id": "reader-route",
+    "engine": "decision",
     "scope": "page",
-    "instructions": "For a page that guides action, develops an explanation, or helps readers find related guidance, can the stated reader follow a coherent route to the intended outcome? Check that prerequisites appear before they are needed, steps and decisions are ordered clearly, and links lead to the appropriate level of guidance. Explain a documented normal path before optional branches when such a path exists, but do not invent a default or require a particular tool, automation method, environment, or document layout. Judge delegated prerequisites using supplied destination evidence, not assumptions. Return not_applicable for an isolated factual entry or a lookup-only reference with no meaningful ordering or navigation responsibility. Return insufficient_context when a decisive destination or required prerequisite is unseen.",
-    "pass": "The page provides an understandable route for its stated purpose, with usable ordering, clear choices, and prerequisites available at the relevant point.",
-    "fail": "The page requires avoidable detours, introduces necessary prerequisites too late, presents competing or circular instructions, or leaves the reader to reconstruct the route from disconnected guidance."
+    "source": {
+      "kind": "supplement",
+      "reference": "documentation-principles#maintain-document-ownership-and-navigation"
+    },
+    "instructions": "Judge only the route visible within this page: locally stated prerequisites, ordered actions, choices, and descriptions of onward links. Present a documented normal path before optional branches when one exists, without inventing a default or requiring a different template. Respect required headings and order, and judge whether their content supplies the necessary route. Do not judge whether a link works, whether its destination contains enough guidance, canonical ownership, or cross-page duplication; these are outside this automated check. If a decisive prerequisite or destination is unseen, return insufficient_context instead of asserting a defect. Return not_applicable for an isolated lookup entry with no navigation or ordering responsibility.",
+    "pass": "The locally supplied content provides a coherent route and clearly identifies the next action or onward guidance.",
+    "fail": "The page's own instructions introduce necessary local prerequisites too late or contain competing, circular, or disconnected actions."
+  },
+  {
+    "id": "visual-role",
+    "engine": "decision",
+    "scope": "section",
+    "source": {
+      "kind": "supplement",
+      "reference": "documentation-principles#project-conventions-and-markdown"
+    },
+    "instructions": "When the target contains materially different content roles, judge whether its Markdown presentation makes instructions, warnings, examples, and reference information easy to distinguish. Use project formatting constraints first. Code, tables, diagrams, lists, and GitHub alerts can communicate the distinctions. Do not demand an alert or another decoration merely because the feature exists; a self-sufficient existing representation is acceptable. Do not inspect rendering on a different page or claim a renderer supports a feature without local evidence. Respect the template's structure and exact quoted material. Return not_applicable when no meaningful visual distinction is needed.",
+    "pass": "Meaningful content roles are distinguishable using the permitted visual forms without decorative or repeated emphasis.",
+    "fail": "Different consequential roles are buried in undifferentiated prose despite an available permitted form, or formatting obscures their meaning."
+  },
+  {
+    "id": "ste-dictionary-candidates",
+    "engine": "mechanical",
+    "scope": "page",
+    "check": { "kind": "ste-dictionary-membership" },
+    "source": {
+      "kind": "standard-support",
+      "edition": "Issue 9 (2025-01-15)",
+      "reference": "Private local evidence adapter for rules 1.1 to 1.4, 3.1, and 9.2 to 9.3",
+      "printedPages": "1-1-2 to 1-1-5, 1-3-1 to 1-3-2, 1-9-5 to 1-9-8",
+      "pdfPages": [46, 47, 48, 49, 67, 68, 119, 120, 121, 122],
+      "coverage": "Candidate lookup only. Contextual meaning, part of speech, and technical-term allowances remain unresolved until reviewed.",
+      "guide": "rules/ste-issue9.md#evidence-and-engine-boundaries"
+    }
+  },
+  {
+    "id": "ste-1-1",
+    "engine": "decision",
+    "scope": "paragraph",
+    "requiresDictionaryEntries": true,
+    "source": {
+      "kind": "standard",
+      "edition": "Issue 9 (2025-01-15)",
+      "rule": "1.1",
+      "printedPages": "1-1-2",
+      "pdfPages": [46],
+      "coverage": "bounded-local",
+      "guide": "rules/ste-issue9.md#section-1"
+    },
+    "instructions": "For every prose word, establish either an applicable approved dictionary entry, a valid technical noun under 1.5, or a valid technical verb under 1.12. Do not equate familiar English, capitalization, a software domain, or a blacklist absence with approval. Judge only entries and terminology evidence actually supplied on this page. Do not reconstruct the dictionary from memory or redistribute it. Exact syntax is not English prose; fixed quoted text has the specific allowances in 1.5 and 8.6, not a blanket technical-prose waiver. Return insufficient_context if any required vocabulary evidence is missing. A positive result is only a bounded vocabulary assessment, not full dictionary verification.",
+    "pass": "Each assessed prose use has an evidenced approved entry or applicable technical-term category.",
+    "fail": "A supplied entry or category establishes that a prose use has no permitted vocabulary basis."
+  },
+  {
+    "id": "ste-1-2",
+    "engine": "decision",
+    "scope": "paragraph",
+    "requiresDictionaryEntries": true,
+    "source": {
+      "kind": "standard",
+      "edition": "Issue 9 (2025-01-15)",
+      "rule": "1.2",
+      "printedPages": "1-1-2 to 1-1-3",
+      "pdfPages": [46, 47],
+      "coverage": "bounded-local",
+      "guide": "rules/ste-issue9.md#section-1"
+    },
+    "instructions": "Identify the grammatical role of each dictionary-controlled word in its actual sentence and compare it with the supplied approved part or parts of speech. A surface spelling match does not prove the grammatical role. Some entries permit multiple roles. A replacement with a different role needs a grammatical reconstruction that preserves meaning. Assess technical terms under their own category rules. Return insufficient_context for missing entries or unresolved grammatical roles, never invent an entry.",
+    "pass": "Each assessed use matches an evidenced approved part of speech.",
+    "fail": "An actual grammatical use conflicts with its supplied approved entry."
+  },
+  {
+    "id": "ste-1-3",
+    "engine": "decision",
+    "scope": "paragraph",
+    "requiresDictionaryEntries": true,
+    "source": {
+      "kind": "standard",
+      "edition": "Issue 9 (2025-01-15)",
+      "rule": "1.3",
+      "printedPages": "1-1-4",
+      "pdfPages": [48],
+      "coverage": "bounded-local",
+      "guide": "rules/ste-issue9.md#section-1"
+    },
+    "instructions": "Compare a controlled word's intended sense in this passage with its supplied approved meaning. Approval of a spelling does not permit its other ordinary-English senses. Do not flag a valid technical term merely because a dictionary sense differs. Return insufficient_context if the actual entry, intended sense, or technical-term basis is missing. Do not substitute an alternative that changes technical meaning.",
+    "pass": "The contextual senses agree with the supplied approved meanings.",
+    "fail": "A controlled word is used with a sense its supplied entry does not permit."
+  },
+  {
+    "id": "ste-1-4",
+    "engine": "decision",
+    "scope": "paragraph",
+    "requiresDictionaryEntries": true,
+    "source": {
+      "kind": "standard",
+      "edition": "Issue 9 (2025-01-15)",
+      "rule": "1.4",
+      "printedPages": "1-1-4 to 1-1-5",
+      "pdfPages": [48, 49],
+      "coverage": "bounded-local",
+      "guide": "rules/ste-issue9.md#section-1"
+    },
+    "instructions": "Compare verb inflections and adjective degrees against the forms in the supplied entry. Do not generate regular or irregular forms by assumption. Adjectives with analytic comparison can use the approved comparison words rather than requiring separate inflected entries. Distinguish a permitted participial adjective from an impermissible verb construction under section 3. Return insufficient_context if required entry forms are unavailable. Known-form lookup belongs in deterministic code, not model recall.",
+    "pass": "The assessed inflected forms have a supplied approved basis.",
+    "fail": "An evidenced entry excludes an inflection used in prose."
+  },
+  {
+    "id": "ste-1-5",
+    "engine": "decision",
+    "scope": "paragraph",
+    "source": {
+      "kind": "standard",
+      "edition": "Issue 9 (2025-01-15)",
+      "rule": "1.5",
+      "printedPages": "1-1-5 to 1-1-9",
+      "pdfPages": [49, 50, 51, 52, 53],
+      "coverage": "bounded-local",
+      "guide": "rules/ste-issue9.md#technical-noun-categories"
+    },
+    "instructions": "For each asserted technical noun, identify its domain concept and category. The 22 permitted categories are: 1 official design/part records, 2 vehicles/machines and their locations, 3 tools/support equipment with parts and locations, 4 materials/supplies/unwanted substances, 5 facilities/infrastructure/logistics, 6 systems/circuits with functions/configurations/components, 7 mathematics/science/engineering/formulas, 8 navigation/geography, 9 numbers/measurement/time and symbols, 10 fixed display/sign/label/marking text, 11 roles/persons/groups/organizations/geopolitical entities, 12 body parts/functions, 13 personal items/food/drinks, 14 medicine, 15 official publications/their parts/standards/guidance, 16 environmental/operating conditions, 17 colors, 18 damage/defects/degradation, 19 computing/communications, 20 civil/military operations and lifecycle support, 21 legal/regulatory concepts, 22 organisms. Categories are not a closed word list, nor permission to call all prose technical. Category 10 covers unchangeable displayed or marked text. Colors are treated as technical nouns even in adjectival use, but comparative and superlative colors are not permitted. Require a locally supported domain meaning, not just a plausible spelling. Return insufficient_context when term role, meaning, or category cannot be established.",
+    "pass": "Each asserted technical noun has a supported domain meaning in a permitted category.",
+    "fail": "An asserted technical noun has no applicable category, or a color is improperly compared."
+  },
+  {
+    "id": "ste-1-6",
+    "engine": "decision",
+    "scope": "paragraph",
+    "source": {
+      "kind": "standard",
+      "edition": "Issue 9 (2025-01-15)",
+      "rule": "1.6",
+      "printedPages": "1-1-9 to 1-1-10",
+      "pdfPages": [53, 54],
+      "coverage": "bounded-local",
+      "guide": "rules/ste-issue9.md#section-1"
+    },
+    "instructions": "A dictionary-disallowed or absent word may occur as a valid technical noun or constituent of one, only in that technical context. Verify the entire term, its actual meaning, and category under 1.5. Do not mechanically replace part of an official term with a dictionary alternative. The same spelling in a general use is not covered. Technical verbs have their distinct allowance under 1.12. Return insufficient_context when the supplied entry or term basis cannot resolve the use.",
+    "pass": "A challenged noun use is supported as a technical term or constituent in its actual context.",
+    "fail": "A disallowed general noun use is disguised as a technical term without an applicable basis."
+  },
+  {
+    "id": "ste-1-7",
+    "engine": "decision",
+    "scope": "paragraph",
+    "source": {
+      "kind": "standard",
+      "edition": "Issue 9 (2025-01-15)",
+      "rule": "1.7",
+      "printedPages": "1-1-11",
+      "pdfPages": [55],
+      "coverage": "bounded-local",
+      "guide": "rules/ste-issue9.md#section-1"
+    },
+    "instructions": "A technical noun is not automatically a verb. Allow its noun role or its modifying role inside another technical noun. The same spelling can independently qualify as a technical verb under 1.12 in a suitable context, so verify both bases before flagging it. Prefer a meaning-preserving approved verb plus technical noun when no independent verb basis exists. Return insufficient_context if the role or separate category approval is unresolved.",
+    "pass": "Technical-noun spellings used as verbs have an independent valid verb basis.",
+    "fail": "A technical noun is converted to a verb without an applicable approved or technical-verb basis."
+  },
+  {
+    "id": "ste-1-8",
+    "engine": "decision",
+    "scope": "paragraph",
+    "source": {
+      "kind": "standard",
+      "edition": "Issue 9 (2025-01-15)",
+      "rule": "1.8",
+      "printedPages": "1-1-11",
+      "pdfPages": [55],
+      "coverage": "bounded-local; external authority verification excluded",
+      "guide": "rules/ste-issue9.md#section-1"
+    },
+    "instructions": "Use the established company, industry, or subject-field name for an item or process when one exists. Compare prose with a locally supplied authoritative term, preserving its exact technical identity. Do not infer company approval from popularity or invent a term. Do not inspect an external glossary or another page through this check. Return insufficient_context when the relevant terminology authority is unavailable.",
+    "pass": "Local names agree with the authoritative terminology supplied on this page.",
+    "fail": "Prose replaces an evidenced official technical name with an unsupported alternative."
+  },
+  {
+    "id": "ste-1-9",
+    "engine": "decision",
+    "scope": "paragraph",
+    "requiresNounGroupCounts": true,
+    "source": {
+      "kind": "standard",
+      "edition": "Issue 9 (2025-01-15)",
+      "rule": "1.9",
+      "printedPages": "1-1-12",
+      "pdfPages": [56],
+      "coverage": "bounded-local; term counting requires deterministic evidence",
+      "guide": "rules/ste-issue9.md#section-1"
+    },
+    "instructions": "Review every applicable noun group in the target, not only the supplied declarations. Return insufficient_context if a relevant group has no declaration or its boundary or role cannot be verified locally, even when every selected declaration has a computed count. Selected declarations never establish an exhaustive inventory. Apply only when no established technical noun exists and the writer must select a new one. Select a clear name with at most three words, keeping enough identification to avoid ambiguity. An illustration identifier supports shortening only if its identifying evidence is actually available. Do not shorten an official name governed by 1.8 and 2.2. Do not ask the model to count: use only the supplied target-local nounGroupCounts evidence for wordCount and hyphenComponentCounts, otherwise return insufficient_context for numeric compliance. Audit the declared noun-group role and actual identity rather than accepting the declaration as proof. Judge intelligibility only when the naming situation and identity are established; return not_applicable for an established official term.",
+    "pass": "An evidenced newly selected name is clear and its verified count is within the limit.",
+    "fail": "A newly selected name is ambiguous or exceeds the limit according to supplied deterministic evidence."
+  },
+  {
+    "id": "ste-1-10",
+    "engine": "decision",
+    "scope": "paragraph",
+    "source": {
+      "kind": "standard",
+      "edition": "Issue 9 (2025-01-15)",
+      "rule": "1.10",
+      "printedPages": "1-1-12",
+      "pdfPages": [56],
+      "coverage": "bounded-local",
+      "guide": "rules/ste-issue9.md#section-1"
+    },
+    "instructions": "Check selected technical terms for regional-only usage, informal slang, or jargon understood only by a confined group. Use a broadly understood accurate technical name instead. Specialized terminology is not automatically slang, and unfamiliarity alone does not prove a defect. Require local evidence about meaning and intended readership. Return insufficient_context if regionality or the intended meaning cannot be established.",
+    "pass": "The selected technical names are supported as clear terms rather than regionalisms, slang, or confined jargon.",
+    "fail": "An evidenced regionalism, slang term, or confined jargon obscures the intended technical meaning."
+  },
+  {
+    "id": "ste-1-11",
+    "engine": "decision",
+    "scope": "page",
+    "source": {
+      "kind": "standard",
+      "edition": "Issue 9 (2025-01-15)",
+      "rule": "1.11",
+      "printedPages": "1-1-13",
+      "pdfPages": [57],
+      "coverage": "bounded-local; cross-page consistency excluded",
+      "guide": "rules/ste-issue9.md#section-1"
+    },
+    "instructions": "Compare technical nouns only for items whose same identity is established on this page. Use one approved name for the same item rather than stylistic synonyms. Respect an explicitly introduced legitimate shorter form under 2.2. Do not conflate distinct items because their names resemble each other. Cross-page and document-set consistency remain separate required review, never a local pass. Return insufficient_context for unresolved identity or naming authority.",
+    "pass": "Evidently identical items use consistent locally established technical names.",
+    "fail": "The same locally identified item has competing technical names without a supported short-form basis."
+  },
+  {
+    "id": "ste-1-12",
+    "engine": "decision",
+    "scope": "paragraph",
+    "source": {
+      "kind": "standard",
+      "edition": "Issue 9 (2025-01-15)",
+      "rule": "1.12",
+      "printedPages": "1-1-13 to 1-1-16",
+      "pdfPages": [57, 58, 59, 60],
+      "coverage": "bounded-local",
+      "guide": "rules/ste-issue9.md#technical-verb-categories"
+    },
+    "instructions": "Require a specific domain process in a permitted technical-verb family. The four families are: 1 manufacturing processes that remove, add, or attach material or change its properties, finish, or shape, 2 computing input/output, interface/application processes, and system operations, 3 subject-specific processes in engineering/mathematics/science, medicine, civil/military operations, navigation, automotive/railway work, and energy/oil/gas work, 4 legal/regulatory processes only in legal or regulatory texts. The category examples are not a closed vocabulary list. Prefer an approved dictionary verb or an approved verb plus technical noun when it accurately expresses the same meaning; do not invent a technical-verb escape for general prose. Domain fit alone is insufficient if a clear approved construction suffices. Technical verbs still obey section 3. Return insufficient_context for missing domain, entry, or intended-action evidence.",
+    "pass": "Each necessary technical verb has a precise category and context, with no equally accurate approved construction established as sufficient.",
+    "fail": "A technical verb is used generally, imprecisely, outside its category, or unnecessarily instead of an established accurate approved construction."
+  },
+  {
+    "id": "ste-1-13",
+    "engine": "decision",
+    "scope": "paragraph",
+    "source": {
+      "kind": "standard",
+      "edition": "Issue 9 (2025-01-15)",
+      "rule": "1.13",
+      "printedPages": "1-1-16 to 1-1-17",
+      "pdfPages": [60, 61],
+      "coverage": "bounded-local",
+      "guide": "rules/ste-issue9.md#section-1"
+    },
+    "instructions": "Technical-verb approval does not grant noun approval. Verify the actual grammatical role. A past participle may act as an adjective; a spelling may separately qualify as a technical noun under 1.5. Do not flag such supported independent noun or adjectival use merely because the verb exists. Return insufficient_context when the independent basis or grammatical role cannot be resolved.",
+    "pass": "Noun uses have their own technical-noun basis and participial adjectives remain adjectival.",
+    "fail": "A technical verb is used as a noun solely on the basis of its verb permission."
+  },
+  {
+    "id": "ste-1-14",
+    "engine": "decision",
+    "scope": "paragraph",
+    "source": {
+      "kind": "standard",
+      "edition": "Issue 9 (2025-01-15)",
+      "rule": "1.14",
+      "printedPages": "1-1-17",
+      "pdfPages": [61],
+      "coverage": "bounded-local; spelling lookup needs supplied evidence",
+      "guide": "rules/ste-issue9.md#section-1"
+    },
+    "instructions": "Follow the dictionary's American spelling unless an applicable official publishing specification, contract, style guide, or directive requires another spelling. Preserve genuine fixed quoted text even when its spelling differs. An author's personal preference is not an official directive. Do not reconstruct a spelling dictionary from model memory. Require locally supplied spelling or directive evidence, and return insufficient_context when the deciding basis is missing.",
+    "pass": "Assessed spellings follow supplied dictionary evidence or a locally established official directive, with fixed quotes preserved.",
+    "fail": "A supplied spelling basis is violated without an applicable directive or fixed-quotation allowance."
+  },
+  {
+    "id": "ste-2-1",
+    "engine": "decision",
+    "scope": "paragraph",
+    "requiresNounGroupCounts": true,
+    "source": {
+      "kind": "standard",
+      "edition": "Issue 9 (2025-01-15)",
+      "rule": "2.1",
+      "printedPages": "1-2-1 to 1-2-2",
+      "pdfPages": [63, 64],
+      "coverage": "bounded-local; noun-group count requires deterministic evidence",
+      "guide": "rules/ste-issue9.md#section-2"
+    },
+    "instructions": "Review every applicable noun group in the target, not only the supplied declarations. Return insufficient_context if a relevant group has no declaration or its boundary or role cannot be verified locally, even when every selected declaration has a computed count. Selected declarations never establish an exhaustive inventory. Identify the head noun and its noun/adjective modifiers, not arbitrary adjacent words. Keep a multi-word noun within three counted words, using meaning-preserving prepositions or clauses to explain relationships. Official long technical nouns are handled by 2.2, not deleted or blindly split. Hyphen units obey 2.2 and 8.2, not cosmetic compression. A model must not perform the numeric count: use only supplied target-local nounGroupCounts with deterministic wordCount and hyphenComponentCounts. Verify that the literal group's declared role and boundary fit this context. Return insufficient_context when an undecided group, boundary, or count is required. Do not count code identifiers as prose noun groups.",
+    "pass": "Evidenced noun groups meet the verified limit or the applicable official-name handling under 2.2.",
+    "fail": "An evidenced nonexempt noun group exceeds three counted words or has unclear modifier relationships."
+  },
+  {
+    "id": "ste-2-2",
+    "engine": "decision",
+    "scope": "page",
+    "requiresNounGroupCounts": true,
+    "source": {
+      "kind": "standard",
+      "edition": "Issue 9 (2025-01-15)",
+      "rule": "2.2",
+      "printedPages": "1-2-2 to 1-2-4",
+      "pdfPages": [64, 65, 66],
+      "coverage": "bounded-local; document-wide first occurrence excluded",
+      "guide": "rules/ste-issue9.md#section-2"
+    },
+    "instructions": "Review every applicable noun group in the target, not only the supplied declarations. Return insufficient_context if a relevant group has no declaration or its boundary or role cannot be verified locally, even when every selected declaration has a computed count. Selected declarations never establish an exhaustive inventory. For an established technical name longer than three words, retain the full official form at its first occurrence, then use an intelligible explained shorter form or an approved abbreviation when feasible, or group directly related words with valid hyphens. Preserve existing official hyphens. Do not create hyphen groups of more than three words or hyphenate unrelated words to evade the limit. Short official terms need no artificial abbreviations or extra hyphens; avoid abbreviation-heavy unreadable prose. Use only supplied target-local nounGroupCounts for deterministic wordCount and hyphenComponentCounts rather than model counting. Verify the declared official term and constituent relationships from local evidence. Missing necessary groups or boundaries require insufficient_context. Judge only introductions and reuse visible on this page. If a document-wide first occurrence or authority lies elsewhere, return insufficient_context and require separate review, not pass.",
+    "pass": "Visible introduction and later forms retain official identity and use supported clear shortening or hyphenation.",
+    "fail": "A visible first introduction truncates the official term or a later form creates unclear, unapproved, or artificial grouping."
+  },
+  {
+    "id": "ste-3-1",
+    "engine": "decision",
+    "scope": "paragraph",
+    "requiresDictionaryEntries": true,
+    "source": {
+      "kind": "standard",
+      "edition": "Issue 9 (2025-01-15)",
+      "rule": "3.1",
+      "printedPages": "1-3-1 to 1-3-2",
+      "pdfPages": [67, 68],
+      "coverage": "bounded-local; dictionary lookup requires supplied entries",
+      "guide": "rules/ste-issue9.md#section-3"
+    },
+    "instructions": "Check the actual verb form against its supplied approved entry, including irregular forms. Do not infer approved inflections from general English grammar or use a blacklist. Technical verbs obey the form and construction limits of section 3. This is the verb-focused application of 1.4, not an additional vocabulary policy. Return insufficient_context when required form evidence is absent; known-form lookup belongs in code.",
+    "pass": "Assessed verb forms agree with the supplied approved form evidence.",
+    "fail": "A supplied entry establishes that an actual verb form is not permitted."
+  },
+  {
+    "id": "ste-3-2",
+    "engine": "decision",
+    "scope": "paragraph",
+    "source": {
+      "kind": "standard",
+      "edition": "Issue 9 (2025-01-15)",
+      "rule": "3.2",
+      "printedPages": "1-3-2",
+      "pdfPages": [68],
+      "coverage": "bounded-local",
+      "guide": "rules/ste-issue9.md#section-3"
+    },
+    "instructions": "Classify actual verb constructions. Use infinitives, commands, simple present, simple past, or simple future, with past participles in their permitted adjectival role. Perfect, progressive, and other complex tense constructions are outside this set. Do not mistake a dictionary-approved adjective for a progressive or passive verb merely from its ending. Preserve independently applicable unknown-agent descriptive passive handling under 3.6 rather than inventing further tense allowances. Return insufficient_context if a grammatical role or necessary entry is unresolved.",
+    "pass": "The evidenced constructions use the permitted simple forms or applicable adjectival and voice allowances.",
+    "fail": "A construction uses a perfect, progressive, or other unapproved complex tense."
+  },
+  {
+    "id": "ste-3-3",
+    "engine": "decision",
+    "scope": "paragraph",
+    "source": {
+      "kind": "standard",
+      "edition": "Issue 9 (2025-01-15)",
+      "rule": "3.3",
+      "printedPages": "1-3-2 to 1-3-3",
+      "pdfPages": [68, 69],
+      "coverage": "bounded-local",
+      "guide": "rules/ste-issue9.md#section-3"
+    },
+    "instructions": "Distinguish an approved past-participle adjective describing a state from a verb expressing an action. Its adjectival positions include before a noun and after forms of be, become, or stay. An approved standalone adjective can be valid even if its corresponding verb is not approved; technical participles also have their allowance under 1.13. Do not mark every be-plus-participle as passive. Require supplied entry evidence and actual state/action context, otherwise return insufficient_context.",
+    "pass": "Participial uses are evidenced approved adjectives describing states in appropriate positions.",
+    "fail": "An evidenced participial form is unauthorized as an adjective or is misused as an unapproved action construction."
+  },
+  {
+    "id": "ste-3-4",
+    "engine": "decision",
+    "scope": "paragraph",
+    "source": {
+      "kind": "standard",
+      "edition": "Issue 9 (2025-01-15)",
+      "rule": "3.4",
+      "printedPages": "1-3-3",
+      "pdfPages": [69],
+      "coverage": "bounded-local",
+      "guide": "rules/ste-issue9.md#section-3"
+    },
+    "instructions": "Identify auxiliary chains that create unapproved perfect or complex passive constructions, especially a verbal past participle with have or chained auxiliaries. This is not a ban on every auxiliary: allowed simple future, active modal uses, and approved state adjectives must retain their meaning. Rewrite the action directly without inventing its actor, obligation, or timing. Apply 3.6 for the limited unknown-agent descriptive passive case. Return insufficient_context when state versus action or the actor cannot be resolved.",
+    "pass": "The prose avoids prohibited complex auxiliary constructions while retaining permitted simple constructions.",
+    "fail": "An auxiliary chain creates an evidenced unapproved complex verb construction."
+  },
+  {
+    "id": "ste-3-5",
+    "engine": "decision",
+    "scope": "paragraph",
+    "source": {
+      "kind": "standard",
+      "edition": "Issue 9 (2025-01-15)",
+      "rule": "3.5",
+      "printedPages": "1-3-4 to 1-3-5",
+      "pdfPages": [70, 71],
+      "coverage": "bounded-local",
+      "guide": "rules/ste-issue9.md#section-3"
+    },
+    "instructions": "For an -ing form derived from a verb, permit a valid technical noun or a functional modifier inside a technical noun. Other uses such as progressive verbs and action-bearing participial clauses are not covered. Independently approved dictionary words ending in ing remain valid in their approved roles and meanings. An ending match alone is not evidence of a verb form or violation. Require the actual entry or category and contextual grammatical role. Return insufficient_context when that basis is missing.",
+    "pass": "Each assessed -ing form has an evidenced dictionary role or valid technical-noun function.",
+    "fail": "A verbal -ing form is used outside the permitted technical-noun or independently approved roles."
+  },
+  {
+    "id": "ste-3-6",
+    "engine": "decision",
+    "scope": "paragraph",
+    "source": {
+      "kind": "standard",
+      "edition": "Issue 9 (2025-01-15)",
+      "rule": "3.6",
+      "printedPages": "1-3-5 to 1-3-8",
+      "pdfPages": [71, 72, 73, 74],
+      "coverage": "bounded-local",
+      "supersedes": ["ste-faq-active-description"],
+      "guide": "rules/ste-issue9.md#section-3"
+    },
+    "instructions": "Use active voice in procedural and descriptive prose. Only descriptive prose has the passive allowance when the true actor or cause is unknown. An omitted but locally known actor is not unknown. Distinguish a state adjective under 3.3 from a passive action. Never invent an actor or change causation to eliminate passive voice. If meaning supports it, the reader or organization can be the actual active subject, but not by default. Return insufficient_context if actor knowledge or state/action interpretation cannot be established locally.",
+    "pass": "The prose is active, an approved state adjective, or an evidenced unknown-agent descriptive passive.",
+    "fail": "A procedural passive or a known-agent descriptive passive lacks the applicable allowance."
+  },
+  {
+    "id": "ste-3-7",
+    "engine": "decision",
+    "scope": "paragraph",
+    "source": {
+      "kind": "standard",
+      "edition": "Issue 9 (2025-01-15)",
+      "rule": "3.7",
+      "printedPages": "1-3-9",
+      "pdfPages": [75],
+      "coverage": "bounded-local",
+      "guide": "rules/ste-issue9.md#section-3"
+    },
+    "instructions": "Prefer a direct approved verb for the action rather than an unnecessary nominalized or indirect construction. Do not convert a noun into an unapproved verb to make prose shorter; an approved verb plus noun may be necessary. Technical verbs require their independent 1.12 basis. Require supplied entry evidence when approval determines the choice, and return insufficient_context for missing action meaning or entry evidence.",
+    "pass": "Actions use clear evidenced approved verbs, with noun constructions retained when verb approval requires them.",
+    "fail": "An action is unnecessarily obscured despite an evidenced accurate approved verb, or a noun is converted into an unapproved verb."
+  },
+  {
+    "id": "ste-4-1",
+    "engine": "decision",
+    "scope": "paragraph",
+    "source": {
+      "kind": "standard",
+      "edition": "Issue 9 (2025-01-15)",
+      "rule": "4.1",
+      "printedPages": "1-4-1 to 1-4-2",
+      "pdfPages": [77, 78],
+      "coverage": "bounded-local",
+      "supersedes": ["ste-faq-one-topic"],
+      "guide": "rules/ste-issue9.md#section-4"
+    },
+    "instructions": "Judge sentence clarity and concrete accurate meaning, not numeric length, which belongs to 5.1 and 6.3. Procedures give direct comprehensible actions; descriptions give one subject or idea per sentence and develop it gradually without commands. Necessary dependent conditions are not automatically independent topics. Flag abstract wording that hides the necessary action or operation, or ambiguity supported by the passage. Do not invent temperatures, limits, behavior, or facts to make a statement precise. Return insufficient_context when the action or technical meaning is unavailable.",
+    "pass": "Sentences communicate concrete, accurate, unambiguous actions or single descriptive ideas.",
+    "fail": "A sentence obscures its necessary action, combines unrelated descriptive ideas, or has materially ambiguous abstract wording."
+  },
+  {
+    "id": "ste-4-2",
+    "engine": "decision",
+    "scope": "paragraph",
+    "source": {
+      "kind": "standard",
+      "edition": "Issue 9 (2025-01-15)",
+      "rule": "4.2",
+      "printedPages": "1-4-3",
+      "pdfPages": [79],
+      "coverage": "bounded-local",
+      "guide": "rules/ste-issue9.md#section-4"
+    },
+    "instructions": "Keep the words needed for complete comprehensible prose: subjects, action verbs, nouns, and applicable articles. Do not use contractions to compress sentences. Imperatives legitimately have an understood reader subject; headings, labels, and valid list fragments are not defective full sentences. Possessive apostrophes are not contractions. Test ambiguous omissions in conditions and coordinated objects, using 4.5's article allowances. Exact executable or fixed quoted syntax remains unchanged. Return insufficient_context for an unresolved intended subject or action.",
+    "pass": "Prose retains its necessary grammatical content without contractions.",
+    "fail": "A sentence omits a necessary component or uses a contraction to shorten prose."
+  },
+  {
+    "id": "ste-4-3",
+    "engine": "decision",
+    "scope": "section",
+    "source": {
+      "kind": "standard",
+      "edition": "Issue 9 (2025-01-15)",
+      "rule": "4.3",
+      "printedPages": "1-4-4 to 1-4-6",
+      "pdfPages": [80, 81, 82],
+      "coverage": "bounded-local",
+      "guide": "rules/ste-issue9.md#section-4"
+    },
+    "instructions": "Use a vertical list to clarify a complex series of items, actions, or descriptive events. Check the lead-in colon, marked and capitalized items, applicable articles, and correct connection of each item to the lead-in. Full sentences end in periods; fragments do not except the final item, which ends in a period. Do not end items with commas or semicolons. Do not mix commands and descriptions in one list or nest another list unclearly within it; use a clear common item level. Safety negatives belong explicitly on the applicable items, not solely in the lead-in. Applicable publishing directives determine marker style. Preserve required structure and exact syntax. Return not_applicable when no complex series or prose list occurs; insufficient_context for missing lead-in or item boundaries.",
+    "pass": "The local complex series uses a readable consistent vertical list with correct lead-in, item roles, and punctuation.",
+    "fail": "A necessary series remains unclear in running prose or its prose list has defective connections, mixed roles, or item conventions."
+  },
+  {
+    "id": "ste-4-4",
+    "engine": "decision",
+    "scope": "section",
+    "source": {
+      "kind": "standard",
+      "edition": "Issue 9 (2025-01-15)",
+      "rule": "4.4",
+      "printedPages": "1-4-7",
+      "pdfPages": [83],
+      "coverage": "bounded-local",
+      "guide": "rules/ste-issue9.md#section-4"
+    },
+    "instructions": "Make relations between locally adjacent related ideas explicit with appropriate connecting words, phrases, or demonstratives. Include the necessary connection from a work step to its explanation and between safety statements. Do not demand a connector in every sentence or invent causation or sequence. An established relationship must determine the chosen connection. Return not_applicable when there is no related multi-sentence sequence and insufficient_context when the relationship cannot be established.",
+    "pass": "Related local sentences have clear accurate connections.",
+    "fail": "An established relation between local ideas is obscured or contradicted by its connection."
+  },
+  {
+    "id": "ste-4-5",
+    "engine": "decision",
+    "scope": "paragraph",
+    "source": {
+      "kind": "standard",
+      "edition": "Issue 9 (2025-01-15)",
+      "rule": "4.5",
+      "printedPages": "1-4-8 to 1-4-9",
+      "pdfPages": [84, 85],
+      "coverage": "bounded-local",
+      "guide": "rules/ste-issue9.md#section-4"
+    },
+    "instructions": "Use articles or demonstrative adjectives where English noun identification requires them. General statements, mass nouns, and abstract concepts need not take an article. A noun with a following alphanumeric identifier functions as a proper name and must not take the definite article. In a coordinated series, one initial article can suffice, but repeated articles can distinguish which modifiers apply to which objects. Check the actual intended reference and modifier scope; do not add articles by noun-token pattern. Return insufficient_context if reference or modifier applicability is unresolved.",
+    "pass": "Noun determiners are grammatically appropriate and modifier scopes remain clear.",
+    "fail": "A required determiner is missing, an identified proper name has an improper definite article, or determiner placement changes modifier scope."
+  },
+  {
+    "id": "ste-5-1",
+    "engine": "mechanical",
+    "scope": "paragraph",
+    "check": { "kind": "ste-sentence-length", "writingMode": "procedural" },
+    "source": {
+      "kind": "standard",
+      "edition": "Issue 9 (2025-01-15)",
+      "rule": "5.1",
+      "printedPages": "1-5-1 to 1-5-2",
+      "pdfPages": [87, 88],
+      "coverage": "conservative-mechanical; unsupported counting context is unresolved",
+      "requiredRules": ["8.4", "8.5", "8.6", "8.7"],
+      "guide": "rules/ste-issue9.md#section-5"
+    }
+  },
+  {
+    "id": "ste-5-2",
+    "engine": "decision",
+    "scope": "section",
+    "source": {
+      "kind": "standard",
+      "edition": "Issue 9 (2025-01-15)",
+      "rule": "5.2",
+      "printedPages": "1-5-2 to 1-5-3",
+      "pdfPages": [88, 89],
+      "coverage": "bounded-local",
+      "guide": "rules/ste-issue9.md#section-5"
+    },
+    "instructions": "In procedures, put one instruction in a sentence unless its actions occur together. Sequential independent actions need clear ordered steps. Simultaneous or tightly combined operations can share a sentence; multiple sentences can remain in one step for simultaneous actions or an immediate result, including a measured limit immediately after the action. A conjunction alone does not establish simultaneous action or a violation. Preserve the real operational sequence. Return not_applicable outside procedures and insufficient_context if concurrency or action/result coupling is unknown.",
+    "pass": "Instructions are separately sequenced except for supported simultaneous or immediate action/result units.",
+    "fail": "Independent sequential instructions are combined so their work-step sequence is obscured."
+  },
+  {
+    "id": "ste-5-3",
+    "engine": "decision",
+    "scope": "paragraph",
+    "source": {
+      "kind": "standard",
+      "edition": "Issue 9 (2025-01-15)",
+      "rule": "5.3",
+      "printedPages": "1-5-3 to 1-5-4",
+      "pdfPages": [89, 90],
+      "coverage": "bounded-local",
+      "supersedes": ["ste-faq-procedural-instructions"],
+      "guide": "rules/ste-issue9.md#section-5"
+    },
+    "instructions": "Express an instruction to the reader as an imperative command, not a passive, optional-sounding, or narrative account. Description of automatic system behavior is not a reader instruction. Do not add must before a command except when supported by a very important safety instruction or important condition. A genuine conditional necessity may use must in its condition; this is not a blanket modal ban. Judge intended action and obligation without changing technical meaning or fixed quoted syntax. Return not_applicable when no instruction is present and insufficient_context when intended role or claimed importance is unresolved.",
+    "pass": "Reader instructions use direct commands with only supported important-condition or safety modal emphasis.",
+    "fail": "A reader work instruction is indirect or narrative, or has unjustified modal emphasis."
+  },
+  {
+    "id": "ste-5-4",
+    "engine": "decision",
+    "scope": "paragraph",
+    "source": {
+      "kind": "standard",
+      "edition": "Issue 9 (2025-01-15)",
+      "rule": "5.4",
+      "printedPages": "1-5-4",
+      "pdfPages": [90],
+      "coverage": "bounded-local",
+      "supersedes": ["ste-faq-condition-first"],
+      "guide": "rules/ste-issue9.md#section-5"
+    },
+    "instructions": "If the reader must know a condition before an action, present that descriptive condition first and separate it from the command with a comma. Check that the comma places each modifier with its intended condition or action. This does not require every conditional clause in all prose to be fronted. Do not invent a prerequisite or reorder executable syntax. Return not_applicable when no pre-action condition applies and insufficient_context if timing or intended modifier attachment is unresolved.",
+    "pass": "Necessary pre-action conditions precede their commands with accurate comma separation.",
+    "fail": "A necessary pre-action condition comes after the command or comma placement changes its intended meaning."
+  },
+  {
+    "id": "ste-5-5",
+    "engine": "decision",
+    "scope": "section",
+    "source": {
+      "kind": "standard",
+      "edition": "Issue 9 (2025-01-15)",
+      "rule": "5.5",
+      "printedPages": "1-5-5 to 1-5-7",
+      "pdfPages": [91, 92, 93],
+      "coverage": "bounded-local; full procedure test excluded when elsewhere",
+      "countingVia": "ste-6-3",
+      "guide": "rules/ste-issue9.md#section-5"
+    },
+    "instructions": "Notes supply helpful descriptive information only, not instructions, requirements, limits, tolerances, or required work-step results. The procedure must remain correctly performable without its notes. Necessary action results and limits belong immediately with the related work step; safety-critical content belongs in a safety instruction. Notes follow descriptive rules including 25-word sentences, which code must verify, not the model. In descriptions, notes are permitted only when needed for an illustration or table. Judge the local note and procedure evidence; do not assert a complete-procedure result if steps lie elsewhere. Return not_applicable if no note occurs and insufficient_context for missing action, safety, or procedure evidence.",
+    "pass": "Notes are dispensable descriptive help in an allowed setting and necessary operational content remains in the work or safety instructions.",
+    "fail": "A note contains an instruction, mandatory requirement, limit, or safety-critical content, or is an unsupported note in descriptive prose."
+  },
+  {
+    "id": "ste-6-1",
+    "engine": "decision",
+    "scope": "section",
+    "source": {
+      "kind": "standard",
+      "edition": "Issue 9 (2025-01-15)",
+      "rule": "6.1",
+      "printedPages": "1-6-1 to 1-6-2",
+      "pdfPages": [95, 96],
+      "coverage": "bounded-local",
+      "guide": "rules/ste-issue9.md#section-6"
+    },
+    "instructions": "In descriptive prose, develop information in understandable stages, each sentence adding one subject or idea to the preceding account. State the system or topic sufficiently before its dependent details. Descriptions inform rather than command; procedural notes also count as descriptions. Do not require an introduction to a self-contained lookup fact or remove detail indispensable to the declared audience. Judge only the selected local sequence. Return not_applicable outside descriptions and insufficient_context for missing prerequisite context.",
+    "pass": "Descriptive information develops gradually in a locally comprehensible sequence without reader commands.",
+    "fail": "The description overloads the reader with unrelated subjects, presupposes unstated essential local information, or turns into instructions."
+  },
+  {
+    "id": "ste-6-2",
+    "engine": "decision",
+    "scope": "section",
+    "source": {
+      "kind": "standard",
+      "edition": "Issue 9 (2025-01-15)",
+      "rule": "6.2",
+      "printedPages": "1-6-2 to 1-6-4",
+      "pdfPages": [96, 97, 98],
+      "coverage": "bounded-local; cross-page cohesion excluded",
+      "guide": "rules/ste-issue9.md#section-6"
+    },
+    "instructions": "Use stable key terms and phrases to connect descriptive sentences and paragraphs; appropriate connectors distinguish additional, contrasting, or resulting information. Do not substitute stylistic synonyms for an established key term or mistake necessary repetition for redundancy. Check only locally established same-reference chains and relations. Cross-page cohesion and document-set terminology remain separate required review. Return not_applicable outside descriptions and insufficient_context for an unresolved antecedent or relation.",
+    "pass": "Stable key wording and accurate connections make the supplied descriptive sequence coherent.",
+    "fail": "Local descriptive reference chains are broken by inconsistent key wording or missing or inaccurate connections."
+  },
+  {
+    "id": "ste-6-3",
+    "engine": "mechanical",
+    "scope": "paragraph",
+    "check": { "kind": "ste-sentence-length", "writingMode": "descriptive" },
+    "source": {
+      "kind": "standard",
+      "edition": "Issue 9 (2025-01-15)",
+      "rule": "6.3",
+      "printedPages": "1-6-4",
+      "pdfPages": [98],
+      "coverage": "conservative-mechanical; unsupported counting context is unresolved",
+      "requiredRules": ["8.4", "8.5", "8.6", "8.7"],
+      "includes": "Notes under 5.1 and 5.5 use the descriptive 25-word limit.",
+      "guide": "rules/ste-issue9.md#section-6"
+    }
+  },
+  {
+    "id": "ste-6-4",
+    "engine": "decision",
+    "scope": "section",
+    "source": {
+      "kind": "standard",
+      "edition": "Issue 9 (2025-01-15)",
+      "rule": "6.4",
+      "printedPages": "1-6-5",
+      "pdfPages": [99],
+      "coverage": "bounded-local",
+      "guide": "rules/ste-issue9.md#section-6"
+    },
+    "instructions": "Use descriptive paragraphs to group related information in logical order. Each paragraph begins with a topic sentence that establishes its subject; later sentences explain or develop it. A new paragraph signals a new topic or different information. Do not split a necessary local representation from its explanation to satisfy a cosmetic preference. Preserve imposed headings and section order. Return not_applicable outside descriptive prose and insufficient_context if actual paragraph boundaries or local topic evidence are unavailable.",
+    "pass": "Descriptive paragraphs open with identifying topic sentences and group their related development coherently.",
+    "fail": "Descriptive information lacks meaningful paragraph grouping or a paragraph fails to establish its topic before dependent detail."
+  },
+  {
+    "id": "ste-6-5",
+    "engine": "decision",
+    "scope": "paragraph",
+    "source": {
+      "kind": "standard",
+      "edition": "Issue 9 (2025-01-15)",
+      "rule": "6.5",
+      "printedPages": "1-6-6",
+      "pdfPages": [100],
+      "coverage": "bounded-local",
+      "guide": "rules/ste-issue9.md#section-6"
+    },
+    "instructions": "A descriptive paragraph has one topic, introduced in its first sentence and developed by its remaining sentences. Relevant consequences, evidence, and explanations can belong to that topic, rather than being forced into separate paragraphs. The topic sentence should connect new information with the preceding local account when that relation is relevant. Do not infer a paragraph's topic from a heading alone or judge another page. Return not_applicable outside descriptions and insufficient_context for unresolved paragraph boundaries or topic.",
+    "pass": "The descriptive paragraph develops one established topic with a clear opening and related supporting sentences.",
+    "fail": "The paragraph introduces independent topics or its opening fails to identify the topic developed by the rest."
+  },
+  {
+    "id": "ste-6-6",
+    "engine": "mechanical",
+    "scope": "paragraph",
+    "check": { "kind": "ste-paragraph-length" },
+    "source": {
+      "kind": "standard",
+      "edition": "Issue 9 (2025-01-15)",
+      "rule": "6.6",
+      "printedPages": "1-6-7",
+      "pdfPages": [101],
+      "coverage": "conservative-mechanical; unresolved prose paragraph boundaries excluded",
+      "guide": "rules/ste-issue9.md#section-6"
+    }
+  },
+  {
+    "id": "ste-7-1",
+    "engine": "decision",
+    "scope": "section",
+    "source": {
+      "kind": "standard",
+      "edition": "Issue 9 (2025-01-15)",
+      "rule": "7.1",
+      "printedPages": "1-7-1 to 1-7-2",
+      "pdfPages": [103, 104],
+      "coverage": "bounded-local; risk analysis and external authority excluded",
+      "guide": "rules/ste-issue9.md#section-7"
+    },
+    "instructions": "A safety instruction immediately identifies risk level with the applicable word or permitted symbol. In the standard's aerospace/defense classification, injury or death requires warning, equipment/object damage requires caution, and combined risks require warning. Other domains may prescribe different words or symbols but still need the risk identification, direct opening, and explanation of 7.1-7.3. STE does not mandate uppercase or other formatting; follow the actual publishing directive. Require supplied risk and classification evidence, not an invented risk analysis. Return not_applicable if no safety instruction occurs and insufficient_context for missing risk or governing classification.",
+    "pass": "The locally evidenced risk is immediately identified by the applicable level word or symbol.",
+    "fail": "A safety instruction omits or misclassifies an evidenced risk level."
+  },
+  {
+    "id": "ste-7-2",
+    "engine": "decision",
+    "scope": "section",
+    "source": {
+      "kind": "standard",
+      "edition": "Issue 9 (2025-01-15)",
+      "rule": "7.2",
+      "printedPages": "1-7-3",
+      "pdfPages": [105],
+      "coverage": "bounded-local",
+      "guide": "rules/ste-issue9.md#section-7"
+    },
+    "instructions": "After the safety label, begin the instruction with a precise preventive command or a necessary pre-action condition followed by its command. The reader must immediately understand what to do or avoid. Do not front-load an abstract hazard discussion in place of action, invent a preventive measure, or reorder a necessary operational condition. Use 5.4's condition separation and 5.1's procedural count via code. Return not_applicable without a safety instruction and insufficient_context if the preventive action or condition is not evidenced.",
+    "pass": "The safety instruction opens with a clear accurate action or applicable condition and action.",
+    "fail": "The safety opening hides, delays, or misstates an established necessary preventive action or condition."
+  },
+  {
+    "id": "ste-7-3",
+    "engine": "decision",
+    "scope": "section",
+    "source": {
+      "kind": "standard",
+      "edition": "Issue 9 (2025-01-15)",
+      "rule": "7.3",
+      "printedPages": "1-7-4",
+      "pdfPages": [106],
+      "coverage": "bounded-local; unsupported hazard evidence unresolved",
+      "guide": "rules/ste-issue9.md#section-7"
+    },
+    "instructions": "Where possible, explain the particular risk or possible result of not obeying the safety instruction after its preventive action. Link the explanation to that action, making the practical hazard clear rather than merely claiming importance. Do not invent injury mechanisms, damage, severity, or a nonexistent consequence. An unavailable explanation basis is insufficient_context, not a waiver or pass. Return not_applicable without a safety instruction.",
+    "pass": "The safety instruction explains the evidenced risk or possible result in relation to its preventive action.",
+    "fail": "A possible and locally established hazard explanation is omitted, obscured, or contradicted."
+  },
+  {
+    "id": "ste-8-1",
+    "engine": "mechanical",
+    "scope": "page",
+    "check": { "kind": "ste-punctuation" },
+    "source": {
+      "kind": "standard",
+      "edition": "Issue 9 (2025-01-15)",
+      "rule": "8.1",
+      "printedPages": "1-8-2",
+      "pdfPages": [108],
+      "coverage": "mechanical semicolon restriction; general punctuation needs separate editorial review",
+      "guide": "rules/ste-issue9.md#section-8"
+    }
+  },
+  {
+    "id": "ste-8-2",
+    "engine": "decision",
+    "scope": "paragraph",
+    "source": {
+      "kind": "standard",
+      "edition": "Issue 9 (2025-01-15)",
+      "rule": "8.2",
+      "printedPages": "1-8-2",
+      "pdfPages": [108],
+      "coverage": "bounded-local",
+      "guide": "rules/ste-issue9.md#section-8"
+    },
+    "instructions": "Hyphens join directly related units: compound modifiers before nouns, multi-part written numbers or fractions, configuration terms involving a letter or number, compound technical verbs, and appropriate prefix/root vowel boundaries. Judge actual relationship and meaning, preserving official technical spelling. A dash that separates ideas or expresses a range is not a joining hyphen. Do not invent arbitrary compound groups to compress word counts; 2.2 bounds those groups. Return insufficient_context if term relationships or official spelling cannot be established.",
+    "pass": "Applicable related units have clear appropriate hyphenation without changing official names or meaning.",
+    "fail": "Missing or arbitrary hyphenation changes the intended relationship, or a dash is treated as a joining hyphen."
+  },
+  {
+    "id": "ste-8-3",
+    "engine": "decision",
+    "scope": "paragraph",
+    "source": {
+      "kind": "standard",
+      "edition": "Issue 9 (2025-01-15)",
+      "rule": "8.3",
+      "printedPages": "1-8-3 to 1-8-4",
+      "pdfPages": [109, 110],
+      "coverage": "bounded-local",
+      "guide": "rules/ste-issue9.md#section-8"
+    },
+    "instructions": "A parenthetical prose span must serve one of the seven permitted roles: reference to text or illustration, item identification, step identification, abbreviation, simultaneous singular/plural notation, explanation, or alternative. Judge role in context, not the raw presence of parentheses in exact syntax. Keep the actual command and alternative applicability unambiguous. Word-count treatment is governed by 8.5 and deterministic checks, not this model. Return not_applicable without prose parentheses and insufficient_context for an unresolved role or alternative.",
+    "pass": "Each prose parenthesis has an applicable reference, identification, abbreviation, form, explanatory, or alternative role.",
+    "fail": "A prose parenthesis lacks a permitted role or obscures its necessary alternative or explanation."
+  },
+  {
+    "id": "ste-9-1",
+    "engine": "decision",
+    "scope": "section",
+    "source": {
+      "kind": "standard",
+      "edition": "Issue 9 (2025-01-15)",
+      "rule": "9.1",
+      "printedPages": "1-9-1 to 1-9-5",
+      "pdfPages": [115, 116, 117, 118, 119],
+      "coverage": "bounded-local; cross-page rewrite effects excluded",
+      "guide": "rules/ste-issue9.md#section-9"
+    },
+    "instructions": "When a direct vocabulary substitution has the wrong grammatical role, changes meaning, or produces unclear English, reconstruct the sentence rather than forcing the replacement. Preserve the true action, conditions, result, and technical information, with approved forms and words. Use a nearby table or other representation when it already gives the necessary fact rather than duplicating it. Check effects only on supplied local passages; effects on other pages require separate review. Do not invent source meaning or approval evidence. Return insufficient_context if a disputed replacement lacks its entry, original meaning, or needed technical evidence.",
+    "pass": "The selected construction preserves evidenced technical meaning and valid grammar rather than forcing an invalid substitution.",
+    "fail": "A forced substitution or reconstruction changes meaning, creates defective grammar, or contradicts supplied local content."
+  },
+  {
+    "id": "ste-9-2",
+    "engine": "decision",
+    "scope": "paragraph",
+    "requiresDictionaryEntries": true,
+    "source": {
+      "kind": "standard",
+      "edition": "Issue 9 (2025-01-15)",
+      "rule": "9.2",
+      "printedPages": "1-9-5 to 1-9-7",
+      "pdfPages": [119, 120, 121],
+      "coverage": "bounded-local",
+      "guide": "rules/ste-issue9.md#section-9"
+    },
+    "instructions": "Apply supplied approved meanings and grammatical roles to actual phrase context, especially when a familiar word has a restricted technical-English sense. A physical-motion or position sense does not automatically describe an abstract limit or state. Some entries legitimately have more than one role; choose by context. This reinforces 1.2 and 1.3, not an independent blacklist. Do not assert a dictionary meaning from memory. Return insufficient_context when entries or intended technical meaning are absent.",
+    "pass": "Controlled words in the passage retain their supplied contextual meanings and approved roles.",
+    "fail": "A word's actual role or sense contradicts its supplied approved basis in context."
+  },
+  {
+    "id": "ste-9-3",
+    "engine": "decision",
+    "scope": "paragraph",
+    "requiresDictionaryEntries": true,
+    "source": {
+      "kind": "standard",
+      "edition": "Issue 9 (2025-01-15)",
+      "rule": "9.3",
+      "printedPages": "1-9-7 to 1-9-8",
+      "pdfPages": [121, 122],
+      "coverage": "bounded-local",
+      "guide": "rules/ste-issue9.md#section-9"
+    },
+    "instructions": "Do not combine approved words into an idiomatic phrasal verb with a meaning outside their approved senses. Literal verb/preposition relations are not automatically phrasal-verb defects. An independently approved phrasal-verb entry is permitted only in its restricted meaning; applicable categorized technical verbs also retain their separate basis under 1.12. Require supplied entries and actual meaning rather than a list of adjacent verb/preposition spellings. Return insufficient_context for missing sense or independent approval evidence.",
+    "pass": "Verb/preposition combinations retain approved literal meanings or a supplied approved phrase or technical-verb basis.",
+    "fail": "Approved components form an unapproved new idiomatic meaning."
+  },
+  {
+    "id": "ste-9-4",
+    "engine": "decision",
+    "scope": "page",
+    "source": {
+      "kind": "standard",
+      "edition": "Issue 9 (2025-01-15)",
+      "rule": "9.4",
+      "printedPages": "1-9-8 to 1-9-9",
+      "pdfPages": [122, 123],
+      "coverage": "bounded-local; document-set consistency excluded",
+      "guide": "rules/ste-issue9.md#section-9"
+    },
+    "instructions": "For the same locally evidenced operation and meaning, reuse consistent terminology and sentence style instead of switching among otherwise valid alternatives. In descriptions maintain a coherent consistent account. Do not force identical wording for materially different operations, parameters, or consequences. Separate identity consistency under 1.11 from this repeated-action wording check. Judge only repetitions on this page; cross-page and document-set style remain separate required review. Return not_applicable when no comparable local use exists and insufficient_context for unresolved operation equivalence.",
+    "pass": "Locally equivalent instructions use consistent terminology and wording without masking meaningful differences.",
+    "fail": "Equivalent local operations have competing wording or terms that obscure their sameness."
   }
 ]

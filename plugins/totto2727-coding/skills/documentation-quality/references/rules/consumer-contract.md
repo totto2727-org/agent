@@ -28,7 +28,9 @@ The section teaches exporting a report, not the architecture of the command disp
 The retained sentences explain the input and a consequence that affects the export task.
 The dispatcher sentence does not help this reader choose an output path or understand the result.
 That same detail could matter in an architecture explanation of command registration.
-The distinction is relevance to the stated audience and goal, not a fixed division between users and maintainers.
+The distinction follows the declared reader group and task.
+Separate beginner, intermediate, and advanced users from developers of the subject itself; a programmer consuming the subject is its user.
+Preserve required template headings and order, and correct only the content within them.
 
 ## Exceptions and false positives
 

@@ -53,7 +53,8 @@ Coherence does not require an entire document to answer only one question.
 
 1. State the unit's reader question and its contribution to the document's purpose.
 2. Distinguish a necessary supporting explanation from an unrelated or independent topic.
-3. Remove empty repetition and move interruptions to suitable sections without discarding useful content.
+3. Remove empty repetition and correct interruptions within the permitted structure without discarding useful content.
+   Do not add, remove, or reorder required template headings or sections.
 4. Preserve direct references when readers need to find the relocated topic.
 5. Reread the surrounding sections to ensure the edit did not fragment a coherent explanation.
 

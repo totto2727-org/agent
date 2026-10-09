@@ -45,7 +45,9 @@ A runnable program would add no necessary information to this particular sizing 
 - An architecture concept may need a diagram rather than an execution sequence.
 - A focused example may rely on clearly available earlier setup rather than repeat an entire project.
 - Customization examples should show the changed behavior and how it is connected, not merely name an undefined replacement.
-- A demonstration does not replace necessary explanations of constraints or failure handling.
+- A substantive representation can carry the main answer without redundant prose; retain only the explanation needed to interpret it safely.
+- Judge locally supplied examples, not external API accuracy or unseen linked setup.
+- Preserve executable syntax, exact output, and imposed template structure.
 
 ## Inspect and fix a failure
 

@@ -19,9 +19,59 @@ import {
   validateManifest,
   validateResponse,
 } from "./evaluate.mjs";
+import {
+  paragraphUnits,
+  runMechanical,
+  sourceRange,
+  validateMechanicalCheck,
+} from "./mechanical.mjs";
 
 const execute = promisify(execFile);
 const script = fileURLToPath(new URL("./evaluate.mjs", import.meta.url));
+
+async function dictionaryFixture({ complete = false, vocabulary = true } = {}) {
+  const paths = await fixture();
+  await writeFile(
+    resolve(paths.directory, "guide.md"),
+    "Check the panel.\n\n# Elsewhere\n\nUnrelated evidence.\n",
+  );
+  const manifest = JSON.parse(await readFile(paths.manifestPath, "utf8"));
+  manifest.rules = [
+    {
+      id: "dictionary-context",
+      scope: "paragraph",
+      requiresDictionaryEntries: true,
+      instructions: "Evaluate the listed meaning and part of speech in this target.",
+      pass: "All target uses obey supplied entries.",
+      fail: "A supplied entry demonstrates a contextual violation.",
+    },
+  ];
+  manifest.documents[0].ruleIds = ["dictionary-context"];
+  manifest.documents[0].sections = [{ startLine: 1, endLine: 1 }];
+  manifest.documents[0].ste = vocabulary ? { vocabularyFile: "private-vocabulary.json" } : {};
+  const entry = (word, meaning) => ({
+    word,
+    approved: true,
+    partOfSpeech: "synthetic",
+    meaning,
+    forms: [],
+  });
+  const data = {
+    issue: 9,
+    source: "Original bounded source declaration for tests, not STE dictionary data.",
+    entries: [
+      entry("check", "Selected local meaning."),
+      entry("unrelated", "UNMATCHED-PRIVATE-MEANING"),
+      ...(complete
+        ? [entry("the", "Synthetic determiner."), entry("panel", "Synthetic object.")]
+        : []),
+    ],
+  };
+  if (vocabulary)
+    await writeFile(resolve(paths.directory, "private-vocabulary.json"), JSON.stringify(data));
+  await writeFile(paths.manifestPath, JSON.stringify(manifest));
+  return { ...paths, data };
+}
 
 const ACCOUNT_ID = "0123456789abcdef0123456789abcdef";
 const API_KEY = "test-gateway-key";
@@ -72,7 +122,6 @@ async function fixture({ model = "clef-flash" } = {}) {
         path: "guide.md",
         purpose: "Teach setup.",
         audience: "A new user.",
-        context: "Evidence only.",
         ruleIds: ["direct", "flow"],
         expected: { direct: "pass" },
       },
@@ -83,7 +132,7 @@ async function fixture({ model = "clef-flash" } = {}) {
   return { directory, manifestPath, outputPath: resolve(directory, "report.json") };
 }
 
-async function duplicateFixture({ model = "clef-flash", secondContext, secondRuleIds } = {}) {
+async function duplicateFixture({ model = "clef-flash", secondAudience, secondRuleIds } = {}) {
   const directory = await mkdtemp(resolve(tmpdir(), "documentation-quality-test-"));
   temporaryDirectories.push(directory);
   await writeFile(
@@ -95,7 +144,6 @@ async function duplicateFixture({ model = "clef-flash", secondContext, secondRul
     path: "guide.md",
     purpose: "Teach setup.",
     audience: "A new user.",
-    context: "Evidence only.",
     ruleIds: ["direct", "flow"],
     ...overrides,
   });
@@ -128,7 +176,7 @@ async function duplicateFixture({ model = "clef-flash", secondContext, secondRul
     documents: [
       document("guide-a"),
       document("guide-b", {
-        ...(secondContext === undefined ? {} : { context: secondContext }),
+        ...(secondAudience === undefined ? {} : { audience: secondAudience }),
         ...(secondRuleIds === undefined ? {} : { ruleIds: secondRuleIds }),
       }),
     ],
@@ -176,7 +224,9 @@ const status = sequence.length ? sequence[Math.min(attempt, sequence.length - 1)
 const mode = process.env.CURL_MOCK_MODE || "valid";
 const cacheStatus = process.env.CURL_MOCK_CACHE_STATUS || "MISS";
 const ray = process.env.CURL_MOCK_RAY || "mock-ray-0001";
-const answer = () => ({ type: "choice", choice: "pass", confidence: 0.94, probabilities: { pass: 0.96, fail: 0.03, not_applicable: 0, insufficient_context: 0.01 } });
+const answer = () => mode === "abstain"
+  ? ({ type: "choice", choice: "insufficient_context", confidence: 0.94, probabilities: { pass: 0.01, fail: 0.03, not_applicable: 0, insufficient_context: 0.96 } })
+  : ({ type: "choice", choice: "pass", confidence: 0.94, probabilities: { pass: 0.96, fail: 0.03, not_applicable: 0, insufficient_context: 0.01 } });
 const native = url.includes("/@cf/cloudflare/");
 const questions = native ? payload.questions : payload.input.questions;
 const answers = mode === "malformed" ? { wrong: answer() } : Object.fromEntries(Object.keys(questions).map((id) => [id, answer()]));
@@ -269,6 +319,189 @@ afterEach(async () => {
       .splice(0)
       .map((directory) => rm(directory, { recursive: true, force: true })),
   );
+});
+
+describe("private dictionary evidence boundaries", () => {
+  it("guards a provider pass when matched noun evidence contains an unsupported local group", async () => {
+    const paths = await dictionaryFixture({ vocabulary: false });
+    await writeFile(
+      resolve(paths.directory, "guide.md"),
+      "Check the upper status panel and panel (upper) assembly.\n",
+    );
+    const manifest = JSON.parse(await readFile(paths.manifestPath, "utf8"));
+    delete manifest.rules[0].requiresDictionaryEntries;
+    manifest.rules[0].requiresNounGroupCounts = true;
+    manifest.documents[0].ste = {
+      nounGroups: [
+        { text: "upper status panel", kind: "multi-word", source: "Original local role claim." },
+        {
+          text: "panel (upper) assembly",
+          kind: "new-technical",
+          source: "Original ambiguous role claim.",
+        },
+      ],
+    };
+    await writeFile(paths.manifestPath, JSON.stringify(manifest));
+    const { result: report, calls } = await withMock(paths, {}, () =>
+      evaluate({ ...paths, environment: CREDENTIALS }),
+    );
+    expect(calls).toHaveLength(1);
+    expect(
+      calls[0].payload.state.evidence.local.nounGroupCounts.map((entry) => [
+        entry.status,
+        entry.wordCount,
+      ]),
+    ).toEqual([
+      ["counted", 3],
+      ["insufficient_context", null],
+    ]);
+    expect(report.evaluations[0].nounGroupCounts).toEqual(
+      calls[0].payload.state.evidence.local.nounGroupCounts,
+    );
+    expect(report.evaluations[0].answers[0]).toMatchObject({
+      choice: "insufficient_context",
+      confidence: 0,
+      origin: "evidence-guard",
+      reviewRequired: true,
+      providerAnswer: { choice: "pass", confidence: 0.94, probabilities: { pass: 0.96 } },
+    });
+    expect(report.evaluations[0].answers[0].reason).toContain("machine counts");
+  });
+
+  it("allows source-declared technical terms to supply local contextual evidence without ordinary dictionary membership", async () => {
+    const paths = await dictionaryFixture({ complete: true });
+    await writeFile(resolve(paths.directory, "guide.md"), "Check the status panel.\n");
+    paths.data.technicalTerms = [
+      {
+        text: "status panel",
+        kind: "noun",
+        category: 19,
+        source: "Original company glossary fixture.",
+      },
+    ];
+    await writeFile(
+      resolve(paths.directory, "private-vocabulary.json"),
+      JSON.stringify(paths.data),
+    );
+    const { result: report, calls } = await withMock(paths, {}, () =>
+      evaluate({ ...paths, environment: CREDENTIALS }),
+    );
+    expect(calls).toHaveLength(1);
+    const candidate = calls[0].payload.state.evidence.local.dictionaryCandidates.candidates.find(
+      (entry) => entry.term === "status panel",
+    );
+    expect(candidate).toMatchObject({
+      membership: "unlisted",
+      records: [],
+      technicalRecords: paths.data.technicalTerms,
+    });
+    expect(report.evaluations[0].answers[0]).toMatchObject({
+      choice: "pass",
+      confidence: 0.94,
+      reviewRequired: false,
+    });
+  });
+
+  it("defers oversized selected dictionary evidence before credentials or billing", async () => {
+    const paths = await dictionaryFixture({ complete: true });
+    paths.data.entries[0].meaning = "x".repeat(50000);
+    await writeFile(
+      resolve(paths.directory, "private-vocabulary.json"),
+      JSON.stringify(paths.data),
+    );
+    const report = await evaluate({ ...paths, environment: {} });
+    expect(report).toMatchObject({ requestCount: 0, reviewRequired: true, incomplete: true });
+    expect(report.evaluations[0]).toMatchObject({
+      status: "deferred",
+      answers: [{ choice: "insufficient_context" }],
+    });
+  });
+
+  it("defers dictionary-dependent judgments without matched entries and without credentials or requests", async () => {
+    const paths = await dictionaryFixture({ vocabulary: false });
+    const report = await evaluate({ ...paths, environment: {} });
+    expect(report).toMatchObject({ requestCount: 0, incomplete: true, reviewRequired: true });
+    expect(report.evaluations[0]).toMatchObject({
+      status: "deferred",
+      answers: [{ choice: "insufficient_context", reviewRequired: true }],
+    });
+    expect(report.evaluations[0].reason).toContain("Required dictionary entries");
+  });
+
+  it("sends only target-matched records, no private path or unrelated records, and rejects an unsupported model pass", async () => {
+    const paths = await dictionaryFixture();
+    const { result: report, calls } = await withMock(paths, {}, () =>
+      evaluate({ ...paths, environment: CREDENTIALS }),
+    );
+    expect(calls).toHaveLength(1);
+    const payload = calls[0].payload;
+    const selected = payload.state.evidence.local.dictionaryCandidates;
+    expect(selected).toMatchObject({ issue: 9, source: paths.data.source });
+    expect(selected.candidates[0]).toMatchObject({
+      term: "Check",
+      membership: "approved-form",
+      records: [
+        {
+          word: "check",
+          approved: true,
+          partOfSpeech: "synthetic",
+          meaning: "Selected local meaning.",
+          listedForms: ["check"],
+        },
+      ],
+      sourceRange: { startLine: 1, endLine: 1, startByte: 0, endByte: 5 },
+    });
+    expect(JSON.stringify(selected)).not.toContain("UNMATCHED-PRIVATE-MEANING");
+    expect(JSON.stringify(payload)).not.toContain("private-vocabulary.json");
+    expect(Object.values(payload.questions)[0].instructions).toContain("never model memory");
+    expect(report.evaluations[0].answers[0]).toMatchObject({
+      choice: "insufficient_context",
+      confidence: 0,
+      origin: "evidence-guard",
+      reviewRequired: true,
+      providerAnswer: {
+        choice: "pass",
+        confidence: 0.94,
+        probabilities: { pass: 0.96, fail: 0.03, not_applicable: 0, insufficient_context: 0.01 },
+      },
+    });
+    expect(report.evaluations[0].answers[0].reason).toContain("model pass");
+  });
+
+  it("retains a calibrated contextual model result when every local token has declared evidence", async () => {
+    const paths = await dictionaryFixture({ complete: true });
+    const { result: report } = await withMock(paths, {}, () =>
+      evaluate({ ...paths, environment: CREDENTIALS }),
+    );
+    expect(report.evaluations[0].answers[0]).toMatchObject({
+      choice: "pass",
+      confidence: 0.94,
+      reviewRequired: false,
+    });
+  });
+
+  it("includes selected meanings in the cache key but excludes unmatched private entry changes", async () => {
+    const paths = await dictionaryFixture({ complete: true });
+    const { result: keys, calls } = await withMock(paths, {}, async () => {
+      const first = await evaluate({ ...paths, environment: CREDENTIALS });
+      paths.data.entries[1].meaning = "DIFFERENT-UNMATCHED-PRIVATE-MEANING";
+      await writeFile(
+        resolve(paths.directory, "private-vocabulary.json"),
+        JSON.stringify(paths.data),
+      );
+      const second = await evaluate({ ...paths, environment: CREDENTIALS });
+      paths.data.entries[0].meaning = "Different selected local meaning.";
+      await writeFile(
+        resolve(paths.directory, "private-vocabulary.json"),
+        JSON.stringify(paths.data),
+      );
+      const third = await evaluate({ ...paths, environment: CREDENTIALS });
+      return [first, second, third].map((report) => report.evaluations[0].cache.key);
+    });
+    expect(calls).toHaveLength(3);
+    expect(keys[0]).toBe(keys[1]);
+    expect(keys[2]).not.toBe(keys[1]);
+  });
 });
 
 describe("documentation quality evaluator public pipeline", () => {
@@ -1030,7 +1263,6 @@ describe("documentation quality evaluator public pipeline", () => {
       path: "intro.md",
       purpose: "Introduce.",
       audience: "A new user.",
-      context: "Evidence only.",
       ruleIds: ["direct", "flow"],
     };
 
@@ -1076,7 +1308,7 @@ describe("documentation quality evaluator public pipeline", () => {
   });
 
   it("does not share cache entries for meaningful evidence or criteria changes", async () => {
-    const evidencePaths = await duplicateFixture({ secondContext: "Different context." });
+    const evidencePaths = await duplicateFixture({ secondAudience: "An experienced operator." });
     const { result: evidenceReport, calls: evidenceCalls } = await withMock(evidencePaths, {}, () =>
       evaluate({
         manifestPath: evidencePaths.manifestPath,
@@ -1130,5 +1362,732 @@ describe("documentation quality evaluator public pipeline", () => {
     // is not evidence of a real AI Gateway cache hit.
     expect(report.evaluations.every((entry) => entry.cache.status === "HIT")).toBe(true);
     expect(report.evaluations.every((entry) => entry.cache.reused === false)).toBe(true);
+  });
+});
+
+const fenceRule = {
+  id: "fence-language",
+  scope: "page",
+  engine: "mechanical",
+  check: { kind: "fenced-code-language" },
+  source: { title: "Project supplement", url: "https://example.com/project-style" },
+};
+const lexicalRule = {
+  id: "project-terms",
+  scope: "paragraph",
+  engine: "mechanical",
+  check: { kind: "prohibited-terms", terms: ["bad", "widget"], protectedTerms: ["widget"] },
+};
+
+async function localFixture({
+  markdown = "# Setup\n\nUse the tool.\n\n```js\nrun();\n```\n",
+  rules = [fenceRule],
+  ...overrides
+} = {}) {
+  const paths = await fixture();
+  const previous = JSON.parse(await readFile(paths.manifestPath, "utf8"));
+  await writeFile(resolve(paths.directory, "guide.md"), markdown);
+  const manifest = {
+    documents: previous.documents.map(({ ruleIds: _ruleIds, ...document }) => document),
+    rules,
+    ...overrides,
+  };
+  await writeFile(paths.manifestPath, JSON.stringify(manifest));
+  return { ...paths, manifest, markdown };
+}
+
+describe("local mechanical and semantic engine boundaries", () => {
+  it.each([
+    {
+      markdown:
+        "- Example:\n\n    ```\n    const value=1;\n    ```\n\n```js\nconst valid=2;\n```\n",
+      rule: fenceRule,
+    },
+    {
+      markdown: "Good text.\n\n- A list item:\n\n    forbidden\n",
+      rule: {
+        ...lexicalRule,
+        scope: "page",
+        check: { kind: "prohibited-terms", terms: ["forbidden"] },
+      },
+    },
+    {
+      markdown: "1. Example:\n\n  ```\n  nested();\n  ```\n\n```js\nvalid();\n```\n",
+      rule: fenceRule,
+    },
+  ])(
+    "reports ambiguous indented list continuation through the public CLI instead of a false pass: %j",
+    async ({ markdown, rule }) => {
+      const paths = await localFixture({ markdown, rules: [rule] });
+      const { result: report, calls } = await withMock(paths, {}, async () => {
+        const environment = { ...process.env };
+        for (const key of Object.keys(CREDENTIALS)) delete environment[key];
+        await expect(
+          execute(
+            process.execPath,
+            [
+              script,
+              "--manifest",
+              paths.manifestPath,
+              "--output",
+              paths.outputPath,
+              "--mechanical-only",
+            ],
+            { env: environment },
+          ),
+        ).rejects.toMatchObject({ code: 1 });
+        return JSON.parse(await readFile(paths.outputPath, "utf8"));
+      });
+      expect(calls).toEqual([]);
+      expect(report).toMatchObject({
+        requestCount: 0,
+        failed: false,
+        incomplete: true,
+        reviewRequired: true,
+        attentionRequired: true,
+      });
+      expect(report.evaluations[0].answers[0]).toMatchObject({
+        choice: "insufficient_context",
+        findings: [],
+        reviewRequired: true,
+      });
+      expect(
+        report.evaluations[0].answers[0].coverage.parserWarnings.some((warning) =>
+          warning.reason.includes("Indented list continuation"),
+        ),
+      ).toBe(true);
+    },
+  );
+
+  it("keeps list uncertainty local and evaluates independent later top-level sections normally", async () => {
+    const markdown =
+      "# Ambiguous\n\n- Example:\n\n    ```\n    forbidden();\n    ```\n\n# Independent\n\nClean prose.\n\n```js\nvalid();\n```\n";
+    const paths = await localFixture({
+      markdown,
+      rules: [
+        { ...fenceRule, scope: "section" },
+        {
+          ...lexicalRule,
+          scope: "section",
+          check: { kind: "prohibited-terms", terms: ["forbidden"] },
+        },
+      ],
+    });
+    const report = await evaluate({ ...paths, environment: {} });
+    expect(report.evaluations.map((entry) => entry.answers.map((answer) => answer.choice))).toEqual(
+      [
+        ["insufficient_context", "insufficient_context"],
+        ["pass", "pass"],
+      ],
+    );
+    for (const answer of report.evaluations[1].answers)
+      expect(answer.coverage.parserWarnings).toEqual([]);
+    expect(report.evaluations[0].answers[0].coverage.parserWarnings[0].sourceRange).toMatchObject({
+      startLine: 5,
+      endLine: 5,
+    });
+  });
+
+  it.each([
+    { startLine: 5, endLine: 5 },
+    { startLine: 6, endLine: 6 },
+  ])(
+    "rejects a partial paragraph range even when another complete target exists through the public CLI: %j",
+    async (partial) => {
+      const paths = await localFixture({
+        markdown: "# Guide\n\nComplete paragraph.\n\nFirst part.\nSecond part.\n",
+        rules: [
+          {
+            id: "paragraph-check",
+            scope: "paragraph",
+            instructions: "Judge the paragraph.",
+            pass: "Good.",
+            fail: "Bad.",
+          },
+        ],
+        documents: [
+          {
+            id: "guide",
+            path: "guide.md",
+            purpose: "Read.",
+            audience: "Reviewer.",
+            sections: [
+              { id: "complete", startLine: 3, endLine: 3 },
+              { id: "partial", ...partial },
+            ],
+          },
+        ],
+      });
+      const { result: error, calls } = await withMock(paths, {}, () =>
+        execute(process.execPath, [
+          script,
+          "--manifest",
+          paths.manifestPath,
+          "--output",
+          paths.outputPath,
+          "--mechanical-only",
+        ]).catch((failure) => failure),
+      );
+      expect(error).toMatchObject({ code: 2 });
+      expect(error.stderr).toContain("Section partial selects only part of a paragraph");
+      expect(error.stderr).toContain("paragraph lines 5-6");
+      expect(calls).toEqual([]);
+      await expect(readFile(paths.outputPath, "utf8")).rejects.toMatchObject({ code: "ENOENT" });
+    },
+  );
+
+  it("preserves explicit partial prose ranges when only section checks are selected", async () => {
+    const paths = await localFixture({
+      markdown: "# Guide\n\nComplete paragraph.\n\nforbidden\nSecond part.\n",
+      rules: [
+        {
+          ...lexicalRule,
+          scope: "section",
+          check: { kind: "prohibited-terms", terms: ["forbidden"] },
+        },
+      ],
+      documents: [
+        {
+          id: "guide",
+          path: "guide.md",
+          purpose: "Read.",
+          audience: "Reviewer.",
+          sections: [
+            { id: "complete", startLine: 3, endLine: 3 },
+            { id: "partial", startLine: 5, endLine: 5 },
+          ],
+        },
+      ],
+    });
+    const report = await evaluate({ ...paths, environment: {} });
+    expect(report.evaluations.map((entry) => entry.answers[0].choice)).toEqual(["pass", "fail"]);
+    expect(report.requestCount).toBe(0);
+  });
+
+  it("rejects legacy context through the public CLI before any request with a migration error", async () => {
+    const paths = await localFixture({
+      documents: [
+        {
+          id: "guide",
+          path: "guide.md",
+          purpose: "Teach setup.",
+          audience: "New user.",
+          context: "Evidence copied from another page.",
+        },
+      ],
+    });
+    const { result: error, calls } = await withMock(paths, {}, () =>
+      execute(process.execPath, [
+        script,
+        "--manifest",
+        paths.manifestPath,
+        "--output",
+        paths.outputPath,
+        "--mechanical-only",
+      ]).catch((failure) => failure),
+    );
+    expect(error).toMatchObject({ code: 2 });
+    expect(error.stderr).toContain("context is no longer supported");
+    expect(error.stderr).toContain("purpose, audience, and templateConstraints");
+    expect(calls).toEqual([]);
+  });
+
+  it.each(["```js\ncode();\n", "~~~txt\ntext\n", "````js\ncode();\n```\n"])(
+    "fails the public CLI for an unclosed labeled fence with zero API calls: %j",
+    async (markdown) => {
+      const paths = await localFixture({ markdown });
+      const { result: report, calls } = await withMock(paths, {}, async () => {
+        const environment = { ...process.env };
+        for (const key of Object.keys(CREDENTIALS)) delete environment[key];
+        await expect(
+          execute(
+            process.execPath,
+            [
+              script,
+              "--manifest",
+              paths.manifestPath,
+              "--output",
+              paths.outputPath,
+              "--mechanical-only",
+            ],
+            { env: environment },
+          ),
+        ).rejects.toMatchObject({ code: 1 });
+        return JSON.parse(await readFile(paths.outputPath, "utf8"));
+      });
+      expect(calls).toEqual([]);
+      expect(report).toMatchObject({
+        requestCount: 0,
+        failed: true,
+        incomplete: false,
+        attentionRequired: true,
+      });
+      expect(report.evaluations[0].answers[0]).toMatchObject({
+        choice: "fail",
+        findings: [
+          {
+            defect: "unclosed-fence",
+            sourceRange: { startLine: 1, startByte: 0, endByte: Buffer.byteLength(markdown) },
+          },
+        ],
+      });
+    },
+  );
+
+  it.each([false, true])(
+    "runs the public CLI without credentials or curl for mechanical work (mechanical-only=%s)",
+    async (mechanicalOnly) => {
+      const paths = await localFixture();
+      const { result: report, calls } = await withMock(paths, {}, async () => {
+        const environment = { ...process.env };
+        for (const key of Object.keys(CREDENTIALS)) delete environment[key];
+        await execute(
+          process.execPath,
+          [
+            script,
+            "--manifest",
+            paths.manifestPath,
+            "--output",
+            paths.outputPath,
+            ...(mechanicalOnly ? ["--mechanical-only"] : []),
+          ],
+          { env: environment },
+        );
+        return JSON.parse(await readFile(paths.outputPath, "utf8"));
+      });
+      expect(calls).toEqual([]);
+      expect(report).toMatchObject({
+        requestCount: 0,
+        model: null,
+        threshold: null,
+        attentionRequired: false,
+        failed: false,
+      });
+      expect(report.evaluations[0]).toMatchObject({
+        engine: "mechanical",
+        status: "complete",
+        answers: [{ choice: "pass", findings: [] }],
+      });
+      expect(report.evaluations[0].questions[0].rule.source).toEqual(fenceRule.source);
+    },
+  );
+
+  it("keeps selected semantic work deferred and review-required through the mechanical-only CLI", async () => {
+    const paths = await localFixture({
+      rules: [
+        fenceRule,
+        {
+          id: "semantic",
+          scope: "page",
+          instructions: "Evaluate directness.",
+          pass: "Direct.",
+          fail: "Indirect.",
+        },
+      ],
+    });
+    const { result: report, calls } = await withMock(paths, {}, async () => {
+      const environment = { ...process.env };
+      for (const key of Object.keys(CREDENTIALS)) delete environment[key];
+      await expect(
+        execute(
+          process.execPath,
+          [
+            script,
+            "--manifest",
+            paths.manifestPath,
+            "--output",
+            paths.outputPath,
+            "--mechanical-only",
+          ],
+          { env: environment },
+        ),
+      ).rejects.toMatchObject({ code: 1 });
+      return JSON.parse(await readFile(paths.outputPath, "utf8"));
+    });
+    expect(calls).toEqual([]);
+    expect(report).toMatchObject({
+      requestCount: 0,
+      failed: false,
+      incomplete: true,
+      reviewRequired: true,
+      attentionRequired: true,
+      questionCount: 2,
+    });
+    expect(report.evaluations.find((entry) => entry.engine === "decision")).toMatchObject({
+      status: "deferred",
+      answers: [{ choice: "insufficient_context", deferred: true, reviewRequired: true }],
+    });
+  });
+
+  it("distinguishes mechanical failures from no applicable content, and preserves exact source ranges", async () => {
+    const paths = await localFixture({
+      markdown: "# Setup\n\n```\nbad();\n```\n",
+      rules: [
+        fenceRule,
+        { ...lexicalRule, scope: "page", check: { kind: "prohibited-terms", terms: ["bad"] } },
+      ],
+    });
+    const { result: report, calls } = await withMock(paths, {}, () =>
+      evaluate({ ...paths, mechanicalOnly: true, environment: {} }),
+    );
+    expect(calls).toEqual([]);
+    expect(report.failed).toBe(true);
+    const [fence, lexical] = report.evaluations[0].answers;
+    expect(fence).toMatchObject({
+      choice: "fail",
+      findings: [{ sourceRange: { startLine: 3, endLine: 3, startByte: 9, endByte: 12 } }],
+    });
+    expect(lexical.choice).toBe("pass");
+    const excludedOnly = "```js\nbad();\n```\n<div>bad</div>\n";
+    const answer = runMechanical(
+      lexicalRule.check,
+      excludedOnly,
+      sourceRange(excludedOnly, 0, excludedOnly.length),
+    );
+    expect(answer.choice).toBe("not_applicable");
+    expect(answer.coverage.claim).toContain("not STE dictionary or full STE compliance");
+    expect(answer.coverage.excluded.length).toBeGreaterThan(0);
+  });
+
+  it("sends only semantic criteria, retains template constraints, and isolates pages", async () => {
+    const semantic = {
+      id: "semantic",
+      scope: "paragraph",
+      instructions: "Evaluate directness.",
+      pass: "Direct.",
+      fail: "Indirect.",
+    };
+    const paths = await localFixture({
+      rules: [fenceRule, lexicalRule, semantic],
+      model: "typesafe/jev",
+      threshold: 0.8,
+      templateConstraints: ["Keep the headings in template order."],
+      documents: [
+        {
+          id: "a",
+          path: "guide.md",
+          purpose: "Teach setup.",
+          audience: "New user.",
+          templateConstraints: ["Keep the summary table."],
+        },
+        { id: "b", path: "other.md", purpose: "Teach setup.", audience: "New user." },
+      ],
+    });
+    await writeFile(resolve(paths.directory, "other.md"), "# Other\n\nOther-page-secret.\n");
+    const { result: report, calls } = await withMock(paths, {}, () =>
+      evaluate({ ...paths, environment: CREDENTIALS }),
+    );
+    expect(calls).toHaveLength(3);
+    expect(report.evaluations.some((entry) => entry.engine === "mechanical")).toBe(true);
+    for (const call of calls) {
+      const { state, questions } = call.payload.input;
+      expect(state.evidence.document).not.toHaveProperty("context");
+      expect(JSON.stringify(questions)).not.toContain("fenced-code-language");
+      expect(JSON.stringify(questions)).not.toContain("prohibited-terms");
+      expect(Object.keys(state.evidence)).toEqual(["document", "page", "local"]);
+      for (const question of Object.values(questions)) {
+        expect(question.instructions).toContain("for this paragraph question");
+        expect(question.instructions).toContain("unseen link destinations");
+        expect(question.instructions).toContain("Do not require rewriting");
+      }
+      if (state.evidence.page.markdown.includes("# Setup")) {
+        expect(JSON.stringify(state)).not.toContain("Other-page-secret");
+        expect(state.evidence.document.templateConstraints).toEqual([
+          "Keep the headings in template order.",
+          "Keep the summary table.",
+        ]);
+      } else expect(state.evidence.page.markdown).not.toContain("run();");
+    }
+    assertAnswerIdentities(report);
+  });
+
+  it("marks semantic passes without a supplied threshold as uncalibrated review, not an approval", async () => {
+    const paths = await localFixture({
+      rules: [
+        {
+          id: "semantic",
+          scope: "page",
+          instructions: "Evaluate directness.",
+          pass: "Direct.",
+          fail: "Indirect.",
+        },
+      ],
+      model: "clef",
+    });
+    const { result: report } = await withMock(paths, {}, () =>
+      evaluate({ ...paths, environment: CREDENTIALS }),
+    );
+    expect(report).toMatchObject({
+      threshold: null,
+      thresholdStatus: "uncalibrated",
+      failed: false,
+      reviewRequired: true,
+    });
+    expect(report.evaluations[0].answers[0]).toMatchObject({
+      choice: "pass",
+      reviewRequired: true,
+    });
+  });
+
+  it("keeps semantic abstention distinct from transport errors and deterministic violations", async () => {
+    const paths = await localFixture({
+      markdown: "# Setup\n\n```\ncode();\n```\n",
+      model: "clef",
+      threshold: 0.8,
+      rules: [
+        fenceRule,
+        {
+          id: "semantic",
+          scope: "page",
+          instructions: "Evaluate directness.",
+          pass: "Direct.",
+          fail: "Indirect.",
+        },
+      ],
+    });
+    const { result: report } = await withMock(paths, { mode: "abstain" }, () =>
+      evaluate({ ...paths, environment: CREDENTIALS }),
+    );
+    expect(report).toMatchObject({ failed: true, incomplete: true, reviewRequired: true });
+    expect(report.evaluations.find((entry) => entry.engine === "decision")).toMatchObject({
+      status: "complete",
+      answers: [{ choice: "insufficient_context", reviewRequired: true }],
+    });
+    expect(report.evaluations.find((entry) => entry.engine === "mechanical")).toMatchObject({
+      status: "complete",
+      answers: [{ choice: "fail" }],
+    });
+  });
+
+  it("never substitutes another section's violations for its local target", async () => {
+    const paths = await localFixture({
+      markdown: "# First\n\nClean.\n\n# Second\n\nBad.\n",
+      rules: [{ ...lexicalRule, scope: "section" }],
+    });
+    const report = await evaluate({ ...paths, environment: {} });
+    expect(report.requestCount).toBe(0);
+    expect(report.evaluations.map((entry) => entry.answers[0].choice)).toEqual(["pass", "fail"]);
+    expect(report.evaluations[1].answers[0].findings[0].sourceRange.startLine).toBe(7);
+  });
+
+  it.each(["~~~\ncode\n~~~\n", "````\n```\ncode\n````\n", "```   \ncode\n"])(
+    "recognizes unlabeled fences without splitting nested or unclosed delimiters: %j",
+    (markdown) => {
+      const answer = runMechanical(
+        fenceRule.check,
+        markdown,
+        sourceRange(markdown, 0, markdown.length),
+      );
+      expect(answer.choice).toBe("fail");
+      expect(answer.findings).toHaveLength(1);
+    },
+  );
+
+  it("excludes explicitly marked translations without reading them or needing a model", async () => {
+    const paths = await localFixture({
+      englishOnly: true,
+      documents: [
+        {
+          id: "en",
+          path: "guide.md",
+          purpose: "Teach setup.",
+          audience: "New user.",
+          sourceLanguage: "en-US",
+          ruleIds: [fenceRule.id],
+        },
+        {
+          id: "ja",
+          path: "missing-translation.md",
+          purpose: "Translation.",
+          audience: "Japanese reader.",
+          sourceLanguage: "ja",
+          ruleIds: ["semantic"],
+        },
+      ],
+      rules: [
+        fenceRule,
+        {
+          id: "semantic",
+          scope: "page",
+          instructions: "Evaluate directness.",
+          pass: "Direct.",
+          fail: "Indirect.",
+        },
+      ],
+    });
+    const report = await evaluate({ ...paths, environment: {} });
+    expect(report.requestCount).toBe(0);
+    expect(report.evaluations.map((entry) => entry.documentId)).toEqual(["en"]);
+    expect(report.excludedDocuments).toMatchObject([{ documentId: "ja", sourceLanguage: "ja" }]);
+    expect(() =>
+      validateManifest({
+        ...paths.manifest,
+        documents: [{ ...paths.manifest.documents[0], sourceLanguage: undefined }],
+      }),
+    ).toThrow("sourceLanguage is required");
+  });
+
+  it.each(["document-set", "cross-page", "site"])("rejects nonlocal rule scope %s", (scope) => {
+    expect(() =>
+      validateManifest({
+        rules: [{ ...fenceRule, scope }],
+        documents: [{ id: "d", path: "d.md", purpose: "p", audience: "a" }],
+      }),
+    ).toThrow("scope must be section, page, or paragraph");
+  });
+
+  it.each([
+    { kind: "shell", command: "echo bad" },
+    { kind: "constructor" },
+    { kind: "sentence-limit", limit: 20 },
+    { kind: "fenced-code-language", terms: ["bad"] },
+    { kind: "prohibited-terms", terms: ["(a+)+"], regex: true },
+    { kind: "prohibited-terms", terms: [] },
+    { kind: "prohibited-terms", terms: ["bad"], caseSensitive: "false" },
+    { kind: "prohibited-terms", terms: ["bad"], protectedTerms: ["two words"] },
+  ])("rejects undeclared kinds and invalid exact check parameters: %j", (check) => {
+    expect(() => validateMechanicalCheck(check, "check")).toThrow();
+    expect(() =>
+      validateManifest({
+        rules: [{ ...fenceRule, check }],
+        documents: [{ id: "d", path: "d.md", purpose: "p", audience: "a" }],
+      }),
+    ).toThrow();
+  });
+
+  it("bounds provenance and prevents mechanical criteria from entering the decision engine", () => {
+    const base = {
+      rules: [fenceRule],
+      documents: [{ id: "d", path: "d.md", purpose: "p", audience: "a" }],
+    };
+    expect(() =>
+      validateManifest({ ...base, rules: [{ ...fenceRule, source: { data: "x".repeat(50000) } }] }),
+    ).toThrow("exceeds");
+    expect(() =>
+      validateManifest({ ...base, rules: [{ ...fenceRule, source: { value: () => "code" } }] }),
+    ).toThrow("plain JSON");
+    expect(() =>
+      validateManifest({ ...base, rules: [{ ...fenceRule, engine: "decision" }] }),
+    ).toThrow("requires the mechanical engine");
+    expect(() =>
+      validateManifest({ ...base, rules: [{ ...fenceRule, engine: "unknown" }] }),
+    ).toThrow("engine must");
+    expect(() => validateManifest({ ...base, templateConstraints: "rewrite all" })).toThrow(
+      "templateConstraints",
+    );
+  });
+
+  it("retains paragraph-local UTF-8 ranges, heading paths and intact code blocks", () => {
+    const markdown =
+      "---\n# Metadata only\n---\n# Setup {#setup}\n\nCafé bad.\nSecond line.\n\n````js\n# Not a heading\n```\n\ncode();\n````\n\n## Next {#next}\n\nFinal.\n";
+    const sections = segmentMarkdown(markdown);
+    expect(sections.map((section) => section.headingPath)).toEqual([
+      [],
+      ["Setup"],
+      ["Setup", "Next"],
+    ]);
+    const units = paragraphUnits(markdown, sections);
+    expect(units.map((unit) => unit.text)).toEqual([
+      "Café bad.\nSecond line.\n",
+      "````js\n# Not a heading\n```\n\ncode();\n````\n",
+      "Final.\n",
+    ]);
+    for (const unit of units) {
+      expect(
+        Buffer.from(markdown)
+          .subarray(unit.sourceRange.startByte, unit.sourceRange.endByte)
+          .toString(),
+      ).toBe(unit.text);
+      expect(unit.sourceRange.endLine).toBeGreaterThanOrEqual(unit.sourceRange.startLine);
+    }
+    const answer = runMechanical(lexicalRule.check, markdown, units[0].sourceRange);
+    expect(answer.findings).toMatchObject([
+      { term: "bad", sourceRange: { startLine: 6, endLine: 6 } },
+    ]);
+    const finding = answer.findings[0];
+    expect(
+      Buffer.from(markdown)
+        .subarray(finding.sourceRange.startByte, finding.sourceRange.endByte)
+        .toString(),
+    ).toBe("bad");
+  });
+
+  it("uses only explicit whole-token project restrictions, honoring protected terms and excluded syntax", () => {
+    const markdown =
+      "---\nbad: bad\n---\n# Safe {#bad}\n\nBad badly widget `bad` ``bad ` bad`` [safe](https://example.com/bad) https://bad.example/path\n\n```txt\nbad\n```\n\n<span>bad</span>\n\n<!-- bad -->\n\n<script>\nbad\n</script>\n\n<div>\nbad\n\n    bad\n";
+    const answer = runMechanical(
+      lexicalRule.check,
+      markdown,
+      sourceRange(markdown, 0, markdown.length),
+    );
+    expect(answer.findings.map((finding) => finding.term)).toEqual(["Bad"]);
+    expect(answer.findings[0].basis).toBe("exact-project-restriction");
+    const kinds = new Set(answer.coverage.excluded.map((entry) => entry.kind));
+    for (const kind of [
+      "frontmatter",
+      "fenced-code",
+      "inline-code",
+      "html",
+      "html-block",
+      "url-or-markup",
+      "indented-code",
+    ])
+      expect(kinds.has(kind)).toBe(true);
+    expect(
+      runMechanical(
+        { ...lexicalRule.check, caseSensitive: true },
+        "Bad widget badly",
+        sourceRange("Bad widget badly", 0, 16),
+      ).findings,
+    ).toEqual([]);
+  });
+
+  it("reports semantic checks without paragraph targets as deferred rather than losing them", async () => {
+    const paths = await localFixture({
+      markdown: "# Empty\n",
+      rules: [
+        {
+          id: "semantic",
+          scope: "paragraph",
+          instructions: "Evaluate directness.",
+          pass: "Direct.",
+          fail: "Indirect.",
+        },
+      ],
+    });
+    const report = await evaluate({ ...paths, mechanicalOnly: true, environment: {} });
+    expect(report.questionCount).toBe(1);
+    expect(report.evaluations[0]).toMatchObject({
+      status: "deferred",
+      reason: "No paragraph target is available.",
+    });
+  });
+
+  it.each(["> ```\n> bad\n> ```\n", "- ```\n  bad\n  ```\n"])(
+    "abstains conservatively on container fence syntax without lexical or language compliance claims: %j",
+    (container) => {
+      const markdown = `Safe prose.\n\n\`\`\`js\ncode();\n\`\`\`\n\n${container}`;
+      for (const check of [lexicalRule.check, fenceRule.check]) {
+        const answer = runMechanical(check, markdown, sourceRange(markdown, 0, markdown.length));
+        expect(answer).toMatchObject({
+          choice: "insufficient_context",
+          reviewRequired: true,
+          findings: [],
+        });
+        expect(answer.coverage.parserWarnings).toHaveLength(1);
+      }
+    },
+  );
+
+  it("does not turn a missing paragraph into a pass over its heading", async () => {
+    const paths = await localFixture({ markdown: "# Empty\n", rules: [lexicalRule] });
+    const report = await evaluate({ ...paths, environment: {} });
+    expect(report).toMatchObject({
+      requestCount: 0,
+      incomplete: true,
+      attentionRequired: true,
+      failed: false,
+    });
+    expect(report.evaluations[0].answers[0].choice).toBe("not_applicable");
   });
 });

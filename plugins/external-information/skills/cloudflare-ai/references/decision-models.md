@@ -1,20 +1,22 @@
 # Decision Model requests
 
 Select a configured Decision Model using [Cloudflare AI](../SKILL.md#choose-a-workflow) and use [decision-model](../../decision-model/SKILL.md) to design the state, questions, and criteria.
+Default to `typesafe/jev` through Cloudflare Workers AI with the configured AI Gateway.
+Use another supported model only for an explicit request or a justified override under Cloudflare AI.
+Do not call the Typesafe API directly or silently change routes after a failure.
 Native Clef models use `{model, state, questions}`; universal `typesafe/jev` uses `{model, input: {state, questions}}`.
 
 ## Prepare the request and record paths
 
-This example prepares the native `clef-flash` request.
-Replace `MODEL=clef-flash` with `MODEL=clef` for the other native model.
+This example prepares the default universal `typesafe/jev` request.
 
 ```bash
 set +x
 umask 077
 mkdir -p tmp
 WORK_DIR="$(mktemp -d tmp/cloudflare-ai.XXXXXX)"
-MODEL=clef-flash
-URL="https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/ai/run/@cf/cloudflare/${MODEL}"
+MODEL=typesafe/jev
+URL="https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/ai/run"
 REQUEST_FILE="$WORK_DIR/decision-input.json"
 RESPONSE_FILE="$WORK_DIR/decision-response.json"
 RESPONSE_HEADERS="$WORK_DIR/decision-headers.txt"
@@ -38,7 +40,7 @@ jq -n --arg model "$MODEL" '{
       criteria: ["No impact", "Minor", "Major", "Critical"]
     }
   }
-}' > "$REQUEST_FILE"
+}' | jq --arg model "$MODEL" '{model: $model, input: del(.model)}' > "$REQUEST_FILE"
 CACHE_TTL=2592000
 prepare_cache_headers() {
   CACHE_KEY="decision-v1-$({
@@ -57,12 +59,13 @@ prepare_cache_headers
 
 ### Universal Jev request shape
 
-For `typesafe/jev`, apply this to the prepared state and questions before execution:
+The preparation above already uses this envelope.
+To adapt a saved state and questions, apply this before execution:
 
 ```bash
 MODEL=typesafe/jev
 URL="https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/ai/run"
-jq --arg model "$MODEL" '{model: $model, input: del(.model)}' \
+jq --arg model "$MODEL" '{model: $model, input: (.input // del(.model))}' \
   "$WORK_DIR/decision-input.json" > "$WORK_DIR/decision-request.json"
 REQUEST_FILE="$WORK_DIR/decision-request.json"
 prepare_cache_headers
@@ -74,9 +77,14 @@ The native Workers AI catalog and universal third-party model IDs are different 
 
 ### Direct native Workers AI
 
-For a direct native `clef` or `clef-flash` request, retain the native URL and body and omit the Gateway header before execution:
+For an explicitly selected direct native `clef` or `clef-flash` request, convert the prepared request to the native URL and body and omit the Gateway header:
 
 ```bash
+MODEL=clef-flash
+URL="https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/ai/run/@cf/cloudflare/${MODEL}"
+jq --arg model "$MODEL" '(.input // del(.model)) + {model: $model}' \
+  "$WORK_DIR/decision-input.json" > "$WORK_DIR/decision-native-request.json"
+REQUEST_FILE="$WORK_DIR/decision-native-request.json"
 GATEWAY_HEADERS=()
 ```
 
@@ -118,7 +126,7 @@ A longer TTL reduces repeated calls after a response is cached but does not prov
   --write-out 'HTTP %{http_code}\n'
 ```
 
-The native URL plus `cf-aig-gateway-id` routes through the existing Gateway.
+The selected Workers AI URL plus `cf-aig-gateway-id` routes through the existing Gateway.
 Workers AI inference uses `Authorization`, not the LLM compatibility endpoint's `cf-aig-authorization` header.
 
 ## Read and normalize the recorded response
@@ -140,7 +148,7 @@ jq -e '
     else {model, answers, usage} end
 ' "$RESPONSE_FILE" > "$WORK_DIR/decision-normalized.json"
 jq -e --slurpfile input "$WORK_DIR/decision-input.json" \
-  '(.answers | keys) == ($input[0].questions | keys)' \
+  '(.answers | keys) == (($input[0].input.questions // $input[0].questions) | keys)' \
   "$WORK_DIR/decision-normalized.json"
 jq '{model, answers, usage}' "$WORK_DIR/decision-normalized.json"
 ```
