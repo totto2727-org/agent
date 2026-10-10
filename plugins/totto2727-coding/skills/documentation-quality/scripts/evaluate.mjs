@@ -1131,4 +1131,4 @@ async function main() {
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === resolve(new URL(import.meta.url).pathname))
-  await main();
+  void main();
