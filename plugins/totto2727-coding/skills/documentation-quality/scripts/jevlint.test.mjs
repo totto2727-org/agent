@@ -1,128 +1,194 @@
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 import { onTestFinished, test } from "vitest";
 import { buildWork, loadManifest, parseArguments } from "./evaluate.mjs";
-import {
-  exportJevlint,
-  JEVLINT_RULE_IDS,
-  JEVLINT_STE_RULE_IDS,
-  RETAINED_RULE_REASONS,
-  steRuleFor,
-} from "./jevlint.mjs";
 
 const refs = fileURLToPath(new URL("../references/", import.meta.url));
 const catalog = JSON.parse(await readFile(join(refs, "rules.json"), "utf8"));
 const fixtures = JSON.parse(await readFile(join(refs, "jevlint/fixtures.json"), "utf8"));
+const supplements = [
+  "consumer-contract",
+  "audience-boundary",
+  "actionable-example",
+  "consequential-limit",
+  "focused-unit",
+  "reader-route",
+  "visual-role",
+];
+const steIds = [
+  "ste-1-5",
+  "ste-1-8",
+  "ste-1-10",
+  "ste-1-11",
+  "ste-1-13",
+  "ste-3-2",
+  "ste-3-4",
+  "ste-3-6",
+  "ste-4-1",
+  "ste-4-2",
+  "ste-4-3",
+  "ste-4-4",
+  "ste-4-5",
+  "ste-5-2",
+  "ste-5-3",
+  "ste-5-4",
+  "ste-5-5",
+  "ste-6-1",
+  "ste-6-2",
+  "ste-6-4",
+  "ste-6-5",
+  "ste-7-1",
+  "ste-7-2",
+  "ste-7-3",
+  "ste-8-2",
+  "ste-8-3",
+  "ste-9-4",
+];
+// These eight need vocabulary evidence even without a catalog requirement flag.
+const vocabularyDependencies = {
+  "ste-1-6": "Needs challenged dictionary entries and whole-term technical vocabulary evidence.",
+  "ste-1-7":
+    "Needs independent approved or categorized technical-verb evidence for noun-to-verb uses.",
+  "ste-1-12":
+    "Needs approved dictionary constructions to judge whether a technical-verb alternative is necessary.",
+  "ste-1-14": "Needs supplied dictionary spelling or an authoritative publishing directive.",
+  "ste-3-3": "Explicitly requires supplied entry approval for participial adjectives.",
+  "ste-3-5":
+    "Needs actual dictionary entries or technical-term category records for controlled -ing forms.",
+  "ste-3-7":
+    "Needs supplied approved verb entries to establish a meaning-preserving direct action.",
+  "ste-9-1":
+    "Needs the disputed replacement entry and original meaning before reconstructing vocabulary.",
+};
+const retainedIds = [
+  "ste-1-1",
+  "ste-1-2",
+  "ste-1-3",
+  "ste-1-4",
+  "ste-1-6",
+  "ste-1-7",
+  "ste-1-9",
+  "ste-1-12",
+  "ste-1-14",
+  "ste-2-1",
+  "ste-2-2",
+  "ste-3-1",
+  "ste-3-3",
+  "ste-3-5",
+  "ste-3-7",
+  "ste-9-1",
+  "ste-9-2",
+  "ste-9-3",
+];
+const allIds = [...supplements, ...steIds];
 const page =
   "Preamble must stay.\n\n# Install\nInstall the package.\n```sh\n# This is not a heading\necho '# protected'\n```\n\n## Run\nRun the command.\n";
 
-async function setup(overrides = {}) {
+async function setup(markdown = page) {
   await mkdir(resolve("tmp"), { recursive: true });
   const root = await mkdtemp(resolve("tmp/jevlint-test-"));
   onTestFinished(() => rm(root, { recursive: true, force: true }));
-  const markdown = overrides.markdown ?? page;
-  await writeFile(join(root, "page.md"), markdown);
-  const document = {
-    id: "guide",
-    path: "page.md",
-    audience: "Beginner CLI users",
-    purpose: "Install and run the CLI",
-    templateConstraints: ["Keep the prescribed headings"],
-    sourceLanguage: "en",
-    ...overrides.document,
-  };
-  const manifest = {
-    model: "typesafe/jev",
-    rules: catalog.filter((rule) => JEVLINT_RULE_IDS.includes(rule.id)),
-    documents: [document],
-    templateConstraints: ["Do not reorder template sections"],
-    ...overrides.manifest,
-  };
-  const manifestPath = join(root, "manifest.json");
-  await writeFile(manifestPath, JSON.stringify(manifest));
-  return { root, manifestPath, outputPath: join(root, "job"), manifest };
+  const target = join(root, "actual-guide.md");
+  await writeFile(target, markdown);
+  return { root, target };
 }
 
-test("explicit preparation flag does not compose lint execution", () => {
-  assert.equal(
-    parseArguments(["--manifest", "m.json", "--output", "tmp/job", "--export-jevlint"])
-      .exportJevlint,
-    true,
-  );
-  for (const flag of ["--dry-run", "--mechanical-only"])
-    assert.throws(
-      () =>
-        parseArguments(["--manifest", "m.json", "--output", "tmp/job", "--export-jevlint", flag]),
-      /cannot be combined/,
-    );
-});
+function cli(args, cwd = process.cwd()) {
+  const run = spawnSync(process.execPath, [resolve(process.env.JEVLINT_CLI), ...args], {
+    cwd,
+    encoding: "utf8",
+    env: { PATH: process.env.PATH, HOME: process.env.HOME },
+    timeout: 20_000,
+    maxBuffer: 4 * 1024 * 1024,
+  });
+  assert.equal(run.error, undefined, run.error?.message);
+  return run;
+}
 
-test("actual evaluator CLI prepares jobs without credentials or linter execution", async () => {
-  const input = await setup();
-  const script = fileURLToPath(new URL("./evaluate.mjs", import.meta.url));
+test("the removed preparation route is rejected by the actual evaluator CLI", () => {
+  assert.throws(
+    () => parseArguments(["--manifest", "m.json", "--output", "tmp/job", "--export-jevlint"]),
+    /Unknown argument: --export-jevlint/,
+  );
   const run = spawnSync(
     process.execPath,
-    [script, "--manifest", input.manifestPath, "--export-jevlint", "--output", input.outputPath],
-    {
-      encoding: "utf8",
-      env: { PATH: process.env.PATH, HOME: process.env.HOME },
-    },
+    [fileURLToPath(new URL("./evaluate.mjs", import.meta.url)), "--export-jevlint"],
+    { encoding: "utf8", env: { PATH: process.env.PATH, HOME: process.env.HOME } },
   );
-  assert.equal(run.status, 0, run.stderr || run.stdout);
-  assert.match(run.stdout, /Prepared 19 uncalibrated jevlint reviewer-assistance jobs/);
-  assert.equal(
-    JSON.parse(await readFile(join(input.outputPath, "export.json"), "utf8")).jobs.length,
-    19,
-  );
+  assert.equal(run.status, 2);
+  assert.match(run.stderr, /Unknown argument: --export-jevlint/);
 });
 
-test("explicit section selection and language exclusion remain effective", async () => {
-  const input = await setup({
-    document: {
-      ruleIds: ["focused-unit"],
-      sections: [{ startLine: 3, endLine: 8, headingPath: ["Install"] }],
-    },
-    manifest: { englishOnly: true },
-  });
-  const report = await exportJevlint(input);
-  assert.equal(report.jobs.length, 1);
-  assert.deepEqual(report.jobs[0].sourceRange.startLine, 3);
-  const target = await readFile(
-    join(input.outputPath, "targets", `${report.jobs[0].key}.md`),
-    "utf8",
+test("exactly 34 fixed definitions match the single config without job bindings", async () => {
+  const files = (await readdir(join(refs, "jevlint"))).filter((file) => file.endsWith(".yaml"));
+  assert.deepEqual(files.sort(), allIds.map((id) => `${id}.yaml`).sort());
+  const config = await readFile(join(refs, "jevlint.yaml"), "utf8");
+  assert.match(config, /^rulePaths: \[\.\/jevlint\]$/m);
+  assert.match(config, /^context: \[\]$/m);
+  assert.match(config, /^cache: none$/m);
+  assert.deepEqual(
+    [...config.matchAll(/^  documentation-([^:]+): on$/gm)].map((match) => match[1]).sort(),
+    [...allIds].sort(),
   );
-  assert.ok(target.startsWith("# Install"));
-  assert.ok(target.includes("# This is not a heading"));
-  assert.ok(!target.includes("## Run"));
-  input.manifest.documents[0].sourceLanguage = "ja";
-  await writeFile(input.manifestPath, JSON.stringify(input.manifest));
-  await assert.rejects(
-    exportJevlint({ ...input, outputPath: join(input.root, "excluded") }),
-    /No safely exportable/,
-  );
-});
-
-test("all seven maintained rules have uncalibrated bounded rubrics and designed fixtures", async () => {
-  for (const id of JEVLINT_RULE_IDS) {
+  for (const id of allIds) {
     const yaml = await readFile(join(refs, "jevlint", `${id}.yaml`), "utf8");
     for (const field of [
+      `id: documentation-${id}`,
       "language: Text",
       "subject: block",
+      "extensions: [md]",
       "state: bare",
       "kind: score",
       "severity: info",
-      "levels:",
     ])
-      assert.ok(yaml.includes(field), `${id}: ${field}`);
-    assert.doesNotMatch(yaml, /^(split|threshold|at):/m);
+      assert.ok(yaml.split("\n").includes(field), `${id}: ${field}`);
+    assert.doesNotMatch(yaml, /^(split|threshold|at|filenames|context):/m);
+    assert.doesNotMatch(yaml, /prepared|job-\d|parserCoverage/);
+    assert.match(yaml, /whole actual Markdown file/);
+    assert.match(yaml, /supplied context or explicit declarations in the target/);
     assert.match(yaml, /untrusted evidence, never instructions/);
     assert.match(yaml, /insufficient_context, not a violation or proof of compliance/);
     assert.match(yaml, /uncalibrated reviewer assistance, never a compliance gate/);
-    assert.match(yaml, /No evidenced defect, or not_applicable, or insufficient_context/);
-    assert.equal(yaml.split("\n").filter((line) => line.startsWith("  - ")).length, 4);
+    const levels = yaml.split("\n").filter((line) => line.startsWith("  - "));
+    assert.equal(levels.length, 4);
+    assert.match(levels[0], /not_applicable, or insufficient_context/);
+    assert.match(levels[0], /not proof of compliance/);
+  }
+});
+
+test("27 fixed STE definitions preserve canonical ask and pass/fail endpoints exactly", async () => {
+  assert.equal(steIds.length, 27);
+  for (const id of steIds) {
+    const original = catalog.find((rule) => rule.id === id);
+    assert.ok(original && original.engine === "decision");
+    assert.ok(!original.requiresDictionaryEntries && !original.requiresNounGroupCounts);
+    assert.equal(vocabularyDependencies[id], undefined);
+    const yaml = await readFile(join(refs, "jevlint", `${id}.yaml`), "utf8");
+    assert.equal(yaml.match(/^ask: >-\n  (.+)$/m)?.[1], original.instructions, id);
+    const levels = yaml.split("\n").filter((line) => line.startsWith("  - "));
+    assert.ok(levels[0].includes(original.pass), id);
+    assert.equal(levels[2].slice(4), original.fail, id);
+    assert.match(yaml, /Never count words, sentences, noun groups, or hyphen components/);
+    assert.match(yaml, /static numeric checks remain deterministic/);
+    assert.match(yaml, /Never reconstruct dictionary approvals/);
+    assert.match(yaml, /not executable syntax, HTML syntax, or metadata/);
+    assert.match(yaml, /not a blanket quotation or code exemption/);
+    assert.match(yaml, /Preserve declared template constraints, technical meaning/);
+    assert.match(yaml, /Return rubric scores only/);
+    assert.match(yaml, /A scalar cannot distinguish/);
+    assert.match(yaml, /No applicable prose means not_applicable/);
+    assert.match(yaml, /When the rule needs audience, purpose, or writing mode/);
+  }
+});
+
+test("seven supplements retain designed rubric cases and substantive representations", async () => {
+  for (const id of supplements) {
+    const yaml = await readFile(join(refs, "jevlint", `${id}.yaml`), "utf8");
+    assert.match(yaml, /Substantive code, tables, and diagrams remain representation evidence/);
+    assert.match(yaml, /Missing explicit audience or purpose means insufficient_context/);
     const cases = fixtures.filter((fixture) => fixture.ruleId === id);
     assert.ok(cases.some((fixture) => fixture.state === "no_evidenced_defect"));
     assert.ok(cases.some((fixture) => fixture.state === "defect"));
@@ -133,256 +199,102 @@ test("all seven maintained rules have uncalibrated bounded rubrics and designed 
   }
   assert.ok(fixtures.some((fixture) => fixture.state === "not_applicable"));
   assert.ok(fixtures.some((fixture) => fixture.state === "insufficient_context"));
-});
-
-test("all 27 generated STE rubrics preserve canonical instructions and exclude unsupported evidence gates", () => {
-  assert.equal(JEVLINT_STE_RULE_IDS.length, 27);
-  assert.equal(Object.keys(RETAINED_RULE_REASONS).length, 8);
-  for (const id of JEVLINT_STE_RULE_IDS) {
-    const original = catalog.find((rule) => rule.id === id);
-    assert.ok(original && original.engine === "decision");
-    assert.ok(!original.requiresDictionaryEntries && !original.requiresNounGroupCounts);
-    assert.equal(RETAINED_RULE_REASONS[id], undefined);
-    const rule = steRuleFor(original, "fixture");
-    assert.equal(rule.ask, original.instructions);
-    assert.ok(rule.levels[0].includes(original.pass));
-    assert.equal(rule.levels[2], original.fail);
-    assert.equal(rule.levels.length, 4);
-    assert.equal(rule.threshold, undefined);
-    assert.equal(rule.split, undefined);
-    assert.match(rule.note, /Never count words, sentences, noun groups, or hyphen components/);
-    assert.match(rule.note, /Never reconstruct dictionary approvals/);
-    assert.match(rule.note, /insufficient_context, not a violation or proof of compliance/);
-    assert.match(rule.note, /uncalibrated reviewer assistance, never a compliance gate/);
-  }
-});
-
-test("the exporter cannot silently switch an explicitly declared model", async () => {
-  const input = await setup({ manifest: { model: "clef" } });
-  await assert.rejects(exportJevlint(input), /cannot silently replace the declared model/);
-});
-
-test("code-only representations remain selected for supplements, while STE prose applicability is scoped", async () => {
-  const markdown = "```sh\napp --version\n```\n";
-  const input = await setup({
-    markdown,
-    document: { ruleIds: ["actionable-example", "visual-role", "ste-4-1"] },
-    manifest: { rules: catalog },
-  });
-  const report = await exportJevlint(input);
-  assert.equal(report.jobs.length, 3);
-  assert.equal(report.skipped.length, 0);
-  for (const job of report.jobs) {
-    assert.equal(
-      await readFile(join(input.outputPath, "targets", `${job.key}.md`), "utf8"),
-      markdown,
-    );
-    const context = JSON.parse(
-      await readFile(join(input.outputPath, "context", `${job.key}.json`), "utf8"),
-    );
-    assert.match(context.binding, /For STE language rules, protected syntax/);
-    assert.match(
-      context.binding,
-      /Supplementary representation rules must judge substantive code, tables, and diagrams/,
-    );
-    assert.doesNotMatch(context.binding, /With no applicable prose choose not_applicable/);
-  }
-  const example = report.jobs.find((job) => job.ruleId === "actionable-example");
-  const rule = await readFile(join(input.outputPath, "rules", `${example.key}.yaml`), "utf8");
+  const example = await readFile(join(refs, "jevlint/actionable-example.yaml"), "utf8");
   assert.match(
-    rule,
+    example,
     /A substantive representation can supply the main answer without redundant prose/,
   );
 });
 
-test("STE context preserves public metadata and local parser warnings without private vocabulary or caller counts", async () => {
-  const input = await setup({
-    markdown: "# Action\nUse *uncertain\n",
-    document: {
-      ruleIds: ["ste-4-1"],
-      ste: {
-        writingMode: "procedural",
-        wordGroups: [{ text: "app id", category: "identifier" }],
-        measurementUnits: ["MiB"],
-        vocabularyFile: "unread-private.json",
-        nounGroups: [
-          { text: "status panel", kind: "multi-word", source: "Synthetic role declaration." },
-        ],
-      },
-    },
-    manifest: { rules: catalog },
-  });
-  const report = await exportJevlint(input);
-  assert.equal(report.jobs.length, 1);
-  const context = JSON.parse(
-    await readFile(join(input.outputPath, "context", `${report.jobs[0].key}.json`), "utf8"),
+test("18 evidence-dependent decisions stay selectable through existing document ruleIds", async () => {
+  assert.equal(retainedIds.length, 18);
+  assert.equal(Object.keys(vocabularyDependencies).length, 8);
+  const unsupported = catalog.filter(
+    (rule) => rule.engine === "decision" && !allIds.includes(rule.id),
   );
-  assert.equal(context.evidence.document.ste.writingMode, "procedural");
-  assert.deepEqual(context.evidence.document.ste.wordGroups, [
-    { text: "app id", category: "identifier" },
-  ]);
-  assert.equal(context.evidence.document.ste.vocabularyFile, undefined);
-  assert.equal(context.evidence.document.ste.nounGroups, undefined);
-  assert.ok(context.evidence.target.parserCoverage.parserWarnings.length > 0);
-  assert.equal(context.evidence.target.counts, undefined);
-});
-
-test("export preserves preamble, fenced headings, source ranges, metadata, and retained evidence boundaries", async () => {
-  const input = await setup({
-    document: { ste: { vocabularyFile: "missing-private.json" } },
-    manifest: { rules: catalog },
-  });
-  const report = await exportJevlint(input);
-  assert.equal(report.jobs.length, 111); // 34 rules across three sections, four paragraph units (including protected code), and the page
-  assert.equal(report.migratedRuleIds.length, 34);
-  assert.equal(report.retainedRuleIds.length, 18);
-  assert.equal(report.retainedRules.length, 18);
-  assert.ok(report.retainedRules.every((rule) => rule.reason));
-  assert.ok(report.retainedRuleIds.includes("ste-1-1"));
-  assert.ok(report.excludedRuleIds.includes("code-fence-language"));
-  assert.equal(report.calibrated, false);
-  assert.equal(report.reviewerAssistanceOnly, true);
-  const targets = await Promise.all(
-    report.jobs
-      .filter((job) => JEVLINT_RULE_IDS.includes(job.ruleId))
-      .map((job) => readFile(join(input.outputPath, "targets", `${job.key}.md`), "utf8")),
+  assert.deepEqual(
+    unsupported.map((rule) => rule.id),
+    retainedIds,
   );
-  assert.equal(targets.filter((target) => target === "Preamble must stay.\n\n").length, 6);
-  assert.equal(targets.filter((target) => target.includes("# This is not a heading")).length, 7);
-  assert.equal(targets.filter((target) => target.startsWith("# This is not a heading")).length, 0);
-  const context = JSON.parse(
-    await readFile(join(input.outputPath, "context", `${report.jobs[0].key}.json`), "utf8"),
+  for (const id of retainedIds) {
+    const rule = catalog.find((entry) => entry.id === id);
+    assert.ok(
+      rule.requiresDictionaryEntries || rule.requiresNounGroupCounts || vocabularyDependencies[id],
+    );
+  }
+  const { root, target } = await setup();
+  const manifestPath = join(root, "manifest.json");
+  await writeFile(
+    manifestPath,
+    JSON.stringify({
+      model: "typesafe/jev",
+      rulesFile: join(refs, "rules.json"),
+      documents: [
+        {
+          id: "guide",
+          path: target,
+          audience: "CLI users",
+          purpose: "Install and run the CLI",
+          ruleIds: retainedIds,
+        },
+      ],
+    }),
   );
-  assert.equal(context.evidence.page.markdown, page);
-  assert.equal(context.evidence.document.audience, input.manifest.documents[0].audience);
-  assert.deepEqual(context.evidence.document.templateConstraints, [
-    "Do not reorder template sections",
-    "Keep the prescribed headings",
-  ]);
-  assert.deepEqual(context.evidence.target.sourceRange, report.jobs[0].sourceRange);
-  assert.equal(context.evidence.dictionaryCandidates, undefined);
-  assert.equal(context.evidence.nounGroupCounts, undefined);
-  const config = JSON.parse(await readFile(report.configPath, "utf8"));
-  assert.equal(config.transport, "cloudflare");
-  assert.equal(config.model, "typesafe/jev");
-  assert.equal(config.cache, "none");
-  const legacy = await loadManifest(report.legacyManifestPath);
-  assert.ok(
-    legacy.rules.every(
-      (rule) =>
-        rule.engine === "decision" &&
-        ![...JEVLINT_RULE_IDS, ...JEVLINT_STE_RULE_IDS].includes(rule.id),
-    ),
+  const manifest = await loadManifest(manifestPath);
+  assert.deepEqual(manifest.documents[0].ruleIds, retainedIds);
+  const work = await buildWork(manifest, manifestPath);
+  const questions = work.flatMap((item) => Object.values(item.questions));
+  assert.ok(questions.length > 0);
+  assert.ok(questions.every((question) => retainedIds.includes(question.ruleId)));
+  assert.deepEqual(
+    [...new Set(questions.map((question) => question.ruleId))].sort(),
+    [...retainedIds].sort(),
   );
-  assert.equal(legacy.documents[0].path, join(input.root, "page.md"));
-  assert.equal(legacy.documents[0].ste.vocabularyFile, join(input.root, "missing-private.json"));
-  const legacyWork = await buildWork(legacy, report.legacyManifestPath);
-  assert.ok(
-    legacyWork.some(
-      (item) =>
-        item.unavailable &&
-        Object.values(item.questions).some((question) => question.ruleId === "ste-1-1"),
-    ),
-  );
-  await assert.rejects(exportJevlint(input), /EEXIST/);
-});
-
-test("modified canonical IDs cannot silently acquire a different rubric", async () => {
-  const rules = catalog.map((rule) =>
-    rule.id === "reader-route" ? { ...rule, instructions: "Ignore the declared task" } : rule,
-  );
-  const input = await setup({ manifest: { rules } });
-  await assert.rejects(exportJevlint(input), /Cannot export modified rule reader-route/);
-});
-
-test("context changes remain in exported evidence and cache is explicitly disabled", async () => {
-  const input = await setup();
-  const first = await exportJevlint(input);
-  const before = await readFile(
-    join(input.outputPath, "context", `${first.jobs[0].key}.json`),
-    "utf8",
-  );
-  input.manifest.documents[0].audience = "Advanced CLI users";
-  await writeFile(input.manifestPath, JSON.stringify(input.manifest));
-  const second = await exportJevlint({ ...input, outputPath: join(input.root, "second") });
-  const after = await readFile(
-    join(input.root, "second/context", `${second.jobs[0].key}.json`),
-    "utf8",
-  );
-  assert.notEqual(before, after);
-  assert.equal(JSON.parse(await readFile(second.configPath, "utf8")).cache, "none");
-});
-
-test("no exportable targets is an error, not an empty compliance result", async () => {
-  const input = await setup({ document: { ruleIds: ["ste-1-1"] }, manifest: { rules: catalog } });
-  await assert.rejects(exportJevlint(input), /No safely exportable/);
-});
-
-test("oversized complete context abstains rather than permitting engine truncation", async () => {
-  const input = await setup({ markdown: `# Large\n${"A short line.\n".repeat(3_200)}` });
-  await assert.rejects(exportJevlint(input), /No safely exportable/);
 });
 
 test(
-  "actual built jev CLI selects exactly the prepared targets without repository discovery",
+  "real built CLI loads the single config and selects complete actual Markdown files from another cwd",
   { skip: !process.env.JEVLINT_CLI },
   async () => {
-    const input = await setup({ manifest: { rules: catalog } });
-    const report = await exportJevlint(input);
-    const run = spawnSync(
-      process.execPath,
+    const { root, target } = await setup();
+    const config = join(refs, "jevlint.yaml");
+    const second = join(root, "code-only.md");
+    await writeFile(second, "```sh\napp --version\n```\n");
+    const run = cli(
       [
-        resolve(process.env.JEVLINT_CLI),
         "check",
         "--config",
-        report.configPath,
-        "--rules",
-        report.rulesPath,
-        report.targetsPath,
+        config,
+        target,
+        second,
         "--dry-run",
-        "--cache",
-        "none",
         "--format",
         "json",
         "--show-subjects",
       ],
-      {
-        encoding: "utf8",
-        env: { PATH: process.env.PATH, HOME: process.env.HOME },
-      },
+      root,
     );
     assert.equal(run.status, 0, run.stderr || run.stdout);
     const plan = JSON.parse(run.stdout);
     assert.equal(plan.dryRun, true);
-    assert.equal(plan.subjects, report.jobs.length);
-    assert.equal(report.jobs.length, 111);
-    assert.equal(new Set(report.jobs.map((job) => job.ruleId)).size, 34);
+    assert.equal(plan.subjects, 68);
     assert.equal(plan.cached, 0);
-    assert.equal(plan.subjectList.length, report.jobs.length);
+    assert.equal(plan.subjectList.length, 68);
+    assert.equal(plan.undeclared.length, 0);
     for (const subject of plan.subjectList) {
       assert.equal(subject.line, 1);
       assert.equal(subject.node, "block");
+      assert.ok(["actual-guide.md", "code-only.md"].includes(subject.file));
+      assert.equal(subject.endLine, subject.file === "actual-guide.md" ? 11 : 3);
     }
-    assert.equal(plan.undeclared.length, 0);
-    const live = spawnSync(
-      process.execPath,
-      [
-        resolve(process.env.JEVLINT_CLI),
-        "check",
-        "--config",
-        report.configPath,
-        "--rules",
-        report.rulesPath,
-        report.targetsPath,
-        "--cache",
-        "none",
-      ],
-      {
-        encoding: "utf8",
-        env: { PATH: process.env.PATH, HOME: process.env.HOME },
-        timeout: 10_000,
-      },
+    assert.deepEqual(
+      [...new Set(plan.subjectList.map((subject) => subject.rule))].sort(),
+      allIds.map((id) => `documentation-${id}`).sort(),
     );
+    assert.equal(await readFile(target, "utf8"), page);
+    assert.deepEqual((await readdir(root)).sort(), ["actual-guide.md", "code-only.md"]);
+    // Deliberately remove credentials. Dry-run success is not a hosted judgment.
+    const live = cli(["check", "--config", config, target], root);
     assert.notEqual(live.status, 0);
     assert.match(`${live.stderr}\n${live.stdout}`, /Cloudflare|CLOUDFLARE|API.key|api.key/);
   },

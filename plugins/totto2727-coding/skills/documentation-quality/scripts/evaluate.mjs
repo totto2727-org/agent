@@ -42,7 +42,6 @@ export function parseArguments(argv) {
   for (let index = 0; index < argv.length; index += 1) {
     const value = argv[index];
     if (value === "--dry-run") options.dryRun = true;
-    else if (value === "--export-jevlint") options.exportJevlint = true;
     else if (value === "--mechanical-only") options.mechanicalOnly = true;
     else if (value === "--manifest" || value === "--output" || value === "--concurrency") {
       const next = argv[++index];
@@ -52,10 +51,6 @@ export function parseArguments(argv) {
   }
   if (!options.manifest || !options.output)
     throw new EvaluationError("--manifest and --output are required");
-  if (options.exportJevlint && (options.dryRun || options.mechanicalOnly))
-    throw new EvaluationError(
-      "--export-jevlint cannot be combined with --dry-run or --mechanical-only",
-    );
   options.concurrency = Number(options.concurrency);
   if (
     !Number.isInteger(options.concurrency) ||
@@ -1121,17 +1116,6 @@ export async function evaluate({
 async function main() {
   try {
     const options = parseArguments(process.argv.slice(2));
-    if (options.exportJevlint) {
-      const { exportJevlint } = await import("./jevlint.mjs");
-      const report = await exportJevlint({
-        manifestPath: resolve(options.manifest),
-        outputPath: resolve(options.output),
-      });
-      console.log(
-        `Prepared ${report.jobs.length} uncalibrated jevlint reviewer-assistance jobs in ${resolve(options.output)}`,
-      );
-      return;
-    }
     const report = await evaluate({
       manifestPath: resolve(options.manifest),
       outputPath: resolve(options.output),
@@ -1147,5 +1131,4 @@ async function main() {
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === resolve(new URL(import.meta.url).pathname))
-  // Do not hold module evaluation open while the exporter imports shared helpers.
   void main();

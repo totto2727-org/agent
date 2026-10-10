@@ -46,7 +46,8 @@ A structural constraint is not a blanket exemption for the prose inside it.
    Keep instructions, conditions, examples, and warnings intact.
    Scripted review must not judge destination pages, cross-page duplication, document-set ownership, or unseen external evidence.
 5. Run the custom-only `@totto2727/jevlint` package separately for supported contextual rules.
-   Prepare the bounded review inputs from the manifest, then invoke its `jev-lint` command with explicit rules and configuration.
+   Invoke its `jev-lint` command directly on the original Markdown file with the fixed skill configuration.
+   Run markdownlint, textlint, and jevlint individually in the shell; do not wrap or combine their commands in a script.
    Do not use the upstream package's bundled rules or replace this command with an integrated linter application.
    Keep checks that require evidence unavailable to the jevlint rule in the retained Decision Model evaluator.
    Use `typesafe/jev` by default for contextual judgment.
@@ -70,7 +71,7 @@ Treat protected syntax, names, and exact quotations according to their role and 
 
 ## Scripted and semantic evaluation
 
-Use [running evaluations](references/running.md) for the independent tool commands, manifests, Cloudflare routes, and report interpretation.
+Use [running evaluations](references/running.md) for the direct shell commands, engine configurations, retained evaluator manifest, Cloudflare route, and report interpretation.
 The published fork package is a prerequisite for the distributable jevlint workflow.
 Do not commit a dependency on a local fork checkout or a workspace-specific binary path.
 Static and contextual results remain separate reports. Review-required results and transport failures are not passes.

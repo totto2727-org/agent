@@ -1,10 +1,11 @@
 import { execFile } from "node:child_process";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
+import { runInNewContext } from "node:vm";
 import { TextlintKernelDescriptor } from "@textlint/kernel";
 import markdownPluginModule from "@textlint/textlint-plugin-markdown";
 import { createLinter, loadTextlintrc } from "textlint";
@@ -17,6 +18,7 @@ const require = createRequire(import.meta.url);
 const execute = promisify(execFile);
 const staticDirectory = fileURLToPath(new URL("../", import.meta.url));
 const cli = require.resolve("textlint/bin/textlint.js");
+const configPath = join(staticDirectory, "config/textlint.cjs");
 const directories = [];
 const sentence = (words) => `Check ${"the ".repeat(words - 2)}panel.`;
 const markdownPlugin = markdownPluginModule.default ?? markdownPluginModule;
@@ -31,6 +33,27 @@ async function directory() {
   const path = await mkdtemp(join(tmpdir(), "documentation-quality-textlint-"));
   directories.push(path);
   return path;
+}
+
+// Test-only config variants model editing declarations in the one shipped file.
+// They are not part of the skill's execution workflow.
+async function configFixture(path, options = {}) {
+  let source = await readFile(configPath, "utf8");
+  for (const [key, value] of Object.entries(options)) {
+    source = source.replace(
+      new RegExp(`const ${key} = [^\\n]+;`),
+      `const ${key} = ${JSON.stringify(value)};`,
+    );
+  }
+  const module = { exports: {} };
+  runInNewContext(source, {
+    module,
+    require: createRequire(configPath),
+    __dirname: dirname(configPath),
+  });
+  const output = join(path, "config.json");
+  await writeFile(output, JSON.stringify(module.exports));
+  return output;
 }
 
 async function lint(check, source, options = {}) {
@@ -275,23 +298,70 @@ describe("existing mechanical behavior through the real Markdown processor", () 
 });
 
 describe("installed-skill configuration and textlint CLI", () => {
+  it("exports one ordinary configuration object, not a factory", () => {
+    expect(require(configPath)).toEqual({ rules: expect.any(Object) });
+    expect(typeof require(configPath)).toBe("object");
+  });
+
+  it.each([
+    [{ language: "unknown" }, /language must be/],
+    [{ ruleOptions: { unknown: true } }, /Unknown mechanical catalog rule/],
+    [{ ruleOptions: { "ste-5-1": true } }, /must be an object or false/],
+  ])("rejects invalid declared config options %j", async (options, message) => {
+    const path = await directory();
+    await expect(configFixture(path, options)).rejects.toThrow(message);
+  });
+
+  it("the real CLI preserves metadata, inline/fenced code, and URL exclusions", async () => {
+    const path = await directory();
+    const customizedConfig = await configFixture(path, {
+      language: false,
+      ruleOptions: Object.fromEntries(
+        mechanicalCatalog
+          .filter((entry) => entry.id !== "ste-8-1")
+          .map((entry) => [entry.id, false]),
+      ),
+    });
+    const file = join(path, "guide.md");
+    await writeFile(
+      file,
+      "---\ntitle: ignored; metadata\n---\n\n`ignored; inline`\n\n```js\nignored; code\n```\n\nhttps://example.com/ignored;url\n\nCheck the panel; use the tool.\n",
+    );
+    try {
+      await execute(
+        process.execPath,
+        [cli, "--config", customizedConfig, "--format", "json", file],
+        { cwd: staticDirectory },
+      );
+      throw new Error("Expected prose punctuation finding");
+    } catch (error) {
+      expect(error.code).toBe(1);
+      const results = JSON.parse(error.stdout);
+      expect(results[0].messages).toHaveLength(1);
+      expect(results[0].messages[0]).toMatchObject({
+        line: 13,
+        message: "STE prose does not permit a semicolon.",
+      });
+    }
+  });
+
   it.each([20, 21])(
     "the real CLI applies declared procedural STE counting to %i words",
     async (words) => {
       const path = await directory();
-      const configPath = join(path, "config.cjs");
-      await writeFile(
-        configPath,
-        `module.exports = require(${JSON.stringify(join(staticDirectory, "config/textlint.cjs"))})({
-      language: false,
-      ste: { writingMode: "procedural" },
-      ruleOptions: ${JSON.stringify(Object.fromEntries(mechanicalCatalog.filter((entry) => entry.id !== "ste-5-1").map((entry) => [entry.id, false])))},
-    });\n`,
-      );
+      const customizedConfig = await configFixture(path, {
+        language: false,
+        ste: { writingMode: "procedural" },
+        ruleOptions: Object.fromEntries(
+          mechanicalCatalog
+            .filter((entry) => entry.id !== "ste-5-1")
+            .map((entry) => [entry.id, false]),
+        ),
+      });
       await writeFile(join(path, "guide.md"), `${sentence(words)}\n`);
       const result = execute(
         process.execPath,
-        [cli, "--config", configPath, "--format", "json", "guide.md"],
+        [cli, "--config", customizedConfig, "--format", "json", "guide.md"],
         { cwd: path },
       );
       if (words === 20)
@@ -315,7 +385,7 @@ describe("installed-skill configuration and textlint CLI", () => {
         [
           cli,
           "--config",
-          join(staticDirectory, "config/textlint-ja.cjs"),
+          await configFixture(path, { language: "ja" }),
           "--format",
           "json",
           "guide.md",
@@ -330,8 +400,9 @@ describe("installed-skill configuration and textlint CLI", () => {
   it.each(["en", "ja"])(
     "retains every current mdts %s preset rule and option",
     async (language) => {
-      const configPath = join(staticDirectory, "config", `textlint-${language}.cjs`);
-      const descriptor = await loadTextlintrc({ configFilePath: configPath });
+      const path = await directory();
+      const configuredPath = await configFixture(path, { language });
+      const descriptor = await loadTextlintrc({ configFilePath: configuredPath });
       const upstreamModule =
         language === "en"
           ? await import("slopless")
@@ -364,18 +435,9 @@ describe("installed-skill configuration and textlint CLI", () => {
     await writeFile(join(path, ".textlintrc.json"), '{"rules":{"missing-poison-rule":true}}');
     await writeFile(join(path, "guide.md"), "# Guide\n\nCheck the panel; use the tool.\n");
     await expect(
-      execute(
-        process.execPath,
-        [
-          cli,
-          "--config",
-          join(staticDirectory, "config/textlint-en.cjs"),
-          "--format",
-          "json",
-          "guide.md",
-        ],
-        { cwd: path },
-      ),
+      execute(process.execPath, [cli, "--config", configPath, "--format", "json", "guide.md"], {
+        cwd: path,
+      }),
     ).rejects.toMatchObject({
       code: 1,
       stdout: expect.stringContaining("STE prose does not permit a semicolon."),
@@ -397,7 +459,7 @@ describe("installed-skill configuration and textlint CLI", () => {
           "exec",
           "textlint",
           "--config",
-          join(staticDirectory, "config/textlint-en.cjs"),
+          configPath,
           "--format",
           "json",
           file,
@@ -414,18 +476,9 @@ describe("installed-skill configuration and textlint CLI", () => {
     const path = await directory();
     await writeFile(join(path, "guide.md"), "# Guide\n\nCheck the panel.\n");
     await expect(
-      execute(
-        process.execPath,
-        [
-          cli,
-          "--config",
-          join(staticDirectory, "config/textlint-en.cjs"),
-          "--format",
-          "json",
-          "guide.md",
-        ],
-        { cwd: path },
-      ),
+      execute(process.execPath, [cli, "--config", configPath, "--format", "json", "guide.md"], {
+        cwd: path,
+      }),
     ).rejects.toMatchObject({
       code: 1,
       stdout: expect.stringContaining("review-required: Declare document.ste.writingMode"),

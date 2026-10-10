@@ -61,8 +61,8 @@ The [former FAQ-only checks](rules/ste-faq.md) are superseded by the correspondi
 
 These checks cover documentation needs not settled by the language standard.
 Do not restate them as STE requirements or duplicate language checks through them.
-Use their [custom jevlint rubrics](jevlint/) with the explicitly prepared page context described in [running evaluations](running.md).
-The exporter also prepares 27 local STE contextual checks from the catalog.
+Use their [fixed custom jevlint rubrics](jevlint/) through the [configuration](jevlint.yaml) and direct commands in [running evaluations](running.md).
+The same directory contains 27 fixed local STE contextual checks with the catalog's original instructions.
 The remaining 18 dictionary-, noun-group-, or related-evidence-dependent checks use the evidence-aware evaluator.
 
 | Rule                                                | Scope   | Evidence needed                                               |
@@ -79,7 +79,8 @@ The remaining 18 dictionary-, noun-group-, or related-evidence-dependent checks 
 
 For the retained evaluator, match `answers[].questionId` to `questions[].id`, then resolve `questions[].rule.id` against the catalog.
 For textlint, use the reported custom rule ID and source location.
-For jevlint, map the prepared job ID through `export.json` to the original document, source range, and catalog rule.
+For jevlint, remove the `documentation-` prefix to find the catalog rule and inspect the reported original file.
+The whole-file subject does not identify a precise defective paragraph or section; verify that passage before editing.
 Mechanical evidence identifies the checked source range.
 A typed semantic answer is not a verified rationale or complete compliance finding.
 Compare the actual passage, technical meaning, template constraints, public contract, and source-backed rubric before editing.
@@ -97,4 +98,4 @@ Do not automate cross-page duplication, ownership, destination content, translat
 Use separate source, document-set, renderer, or runtime workflows.
 
 The executable catalog is [rules.json](rules.json).
-Read the [execution guide](running.md#read-the-report) for request boundaries, engines, calibration, and report handling.
+Read the [execution guide](running.md#interpret-results) for request boundaries, engines, calibration, and report handling.
