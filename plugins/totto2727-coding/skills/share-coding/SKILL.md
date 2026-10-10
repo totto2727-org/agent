@@ -73,6 +73,10 @@ Expose only the declarations callers need. Do not widen production visibility fo
 
 Inject dependencies at boundaries, keep branches understandable, and model failures explicitly. A unit that requires disproportionate setup usually has the wrong boundary or too many responsibilities.
 
+Follow [test implementation boundaries](../share-test/SKILL.md#test-implementation-boundaries) when verifying a change.
+Use the established test tools and project rules, not a new script registered in a task runner or CI for an individual test.
+Propose a new testing mechanism separately for user approval, or keep verification code temporary and uncommitted.
+
 ## Change scope
 
 Prefer small local changes and composable units. Extract a shared abstraction only after concrete use demonstrates a stable invariant or policy.

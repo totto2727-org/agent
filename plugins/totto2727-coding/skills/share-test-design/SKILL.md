@@ -44,6 +44,10 @@ Choose an observation boundary capable of proving the behavior.
 A unit assertion can establish a local invariant; an integration or end-to-end scenario can establish behavior across real boundaries.
 A mock or synthetic fixture may isolate a useful property but does not establish that the real integration works.
 
+For executable checks, follow [test implementation boundaries](../share-test/SKILL.md#test-implementation-boundaries).
+Choosing a verification method does not authorize a new test runner or changes to project configuration, task runners, or CI for an individual test.
+Keep a proposal for a new testing mechanism separate from the implementation that needs verification.
+
 Prefer reproducible automation for deterministic checks when its maintenance cost is justified by the risk.
 Contextual AI operation can support browser or tool scenarios that require adaptive interaction.
 Human review remains useful for subjective judgments, physical operation, and user acceptance.
