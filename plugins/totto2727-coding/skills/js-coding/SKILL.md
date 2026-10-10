@@ -11,11 +11,12 @@ Read only the relevant reference; already available principles need not be reloa
 
 ## Package manager
 
-- Use Bun as the underlying package manager for JavaScript and TypeScript projects maintained by the user.
+- Use Node.js as the default runtime and pnpm as the underlying package manager for JavaScript and TypeScript projects maintained by the user.
 - Use the Vite+ CLI (`vp`) as the default interface for dependency operations and project tasks.
-- Keep one package manager and one authoritative lockfile.
-- When adopting Bun, preserve the existing release-age window. Convert units without reducing the duration, for example, 24 hours to 86400 seconds.
-- Package-manager choice is separate from runtime choice. Using Bun for dependency management does not require changing a library's supported runtimes or its Deno design.
+- Keep pnpm as the only package manager and `pnpm-lock.yaml` as the authoritative dependency lockfile.
+- Introduce Bun only when direct TypeScript execution requires it. Keep dependency management on pnpm even when Bun executes TypeScript.
+- When changing package managers, preserve the existing release-age window. Convert units without reducing the duration, for example, 86400 seconds to 1440 minutes for pnpm.
+- Package-manager choice is separate from runtime support. Do not change a library's supported runtimes or its Deno design merely to adopt pnpm.
 
 ## Dependency versions
 
