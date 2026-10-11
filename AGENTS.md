@@ -9,11 +9,10 @@
 
 ### Standard tasks
 
-| Command                                      | Scope                                                 |
-| -------------------------------------------- | ----------------------------------------------------- |
-| `nix develop --command vp check`             | Formatting and validation used by CI.                 |
-| `nix develop --command vp run check:plugins` | Validate standard manifests and packaged skill paths. |
-| `git diff --check`                           | Whitespace errors in the current diff.                |
+| Command                          | Scope                                  |
+| -------------------------------- | -------------------------------------- |
+| `nix develop --command vp check` | Formatting and validation used by CI.  |
+| `git diff --check`               | Whitespace errors in the current diff. |
 
 ## Architecture
 
@@ -38,7 +37,7 @@
 - Keep skill guidance project-independent unless a skill explicitly targets one project.
 - Keep secrets out of skills, templates, examples, and workflows; refer to environment variables instead.
 - When changing skill metadata, check it against the Agent Skills specification, using a skill validator when available.
-- When changing plugin metadata or skill locations, run `vp run check:plugins` and verify affected reference paths.
+- When changing plugin metadata or skill locations, verify the standard manifest schema and affected reference paths.
 - Decide whether history belongs by the document's purpose. Documents about the current state or how to act now must state current guidance and necessary concrete grounds. Retain history when recording or analyzing it is essential to the purpose, using [documentation-principles](plugins/totto2727-coding/skills/documentation-principles/SKILL.md#state-current-guidance-and-its-grounds).
 
 ## Task-specific documentation

@@ -1,5 +1,3 @@
 .DS_Store
 _build/
 .mooncakes/
-tmp/
-node_modules/
