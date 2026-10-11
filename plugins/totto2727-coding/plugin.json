@@ -1,0 +1,12 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "totto2727-coding",
+  "description": "Shared coding and testing principles, TypeScript, MoonBit, and Rust practices, test design, and artifact guidance.",
+  "version": "0.8.1",
+  "author": {
+    "name": "totto2727",
+    "url": "https://github.com/totto2727",
+    "email": "kaihatu.totto2727@gmail.com"
+  },
+  "repository": "https://github.com/totto2727-org/agent"
+}

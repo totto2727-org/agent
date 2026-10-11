@@ -1,0 +1,12 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "external-information",
+  "description": "Monid/TinyFish research, cost-aware Cloudflare AI inference and typed Decision Models, plus OpenConnector for Context7, Browser Run, GitHub, and Linear.",
+  "version": "0.3.0",
+  "author": {
+    "name": "totto2727",
+    "url": "https://github.com/totto2727",
+    "email": "kaihatu.totto2727@gmail.com"
+  },
+  "repository": "https://github.com/totto2727-org/agent"
+}

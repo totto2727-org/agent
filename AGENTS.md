@@ -1,4 +1,4 @@
-# Agent plugin marketplace
+# Agent plugins
 
 ## Development commands
 
@@ -9,19 +9,20 @@
 
 ### Standard tasks
 
-| Command                                | Scope                                                                                            |
-| -------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| `nix develop --command vp check`       | Formatting and validation used by CI.                                                            |
-| `c-plugin dev marketplace sync claude` | Regenerate Cursor and Codex marketplace manifests after changing marketplace or plugin metadata. |
-| `git diff --check`                     | Whitespace errors in the current diff.                                                           |
+| Command                          | Scope                                  |
+| -------------------------------- | -------------------------------------- |
+| `nix develop --command vp check` | Formatting and validation used by CI.  |
+| `git diff --check`               | Whitespace errors in the current diff. |
 
 ## Architecture
 
-### Marketplace ownership
+### Plugin ownership
 
-- `.claude-plugin/marketplace.json` is the authoring source. Synchronization generates `.agents/plugins/marketplace.json` and `.cursor-plugin/marketplace.json`; commit the generated outputs with metadata changes.
-- All three manifests must expose the same plugin identifiers and valid local plugin source paths.
-- `plugins/<plugin>/.claude-plugin/plugin.json` defines plugin metadata. Distributable skills belong under `plugins/<plugin>/skills/<skill>/`, with `SKILL.md` as the entry point; do not add standalone skills under `.agents/skills/`.
+- `plugins/<plugin>/plugin.json` is the sole manifest for each [Agent Plugins 1.0.0](https://agent-plugins.org/) package.
+- Use the [official manifest schema](https://agent-plugins.org/schemas/1.0.0/plugin.schema.json). Do not add component lists or client-specific top-level fields to the manifest.
+- Distributable skills belong under `plugins/<plugin>/skills/<skill>/`, with `SKILL.md` as the entry point. Clients discover only immediate child directories of `skills/`.
+- Keep each package self-contained. Files supplied by a package must resolve within its plugin root.
+- Distribute each plugin directly from its repository directory. Do not add catalogs, vendor manifests, or manifest-generation tasks.
 
 ### External documentation
 
@@ -36,7 +37,7 @@
 - Keep skill guidance project-independent unless a skill explicitly targets one project.
 - Keep secrets out of skills, templates, examples, and workflows; refer to environment variables instead.
 - When changing skill metadata, check it against the Agent Skills specification, using a skill validator when available.
-- When changing marketplace metadata or skill locations, verify generated manifests and affected reference paths.
+- When changing plugin metadata or skill locations, verify the standard manifest schema and affected reference paths.
 - Decide whether history belongs by the document's purpose. Documents about the current state or how to act now must state current guidance and necessary concrete grounds. Retain history when recording or analyzing it is essential to the purpose, using [documentation-principles](plugins/totto2727-coding/skills/documentation-principles/SKILL.md#state-current-guidance-and-its-grounds).
 
 ## Task-specific documentation
