@@ -24,7 +24,7 @@ A concise audit summary identifying the user-facing README improvements, develop
 
 ## Prerequisites
 
-- **c-plugin**: Install a version that supports `plugin add --github` and make the command available on `PATH`.
+- **c-plugin**: Install a version that supports `github:` plugin sources and make the command available on `PATH`.
 
 ## Setup
 
@@ -33,23 +33,27 @@ A concise audit summary identifying the user-facing README improvements, develop
 Choose the plugin you need.
 Each command installs one plugin from its explicit directory in the GitHub repository.
 
+> [!IMPORTANT]
+> These examples select the standard-package migration branch.
+> Keep `--ref chore/standard-agent-plugins-20261011` until this branch is merged into the repository's default branch.
+
 Coding and testing guidance:
 
 ```bash
-c-plugin plugin add --github totto2727-org/agent --path plugins/totto2727-coding
+c-plugin plugin add github:totto2727-org/agent/plugins/totto2727-coding --ref chore/standard-agent-plugins-20261011 --all
 ```
 
 External information and connected services:
 
 ```bash
-c-plugin plugin add --github totto2727-org/agent --path plugins/external-information
+c-plugin plugin add github:totto2727-org/agent/plugins/external-information --ref chore/standard-agent-plugins-20261011 --all
 ```
 
-To select a branch, tag, or commit, append `--ref <ref>` to either command.
+To select another branch, tag, or commit, replace the `--ref` value.
 Without `--ref`, installation uses the remote default branch at fetch time.
 The lock records the resolved commit, and synchronization uses that pinned checkout without fetching.
-Interactive installation lets you select skills from the plugin.
-For scripts, append `--all` to install every skill without a selection prompt.
+Both commands install every skill without a selection prompt.
+Omit `--all` for interactive skill selection.
 Each package contains its manifest at `plugins/<plugin>/plugin.json` and its skills in the immediate child directories of `plugins/<plugin>/skills/`.
 
 ## API
