@@ -1,4 +1,7 @@
 {
   "name": "@totto2727/agent",
-  "private": true
+  "private": true,
+  "scripts": {
+    "check:plugins": "node scripts/check-plugins.mjs"
+  }
 }

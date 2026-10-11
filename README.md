@@ -1,10 +1,10 @@
-# Agent plugin marketplace
+# Agent plugins
 
-`totto2727-org/agent` distributes a coordinated marketplace of Claude Code, Cursor, and Codex plugins for reusable development workflows.
+`totto2727-org/agent` distributes reusable development workflows as [Agent Plugins 1.0.0](https://agent-plugins.org/) packages.
 
 ## Usage
 
-After installing the marketplace, ask a supported coding agent to audit the documentation in your project:
+After installing `totto2727-coding`, ask your coding agent to audit the documentation in your project:
 
 ```text
 Use the share-artifact skill to audit this project's README.md. Keep consumer installation and usage in README, move repository build and test instructions to AGENTS.md, and update both files where needed.
@@ -18,21 +18,39 @@ A concise audit summary identifying the user-facing README improvements, develop
 
 ## Key features
 
-- One plugin catalog distributed to Claude Code, Cursor, and Codex
+- Portable packages with a root `plugin.json` manifest
 - Coding and external-information plugins
 - Skills installed through `c-plugin`
 
 ## Prerequisites
 
-- **c-plugin**: Install `c-plugin` and make the command available on `PATH` before adding this marketplace.
+- **c-plugin**: Install a version that supports `plugin add --github` and make the command available on `PATH`.
 
 ## Setup
 
-### Install
+### Install a plugin
+
+Choose the plugin you need.
+Each command installs one plugin from its explicit directory in the GitHub repository.
+
+Coding and testing guidance:
 
 ```bash
-c-plugin skill add totto2727-org/agent
+c-plugin plugin add --github totto2727-org/agent --path plugins/totto2727-coding
 ```
+
+External information and connected services:
+
+```bash
+c-plugin plugin add --github totto2727-org/agent --path plugins/external-information
+```
+
+To select a branch, tag, or commit, append `--ref <ref>` to either command.
+Without `--ref`, installation uses the remote default branch at fetch time.
+The lock records the resolved commit, and synchronization uses that pinned checkout without fetching.
+Interactive installation lets you select skills from the plugin.
+For scripts, append `--all` to install every skill without a selection prompt.
+Each package contains its manifest at `plugins/<plugin>/plugin.json` and its skills in the immediate child directories of `plugins/<plugin>/skills/`.
 
 ## API
 
@@ -57,7 +75,7 @@ See each skill for its usage and service configuration requirements.
 
 ## Development
 
-For repository structure, manifest synchronization, and validation commands, see [AGENTS.md](./AGENTS.md).
+For repository structure and validation commands, see [AGENTS.md](./AGENTS.md).
 
 ## License
 
