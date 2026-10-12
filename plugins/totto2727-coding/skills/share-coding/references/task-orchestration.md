@@ -52,29 +52,31 @@ Use the following base task names consistently, with only the tools and outputs 
 | `build`   | All operations needed to produce the final application or library deliverables, including required generation, compilation, bundling, declaration emission, and packaging. |
 | `test`    | Tests, normally a lightweight unit suite with controlled substitutes at effect boundaries. Do not silently include live-service integration or end-to-end suites.          |
 
-Split tool-specific tasks as `fix:<CLIName>`, `check:<CLIName>`, `build:<CLIName>`, and `test:<CLIName>`.
-Use the actual CLI or tool name after the colon, not an arbitrary workflow label.
-For example, use `fix:golangci-lint`, `check:golangci-lint`, `build:go`, and `test:go` for the corresponding Go operations.
-Rust can use `fix:rustfmt`, `check:rustfmt`, `check:clippy`, `build:cargo`, and `test:cargo`.
+Split tasks into `fix:<CLIName>`, `check:<CLIName>`, `build:<CLIName>`, or `test:<CLIName>` only when multiple tools or stages need separate control, or a step must be independently selected, reused, or configured.
+For one operation, put its command directly in the base task, for example `build: { command: 'cargo build' }`.
+Do not add a suffixed leaf and an empty aggregate merely to follow a naming pattern. Colons and hyphens are optional naming conventions, not required task layers.
+When subdivision is useful, use the actual CLI or tool name after the colon, with a qualifier only when needed to distinguish steps.
+For example, independently controllable Rust formatter and linter checks can use `check:rustfmt` and `check:clippy`.
+A single Go build can remain `build: { command: 'go build ./...' }`.
 Keep native invocation forms, such as `cargo fmt --check` for `check:rustfmt`, even when a tool runs through a language driver.
 Do not add a tool merely to populate a category.
 
-Make each base task aggregate its tool-specific tasks through `dependsOn`.
-The following dependency map illustrates a TypeScript library's task classification; it is not a complete Vite+ configuration.
+When a category contains useful separate steps, make its base task aggregate them through `dependsOn`; otherwise define the command directly.
+The following dependency map illustrates separately controllable static checks and fixes alongside single-command build and test tasks; it is not a complete Vite+ configuration.
 
 ```json
 {
   "fix": { "dependsOn": ["fix:oxfmt", "fix:oxlint"] },
   "check": { "dependsOn": ["check:oxfmt", "check:oxlint", "check:tsc"] },
-  "build": { "dependsOn": ["build:vp", "build:tsc"] },
-  "test": { "dependsOn": ["test:vitest"] },
+  "build": { "command": "vp pack" },
+  "test": { "command": "vp test run --project unit" },
   "ci": { "dependsOn": ["check", "build", "test"] }
 }
 ```
 
-In this example, `check:tsc` performs type checking without emitting files, while `build:tsc` emits the library's required declarations.
-`build:vp` produces the required bundle with `vp pack`.
-The `build` aggregate must cover both deliverables, not only compilation.
+In this example, `check:tsc` performs type checking without emitting files.
+The single `build` command produces the bundle and declarations when `vp pack` is configured to emit both.
+Use additional build steps only when they are needed to obtain the final deliverables, not to fill a naming category.
 Publishing or deployment is a separate operation, not a prerequisite for producing those deliverables.
 
 Default tests should generally avoid external systems and ambient filesystem state.
@@ -94,8 +96,8 @@ Make those dependencies and failure conditions visible.
 Do not hide flaky results with unbounded retries.
 The same test CLI can run both default tests and E2E tests.
 Select separate projects, tags, or explicit options for each suite, and configure normal `test` to exclude the E2E selection.
-For example, `test:vitest` can select a unit project while `e2e:vitest` selects an E2E project.
-Their `test` and `e2e` aggregates select different leaves.
+For example, `test` can directly run `vp test run --project unit`, while `e2e` directly runs `vp test run --project e2e`.
+Add separately selectable leaves only when additional steps need their own control or reuse.
 Do not require another framework merely to distinguish the suites.
 
 ## Add explicit preparation and completion stages
@@ -104,17 +106,17 @@ Use `pre<task>` for a required preparation stage and `post<task>` for a stage th
 These are ordinary named tasks, not implicit package-manager lifecycle hooks.
 Declare every required edge with `dependsOn`.
 Naming a task `prebuild` or `postbuild` does not schedule it.
-Keep the CLI suffix on tool-specific leaves, and use unsuffixed names for aggregates.
+Use separate leaves and CLI suffixes only when they provide useful control or reuse; a single preparation or completion command can be defined directly in `prebuild` or `postbuild`.
 
 For example, a shared type-generation step can run before building, type checking, and unit testing without running the complete build for each consumer.
 The following dependency map illustrates those edges, not a complete configuration.
 
 ```json
 {
-  "prebuild": { "dependsOn": ["prebuild:graphql-codegen"] },
-  "build:vp": { "dependsOn": ["prebuild"] },
+  "prebuild": { "command": "graphql-codegen" },
+  "build": { "command": "vp pack", "dependsOn": ["prebuild"] },
   "check:tsc": { "dependsOn": ["prebuild"] },
-  "test:vitest": { "dependsOn": ["prebuild"] }
+  "test": { "command": "vp test run --project unit", "dependsOn": ["prebuild"] }
 }
 ```
 
