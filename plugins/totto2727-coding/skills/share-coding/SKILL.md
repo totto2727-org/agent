@@ -73,6 +73,13 @@ Define and assemble concrete I/O implementations, configuration, and their depen
 Select production, development, and test infrastructure there, then provide the assembled dependencies to the application.
 Keep implementation code in the modules that own each capability; centralize its selection and composition, not every I/O operation in one file.
 
+Select environment configuration through separate execution or test setup entry points whenever possible, such as `main.ts`, `dev.ts`, and `setup.test.ts`.
+Each entry point assembles its configuration and dependencies, then invokes the same shared business logic.
+Prefer this separation over `if` or other environment-based conditionals in a shared entry point.
+Allow a top-level `if` for configuration selection only when framework or runtime constraints make separate entry points impractical.
+Keep that branch at the entry point's composition root and explain the constraint in a comment.
+Do not move the branch into business logic or duplicate business logic between entry points.
+
 Use dependency injection to keep business logic independent of infrastructure selection.
 Function arguments, closures, context objects, and service or Layer composition are valid forms of DI, as are DI containers.
 Choose the simplest method that achieves this separation, not a preferred container or framework.
