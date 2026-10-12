@@ -133,9 +133,13 @@ When a repository uses Just, make the default recipe display the available recip
 Keep a wrapper only when it owns a real invariant, reusable policy, or typed boundary. A helper that merely renames one standard operation and has one call site adds indirection without preserving knowledge.
 
 Infrastructure separation does not require an anti-corruption layer that recreates an existing library's API.
-Keep one ORM and configure its access target for each environment, such as an in-memory database supported by that ORM.
-Do not add another ORM or recreate ORM-level repositories, queries, and transactions merely to support dependency injection or environment switching.
-Add a narrower domain abstraction only when it owns a demonstrated domain invariant or policy, not to duplicate the ORM.
+Treat a sufficiently abstract library, such as an ORM, as an existing infrastructure abstraction for the application.
+Do not add another abstraction layer merely because the library is an external dependency.
+Use the library's infrastructure configuration to switch access targets or backends where supported.
+For tests, statically substitute a mock for a library-using operation through that operation's interface, without recreating the library's complete API.
+Select these configurations and substitutes in execution or test setup entry points.
+ORMs are one example of this principle, not a separate restriction on library choice or count.
+Add a narrower domain abstraction only when it owns a demonstrated domain invariant or policy, not to duplicate an existing abstraction.
 
 ## Domain boundaries
 
