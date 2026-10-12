@@ -39,7 +39,9 @@ domain model -> outbound wire model -> serialization
 
 Successful format parsing proves only that the input follows the external syntax. Validate required structure, ranges, relationships, and other domain invariants before internal code consumes the value. Parsing, structural decoding, semantic validation, and domain construction may be composed in one decoder, but keep their responsibilities and failure categories distinguishable.
 
-Normalize once as part of the accepted-input contract, validate the normalized representation, and pass that same representation to execution. Do not pass raw text, generic JSON or maps, stringly typed identifiers, parser contexts, unvalidated wire models, or library-owned values through internal application layers. Keep inbound wire, domain, and outbound wire models separate when their contracts differ, and serialize only the outbound model.
+Normalize once as part of the accepted-input contract, validate the normalized representation, and pass that same representation to execution. Do not pass raw text, generic JSON or maps, stringly typed identifiers, parser contexts, unvalidated wire models, or format-specific library values through internal application layers. Keep inbound wire, domain, and outbound wire models separate when their contracts differ, and serialize only the outbound model.
+
+This conversion rule does not require replacement interfaces for typed libraries that already provide the required abstraction, such as an ORM.
 
 Do not parse an opaque payload that the application only relays and never inspects. Keep it isolated at the forwarding boundary instead.
 
@@ -60,6 +62,39 @@ When translating a failure, preserve the original cause and machine-readable con
 ## Side effects
 
 Keep I/O, mutation, randomness, and time at program boundaries. Prefer pure functions in the core and make effects and failure modes visible in function signatures.
+
+### Composition root and dependency injection
+
+Adopt Clean Architecture selectively to separate infrastructure from business logic, not to impose a fixed set of layers.
+Use I/O in the Haskell sense: interactions with external systems, including network access and file operations.
+An effect abstraction can express these interactions; this policy does not require Haskell or a particular Effect library.
+
+Define and assemble concrete I/O implementations, configuration, and their dependency graph at the application's top-level composition root.
+Select production, development, and test infrastructure there, then provide the assembled dependencies to the application.
+Keep implementation code in the modules that own each capability; centralize its selection and composition, not every I/O operation in one file.
+
+Select environment configuration through separate execution or test setup entry points whenever possible, such as `main.ts`, `dev.ts`, and `setup.test.ts`.
+Each entry point assembles its configuration and dependencies, then invokes the same shared business logic.
+Prefer this separation over `if` or other environment-based conditionals in a shared entry point.
+Allow a top-level `if` for configuration selection only when framework or runtime constraints make separate entry points impractical.
+Keep that branch at the entry point's composition root and explain the constraint in a comment.
+Do not move the branch into business logic or duplicate business logic between entry points.
+
+Use dependency injection to keep business logic independent of infrastructure selection.
+Function arguments, closures, context objects, and service or Layer composition are valid forms of DI, as are DI containers.
+Choose the simplest method that achieves this separation, not a preferred container or framework.
+
+### Infrastructure and business logic
+
+Infrastructure owns concrete clients, access targets, and environment-specific configuration.
+Business logic receives configuration and I/O capabilities as dependencies; it must not select their concrete implementations.
+Keep domain decisions pure where possible, and express necessary I/O through the injected capabilities.
+Avoid production/development flags, backend selection, and environment-based fallbacks inside business logic.
+Select a different implementation or configuration at the composition root instead.
+Branches that implement business rules using injected domain configuration remain valid.
+
+If an infrastructure-based branch inside business logic is necessary, add a detailed comment at the branch and report it to the user.
+Explain the concrete constraint, why dependency selection or configuration at the composition root cannot satisfy it, and the affected behavior.
 
 ## Naming
 
@@ -96,6 +131,15 @@ When a repository uses Just, make the default recipe display the available recip
 ## Abstractions
 
 Keep a wrapper only when it owns a real invariant, reusable policy, or typed boundary. A helper that merely renames one standard operation and has one call site adds indirection without preserving knowledge.
+
+Infrastructure separation does not require an anti-corruption layer that recreates an existing library's API.
+Treat a sufficiently abstract library, such as an ORM, as an existing infrastructure abstraction for the application.
+Do not add another abstraction layer merely because the library is an external dependency.
+Use the library's infrastructure configuration to switch access targets or backends where supported.
+For tests, statically substitute a mock for a library-using operation through that operation's interface, without recreating the library's complete API.
+Select these configurations and substitutes in execution or test setup entry points.
+ORMs are one example of this principle, not a separate restriction on library choice or count.
+Add a narrower domain abstraction only when it owns a demonstrated domain invariant or policy, not to duplicate an existing abstraction.
 
 ## Domain boundaries
 
