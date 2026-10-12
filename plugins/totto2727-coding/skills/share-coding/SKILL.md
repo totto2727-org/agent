@@ -89,9 +89,16 @@ Choose explicit control flow over compact cleverness. Comments explain non-obvio
 
 Look for prior art in the same package before introducing a new pattern. Record the reason close to the decision when a deliberate divergence is necessary.
 
-## Just defaults
+## Workspace toolchains and tasks
 
-When a repository uses Just, make the default recipe display the available recipes with a recipe body that runs `@just --list`. Do not make the default recipe run checks, builds, tests, setup, or any other operational command.
+Use each workspace's template as the baseline for language settings and toolchains.
+Keep its compiler, runtime, formatter, linter, test tools, and pinned environment, and add only what the requested behavior requires.
+Do not replace native language entry points merely to unify task execution.
+
+Read [task orchestration](references/task-orchestration.md) when adding or changing recurring tasks or workspace-wide execution.
+Use Vite+ as the default dependency-aware, cached runner for JavaScript or mixed workspaces, or when task caching is required.
+A workspace whose entire project tree has no JavaScript dependency and no need for task-cache control can retain native task entry points without introducing Vite+ or Node.js.
+Use project-local Just recipes only for reusable scripts with complex logic, multiple lines, or many options, not as the primary cross-project runner.
 
 ## Abstractions
 

@@ -11,9 +11,10 @@ Read only the relevant reference; already available principles need not be reloa
 
 ## Package manager
 
-- Use Node.js as the default runtime and pnpm as the underlying package manager for JavaScript and TypeScript projects maintained by the user.
+- Preserve the workspace template's language settings and toolchain, and extend them only as needed. Use [workspace toolchains and tasks](../share-coding/SKILL.md#workspace-toolchains-and-tasks) for runner selection and [task orchestration](../share-coding/references/task-orchestration.md) for dependencies, project-local scripts, and cache boundaries.
+- Use Node.js as the default runtime and pnpm as the underlying package manager for JavaScript and TypeScript projects maintained by the user, unless the workspace template specifies otherwise.
 - Use the Vite+ CLI (`vp`) as the default interface for dependency operations and project tasks.
-- Keep pnpm as the only package manager and `pnpm-lock.yaml` as the authoritative dependency lockfile.
+- When using pnpm, keep it as the only package manager and `pnpm-lock.yaml` as the authoritative dependency lockfile.
 - Introduce Bun only when direct TypeScript execution requires it. Keep dependency management on pnpm even when Bun executes TypeScript.
 - When changing package managers, preserve the existing release-age window. Convert units without reducing the duration, for example, 86400 seconds to 1440 minutes for pnpm.
 - Package-manager choice is separate from runtime support. Do not change a library's supported runtimes or its Deno design merely to adopt pnpm.
@@ -64,6 +65,6 @@ Read only the relevant reference; already available principles need not be reloa
 
 ## Related skills
 
-- `vite-plus` — repository toolchain and build orchestration.
+- [`vite-plus`](https://github.com/voidzero-dev/vite-plus): official repository toolchain and build orchestration skill. Prefer the installed skill; otherwise use the [official Vite+ guide](https://viteplus.dev/guide/).
 - `remix` — Remix application structure and framework conventions.
 - [`js-test`](../js-test/SKILL.md): TypeScript test implementation.
