@@ -143,6 +143,25 @@ If they share mutable outputs or tests consume build artifacts, declare the requ
 Also order or separate tool-specific build tasks that write the same output directory.
 Do not rely on incidental runner order, a local Just recipe, or concurrent writes to establish correctness.
 
+## Derive exclusions from Gitignore
+
+Use [@totto2727/gitignore-patterns](https://github.com/totto2727-org/gitignore-patterns) to derive Vite+ formatter and linter `ignorePatterns` from the project's `.gitignore` files.
+Do not maintain parallel lists of generated directories or temporary files in those configurations.
+Use the same root for the helper's scan and the consuming formatter or linter.
+The helper reads only `.gitignore` files at or below its root, so verify ancestor rules when configuring a child project.
+Its output is a snapshot of escaped positive literals for Vite+ exclusions, not a general-purpose cache-input glob syntax.
+Regenerate it when the configuration is loaded rather than committing a filesystem-dependent snapshot.
+
+Keep task selection and cache inputs based on committed sources, configuration, lockfiles, and explicit producer outputs, not ambient ignored files.
+Respect `.gitignore` when defining source inputs, while still declaring ignored generated outputs that a build cache must restore.
+Do not assume a formatter exclusion also excludes files from a type checker, a build tool, or a task cache.
+Verify the actual public commands and their cache behavior before claiming those boundaries are equivalent.
+
+Add an individual exclusion only when the helper cannot express the required boundary or a demonstrated cache-input coverage gap requires it.
+Document the affected consumer, the limitation, and the evidence for the exception.
+Prefer a tool's existing Gitignore support when it already provides the required cache-input behavior; do not translate the helper's literals into another glob grammar without verification.
+When validation is blocked, state the unverified boundary rather than adding speculative exclusions.
+
 ## Define cache boundaries
 
 A cache hit must reproduce the task's promised result, not merely its previous log.
