@@ -41,6 +41,10 @@ A bounded exclusion preserves the obligation for separate review and must not ap
 
 ## Mechanical versus contextual evidence
 
+Run the deterministic catalog through the skill-local textlint rules.
+Run markdownlint separately with every standard rule enabled.
+Neither tool's absence of findings establishes semantic or full-standard acceptance.
+
 The bundled deterministic checks are `ste-5-1`, `ste-6-3`, `ste-6-6`, and `ste-8-1`.
 `ste-dictionary-candidates` locates private local records but always requires contextual review of meaning, part of speech, and technical-term allowances.
 A known entry lookup is code work, not a semantic judgment.
@@ -66,6 +70,11 @@ Audit literal `wordGroups` and measurement units against their actual roles, rat
 
 Retain the seven supplementary decisions about reader purpose, audience, substantive representations, consequential limitations, focused units, local navigation, and visual roles.
 They fill documentation needs not settled by the language standard and must not become extra STE rules.
+Their maintained jevlint rubrics are in [the custom rule directory](jevlint/).
+The [fixed configuration](jevlint.yaml) selects only the skill's rule directory and reviews the original Markdown file directly.
+Twenty-seven local STE contextual rubrics are fixed rule definitions alongside the supplementary rules, with their original catalog instructions preserved.
+The whole-file Text subject retains same-page background but no longer supplies generated paragraph or section source-range bindings.
+The 18 numbered STE contextual decisions that need dictionary, noun-group, or related evidence adapters remain in the evidence-aware evaluator.
 `code-fence-language` remains the project Markdown convention check.
 The optional `prohibited-terms` kind remains available for exact project restrictions, not as a substitute for the contextual STE dictionary.
 
@@ -85,6 +94,9 @@ Do not run both definitions against the same passage.
 
 Report the selected page/range, rule, actual evidence, correction, and unresolved remainder.
 Keep demonstrated defects, contextually justified `not_applicable`, `insufficient_context`, excluded scope, parser gaps, request errors, and uncalibrated model results distinct.
+The jevlint score rubric does not preserve the evaluator's four-state output.
+Its lowest level combines no evidenced defect, inapplicability, and insufficient context; do not interpret that score as verified compliance.
+Inspect the original file and supplied context for applicable source language, local writing mode, and evidence gaps; there is no generated export report or automatic source-language exclusion.
 A mechanical pass proves the configured property only.
 A contextual judgment must be verified and calibrated for the task before it can support automated acceptance.
 No test of evaluator schema or behavior establishes universal semantic accuracy or full STE compliance.
