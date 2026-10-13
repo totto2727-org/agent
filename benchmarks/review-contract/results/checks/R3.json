@@ -1,0 +1,39 @@
+{
+  "caseId": "02-domain",
+  "deterministicPass": true,
+  "checks": [
+    {
+      "id": "public-tests",
+      "pass": true
+    },
+    {
+      "id": "constructor-normalization",
+      "pass": true
+    },
+    {
+      "id": "constructor-rejection",
+      "pass": true
+    },
+    {
+      "id": "assignment-invariants",
+      "pass": true
+    },
+    {
+      "id": "external-domain-rejection",
+      "pass": true
+    },
+    {
+      "id": "already-correct-order-and-detachment",
+      "pass": true
+    },
+    {
+      "id": "module-contract",
+      "pass": true
+    }
+  ],
+  "reviewRequired": [
+    "A standard collection replaces OrderedBag without unnecessary wrapper infrastructure.",
+    "summarize relies on the stated valid-Seat domain instead of filtering invalid fields, while external validation remains.",
+    "Tests establish constructor, external boundary and duplicate-order behavior. Freezing or validating setters are both acceptable."
+  ]
+}

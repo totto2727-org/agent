@@ -1,0 +1,223 @@
+{
+  "conditionBlinded": true,
+  "method": "Independent static assessment of each completed repository against its task.md, AGENTS.md and every frozen reviewCriteria entry in criteria.json. Criterion indices are zero-based and preserve frozen order. Read local source, documentation, tests and repository-local git diff --cached only, within this blind directory. Assessed behavior and reader usefulness rather than exact text, size, test counts or self-reported success. manualPass is true only when every applicable manual criterion passes. No condition labels were sought or inferred.",
+  "limitations": [
+    "Candidate code and tests were not executed. Test coverage judgments describe inspected assertions, not observed test success. Root's separate deterministic public API checks remain necessary for runtime verification.",
+    "Documented Lumen Note output was checked by tracing the supplied local source and note.txt, not by executing the example.",
+    "Scope judgments use the authorized local staged diffs and inspected final files, not private histories or original trials. No network, workers, commits, solver edits, parent-directory inspection or answer files were used."
+  ],
+  "trials": [
+    {
+      "trial": "R1",
+      "caseId": "01-defaults",
+      "manualPass": true,
+      "criteria": [
+        {
+          "index": 0,
+          "status": "pass",
+          "evidence": "R1/README.md:3-12 describes timeout 500 ms, positive integers, managed concurrency 2 for quota, transport defaults, JSON and authorization.",
+          "reason": "Current consumer interface is explained without prescribing removed flags or adding a migration log. The managed customization is actionable through options.profile."
+        },
+        {
+          "index": 1,
+          "status": "pass",
+          "evidence": "R1/cli.mjs:1-10 contains only timeout state and rejects other option names. R1/runtime.mjs:1-9 forwards timeout and authorization, sets concurrency 2 only for managed, and serializes JSON. Staged diff removes encoding/retries overrides.",
+          "reason": "Redundant parser/default/runtime state is removed while transport inheritance, timeout validation and intentional managed quota are retained."
+        },
+        {
+          "index": 2,
+          "status": "pass",
+          "evidence": "R1/test/configuration.test.mjs:6-41 covers defaults, removed flags including former defaults and invalid timeout. Lines 43-82 cover transport inheritance, Unicode, removed runtime overrides, managed authorization and runtime validation. Staged paths are README, cli, runtime and this test.",
+          "reason": "Tests exercise actual exported APIs and relevant preservation boundaries. No unrelated abstraction or dependency is introduced. Assertions were inspected, not executed."
+        }
+      ]
+    },
+    {
+      "trial": "R2",
+      "caseId": "01-defaults",
+      "manualPass": true,
+      "criteria": [
+        {
+          "index": 0,
+          "status": "pass",
+          "evidence": "R2/README.md:3-8 documents the only CLI option, timeout default 500 ms and positive-integer example, UTF-8/zero-retry transport defaults, JSON, managed concurrency 2 for quota and runtime authorization.",
+          "reason": "Describes the current interface and managed quota without removed-flag prescriptions or migration history. It is briefer than R1 but still satisfies the frozen criterion."
+        },
+        {
+          "index": 1,
+          "status": "pass",
+          "evidence": "R2/cli.mjs:1-10 retains only timeout state and exact --timeout acceptance. R2/runtime.mjs:1-9 retains validation, authorization, conditional managed concurrency 2 and JSON. Staged diff deletes encoding/retries overrides.",
+          "reason": "Removed configuration no longer exists in parser or runtime requests. Managed behavior remains an intentional override rather than being lost with defaults."
+        },
+        {
+          "index": 2,
+          "status": "pass",
+          "evidence": "R2/test/options.test.mjs:6-31 asserts CLI defaults, removed flags with former/default alternatives and timeout rejection. Lines 34-61 assert absent transport overrides, Unicode JSON, authorization, managed quota and pre-transport validation. Staged paths are README, cli, runtime and this test.",
+          "reason": "Focused API-level assertions cover required removals, default inheritance and validation without unrelated infrastructure or dependencies. No test execution is claimed."
+        }
+      ]
+    },
+    {
+      "trial": "R3",
+      "caseId": "02-domain",
+      "manualPass": true,
+      "criteria": [
+        {
+          "index": 0,
+          "status": "pass",
+          "evidence": "R3/ledger.mjs:34-40 uses a direct Map and Array.from to return plain rows. Staged ledger diff deletes OrderedBag entirely.",
+          "reason": "Standard Map implements last-owner replacement with first insertion position and detached rows without a collection wrapper."
+        },
+        {
+          "index": 1,
+          "status": "pass",
+          "evidence": "R3/ledger.mjs:2-14 checks primitive strings, trims and rejects empty values, then defines nonwritable/nonconfigurable id and owner. Lines 18-31 validate external array/object/string structure and construct Seats. Lines 34-40 summarize without invalid-field filtering.",
+          "reason": "Summarization appropriately trusts the valid-Seat domain. Immutable field descriptors preserve guarantees under assignment, deletion and redefinition even without freezing the entire instance. External JSON validation remains separate."
+        },
+        {
+          "index": 2,
+          "status": "pass",
+          "evidence": "R3/test/guarantees.test.mjs:5-26 covers constructor normalization/rejection and immutable fields, 28-46 external validation and extras, 48-62 generator/duplicate ordering, and 64-78 detached rows. R3/test/ledger.test.mjs:5-14 retains duplicate order coverage.",
+          "reason": "Inspected assertions establish the requested constructor, boundary and duplicate-order coverage using the actual exports. Field immutability is a legitimate invariant-preserving alternative, not a requirement to add setters."
+        }
+      ]
+    },
+    {
+      "trial": "R4",
+      "caseId": "02-domain",
+      "manualPass": true,
+      "criteria": [
+        {
+          "index": 0,
+          "status": "pass",
+          "evidence": "R4/ledger.mjs:36-42 directly uses Map and Array.from. The staged diff removes OrderedBag. Lines 1-10 contain only a shared field normalizer, not a collection wrapper.",
+          "reason": "Map provides required duplicate ordering and lookup without unnecessary wrapper infrastructure. The small constructor normalization helper is relevant, not unrelated abstraction."
+        },
+        {
+          "index": 1,
+          "status": "pass",
+          "evidence": "R4/ledger.mjs:1-17 validates and trims both fields then freezes Seat. Lines 20-34 retain array/object/string validation for JSON and construct Seats. Lines 36-42 do not filter domain fields.",
+          "reason": "Frozen validated Seats justify trusting the domain in summarize while rejecting invalid external data instead of filtering it."
+        },
+        {
+          "index": 2,
+          "status": "pass",
+          "evidence": "R4/test/domain.test.mjs:5-39 asserts constructor and mutation guarantees, 41-77 checks external rows/extras/rejection, 79-98 checks generator/Set and duplicate ordering, and 100-119 checks detached mutable plain output rows.",
+          "reason": "Focused tests inspect actual public exports for all required categories. Freezing is expressly acceptable. Runtime success has not been inferred from test presence."
+        }
+      ]
+    },
+    {
+      "trial": "R5",
+      "caseId": "03-local-fix",
+      "manualPass": true,
+      "criteria": [
+        {
+          "index": 0,
+          "status": "pass",
+          "evidence": "R5/README.md:4-7 and R5/docs/output.md:5-22 explicitly share LF/CRLF semantics across text/JSON, omit empty records, preserve order/spaces/bare CR, reject general trimming, and describe output representations.",
+          "reason": "Both documents convey every required record semantic consistently. The detailed example matches the inspected shared splitter and output branches."
+        },
+        {
+          "index": 1,
+          "status": "pass",
+          "evidence": "R5 staged diff changes only README.md, docs/output.md, render.mjs and test/line-endings.test.mjs. The sole render change is split(\"\\n\") to split(/\\r?\\n/). R5/render.mjs:4 still authorizes first. R5/auth.mjs:1-4 and ci-contract.mjs:1-5 are absent from staged changes.",
+          "reason": "Fix stays at the shared record boundary, relevant tests and docs. Exact authorization and dependency-free Node 24 release implementation are preserved without refactoring."
+        },
+        {
+          "index": 2,
+          "status": "pass",
+          "evidence": "R5/test/line-endings.test.mjs:3 imports render, 5-16 defines LF/CRLF/mixed/space/bare-CR counterexamples, and 18-23 calls render for both text and JSON. Lines 26-38 assert authorization and format order.",
+          "reason": "Regression assertions exercise the actual renderer and explicitly protect bare CR inside names, at edges and before CRLF. They are behavioral checks rather than source snapshots."
+        }
+      ]
+    },
+    {
+      "trial": "R6",
+      "caseId": "03-local-fix",
+      "manualPass": true,
+      "criteria": [
+        {
+          "index": 0,
+          "status": "pass",
+          "evidence": "R6/README.md:4-6 states shared LF/CRLF, empty omission, order, spaces/bare CR and no trimming. R6/docs/output.md:5-12 reiterates these semantics including space-only records, terminal bare CR and output representations.",
+          "reason": "Both documents accurately explain shared text/JSON record handling. README brevity does not omit a frozen requirement, and detailed reference clarification remains available."
+        },
+        {
+          "index": 1,
+          "status": "pass",
+          "evidence": "R6 staged diff changes only README.md, docs/output.md, render.mjs and test/records.test.mjs. render.mjs changes only its splitter. R6/render.mjs:4 authorizes before records. auth.mjs and ci-contract.mjs have no staged changes.",
+          "reason": "Implementation remains local to record handling. Direct authorization and release-contract assertions in the added test do not refactor either implementation or expand production scope."
+        },
+        {
+          "index": 2,
+          "status": "pass",
+          "evidence": "R6/test/records.test.mjs:3 imports render. Lines 7-19 run both formats against mixed LF/CRLF, empty records, preserved spaces and internal/terminal bare CR, with actual render calls at 12-18.",
+          "reason": "Real renderer regression assertions protect both output branches and a bare-CR counterexample rather than inspecting source strings. Lines 21-44 additionally check authorized scope boundaries without modifying them."
+        }
+      ]
+    },
+    {
+      "trial": "R7",
+      "caseId": "04-reader-docs",
+      "manualPass": true,
+      "criteria": [
+        {
+          "index": 0,
+          "status": "pass",
+          "evidence": "R7/README.md and README.ja.md:1-5 retain Lumen Note, support handoff purpose, no incident diagnosis, UTF-8 and no upload. Both:9-15 require Node 24 and use local note.txt input; both:31 explain own local files.",
+          "reason": "English and Japanese retain every required identity, purpose, prerequisite, privacy boundary and caveat with equivalent promises."
+        },
+        {
+          "index": 1,
+          "status": "pass",
+          "evidence": "R7 paired READMEs:23-30 explain nonblank count including tags, whitespace-only exclusion, # lines, trimmed tag text and first-occurrence deduplication. Both:19-21 show {\"lines\":4,\"tags\":[\"handoff\",\"urgent\"]}. R7/cli.mjs:4-9 and note.txt:1-5 support that output.",
+          "reason": "Explanations agree with inspected executable semantics. Four nonblank sample lines include the repeated #handoff, while tags are deduplicated in order."
+        },
+        {
+          "index": 2,
+          "status": "pass",
+          "evidence": "R7 paired READMEs:7-21 present Node 24, no installation, repository-root single-line node cli.mjs --local note.txt and fenced JSON result. Lines 23-31 interpret fields and explain another local file. Staged changes include only the two READMEs.",
+          "reason": "Support readers can find prerequisites, follow the supported local interface and interpret output without maintenance instructions. Japanese faithfully conveys the same workflow and promises. Example validity is statically traced, not executed."
+        },
+        {
+          "index": 3,
+          "status": "pass",
+          "evidence": "R7 paired README staged diffs remove array/Set history, speculative platform direction, hosted-platform comparison and duplicated Node setup. Final guides retain no-diagnosis/UTF-8/no-upload caveats at 3-5 and relevant field explanations at 23-31.",
+          "reason": "Reader-irrelevant detours are removed without sacrificing useful caveats or explanation. Added sample interpretation serves support readers despite increasing document length."
+        }
+      ]
+    },
+    {
+      "trial": "R8",
+      "caseId": "04-reader-docs",
+      "manualPass": true,
+      "criteria": [
+        {
+          "index": 0,
+          "status": "pass",
+          "evidence": "R8/README.md and README.ja.md:1-5 retain Lumen Note, local support-handoff purpose, no incident diagnosis, UTF-8 and no upload. Both:9-15 specify Node 24 and local sample input; both:30 describe own local UTF-8 files.",
+          "reason": "Every required product and privacy promise survives in both languages without suggesting a hosted or diagnostic product."
+        },
+        {
+          "index": 1,
+          "status": "pass",
+          "evidence": "R8 paired READMEs:23-28 explain nonblank lines including tags, whitespace-only exclusion, # tag lines, trimming and first-seen unique tags. Both:19-21 show {\"lines\":4,\"tags\":[\"handoff\",\"urgent\"]}. R8/cli.mjs:4-9 and note.txt:1-5 support the example.",
+          "reason": "Line count, tag extraction and deduplication promises match inspected source semantics, including counting repeated tag lines separately from unique tags."
+        },
+        {
+          "index": 2,
+          "status": "pass",
+          "evidence": "R8 paired READMEs:7-21 put prerequisites, repository-root single-line node cli.mjs --local note.txt and fenced JSON together. Lines 23-30 interpret fields and show how to substitute another local file. Staged changes are only the two READMEs.",
+          "reason": "Both guides provide a self-contained support-colleague workflow without maintenance setup. English and Japanese communicate equivalent actions and output interpretation. Runtime verification belongs to root's separate checks."
+        },
+        {
+          "index": 3,
+          "status": "pass",
+          "evidence": "R8 paired README staged diffs remove implementation evolution, generic-platform speculation, hosted comparison and repeated installation instructions. Final guides retain UTF-8, no-upload and no-diagnosis caveats at 3-5 and useful result explanation at 23-30.",
+          "reason": "Simplification removes irrelevant content rather than pursuing token count. Meaningful operational caveats and reader-purpose explanation remain in both languages."
+        }
+      ]
+    }
+  ]
+}

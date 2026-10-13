@@ -1,0 +1,76 @@
+diff --git a/README.ja.md b/README.ja.md
+index 39b8ed5..db52157 100644
+--- a/README.ja.md
++++ b/README.ja.md
+@@ -3,4 +3,9 @@
+-Lumen Note はサポートの引き継ぎに使うローカルのノート要約ツールです。インシデントを診断するツールではありません。
+-配列の実験から Set の処理に変わりました。将来は汎用プラットフォームになるかもしれません。
+-ホスト型ワークフローと比べると、アーキテクチャの階層は控えめです。
+-Node 24 をインストールしてください。先に Node 24 のインストールを確認してください。パッケージのインストールは不要です。
++Lumen Note は、引き継ぎを準備するサポート担当者向けに、ローカルのノートを要約するツールです。
++インシデントの診断は行いません。
++ローカルファイルを UTF-8 として読み取り、アップロードは行いません。
++
++## サンプルのノートを要約する
++
++Node 24 を使用してください。
++パッケージのインストールは不要です。
++リポジトリのルートで、付属の `note.txt` を使って次のコマンドを実行してください。
+@@ -9 +14,7 @@ Node 24 をインストールしてください。先に Node 24 のインスト
+-node cli.mjs --remote note.txt
++node cli.mjs --local note.txt
++```
++
++コマンドは次の結果を返します。
++
++```json
++{"lines":4,"tags":["handoff","urgent"]}
+@@ -12,2 +23,8 @@ node cli.mjs --remote note.txt
+-UTF-8 ファイルをローカルで読み、アップロードしません。行数と、出現順に重複を除いたタグを返します。
+-空行は数えません。`#` で始まる行がタグです。
++- `lines` は、タグの行を含む、空白行以外の行数です。
++  空行や、スペースなどの空白文字だけの行は数えません。
++- `#` で始まる行がタグです。
++  `tags` のリストには、`#` の後の文字列から前後のスペースなどの空白文字を取り除いたものが入ります。
++- `tags` には、各タグが最初に出現した順に、重複なく入ります。
++  サンプルには `#handoff` の行が 2 行ありますが、リストの `handoff` は 1 つだけです。
++
++自分のノートを要約するには、コマンドの `note.txt` を、ローカルの UTF-8 ファイルのパスに置き換えてください。
+diff --git a/README.md b/README.md
+index 0ddcbaa..56d871b 100644
+--- a/README.md
++++ b/README.md
+@@ -3,4 +3,9 @@
+-Lumen Note is a local note summarizer for support handoffs. It is not an incident diagnosis tool.
+-The engine started as an array experiment, then became a Set-based pipeline, and might eventually support a generic platform.
+-Compared with hosted workflow platforms, its architectural layering is less ambitious.
+-Install Node 24. Ensure that Node 24 is installed before continuing. There is no package installation.
++Lumen Note summarizes local notes for support staff who prepare handoffs.
++It does not diagnose incidents.
++It reads local files as UTF-8 and does not upload them.
++
++## Summarize the sample note
++
++Use Node 24.
++No package installation is necessary.
++From the repository root, run this command with the supplied `note.txt`:
+@@ -9 +14,7 @@ Install Node 24. Ensure that Node 24 is installed before continuing. There is no
+-node cli.mjs --remote note.txt
++node cli.mjs --local note.txt
++```
++
++The command returns:
++
++```json
++{"lines":4,"tags":["handoff","urgent"]}
+@@ -12,2 +23,8 @@ node cli.mjs --remote note.txt
+-The program reads UTF-8 files locally and does not upload them. It reports a line count and ordered unique tags.
+-Blank lines are ignored. Lines beginning with `#` are tags.
++- `lines` is the number of non-blank lines, including tag lines.
++  Empty lines and lines with only spaces or other whitespace do not count.
++- Tags are lines that begin with `#`.
++  The `tags` list contains the text after `#`, with spaces or other whitespace removed from both ends.
++- Each tag appears once in `tags`, in the order of its first appearance.
++  The sample has two `#handoff` lines, but `handoff` appears only once in the list.
++
++To summarize your own note, replace `note.txt` in the command with the path to your local UTF-8 file.

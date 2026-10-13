@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { test } from "node:test";
@@ -33,12 +33,19 @@ test("public runner prepares no oracle, scores real operations, and builds a who
   const after = run("score", "01-defaults", accepted);
   assert.equal(after.status, 0, after.stderr);
   assert.equal(JSON.parse(after.stdout).deterministicPass, true);
+  await mkdir(join(accepted, ".review-policy"));
+  await writeFile(join(accepted, ".review-policy", "instructions.md"), "evaluation-only-marker");
+  await writeFile(join(accepted, "policy.md"), "evaluation-only-marker");
+  await writeFile(join(accepted, "documentation-review.md"), "evaluation-only-marker");
   const packet = run("packet", "01-defaults", accepted);
   assert.equal(packet.status, 0, packet.stderr);
   const content = await readFile(JSON.parse(packet.stdout).output, "utf8");
   assert.match(content, /# Task/);
   assert.match(content, /# File: runtime\.mjs/);
-  assert.doesNotMatch(content, /oracle\.mjs|acceptedOverlay|deterministicPass/);
+  assert.doesNotMatch(
+    content,
+    /oracle\.mjs|acceptedOverlay|deterministicPass|evaluation-only-marker/,
+  );
   await writeFile(join(accepted, "large.md"), "x".repeat(48001));
   const tooLarge = run("packet", "01-defaults", accepted);
   assert.equal(tooLarge.status, 1);

@@ -1,0 +1,124 @@
+diff --git a/ledger.mjs b/ledger.mjs
+index 36fea27..9bd1fee 100644
+--- a/ledger.mjs
++++ b/ledger.mjs
+@@ -3,11 +3,12 @@ export class Seat {
+-    this.id = id;
+-    this.owner = owner;
+-  }
+-}
+-
+-class OrderedBag {
+-  rows = [];
+-  set(id, owner) {
+-    const row = this.rows.find((row) => row.id === id);
+-    if (row) row.owner = owner;
+-    else this.rows.push({ id, owner });
++    if (typeof id !== "string" || typeof owner !== "string") {
++      throw new TypeError("Seat id and owner must be strings");
++    }
++    id = id.trim();
++    owner = owner.trim();
++    if (!id || !owner) {
++      throw new TypeError("Seat id and owner must be nonempty");
++    }
++    Object.defineProperties(this, {
++      id: { value: id, enumerable: true },
++      owner: { value: owner, enumerable: true },
++    });
+@@ -23,0 +25 @@ export function readSeats(text) {
++      Array.isArray(row) ||
+@@ -33 +35 @@ export function summarize(seats) {
+-  const bag = new OrderedBag();
++  const owners = new Map();
+@@ -35,2 +37 @@ export function summarize(seats) {
+-    if (!seat.id || !seat.owner) continue;
+-    bag.set(seat.id, seat.owner);
++    owners.set(seat.id, seat.owner);
+@@ -38 +39 @@ export function summarize(seats) {
+-  return bag.rows.map((row) => ({ ...row }));
++  return Array.from(owners, ([id, owner]) => ({ id, owner }));
+diff --git a/test/guarantees.test.mjs b/test/guarantees.test.mjs
+new file mode 100644
+index 0000000..dfbca74
+--- /dev/null
++++ b/test/guarantees.test.mjs
+@@ -0,0 +1,78 @@
++import test from "node:test";
++import assert from "node:assert/strict";
++import { Seat, readSeats, summarize } from "../ledger.mjs";
++
++test("Seat trims both fields and rejects invalid constructor arguments", () => {
++  const seat = new Seat(" \ta\n", "\n one \t");
++  assert.equal(seat.id, "a");
++  assert.equal(seat.owner, "one");
++  for (const invalid of [undefined, null, 0, false, {}, [], new String("a"), "", " \t\n", "\u00a0"]) {
++    assert.throws(() => new Seat(invalid, "one"), TypeError);
++    assert.throws(() => new Seat("a", invalid), TypeError);
++  }
++});
++
++test("Seat fields cannot be assigned, deleted or redefined", () => {
++  const seat = new Seat("a", "one");
++  for (const field of ["id", "owner"]) {
++    for (const value of ["", " ", null, " replacement "]) {
++      assert.throws(() => { seat[field] = value; }, TypeError);
++    }
++    assert.equal(Reflect.set(seat, field, ""), false);
++    assert.equal(Reflect.deleteProperty(seat, field), false);
++    assert.throws(() => Object.defineProperty(seat, field, { value: "" }), TypeError);
++  }
++  assert.deepEqual({ ...seat }, { id: "a", owner: "one" });
++});
++
++test("readSeats validates JSON structure and rejects any invalid row", () => {
++  assert.throws(() => readSeats("["), SyntaxError);
++  for (const payload of [null, {}, "a", 1, true]) {
++    assert.throws(() => readSeats(JSON.stringify(payload)), /Expected array/);
++  }
++  for (const row of [null, [], "a", 1, false, {}, { id: "a" }, { owner: "one" },
++    { id: 1, owner: "one" }, { id: "a", owner: null },
++    { id: " ", owner: "one" }, { id: "a", owner: "\t" }]) {
++    assert.throws(() => readSeats(JSON.stringify([{ id: "valid", owner: "one" }, row])));
++  }
++  assert.deepEqual(readSeats("[]"), []);
++});
++
++test("readSeats ignores extra fields and constructs normalized Seats", () => {
++  const seats = readSeats('[{"id":" a ","owner":" one ","extra":true}]');
++  assert.equal(seats[0] instanceof Seat, true);
++  assert.deepEqual(Object.keys(seats[0]), ["id", "owner"]);
++  assert.deepEqual(summarize(seats), [{ id: "a", owner: "one" }]);
++});
++
++test("summarize accepts iterables with last owner and first normalized id order", () => {
++  function* seats() {
++    yield new Seat(" b ", "one");
++    yield new Seat("a", "two");
++    yield new Seat("b", "three");
++    yield new Seat("c", "four");
++    yield new Seat(" a ", "five");
++  }
++  assert.deepEqual(summarize(seats()), [
++    { id: "b", owner: "three" },
++    { id: "a", owner: "five" },
++    { id: "c", owner: "four" },
++  ]);
++  assert.deepEqual(summarize(new Set()), []);
++});
++
++test("summarize returns detached plain rows on every call", () => {
++  const seat = new Seat("__proto__", "one");
++  const seats = new Set([seat, new Seat("constructor", "two")]);
++  const first = summarize(seats);
++  assert.equal(Object.getPrototypeOf(first[0]), Object.prototype);
++  assert.notEqual(first[0], seat);
++  first[0].owner = "changed";
++  first[0].id = "changed";
++  first.push({ id: "extra", owner: "extra" });
++  assert.deepEqual(summarize(seats), [
++    { id: "__proto__", owner: "one" },
++    { id: "constructor", owner: "two" },
++  ]);
++  assert.equal(seat.owner, "one");
++});

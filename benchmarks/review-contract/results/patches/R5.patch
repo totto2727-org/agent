@@ -1,0 +1,95 @@
+diff --git a/README.md b/README.md
+index 1c43e7d..989a9dc 100644
+--- a/README.md
++++ b/README.md
+@@ -4 +4,4 @@ Call `render(input, format, token, expected)` to list queued job names.
+-Text output splits LF lines and joins nonempty records with LF. JSON returns an ordered array.
++Both formats accept LF (`\n`) and CRLF (`\r\n`) record delimiters, including mixed input, and omit empty records.
++Names keep their input order, spaces, and bare CR (`\r`) characters that are not part of CRLF delimiters. Names are not trimmed.
++Text output joins the records with LF, without adding a final delimiter. JSON output returns the same records as a JSON array string.
++Empty input returns an empty string for text or `[]` for JSON.
+@@ -5,0 +9 @@ Formats are `text` and `json`. Supply `Bearer <expected>` as the token.
++Authorization requires an exact token match and a nonempty string for `expected`, even for empty input.
+diff --git a/docs/output.md b/docs/output.md
+index f300a17..7be7226 100644
+--- a/docs/output.md
++++ b/docs/output.md
+@@ -3,3 +3,24 @@
+-JSON output preserves the records read from LF-separated input.
+-Text output joins nonempty records with LF.
+-Spaces in job names are data.
++This reference is for users of `render(input, format, token, expected)`.
++
++## Shared record semantics
++
++Text and JSON accept LF (`\n`) and CRLF (`\r\n`) record delimiters, including mixed input.
++Both formats omit empty records and preserve the order of all other records.
++Spaces in job names are data, including leading spaces, trailing spaces, and names made only of spaces.
++Names are not trimmed.
++A bare CR (`\r`) is data, not a delimiter, and remains in the name unless it is part of a CRLF delimiter.
++This applies inside a name and at the start or end of a name.
++
++## Output formats
++
++Text output joins the records with LF and does not add a final delimiter.
++JSON output returns the same records as a JSON array string, with normal JSON escaping for characters such as a bare CR.
++Empty input, or input that contains only delimiters, returns an empty string for text or `[]` for JSON.
++
++For example, input `" two \r\n\r\none\rname\n"` returns `" two \none\rname"` in text format.
++In JSON format, it returns the JSON text `[" two ","one\rname"]`.
++The examples use `\r` and `\n` to show CR and LF characters.
++
++Only `text` and `json` are supported formats. Other formats throw `Unknown format` after authorization succeeds.
++Authorization requires the exact token `Bearer <expected>`, with a nonempty string for `expected`, even for empty input.
++Invalid authorization throws `Unauthorized` before records are processed or a format is selected.
+diff --git a/render.mjs b/render.mjs
+index 17b273b..b7f0681 100644
+--- a/render.mjs
++++ b/render.mjs
+@@ -5 +5 @@ export function render(input, format, token, expected) {
+-  const records = input.split("\n").filter((record) => record !== "");
++  const records = input.split(/\r?\n/).filter((record) => record !== "");
+diff --git a/test/line-endings.test.mjs b/test/line-endings.test.mjs
+new file mode 100644
+index 0000000..c693e93
+--- /dev/null
++++ b/test/line-endings.test.mjs
+@@ -0,0 +1,38 @@
++import test from "node:test";
++import assert from "node:assert/strict";
++import { render } from "../render.mjs";
++
++const cases = [
++  { name: "LF", input: "two\n\none\n", records: ["two", "one"] },
++  { name: "CRLF", input: "two\r\n\r\none\r\n", records: ["two", "one"] },
++  { name: "mixed delimiters", input: "\r\ntwo\r\n\none\nthree\r\n", records: ["two", "one", "three"] },
++  { name: "spaces", input: " two \r\n \n\r\none \n", records: [" two ", " ", "one "] },
++  { name: "bare CR inside a name", input: "two\rone\r\nnext", records: ["two\rone", "next"] },
++  { name: "bare CR at record edges", input: "\rfirst\nlast\r", records: ["\rfirst", "last\r"] },
++  { name: "CR before a CRLF delimiter", input: "one\r\r\ntwo", records: ["one\r", "two"] },
++  { name: "bare CR only", input: "\r", records: ["\r"] },
++  { name: "empty input", input: "", records: [] },
++  { name: "empty records only", input: "\r\n\n\r\n", records: [] },
++];
++
++for (const format of ["text", "json"]) {
++  for (const { name, input, records } of cases) {
++    test(`${format}: ${name}`, () => {
++      const expected = format === "json" ? JSON.stringify(records) : records.join("\n");
++      assert.equal(render(input, format, "Bearer fixture", "fixture"), expected);
++    });
++  }
++
++  test(`${format}: empty input still requires exact authorization`, () => {
++    for (const token of ["", "fixture", "bearer fixture", "Bearer fixture ", "Bearer other"]) {
++      assert.throws(() => render("", format, token, "fixture"), { message: "Unauthorized" });
++    }
++    assert.throws(() => render("", format, "Bearer ", ""), { message: "Unauthorized" });
++    assert.throws(() => render("", format, "Bearer undefined", undefined), { message: "Unauthorized" });
++  });
++}
++
++test("format selection and authorization order remain unchanged", () => {
++  assert.throws(() => render("", "yaml", "Bearer fixture", "fixture"), { message: "Unknown format" });
++  assert.throws(() => render("", "yaml", "", "fixture"), { message: "Unauthorized" });
++});

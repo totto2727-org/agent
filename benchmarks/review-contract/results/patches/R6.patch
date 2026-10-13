@@ -1,0 +1,93 @@
+diff --git a/README.md b/README.md
+index 1c43e7d..492ec46 100644
+--- a/README.md
++++ b/README.md
+@@ -3,2 +3,4 @@
+-Call `render(input, format, token, expected)` to list queued job names.
+-Text output splits LF lines and joins nonempty records with LF. JSON returns an ordered array.
++For library users: call `render(input, format, token, expected)` to list queued job names.
++Both text and JSON accept LF and CRLF delimiters, omit empty records, and preserve input order.
++Spaces and bare CR characters in names remain data. Records are not trimmed.
++Text joins the records with LF. JSON returns the same records as a JSON array string.
+@@ -5,0 +8 @@ Formats are `text` and `json`. Supply `Bearer <expected>` as the token.
++Authorization is required even for empty input.
+diff --git a/docs/output.md b/docs/output.md
+index f300a17..ee14111 100644
+--- a/docs/output.md
++++ b/docs/output.md
+@@ -3,3 +3,14 @@
+-JSON output preserves the records read from LF-separated input.
+-Text output joins nonempty records with LF.
+-Spaces in job names are data.
++For library users of `render(input, format, token, expected)`.
++
++Text and JSON use the same records: LF and CRLF delimiters separate names, empty records are omitted, and input order is preserved.
++Spaces in names are data, including records that contain only spaces.
++A bare CR that is not part of a CRLF delimiter remains in the name, including at the end of input.
++Records are not trimmed.
++
++Text output joins the records with LF, with no added final delimiter.
++JSON output is a JSON array string containing the same records. JSON escapes CR characters as `\r`.
++Empty input or input containing only delimiters returns `""` for text and `"[]"` for JSON.
++
++Only `text` and `json` are accepted formats. Other formats throw `Unknown format` after authorization succeeds.
++The token must exactly match `Bearer <expected>`, where `expected` is a nonempty string.
++Invalid authorization throws `Unauthorized`, even for empty input.
+diff --git a/render.mjs b/render.mjs
+index 17b273b..b7f0681 100644
+--- a/render.mjs
++++ b/render.mjs
+@@ -5 +5 @@ export function render(input, format, token, expected) {
+-  const records = input.split("\n").filter((record) => record !== "");
++  const records = input.split(/\r?\n/).filter((record) => record !== "");
+diff --git a/test/records.test.mjs b/test/records.test.mjs
+new file mode 100644
+index 0000000..e0cfa33
+--- /dev/null
++++ b/test/records.test.mjs
+@@ -0,0 +1,45 @@
++import test from "node:test";
++import assert from "node:assert/strict";
++import { render } from "../render.mjs";
++import { authorize } from "../auth.mjs";
++import { releaseCheck } from "../ci-contract.mjs";
++
++for (const format of ["text", "json"]) {
++  test(`${format}: LF and CRLF delimiters share record semantics`, () => {
++    const records = [" two ", "one", " ", "bare\rCR", "tail\r", "\r"];
++    const input = "\r\n two \r\n\r\none\n\n \r\nbare\rCR\r\ntail\r\r\n\r\r\n";
++    const expected = format === "json" ? JSON.stringify(records) : records.join("\n");
++    assert.equal(render(input, format, "Bearer fixture", "fixture"), expected);
++    assert.equal(render("bare\rCR\rtail\r", format, "Bearer fixture", "fixture"),
++      format === "json" ? '["bare\\rCR\\rtail\\r"]' : "bare\rCR\rtail\r");
++    assert.equal(render("\n\r\n\n", format, "Bearer fixture", "fixture"),
++      format === "json" ? "[]" : "");
++    assert.equal(render("", format, "Bearer fixture", "fixture"),
++      format === "json" ? "[]" : "");
++  });
++
++  test(`${format}: authorization still precedes empty-input rendering`, () => {
++    for (const input of ["", "\n\r\n", "one\r\n"]) {
++      for (const token of ["", "fixture", "bearer fixture", "Bearer fixture ", "Bearer wrong"]) {
++        assert.throws(() => render(input, format, token, "fixture"), { message: "Unauthorized" });
++      }
++      for (const expected of ["", undefined, null, 1]) {
++        assert.throws(() => render(input, format, "Bearer fixture", expected), { message: "Unauthorized" });
++      }
++    }
++  });
++}
++
++test("public authorization and format selection remain exact", () => {
++  assert.equal(authorize("Bearer fixture", "fixture"), undefined);
++  assert.throws(() => authorize("bearer fixture", "fixture"), { message: "Unauthorized" });
++  for (const format of ["yaml", "JSON", "Text", undefined]) {
++    assert.throws(() => render("", format, "Bearer fixture", "fixture"), { message: "Unknown format" });
++    assert.throws(() => render("", format, "", "fixture"), { message: "Unauthorized" });
++  }
++});
++
++test("release check remains dependency-free Node 24 with builtin tests", () => {
++  assert.deepEqual(releaseCheck, { nodeMajor: 24, command: ["node", "--test", "test/*.test.mjs"], install: false });
++  assert.ok(Object.isFrozen(releaseCheck));
++});

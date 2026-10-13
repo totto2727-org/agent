@@ -10,12 +10,12 @@ const manifest = JSON.parse(await readFile(join(root, "manifest.json"), "utf8"))
 const [command, caseId, target] = process.argv.slice(2);
 const fixture = manifest.cases.find((item) => item.id === caseId);
 
-async function files(directory) {
+async function files(directory, excludedDirectories = []) {
   const result = [];
   for (const entry of await readdir(directory, { withFileTypes: true })) {
-    if (entry.name === ".git" || entry.name === ".review") continue;
+    if (excludedDirectories.includes(entry.name)) continue;
     const path = join(directory, entry.name);
-    if (entry.isDirectory()) result.push(...(await files(path)));
+    if (entry.isDirectory()) result.push(...(await files(path, excludedDirectories)));
     else if (entry.isFile()) result.push(path);
   }
   return result.sort();
@@ -57,8 +57,13 @@ if (command === "verify") {
   if (!fixture || !target) throw new Error("Usage: runner.mjs packet CASE DIRECTORY");
   const workspace = resolve(target);
   let packet = "# Task\n" + (await readFile(join(workspace, "task.md"), "utf8"));
-  for (const path of await files(workspace)) {
-    if (path.endsWith("task.md") || path.endsWith("policy.md")) continue;
+  for (const path of await files(workspace, [".git", ".review", ".review-policy"])) {
+    if (
+      ["task.md", "policy.md", "documentation-review.md"].some(
+        (name) => path === join(workspace, name),
+      )
+    )
+      continue;
     packet += `\n# File: ${relative(workspace, path)}\n` + (await readFile(path, "utf8"));
   }
   if (packet.length > 48000)
