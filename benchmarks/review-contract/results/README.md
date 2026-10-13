@@ -32,6 +32,7 @@ These outcomes concern controlled fictitious repositories, not production deploy
 | Skill validation and offline CLI | Official local skill validator passes; five rules load; complete Text subjects plan without truncation; missing context is refused with exit 2             | Actual automatic activation in installed clients or semantic accuracy                                              |
 | Live CLI control                 | Two subjects, zero answered, two missing, zero calls, exit 3                                                                                               | Any true/false finding, calibrated threshold or Cloudflare inference success                                       |
 | Original replay behavior         | The same null-answer record replays with two missing subjects but exit 0                                                                                   | A clean result. This discrepancy was reproduced through the public CLI and isolated for a separate correctness fix |
+| Replay correctness fix           | The identical real record returns exit 3 after commit `ae39d96e96c7e4d1c2762d3ba97f3dabb20a77fd`, still with two missing subjects and zero calls           | Task-completion improvement or successful live inference. This only closes the false-success exit path             |
 
 Initial scoring and solvers used Node `v24.21.0`; independent pinned reproduction used Node `v24.18.1`.
 Directory separation was controlled input isolation, not an OS security sandbox for arbitrary submissions.
@@ -62,5 +63,6 @@ The reproduction test checks patch hashes, applies each patch and executes the a
 3. Fit any necessary per-question threshold on separate calibration examples, then assess independent held-out examples. Do not fit to this comparison.
 4. Pre-register a separate, more discriminating task set and repetitions if task-completion improvement is still the goal. Keep this ceiling result intact.
 
-The replay correctness fix can be validated offline through the actual public CLI and does not depend on obtaining credentials.
+The replay correctness fix was independently verified offline through the actual built public CLI: the same real null-answer record changed from exit 0 to exit 3, with `subjects=2`, `missing=2`, no findings and zero requests.
+[JevLint PR #2](https://github.com/totto2727-org/jevlint/pull/2) contains the independent main-based fix, 24 public CLI regression invocations across JSON/pretty/GitHub output, and a passing 435-test CI run.
 Its before/after exit behavior is a separate operational improvement, not evidence that this review procedure raises task-completion rates.
