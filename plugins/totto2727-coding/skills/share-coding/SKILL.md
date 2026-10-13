@@ -164,6 +164,7 @@ Place discovery, resolution, and domain rules in the library that owns the conce
 
 ## Related skills
 
+- [`code-review`](../code-review/SKILL.md): task-contract review with existing static checks, bounded contextual rules, wider LLM review, and actual consumer verification.
 - [`share-test`](../share-test/SKILL.md), [`js-test`](../js-test/SKILL.md), and [`mbt-test`](../mbt-test/SKILL.md) — testing philosophy and executable tests.
 - [`rust-test`](../rust-test/SKILL.md): executable Rust test guidance.
 - [`share-test-design`](../share-test-design/SKILL.md) — test-design decisions and suitable evidence presentation.

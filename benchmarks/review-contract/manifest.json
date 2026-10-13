@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "runtime": "Node 24 ESM, builtins only",
+  "workerInputRule": "Copy only publicRoot contents into an isolated worker repository. All other files are evaluator-only.",
+  "oracle": {
+    "module": "oracle.mjs",
+    "export": "evaluate",
+    "arguments": ["caseId", "absoluteWorkspacePath"]
+  },
+  "answerRule": "Copy publicRoot, then overlay acceptedOverlay recursively. Unlisted public files are retained. These are example solutions, not exact-match targets.",
+  "cases": [
+    {
+      "id": "01-defaults",
+      "publicRoot": "cases/01-defaults/public",
+      "task": "task.md",
+      "acceptedOverlay": "cases/01-defaults/accepted",
+      "initialFailureChecks": ["removed-cli-options", "transport-default-inheritance"],
+      "reviewCriteria": [
+        "README describes timeout and managed quota, without prescribing removed flags or a migration log.",
+        "Redundant config state is removed across parser and runtime, while the intentional managed customization remains.",
+        "Focused tests cover removed flags, runtime defaults and validation. No unrelated abstraction or dependency was introduced."
+      ]
+    },
+    {
+      "id": "02-domain",
+      "publicRoot": "cases/02-domain/public",
+      "task": "task.md",
+      "acceptedOverlay": "cases/02-domain/accepted",
+      "initialFailureChecks": [
+        "constructor-normalization",
+        "constructor-rejection",
+        "assignment-invariants",
+        "external-domain-rejection"
+      ],
+      "reviewCriteria": [
+        "A standard collection replaces OrderedBag without unnecessary wrapper infrastructure.",
+        "summarize relies on the stated valid-Seat domain instead of filtering invalid fields, while external validation remains.",
+        "Tests establish constructor, external boundary and duplicate-order behavior. Freezing or validating setters are both acceptable."
+      ]
+    },
+    {
+      "id": "03-local-fix",
+      "publicRoot": "cases/03-local-fix/public",
+      "task": "task.md",
+      "acceptedOverlay": "cases/03-local-fix/accepted",
+      "initialFailureChecks": ["crlf-json", "crlf-text"],
+      "reviewCriteria": [
+        "Both README.md and docs/output.md describe shared LF/CRLF semantics for text and JSON, empty records, order, spaces and bare CR.",
+        "The patch is local to record handling, tests and affected docs. Authentication and release-check implementation are not refactored.",
+        "A regression test calls the actual renderer for both outputs and protects bare CR, rather than merely snapshotting source text."
+      ]
+    },
+    {
+      "id": "04-reader-docs",
+      "publicRoot": "cases/04-reader-docs/public",
+      "task": "task.md",
+      "acceptedOverlay": "cases/04-reader-docs/accepted",
+      "initialFailureChecks": ["english-example", "japanese-example"],
+      "reviewCriteria": [
+        "Both languages retain Lumen Note identity, support-handoff purpose, Node 24, UTF-8, local file input, no-upload guarantee and no incident diagnosis claim.",
+        "Both explain nonblank line count including tags, # tag lines, and ordered deduplication without contradicting executable output.",
+        "A support colleague can locate prerequisites, run the example and interpret the result without maintainer instructions. English and Japanese promises agree.",
+        "Implementation history, repeated setup and irrelevant platform comparison are removed. Useful caveats are not deleted. Do not score by token count."
+      ]
+    }
+  ]
+}

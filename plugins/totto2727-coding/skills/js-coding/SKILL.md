@@ -65,6 +65,7 @@ Read only the relevant reference; already available principles need not be reloa
 
 ## Related skills
 
+- [`code-review`](../code-review/SKILL.md): task-contract review with existing static checks, bounded contextual rules, wider LLM review, and actual consumer verification.
 - [`vite-plus`](https://github.com/voidzero-dev/vite-plus): official repository toolchain and build orchestration skill. Prefer the installed skill; otherwise use the [official Vite+ guide](https://viteplus.dev/guide/).
 - `remix` — Remix application structure and framework conventions.
 - [`js-test`](../js-test/SKILL.md): TypeScript test implementation.
