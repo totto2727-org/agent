@@ -29,8 +29,7 @@
 - Do not distribute a local documentation copy when the upstream site publishes an official Agent Skill.
 - Referencing skills must name the official skill, prefer its local installation, and provide a direct official-site fallback when the skill is unavailable.
 - Use relative Markdown links to `SKILL.md` for skills in the same plugin, rather than bare invocation names such as `$skill-name`.
-- For skills in another plugin, link to their canonical source entry points, prefer installed copies, and use the linked instructions when a required skill is unavailable.
-  Do not assume that separate plugins retain their repository layout after installation.
+- For skills in another plugin, use relative links to sibling installed skills and provide canonical source links as fallbacks when those paths are unavailable.
 - For skills owned outside `totto2727-org/agent`, link the skill name to its upstream entry point or official source repository, including when an installed copy is preferred. Keep documentation fallback links as well.
 
 ## Package-specific rules
