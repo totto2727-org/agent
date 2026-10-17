@@ -1,0 +1,116 @@
+{
+  "schemaVersion": 1,
+  "status": "frozen-before-inference",
+  "node": "v24.18.1",
+  "hashAlgorithm": "SHA256",
+  "treeEncoding": "Sort relative POSIX file paths by code-point order. Hash UTF-8 concatenation of path + NUL + lowercase SHA256(file bytes) + LF. Files only, no symlinks.",
+  "validationCommand": "nix develop --offline --command node --test benchmarks/review-contract/fixtures.test.mjs",
+  "formatCheck": "pinned vp fmt --check passed for all 40 owned files including freeze.json",
+  "cases": [
+    {
+      "id": "01-defaults",
+      "inputs": {
+        "path": "cases/01-defaults/public",
+        "files": 6,
+        "sha256": "b488702959b3cfb70942da8bfff3fd78cb5b6979bca0ea74cf9e4c495e0f5af5"
+      },
+      "answer": {
+        "path": "cases/01-defaults/accepted",
+        "files": 4,
+        "sha256": "82e6768a392f2e6e8e7b91fd9ce251274c680b46c750b2b4dd5ab0f69a94daeb"
+      },
+      "validation": {
+        "initialPublicTestsPass": true,
+        "initialFailedChecks": ["removed-cli-options", "transport-default-inheritance"],
+        "acceptedAllChecksPass": true,
+        "acceptedChecks": 6,
+        "legalAlternativeAllChecksPass": true,
+        "harmfulMutantRejectedAt": "permitted-customization-and-auth"
+      }
+    },
+    {
+      "id": "02-domain",
+      "inputs": {
+        "path": "cases/02-domain/public",
+        "files": 4,
+        "sha256": "5c6ed987b7f1263de06ff5b10f37924bd9b7ddc3a2cf397c8b08483ac97268ba"
+      },
+      "answer": {
+        "path": "cases/02-domain/accepted",
+        "files": 2,
+        "sha256": "d241ffbed26db16e67a30b113519f993a23747115590c0971d85361c0e77b24d"
+      },
+      "validation": {
+        "initialPublicTestsPass": true,
+        "initialFailedChecks": [
+          "constructor-normalization",
+          "constructor-rejection",
+          "assignment-invariants",
+          "external-domain-rejection"
+        ],
+        "acceptedAllChecksPass": true,
+        "acceptedChecks": 7,
+        "legalAlternativeAllChecksPass": true,
+        "harmfulMutantRejectedAt": "already-correct-order-and-detachment"
+      }
+    },
+    {
+      "id": "03-local-fix",
+      "inputs": {
+        "path": "cases/03-local-fix/public",
+        "files": 8,
+        "sha256": "31914dafa9ec68638620fa2ce922fe925bcefc77bd0b5dfb337ba7d7b309d07c"
+      },
+      "answer": {
+        "path": "cases/03-local-fix/accepted",
+        "files": 4,
+        "sha256": "92c0513c9bc28554d88d4945ef0a04de5ffd433435f10a75a2b1228aca996010"
+      },
+      "validation": {
+        "initialPublicTestsPass": true,
+        "initialFailedChecks": ["crlf-json", "crlf-text"],
+        "acceptedAllChecksPass": true,
+        "acceptedChecks": 7,
+        "legalAlternativeAllChecksPass": true,
+        "harmfulMutantRejectedAt": "crlf-json"
+      }
+    },
+    {
+      "id": "04-reader-docs",
+      "inputs": {
+        "path": "cases/04-reader-docs/public",
+        "files": 7,
+        "sha256": "503d71ddad0e8a52d555e631702294f30a3f8d10e825e9291835ab9b53a8220a"
+      },
+      "answer": {
+        "path": "cases/04-reader-docs/accepted",
+        "files": 2,
+        "sha256": "07e563689051d59107ca5578cebf975d625c5e1d0e3a86cd4ec2949805caeb49"
+      },
+      "validation": {
+        "initialPublicTestsPass": true,
+        "initialFailedChecks": ["english-example", "japanese-example"],
+        "acceptedAllChecksPass": true,
+        "acceptedChecks": 6,
+        "legalAlternativeAllChecksPass": true,
+        "harmfulMutantRejectedAt": "english-example"
+      }
+    }
+  ],
+  "oracleFiles": [
+    {
+      "path": "manifest.json",
+      "sha256": "310742e205532f4867ccc7fe24a9d0cc1a1f1224a9e14cee1f3d169b8e51b0b6"
+    },
+    {
+      "path": "oracle.mjs",
+      "sha256": "823df6bf6489050bba95221dbb137b66a8c65b359bf65ad7ee6871f030af11d7"
+    },
+    {
+      "path": "fixtures.test.mjs",
+      "sha256": "5f2a3e9b6fc6b49830b7cfb4c85d91a1b25ffd16b5adcf7bda480e4f3da3daf1"
+    }
+  ],
+  "subjectiveReview": "Not automatically scored. Blinded reviewer must apply manifest reviewCriteria. Deterministic pass alone is not full acceptance.",
+  "excluded": ["README.md", "runner.mjs", "results", "freeze.json"]
+}

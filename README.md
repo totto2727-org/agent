@@ -1,10 +1,10 @@
-# Agent plugin marketplace
+# Agent plugins
 
-`totto2727-org/agent` distributes a coordinated marketplace of Claude Code, Cursor, and Codex plugins for reusable development workflows.
+`totto2727-org/agent` distributes reusable development workflows as [Agent Plugins 1.0.0](https://agent-plugins.org/) packages.
 
 ## Usage
 
-After installing the marketplace, ask a supported coding agent to audit the documentation in your project:
+After installing `totto2727-coding`, ask your coding agent to audit the documentation in your project:
 
 ```text
 Use the share-artifact skill to audit this project's README.md. Keep consumer installation and usage in README, move repository build and test instructions to AGENTS.md, and update both files where needed.
@@ -18,21 +18,39 @@ A concise audit summary identifying the user-facing README improvements, develop
 
 ## Key features
 
-- One plugin catalog distributed to Claude Code, Cursor, and Codex
+- Portable packages with a root `plugin.json` manifest
 - Coding and external-information plugins
 - Skills installed through `c-plugin`
 
 ## Prerequisites
 
-- **c-plugin**: Install `c-plugin` and make the command available on `PATH` before adding this marketplace.
+- **c-plugin**: Install a version that supports `github:` plugin sources and make the command available on `PATH`.
 
 ## Setup
 
-### Install
+### Install a plugin
+
+Choose the plugin you need.
+Each command installs one plugin from its explicit directory in the GitHub repository.
+
+Coding and testing guidance:
 
 ```bash
-c-plugin skill add totto2727-org/agent
+c-plugin plugin add github:totto2727-org/agent/plugins/totto2727-coding --all
 ```
+
+External information and connected services:
+
+```bash
+c-plugin plugin add github:totto2727-org/agent/plugins/external-information --all
+```
+
+To select another branch, tag, or commit, add `--ref REF`.
+Without `--ref`, installation uses the remote default branch at fetch time.
+The lock records the resolved commit, and synchronization uses that pinned checkout without fetching.
+Both commands install every skill without a selection prompt.
+Omit `--all` for interactive skill selection.
+Each package contains its manifest at `plugins/<plugin>/plugin.json` and its skills in the immediate child directories of `plugins/<plugin>/skills/`.
 
 ## API
 
@@ -40,6 +58,7 @@ c-plugin skill add totto2727-org/agent
 
 Provides reusable coding and testing guidance, [documentation-principles](plugins/totto2727-coding/skills/documentation-principles/SKILL.md) for shared writing principles, [share-test-design](plugins/totto2727-coding/skills/share-test-design/SKILL.md) for test-design decisions, and [share-artifact](plugins/totto2727-coding/skills/share-artifact/SKILL.md) for adaptable README, AGENTS.md, and ADR structures.
 Use [documentation-quality](plugins/totto2727-coding/skills/documentation-quality/SKILL.md) to review developer documentation.
+Use [code-review](plugins/totto2727-coding/skills/code-review/SKILL.md) to review code against the task with existing static checks, contextual JevLint assistance, wider LLM review, and actual consumer verification.
 Use [realpath](plugins/totto2727-coding/skills/realpath/SKILL.md) for filesystem path calculations and [skill-reviewer](plugins/totto2727-coding/skills/skill-reviewer/SKILL.md) for Agent Skill reviews.
 
 ### `external-information`
@@ -57,7 +76,7 @@ See each skill for its usage and service configuration requirements.
 
 ## Development
 
-For repository structure, manifest synchronization, and validation commands, see [AGENTS.md](./AGENTS.md).
+For repository structure and validation commands, see [AGENTS.md](./AGENTS.md).
 
 ## License
 

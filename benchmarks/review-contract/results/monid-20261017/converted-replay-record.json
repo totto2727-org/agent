@@ -1,0 +1,72 @@
+{
+  "schema": "jev-lint-run-1",
+  "recorded": "2026-10-17T10:47:55.879Z",
+  "model": "jev-1.13.0",
+  "arm": "bare",
+  "cutoffs": {},
+  "unsureBelow": null,
+  "spent": {
+    "calls": 2,
+    "inputTokens": 2799,
+    "outputTokens": 42,
+    "usd": 0.000117,
+    "usdSource": "Monid reportedCost MICRO_DOLLAR receipts",
+    "retried": 0
+  },
+  "rules": [
+    {
+      "id": "guarantee-location",
+      "kind": "score",
+      "ask": "The change misplaces a domain invariant by repeating a guaranteed single-value check in consumers or by relying on a guarantee that supplied construction paths can bypass.",
+      "note": "Judge only when the packet includes the guarantee, producer, relevant construction and consumption paths, and changed validation. A single-value invariant belongs in a canonical constructor or factory, while relationships belong in the owning domain policy. A consumer check is redundant only when the producer enforces the same invariant across all relevant paths. Retain checks at untrusted boundaries or when paths can bypass the guarantee. Do not treat missing creation paths as evidence that the guarantee holds.",
+      "draft": "748b927b17fa",
+      "at": null,
+      "state": "bare",
+      "subject": "block",
+      "severity": "info",
+      "language": "Text",
+      "languageDir": null
+    }
+  ],
+  "answers": [
+    {
+      "rule": "guarantee-location",
+      "ruleKey": "guarantee-location",
+      "file": "controls/Q1/packet.md",
+      "line": 1,
+      "endLine": 75,
+      "kind": "score",
+      "value": 2.5,
+      "confidence": 0.51,
+      "probabilities": {
+        "0": 0.09,
+        "1": 0.05,
+        "2": 0.12,
+        "3": 0.74
+      },
+      "arm": "bare"
+    },
+    {
+      "rule": "guarantee-location",
+      "ruleKey": "guarantee-location",
+      "file": "controls/Q2/packet.md",
+      "line": 1,
+      "endLine": 86,
+      "kind": "score",
+      "value": 1.03,
+      "confidence": 0.91,
+      "probabilities": {
+        "0": 0.03,
+        "1": 0.93,
+        "2": 0.02,
+        "3": 0.02
+      },
+      "arm": "bare"
+    }
+  ],
+  "provenance": {
+    "source": "Converted from actual Monid COMPLETED outputs, not emitted by jev-lint check",
+    "schema": "review-contract-monid-supplement-1",
+    "originalCloudflareRecordUnchanged": true
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "caseId": "04-reader-docs",
+  "deterministicPass": true,
+  "checks": [
+    {
+      "id": "public-tests",
+      "pass": true
+    },
+    {
+      "id": "docs-only-boundary",
+      "pass": true
+    },
+    {
+      "id": "already-correct-summary",
+      "pass": true
+    },
+    {
+      "id": "english-example",
+      "pass": true
+    },
+    {
+      "id": "japanese-example",
+      "pass": true
+    },
+    {
+      "id": "module-contract",
+      "pass": true
+    }
+  ],
+  "reviewRequired": [
+    "Both languages retain Lumen Note identity, support-handoff purpose, Node 24, UTF-8, local file input, no-upload guarantee and no incident diagnosis claim.",
+    "Both explain nonblank line count including tags, # tag lines, and ordered deduplication without contradicting executable output.",
+    "A support colleague can locate prerequisites, run the example and interpret the result without maintainer instructions. English and Japanese promises agree.",
+    "Implementation history, repeated setup and irrelevant platform comparison are removed. Useful caveats are not deleted. Do not score by token count."
+  ]
+}

@@ -8,6 +8,29 @@ description: >-
 
 > Content type: conceptual guidance shared by every language.
 
+## Test implementation boundaries
+
+For agents that implement or review tests, use the project's established test tools and rules.
+Implement maintained tests with a test tool or framework, such as Vitest, Playwright, or the language's test framework.
+Follow the project's conventions for test locations, fixtures, and execution.
+Custom scripts are permitted only when the project's explicit test rules require or permit them, such as a custom E2E execution procedure.
+An existing unrelated script does not establish permission to add a custom test runner.
+
+Do not change project configuration, task runners, package scripts, or CI merely to add or execute an individual test.
+Use the existing test discovery and execution paths.
+Do not make an ad hoc verification script a maintained test by adding it to a task runner or CI.
+The same restriction applies when a script calls an approved test framework but requires a new execution path for that test.
+
+If the required test does not fit the established tools and project rules, treat the alternative as a new testing mechanism.
+Propose that mechanism to the user separately from the implementation that needs verification, and obtain approval before introducing it.
+Do not bundle its configuration or execution changes into the implementation without that approval.
+
+Alternatively, use temporary verification code only for the current task.
+Keep it under the repository's `tmp/` directory and exclude it from commits and pull requests.
+Do not register it in project configuration, task runners, package scripts, or CI.
+Before committing, review the task-created artifacts and stage only intended deliverables.
+Report the limits of temporary verification, and do not present it as maintained regression coverage.
+
 ## Observable behavior
 
 Test the contract visible to a caller, not private implementation steps. Prefer returned values, emitted effects, durable state, and public errors over internal call order or private helper structure.

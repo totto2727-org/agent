@@ -1,0 +1,39 @@
+{
+  "caseId": "03-local-fix",
+  "deterministicPass": true,
+  "checks": [
+    {
+      "id": "public-tests",
+      "pass": true
+    },
+    {
+      "id": "crlf-json",
+      "pass": true
+    },
+    {
+      "id": "crlf-text",
+      "pass": true
+    },
+    {
+      "id": "already-correct-output-contract",
+      "pass": true
+    },
+    {
+      "id": "security-counterexamples",
+      "pass": true
+    },
+    {
+      "id": "release-check-contract",
+      "pass": true
+    },
+    {
+      "id": "module-contract",
+      "pass": true
+    }
+  ],
+  "reviewRequired": [
+    "Both README.md and docs/output.md describe shared LF/CRLF semantics for text and JSON, empty records, order, spaces and bare CR.",
+    "The patch is local to record handling, tests and affected docs. Authentication and release-check implementation are not refactored.",
+    "A regression test calls the actual renderer for both outputs and protects bare CR, rather than merely snapshotting source text."
+  ]
+}

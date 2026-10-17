@@ -1,0 +1,35 @@
+{
+  "caseId": "01-defaults",
+  "deterministicPass": true,
+  "checks": [
+    {
+      "id": "public-tests",
+      "pass": true
+    },
+    {
+      "id": "removed-cli-options",
+      "pass": true
+    },
+    {
+      "id": "timeout-contract",
+      "pass": true
+    },
+    {
+      "id": "transport-default-inheritance",
+      "pass": true
+    },
+    {
+      "id": "permitted-customization-and-auth",
+      "pass": true
+    },
+    {
+      "id": "module-contract",
+      "pass": true
+    }
+  ],
+  "reviewRequired": [
+    "README describes timeout and managed quota, without prescribing removed flags or a migration log.",
+    "Redundant config state is removed across parser and runtime, while the intentional managed customization remains.",
+    "Focused tests cover removed flags, runtime defaults and validation. No unrelated abstraction or dependency was introduced."
+  ]
+}

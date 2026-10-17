@@ -1,0 +1,167 @@
+diff --git a/ledger.mjs b/ledger.mjs
+index 36fea27..6f851b0 100644
+--- a/ledger.mjs
++++ b/ledger.mjs
+@@ -1,4 +1,7 @@
+-export class Seat {
+-  constructor(id, owner) {
+-    this.id = id;
+-    this.owner = owner;
++function normalizeSeatField(value, field) {
++  if (typeof value !== "string") {
++    throw new TypeError(`Seat ${field} must be a string`);
++  }
++  const normalized = value.trim();
++  if (normalized.length === 0) {
++    throw new TypeError(`Seat ${field} must not be empty`);
+@@ -5,0 +9 @@ export class Seat {
++  return normalized;
+@@ -8,6 +12,5 @@ export class Seat {
+-class OrderedBag {
+-  rows = [];
+-  set(id, owner) {
+-    const row = this.rows.find((row) => row.id === id);
+-    if (row) row.owner = owner;
+-    else this.rows.push({ id, owner });
++export class Seat {
++  constructor(id, owner) {
++    this.id = normalizeSeatField(id, "id");
++    this.owner = normalizeSeatField(owner, "owner");
++    Object.freeze(this);
+@@ -23,0 +27 @@ export function readSeats(text) {
++      Array.isArray(row) ||
+@@ -33 +37 @@ export function summarize(seats) {
+-  const bag = new OrderedBag();
++  const owners = new Map();
+@@ -35,2 +39 @@ export function summarize(seats) {
+-    if (!seat.id || !seat.owner) continue;
+-    bag.set(seat.id, seat.owner);
++    owners.set(seat.id, seat.owner);
+@@ -38 +41 @@ export function summarize(seats) {
+-  return bag.rows.map((row) => ({ ...row }));
++  return Array.from(owners, ([id, owner]) => ({ id, owner }));
+diff --git a/test/domain.test.mjs b/test/domain.test.mjs
+new file mode 100644
+index 0000000..80a4b21
+--- /dev/null
++++ b/test/domain.test.mjs
+@@ -0,0 +1,119 @@
++import test from "node:test";
++import assert from "node:assert/strict";
++import { Seat, readSeats, summarize } from "../ledger.mjs";
++
++test("Seat trims both fields and preserves nonempty string content", () => {
++  const seat = new Seat(" \tA 1\n", "\u00a0Alice Smith\u00a0");
++  assert.equal(seat.id, "A 1");
++  assert.equal(seat.owner, "Alice Smith");
++  assert.deepEqual(summarize([new Seat("0", "false")]), [
++    { id: "0", owner: "false" },
++  ]);
++});
++
++test("Seat rejects invalid values in either field without coercion", () => {
++  const invalid = [
++    undefined, null, 0, 1, NaN, true, false, {}, [],
++    new String("valid"), { toString: () => "valid" },
++    "", " \t\r\n", "\u00a0\u2003",
++  ];
++  for (const value of invalid) {
++    assert.throws(() => new Seat(value, "owner"), TypeError);
++    assert.throws(() => new Seat("id", value), TypeError);
++  }
++  assert.throws(() => new Seat(), TypeError);
++  assert.throws(() => new Seat("id"), TypeError);
++});
++
++test("later mutation cannot invalidate either Seat field", () => {
++  const seat = new Seat(" id ", " owner ");
++  for (const field of ["id", "owner"]) {
++    for (const value of ["", " \t", null, 12, " untrimmed "]) {
++      assert.throws(() => { seat[field] = value; }, TypeError);
++    }
++    assert.throws(() => { delete seat[field]; }, TypeError);
++    assert.throws(() => Object.defineProperty(seat, field, { value: "" }), TypeError);
++  }
++  assert.equal(seat.id, "id");
++  assert.equal(seat.owner, "owner");
++});
++
++test("readSeats normalizes valid rows, ignores extra fields, and retains duplicates", () => {
++  const seats = readSeats(JSON.stringify([
++    { id: " b ", owner: " one ", ignored: { value: 1 } },
++    { id: "a", owner: "two" },
++    { id: "b", owner: "three", extra: null },
++  ]));
++  assert.equal(seats.length, 3);
++  assert.ok(seats.every((seat) => seat instanceof Seat));
++  assert.deepEqual(Object.keys(seats[0]), ["id", "owner"]);
++  assert.deepEqual(summarize(seats), [
++    { id: "b", owner: "three" },
++    { id: "a", owner: "two" },
++  ]);
++  assert.deepEqual(readSeats("[]"), []);
++});
++
++test("readSeats rejects malformed JSON and non-array payloads", () => {
++  assert.throws(() => readSeats("["), SyntaxError);
++  for (const payload of [null, {}, "text", 1, true]) {
++    assert.throws(() => readSeats(JSON.stringify(payload)), /Expected array/);
++  }
++});
++
++test("readSeats rejects invalid rows instead of filtering them", () => {
++  const invalidRows = [
++    null, [], "row", 1, true, {},
++    { id: "a" }, { owner: "one" },
++    { id: 1, owner: "one" }, { id: "a", owner: null },
++    { id: "", owner: "one" }, { id: "a", owner: "" },
++    { id: " \t", owner: "one" }, { id: "a", owner: "\u00a0" },
++  ];
++  for (const row of invalidRows) {
++    for (const rows of [[row], [{ id: "valid", owner: "owner" }, row]]) {
++      assert.throws(() => readSeats(JSON.stringify(rows)));
++    }
++  }
++});
++
++test("summarize accepts iterables and updates duplicates without reordering", () => {
++  function* seats() {
++    yield new Seat("10", "first");
++    yield new Seat("2", "second");
++    yield new Seat("10", "third");
++    yield new Seat("__proto__", "fourth");
++    yield new Seat("2", "fifth");
++    yield new Seat("10", "last");
++  }
++  assert.deepEqual(summarize(seats()), [
++    { id: "10", owner: "last" },
++    { id: "2", owner: "fifth" },
++    { id: "__proto__", owner: "fourth" },
++  ]);
++  assert.deepEqual(summarize(new Set([new Seat("a", "one")])), [
++    { id: "a", owner: "one" },
++  ]);
++  assert.deepEqual(summarize(seatsFromEmpty()), []);
++  function* seatsFromEmpty() {}
++});
++
++test("summarize returns detached mutable plain rows on each call", () => {
++  const seat = new Seat("a", "one");
++  const seats = [seat, new Seat("b", "two")];
++  const first = summarize(seats);
++  const second = summarize(seats);
++  assert.equal(Object.getPrototypeOf(first[0]), Object.prototype);
++  assert.deepEqual(Object.keys(first[0]), ["id", "owner"]);
++  assert.notEqual(first[0], seat);
++  assert.notEqual(first[0], second[0]);
++  first[0].id = "changed";
++  first[0].owner = "changed";
++  first.push({ id: "extra", owner: "extra" });
++  assert.equal(seat.id, "a");
++  assert.equal(seat.owner, "one");
++  assert.deepEqual(second, [
++    { id: "a", owner: "one" },
++    { id: "b", owner: "two" },
++  ]);
++  assert.deepEqual(summarize(seats), second);
++});

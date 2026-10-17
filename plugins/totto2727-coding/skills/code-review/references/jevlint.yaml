@@ -1,0 +1,13 @@
+# Advisory-only draft questions, not a CI or acceptance gate.
+rulePaths: [./custom-rules.yaml]
+context: []
+rules:
+  standard-contract: on
+  guarantee-location: on
+  boundary-ownership: on
+  correction-scope: on
+  outcome-evidence: on
+transport: cloudflare
+model: typesafe/jev
+cache: none
+retry: 1

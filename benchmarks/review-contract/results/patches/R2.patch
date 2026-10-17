@@ -1,0 +1,102 @@
+diff --git a/README.md b/README.md
+index e898acd..75d3022 100644
+--- a/README.md
++++ b/README.md
+@@ -4,2 +4,3 @@ Read one parcel as JSON with the exported `parseArgs` and `peek` APIs.
+-Set `--encoding utf8 --retries 0 --format json` explicitly for predictable output.
+-Use `--timeout 500` for the timeout in milliseconds.
++The only command-line option is `--timeout`, in milliseconds.
++The default timeout is 500 ms. Supply a positive integer, for example `--timeout 900`.
++The transport defaults to UTF-8 decoding and zero retries. Output is always JSON, including Unicode data.
+diff --git a/cli.mjs b/cli.mjs
+index 32f5f73..2e63057 100644
+--- a/cli.mjs
++++ b/cli.mjs
+@@ -2 +2 @@ export function parseArgs(args) {
+-  const result = { timeout: 500, encoding: "utf8", retries: 0, format: "json" };
++  const result = { timeout: 500 };
+@@ -4,2 +4 @@ export function parseArgs(args) {
+-    const key = args[index].slice(2);
+-    if (!["timeout", "encoding", "retries", "format"].includes(key))
++    if (args[index] !== "--timeout")
+@@ -8 +7 @@ export function parseArgs(args) {
+-    result[key] = ["timeout", "retries"].includes(key) ? Number(value) : value;
++    result.timeout = Number(value);
+@@ -11,2 +9,0 @@ export function parseArgs(args) {
+-  if (result.encoding !== "utf8" || result.retries !== 0 || result.format !== "json")
+-    throw new Error("Unsupported value");
+diff --git a/runtime.mjs b/runtime.mjs
+index c103c8e..179a713 100644
+--- a/runtime.mjs
++++ b/runtime.mjs
+@@ -3,2 +2,0 @@ export async function peek(transport, options = {}, authorization) {
+-    encoding: options.encoding ?? "utf8",
+-    retries: options.retries ?? 0,
+diff --git a/test/options.test.mjs b/test/options.test.mjs
+new file mode 100644
+index 0000000..9aabcab
+--- /dev/null
++++ b/test/options.test.mjs
+@@ -0,0 +1,62 @@
++import test from "node:test";
++import assert from "node:assert/strict";
++import { parseArgs } from "../cli.mjs";
++import { peek } from "../runtime.mjs";
++
++test("CLI exposes only timeout with its default and explicit value", () => {
++  assert.deepEqual(parseArgs([]), { timeout: 500 });
++  assert.deepEqual(parseArgs(["--timeout", "900"]), { timeout: 900 });
++});
++
++test("removed options are unknown even with former defaults", () => {
++  for (const [option, values] of [
++    ["--encoding", ["utf8", "ascii"]],
++    ["--retries", ["0", "1"]],
++    ["--format", ["json", "text"]],
++  ]) {
++    for (const value of values) {
++      assert.throws(() => parseArgs([option, value]), /^Error: Unknown option$/);
++      assert.throws(() => parseArgs(["--timeout", "900", option, value]), /^Error: Unknown option$/);
++    }
++  }
++  for (const option of ["--unknown", "timeout", "xx timeout", "--profile"]) {
++    assert.throws(() => parseArgs([option, "900"]), /^Error: Unknown option$/);
++  }
++});
++
++test("CLI rejects missing and non-positive-integer timeouts", () => {
++  for (const value of [undefined, "", "0", "-1", "1.5", "NaN", "Infinity", "abc"]) {
++    const args = value === undefined ? ["--timeout"] : ["--timeout", value];
++    assert.throws(() => parseArgs(args), /^Error: Invalid timeout$/);
++  }
++});
++
++test("runtime leaves transport defaults unoverridden and preserves JSON and authorization", async () => {
++  let request;
++  const output = await peek(async (value) => {
++    request = value;
++    return { label: "箱 📦", encoding: value.encoding ?? "utf8", retries: value.retries ?? 0, concurrency: value.concurrency ?? 8 };
++  }, {}, "Bearer fixture");
++  assert.deepEqual(request, { timeout: 500, authorization: "Bearer fixture" });
++  assert.deepEqual(JSON.parse(output), { label: "箱 📦", encoding: "utf8", retries: 0, concurrency: 8 });
++});
++
++test("legacy runtime overrides do not reach transport and managed concurrency is retained", async () => {
++  let request;
++  await peek(async (value) => {
++    request = value;
++    return { ok: true };
++  }, { encoding: "ascii", retries: 5, format: "text", profile: "managed", timeout: 900 }, "Bearer fixture");
++  assert.deepEqual(request, { timeout: 900, authorization: "Bearer fixture", concurrency: 2 });
++});
++
++test("runtime validates direct callers before invoking transport", async () => {
++  for (const timeout of [0, -1, 1.5, NaN, Infinity, "900"]) {
++    let called = false;
++    await assert.rejects(peek(async () => {
++      called = true;
++      return {};
++    }, { timeout }), /^Error: Invalid timeout$/);
++    assert.equal(called, false);
++  }
++});

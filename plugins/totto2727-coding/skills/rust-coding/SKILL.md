@@ -19,6 +19,7 @@ Load only the reference that matches the implementation concern; already availab
 
 ## Related skills
 
+- [`code-review`](../code-review/SKILL.md): task-contract review with existing static checks, bounded contextual rules, wider LLM review, and actual consumer verification.
 - [`rust-test`](../rust-test/SKILL.md): Rust test implementation.
 - [`share-test`](../share-test/SKILL.md) — language-independent test philosophy.
 - [`share-test-design`](../share-test-design/SKILL.md) — test-design decisions and suitable evidence presentation.

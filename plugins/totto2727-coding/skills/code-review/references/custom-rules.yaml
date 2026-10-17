@@ -1,0 +1,47 @@
+# These are advisory question drafts, not calibrated approval rules.
+# The CLI supplies its default score cutoff when threshold is omitted.
+- id: standard-contract
+  language: Text
+  subject: block
+  extensions: [md]
+  kind: score
+  state: bare
+  severity: info
+  ask: The change introduces or retains a custom mechanism although the supplied standard or project contract satisfies the same required behavior.
+  note: Judge only when the packet includes the custom mechanism, required behavior, relevant standard contract, and exceptions. A demonstrated compatibility, security, domain, or performance gap can justify custom code. Preserve required functionality, tests, and authorization. Missing contract evidence cannot establish equivalence and must remain unresolved in human review.
+- id: guarantee-location
+  language: Text
+  subject: block
+  extensions: [md]
+  kind: score
+  state: bare
+  severity: info
+  ask: The change misplaces a domain invariant by repeating a guaranteed single-value check in consumers or by relying on a guarantee that supplied construction paths can bypass.
+  note: Judge only when the packet includes the guarantee, producer, relevant construction and consumption paths, and changed validation. A single-value invariant belongs in a canonical constructor or factory, while relationships belong in the owning domain policy. A consumer check is redundant only when the producer enforces the same invariant across all relevant paths. Retain checks at untrusted boundaries or when paths can bypass the guarantee. Do not treat missing creation paths as evidence that the guarantee holds.
+- id: boundary-ownership
+  language: Text
+  subject: block
+  extensions: [md]
+  kind: score
+  state: bare
+  severity: info
+  ask: The change broadens a shared contract to implement a concern owned by a supplied adapter, entry point, feature, or consumer without a demonstrated shared requirement.
+  note: Judge only when the packet includes the owner, affected callers, shared contract, and requested behavior. Multiple supported consumers can justify a shared domain policy. Apply the packet's existing composition-root and dependency-injection policy without prescribing a framework or fixed layer count. Missing callers or ownership evidence require wider review, not an inferred violation.
+- id: correction-scope
+  language: Text
+  subject: block
+  extensions: [md]
+  kind: score
+  state: bare
+  severity: info
+  ask: The change fails to apply an accepted correction to equivalent authorized artifacts or changes protected behavior outside the correction's scope.
+  note: Judge only when the packet includes the accepted correction, authorized artifact mapping, relevant artifact content, protected behavior, and exceptions. New requirements and questions are not automatically corrections. Platform-specific exceptions can justify different implementations. Preserve authentication, required tests, and supported functionality. Do not infer the state of artifacts absent from the packet.
+- id: outcome-evidence
+  language: Text
+  subject: block
+  extensions: [md]
+  kind: score
+  state: bare
+  severity: info
+  ask: The supplied delivery claim presents an internal check, reviewer report, or substitute result as proof of an actual public outcome that the supplied evidence does not establish.
+  note: Judge only when the packet includes the required public outcome, delivery claim, executed checks, results, and known blockers. Static checks and mocks are valid partial evidence when described as such. A documented authorized QA route can support the outcome when it exercises the required supported path. Do not require authentication bypass, consequential delivery actions, or new CI artifacts. Absence of a delivery claim is not a violation; absent execution evidence remains unresolved.

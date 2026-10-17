@@ -1,0 +1,159 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-13",
+  "fixtureCommit": "bcee18c5f44bd99fa2e25adc9b42940fc85261f6",
+  "baselineRevision": "0f3a3c4af95eff10e85b403c428800846a9e3a70",
+  "policySha256": "7107a3db8c9bfdbcaccb26cfeedcc32cff9f1a65693537b835c5cb3133dadda6",
+  "skillSha256": "e3baad4719d1ac7b8d29c9c66b4db4f06b285052d1d44f9df0453c73bdaa2116",
+  "rulesSha256": "188360e9a403e4d070ead187492883de0a3fd61fdb899b39c102ca0fa2c612c6",
+  "protocolSha256": "1ee9da58c07960849a7e7090aeef5dec97d598fb18d4207f6972ab8a23d885d3",
+  "solver": {
+    "route": "openai-oauth",
+    "model": "gpt-6.1-sol",
+    "effort": "medium",
+    "freshSessions": 8,
+    "node": "v24.21.0"
+  },
+  "verification": {
+    "initialScoringNode": "v24.21.0",
+    "reproductionNode": "v24.18.1",
+    "method": "Actual fixture public exports, builtin tests and executed documentation CLI examples in fresh processes; published patches applied to fresh public repositories and rescored. Manual criteria assessed by a separate condition-label-blinded LLM reviewer.",
+    "productionAcceptance": false
+  },
+  "trials": [
+    {
+      "trial": "R1",
+      "caseId": "01-defaults",
+      "condition": "baseline",
+      "deterministicChecks": 6,
+      "deterministicPassed": 6,
+      "manualCriteria": 3,
+      "manualPassed": 3,
+      "completeTaskPass": true,
+      "patchSha256": "8c3d54ce7542b946ca3103a6347e639e779faf72f59ef19915598e1e7f70b6dc"
+    },
+    {
+      "trial": "R2",
+      "caseId": "01-defaults",
+      "condition": "procedure-live-blocked",
+      "deterministicChecks": 6,
+      "deterministicPassed": 6,
+      "manualCriteria": 3,
+      "manualPassed": 3,
+      "completeTaskPass": true,
+      "patchSha256": "b6fec47a0aa8ebd90d896744432ab1a292bb525ba977d44455053e7540a64062"
+    },
+    {
+      "trial": "R3",
+      "caseId": "02-domain",
+      "condition": "procedure-live-blocked",
+      "deterministicChecks": 7,
+      "deterministicPassed": 7,
+      "manualCriteria": 3,
+      "manualPassed": 3,
+      "completeTaskPass": true,
+      "patchSha256": "c969646a6d0577b8f8c417e30f12e9c43332c4a6146c36de9f250a544c034636"
+    },
+    {
+      "trial": "R4",
+      "caseId": "02-domain",
+      "condition": "baseline",
+      "deterministicChecks": 7,
+      "deterministicPassed": 7,
+      "manualCriteria": 3,
+      "manualPassed": 3,
+      "completeTaskPass": true,
+      "patchSha256": "1b9d88cf72f4220f904ab86616a9e8ec9df99cce493a419665651083d4ce6cd5"
+    },
+    {
+      "trial": "R5",
+      "caseId": "03-local-fix",
+      "condition": "baseline",
+      "deterministicChecks": 7,
+      "deterministicPassed": 7,
+      "manualCriteria": 3,
+      "manualPassed": 3,
+      "completeTaskPass": true,
+      "patchSha256": "35114df746ebaf1f6d10ba90c393b6f64ee3a27bf4b382a3d4fd0a145be706da"
+    },
+    {
+      "trial": "R6",
+      "caseId": "03-local-fix",
+      "condition": "procedure-live-blocked",
+      "deterministicChecks": 7,
+      "deterministicPassed": 7,
+      "manualCriteria": 3,
+      "manualPassed": 3,
+      "completeTaskPass": true,
+      "patchSha256": "4b20b242d3698e81fe088ee43ef46e991ca6a733a5e0b3fd0a789cf9fd47819b"
+    },
+    {
+      "trial": "R7",
+      "caseId": "04-reader-docs",
+      "condition": "documentation-control-a",
+      "deterministicChecks": 6,
+      "deterministicPassed": 6,
+      "manualCriteria": 4,
+      "manualPassed": 4,
+      "completeTaskPass": true,
+      "patchSha256": "e9e6ff51dc7326357c49924a9669767a346783637107113c58d1aa90082ff671"
+    },
+    {
+      "trial": "R8",
+      "caseId": "04-reader-docs",
+      "condition": "documentation-control-b",
+      "deterministicChecks": 6,
+      "deterministicPassed": 6,
+      "manualCriteria": 4,
+      "manualPassed": 4,
+      "completeTaskPass": true,
+      "patchSha256": "f775d0f6ce673422c5c3e88a74b71926ede10b601bcaf8e98e040ee53e29534b"
+    }
+  ],
+  "summary": {
+    "baselineCodeTasksPassed": 3,
+    "baselineCodeTasks": 3,
+    "procedureCodeTasksPassed": 3,
+    "procedureCodeTasks": 3,
+    "documentationControlsPassed": 2,
+    "documentationControls": 2,
+    "deterministicPassed": 52,
+    "deterministicChecks": 52,
+    "manualPassed": 26,
+    "manualCriteria": 26,
+    "observedCompletionGainPercentagePoints": 0,
+    "fullCombinationImprovementVerified": false
+  },
+  "jevLint": {
+    "forkRevision": "5928dd77885931e5b50eb9b09f6461dd06be8b82",
+    "transport": "cloudflare",
+    "model": "typesafe/jev",
+    "questionKind": "score",
+    "calibrated": false,
+    "localRulesLoaded": 5,
+    "controlSubjects": 2,
+    "controlMissing": 2,
+    "controlAnswered": 0,
+    "controlCalls": 0,
+    "liveExit": 3,
+    "replayExitBeforeFix": 0,
+    "replayMissing": 2,
+    "missingContextDryRunExit": 2,
+    "falsePositiveRate": null,
+    "falseNegativeRate": null,
+    "blockedBy": [
+      "CLOUDFLARE_ACCOUNT_ID",
+      "CLOUDFLARE_AI_GATEWAY_ID",
+      "CLOUDFLARE_AI_GATEWAY_API_KEY"
+    ]
+  },
+  "limitations": [
+    "The live JevLint intervention was blocked before inference, so this is not a completed static-plus-JevLint-plus-LLM comparison.",
+    "All baseline code tasks reached the ceiling. No task-completion improvement was observed, and no post-hoc prompt or case tuning was performed.",
+    "One pair per code case cannot establish stable effects, individual tool causality, latency gains or fewer future user corrections.",
+    "Documentation-only trials used the same existing procedure and are excluded from code-skill improvement counts.",
+    "Manual review was performed by a condition-label-blinded LLM, not a human acceptance or independent reader study.",
+    "Controlled directory separation is not OS-level sandboxing. Candidates were authorized synthetic inputs, not arbitrary third-party submissions.",
+    "Automatic skill activation in installed clients, complete ASD-STE100 dictionary compliance and production deployment were not measured."
+  ]
+}

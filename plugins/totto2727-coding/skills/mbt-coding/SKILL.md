@@ -49,6 +49,7 @@ Read only the relevant reference; already available principles need not be reloa
 
 ## Related skills
 
+- [`code-review`](../code-review/SKILL.md): task-contract review with existing static checks, bounded contextual rules, wider LLM review, and actual consumer verification.
 - [`lens`](https://github.com/totto2727-org/lens/blob/main/.agents/skills/lens/SKILL.md): authoritative Lens usage and MoonBit JSON boundary guidance; use [`json.md`](references/json.md) for raw-content fallback routing.
 - [`moonbit-orientation`](https://github.com/moonbitlang/skills/blob/master/skills/moonbit-orientation/SKILL.md): official MoonBit source-of-truth routing. Use the local skill when installed; otherwise fetch the [official MoonBit documentation Markdown source index](https://raw.githubusercontent.com/moonbitlang/moonbit-docs/main/next/index.md) directly. For source links beginning with `/`, strip the leading slash and resolve the path under `https://raw.githubusercontent.com/moonbitlang/moonbit-docs/main/next/`.
 - [`mbt-test`](../mbt-test/SKILL.md): MoonBit test implementation.
