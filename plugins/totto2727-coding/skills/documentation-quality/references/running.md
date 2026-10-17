@@ -247,8 +247,9 @@ A mixed catalog cannot receive overall semantic acceptance from this mode.
 
 ## Configure semantic inference
 
-Use [decision-model](../../../../external-information/skills/decision-model/SKILL.md) for judgment design and task-specific calibration.
-Use [cloudflare-ai](../../../../external-information/skills/cloudflare-ai/SKILL.md) for current model selection, credentials, account and Gateway configuration, and billing rules.
+Use [decision-model](../../decision-model/SKILL.md) for judgment design and task-specific calibration.
+Use [cloudflare-ai](../../cloudflare-ai/SKILL.md) for current model selection, credentials, account and Gateway configuration, and billing rules.
+If a relative path is unavailable, use the corresponding [decision-model source](https://github.com/totto2727-org/agent/blob/main/plugins/external-information/skills/decision-model/SKILL.md) or [cloudflare-ai source](https://github.com/totto2727-org/agent/blob/main/plugins/external-information/skills/cloudflare-ai/SKILL.md).
 Set `manifest.model` only for the selected supported Decision Model.
 The evaluator uses Cloudflare's documented native or universal Decision Model route.
 Even when a model identifier names another provider, do not operate that provider directly or add a provider-direct fallback.

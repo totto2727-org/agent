@@ -62,7 +62,8 @@ Treat protected syntax, names, and exact quotations according to their role and 
 ## Scripted and semantic evaluation
 
 Use [running evaluations](references/running.md) for manifests, local execution, Cloudflare routes, and report interpretation.
-Use [decision-model](../../../external-information/skills/decision-model/SKILL.md) for typed judgment design and calibration, and [cloudflare-ai](../../../external-information/skills/cloudflare-ai/SKILL.md) for model selection, transport, and authentication.
+Use [decision-model](../decision-model/SKILL.md) for typed judgment design and calibration, and [cloudflare-ai](../cloudflare-ai/SKILL.md) for model selection, transport, and authentication.
+If a relative path is unavailable, use the corresponding [decision-model source](https://github.com/totto2727-org/agent/blob/main/plugins/external-information/skills/decision-model/SKILL.md) or [cloudflare-ai source](https://github.com/totto2727-org/agent/blob/main/plugins/external-information/skills/cloudflare-ai/SKILL.md).
 Never substitute direct Typesafe or another provider's transport for the selected Cloudflare route.
 A supported model name is not authorization to operate that provider directly.
 
