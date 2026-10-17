@@ -11,8 +11,8 @@ Keep complete command responses and link inventories on disk, and bring only tas
 
 ## Dependencies and Routing
 
-- Use [monid](../monid/SKILL.md) for Monid operations, following that skill's Setup and Run instructions.
-- Use [open-connector](../open-connector/SKILL.md) for Cloudflare Browser Run, following that skill's Setup and Run instructions.
+- Use [monid](../monid/SKILL.md) for Monid operations.
+- Use [open-connector](../open-connector/SKILL.md) for Cloudflare Browser Run.
   **Context7 and Cloudflare Browser Run must execute directly through OOMOL/OpenConnector and must never use Monid**, including as a fallback for missing connections or failed calls.
   Context7 library lookup belongs to [doc-search](../doc-search/SKILL.md), not Monid discovery.
 - If a required skill cannot run, report the blocker and follow the failure rules below; do not bypass its gateway requirements.
@@ -23,7 +23,7 @@ Keep complete command responses and link inventories on disk, and bring only tas
 
 | Need                                                                           | Preferred route                                                |
 | ------------------------------------------------------------------------------ | -------------------------------------------------------------- |
-| Ordinary web search or page text                                               | Gateway-configured Monid CLI: TinyFish `/search` or `/fetch`   |
+| Ordinary web search or page text                                               | Monid CLI: TinyFish `/search` or `/fetch`                      |
 | Choose related pages from returned URLs                                        | Decision Model through Cloudflare AI, then fetch selected URLs |
 | Browser interaction, rendering control, or extraction TinyFish cannot preserve | Cloudflare Browser Run through OpenConnector                   |
 | Social timelines, transcripts, or other specialized data                       | Discover and inspect a suitable Monid API                      |
