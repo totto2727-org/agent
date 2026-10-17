@@ -1,0 +1,105 @@
+{
+  "schema": "review-contract-monid-supplement-1",
+  "date": "2026-10-17",
+  "route": "installed monid wrapper -> OOMOL proxy -> typesafe /systemone",
+  "model": "jev-1.13.0",
+  "builderRevision": "ae39d96e96c7e4d1c2762d3ba97f3dabb20a77fd",
+  "prepared": "2026-10-17T10:47:42.349Z",
+  "builderSources": {
+    "questions.ts": "0755683696e39ae4234fe8a610a6ce4bb740505c9971d4f720ea73bebe25e750",
+    "state.ts": "867e963f0142ff9e9738a6fef33cb088d409fb819a19038ad53e1d24ebda0402",
+    "rules.ts": "dd9c8d408f9b128139c4f30d9b92e2cc122e01d93cbd10261ef9b88b21bc535b"
+  },
+  "controls": [
+    {
+      "id": "Q1",
+      "packetSha256": "b5918b23ff1ff08bf581fcb7f742393ebdb240590dc5bfbda3624cb08368708b",
+      "inputSha256": "c0100d2f84285c88c86a4709a697db41d61b638ca918b3c2fd418edd201eadf6",
+      "expected": "defect",
+      "status": "COMPLETED",
+      "httpStatus": 200,
+      "model": "jev-1.13.0",
+      "answer": {
+        "type": "score",
+        "score": 2.5,
+        "confidence": 0.51,
+        "legend": {
+          "0": "The rule does not apply to this code at all: the matcher caught something the rule was not written about.",
+          "1": "The rule applies and this code satisfies it: it already does what the rule asks for.",
+          "2": "The rule applies and this code arguably breaks it: a reviewer could raise it, and could reasonably let it go.",
+          "3": "The rule applies and this code clearly breaks it: a reviewer would ask for a change."
+        },
+        "probabilities": {
+          "0": 0.09,
+          "1": 0.05,
+          "2": 0.12,
+          "3": 0.74
+        }
+      },
+      "usage": {
+        "input_tokens": 1316,
+        "output_tokens": 21
+      },
+      "billing": {
+        "currency": "USD",
+        "value": 55,
+        "unit": "MICRO_DOLLAR"
+      },
+      "startedAt": "2026-10-17T10:47:47.286Z",
+      "completedAt": "2026-10-17T10:47:48.136Z",
+      "durationMs": 5612
+    },
+    {
+      "id": "Q2",
+      "packetSha256": "c0eff00d8271ca4326a62e71a4df3fb393b64daefbf40f834b8b02dac6c70e6c",
+      "inputSha256": "95ff20735c096eab386ee2fd805ae90a94d8a97608df8ef7655d844bba6d01e4",
+      "expected": "clean",
+      "status": "COMPLETED",
+      "httpStatus": 200,
+      "model": "jev-1.13.0",
+      "answer": {
+        "type": "score",
+        "score": 1.03,
+        "confidence": 0.91,
+        "legend": {
+          "0": "The rule does not apply to this code at all: the matcher caught something the rule was not written about.",
+          "1": "The rule applies and this code satisfies it: it already does what the rule asks for.",
+          "2": "The rule applies and this code arguably breaks it: a reviewer could raise it, and could reasonably let it go.",
+          "3": "The rule applies and this code clearly breaks it: a reviewer would ask for a change."
+        },
+        "probabilities": {
+          "0": 0.03,
+          "1": 0.93,
+          "2": 0.02,
+          "3": 0.02
+        }
+      },
+      "usage": {
+        "input_tokens": 1483,
+        "output_tokens": 21
+      },
+      "billing": {
+        "currency": "USD",
+        "value": 62,
+        "unit": "MICRO_DOLLAR"
+      },
+      "startedAt": "2026-10-17T10:47:55.053Z",
+      "completedAt": "2026-10-17T10:47:55.879Z",
+      "durationMs": 7764
+    }
+  ],
+  "answered": 2,
+  "missing": 0,
+  "requests": 2,
+  "retry": 0,
+  "observedSeparation": 1.47,
+  "originalComparisonUnchanged": true,
+  "totalInputTokens": 2799,
+  "totalOutputTokens": 42,
+  "reportedCostUsd": 0.000117,
+  "limits": [
+    "Different route and pinned model from original Cloudflare trial",
+    "Not an end-to-end JevLint transport test",
+    "Two examples do not calibrate a threshold or establish general FP/FN or task-completion improvement"
+  ]
+}

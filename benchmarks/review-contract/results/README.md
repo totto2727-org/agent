@@ -56,9 +56,46 @@ nix develop --command node --test 'benchmarks/review-contract/*.test.mjs'
 The patches use standard Git zero-context format against the exact frozen public inputs, so apply them with `--unidiff-zero`.
 The reproduction test checks patch hashes, applies each patch and executes the actual public fixture operations.
 
+## Wrapper-assisted live control: 2026-10-17
+
+This supplement serves reviewers checking the model-call evidence, not users choosing a calibrated approval gate.
+The installed `oo` and `monid` launchers supply their proxy configuration and authentication to child processes.
+Both launchers ran without an executable-permission error.
+`oo search` and `monid whoami` reached their public APIs.
+A missing variable in the parent shell does not establish that a configured launcher cannot call its service.
+Do not invoke an underlying binary without preserving the launcher's environment and routing.
+
+The Monid proxy exposes TypeSafe `/systemone`, not the original Cloudflare transport.
+After declaring this route difference, two requests used pinned `jev-1.13.0`, the unchanged packets from the original domain controls, and the original JevLint question and state builders.
+Inputs, model, two-call budget, no-retry policy, and the expected ordering were recorded before inference.
+
+| Control                                                    | Completed answers | Score | Confidence | Observed result at the existing default cutoff of 2 |
+| ---------------------------------------------------------- | ----------------- | ----- | ---------- | --------------------------------------------------- |
+| Q1: missing domain guarantee                               | 1/1               | 2.50  | 0.51       | Reported                                            |
+| Q2: established guarantee and retained external validation | 1/1               | 1.03  | 0.91       | Not reported                                        |
+
+Both calls returned `COMPLETED`, HTTP 200, and the requested model.
+Validation checked exact question coverage, answer types, finite ranges, distributions, and returned rubric text.
+Receipts report 2,799 input tokens, 42 output tokens, and USD 0.000117 in total.
+These two observations separate the existing defect and clean controls, but do not calibrate the default cutoff or establish general false-positive or false-negative rates.
+
+The [saved evidence](monid-20261017/summary.json) includes hashes and receipts without account identifiers or credentials.
+The `.request.txt` files preserve the exact JSON request bytes.
+The [pre-inference record](monid-20261017/freeze.json) binds their hashes and question-builder revision.
+The [converted record](monid-20261017/converted-replay-record.json) explicitly identifies its Monid source: it was **not** emitted by `jev-lint check`.
+The built public JevLint `replay` command consumed that record and returned exit 1, two subjects, zero missing answers, and one finding for Q1 only.
+Its [report](monid-20261017/replay.json) preserves those observed results.
+Replay made zero additional requests.
+
+This is a real Monid inference and public replay check, not an end-to-end JevLint-to-Monid transport integration.
+The original Cloudflare record, eight task runs, frozen rules, and zero-gain comparison remain unchanged.
+Automatic skill activation, representative calibration, and an improvement in task completion remain unverified.
+
 ## What remains before claiming improvement
 
-1. Supply the existing authorized `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_AI_GATEWAY_ID` and `CLOUDFLARE_AI_GATEWAY_API_KEY` to the process without storing them in repository artifacts.
+1. For the original Cloudflare CLI check, first use any existing authorized launcher that supplies its required configuration.
+   Do not infer failure from the parent environment alone.
+   That route requires `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_AI_GATEWAY_ID` and `CLOUDFLARE_AI_GATEWAY_API_KEY`, without storing them in repository artifacts.
 2. Complete the actual configured JevLint route, including defect, hard-clean, justified-exception and missing-evidence controls. Record all answers and missing work.
 3. Fit any necessary per-question threshold on separate calibration examples, then assess independent held-out examples. Do not fit to this comparison.
 4. Pre-register a separate, more discriminating task set and repetitions if task-completion improvement is still the goal. Keep this ceiling result intact.

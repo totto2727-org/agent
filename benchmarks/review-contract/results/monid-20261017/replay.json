@@ -1,0 +1,83 @@
+{
+  "findings": [
+    {
+      "rule": "guarantee-location",
+      "severity": "info",
+      "messageId": "violation",
+      "file": "controls/Q1/packet.md",
+      "line": 1,
+      "endLine": 75,
+      "value": 2.5,
+      "confidence": 0.51,
+      "explanation": null,
+      "cutoff": 2,
+      "margin": 1.25,
+      "kind": "score",
+      "level": "violation",
+      "arm": "bare",
+      "passes": null,
+      "message": "The change misplaces a domain invariant by repeating a guaranteed single-value check in consumers or by relying on a guarantee that supplied construction paths can bypass.",
+      "commit": null,
+      "change": null,
+      "cut": null,
+      "violates": null
+    }
+  ],
+  "review": [],
+  "stats": {
+    "subjects": 2,
+    "reported": 1,
+    "missing": 0,
+    "unsure": 0,
+    "review": 0,
+    "byRule": {
+      "guarantee-location": 1
+    },
+    "byFile": {
+      "controls/Q1/packet.md": {
+        "findings": 1,
+        "subjects": 1
+      },
+      "controls/Q2/packet.md": {
+        "findings": 0,
+        "subjects": 1
+      }
+    }
+  },
+  "degraded": [],
+  "silentRules": [],
+  "idleLanguages": [],
+  "ignored": null,
+  "unpaired": null,
+  "retry": 1,
+  "spent": {
+    "calls": 2,
+    "inputTokens": 2799,
+    "outputTokens": 42,
+    "usd": 0.000117,
+    "usdSource": "Monid reportedCost MICRO_DOLLAR receipts",
+    "retried": 0
+  },
+  "errors": [],
+  "gaps": [
+    {
+      "rule": "guarantee-location",
+      "kind": "score",
+      "matches": 2,
+      "reported": 1,
+      "at": 2,
+      "min": 1.03,
+      "max": 2.5,
+      "median": 1.77,
+      "gap": 1.47,
+      "gapLow": 1.03,
+      "gapHigh": 2.5,
+      "inGap": true,
+      "suggested": 1.77,
+      "verdict": "thin",
+      "values": [2.5, 1.03],
+      "highestBelow": 1.03,
+      "headroom": 0.97
+    }
+  ]
+}

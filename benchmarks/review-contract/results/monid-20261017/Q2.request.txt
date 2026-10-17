@@ -1,0 +1,36 @@
+{
+  "state": {
+    "language": "Text",
+    "reviewing": "a text file, in blocks, against the rules stated in the questions",
+    "subjects": [
+      {
+        "id": "q0000",
+        "rule": "guarantee-location",
+        "node": "block",
+        "lines": "1-86"
+      }
+    ],
+    "file": "packet.md"
+  },
+  "model": "jev-1.13.0",
+  "questions": {
+    "q0000": {
+      "type": "score",
+      "instructions": {
+        "task": "A project has this rule. Judge only the text identified below, against only this rule -- other problems with it are not your concern here.",
+        "rule": "The change misplaces a domain invariant by repeating a guaranteed single-value check in consumers or by relying on a guarantee that supplied construction paths can bypass.",
+        "also": "Judge only when the packet includes the guarantee, producer, relevant construction and consumption paths, and changed validation. A single-value invariant belongs in a canonical constructor or factory, while relationships belong in the owning domain policy. A consumer check is redundant only when the producer enforces the same invariant across all relevant paths. Retain checks at untrusted boundaries or when paths can bypass the guarantee. Do not treat missing creation paths as evidence that the guarantee holds.",
+        "subject": "q0000",
+        "lines": "1-86",
+        "node": "block",
+        "text": "# Task\n# Establish domain guarantees\n\nSeat Ledger summarizes ordered seat assignments.\nMake every constructed Seat have a nonempty trimmed string id and a nonempty trimmed string owner. Invalid arguments must throw, and later assignment must not invalidate these guarantees.\nRemove redundant checks inside `summarize` once construction guarantees them, and replace the custom OrderedBag with a standard collection.\nAccept an iterable of valid Seat objects. The last owner for a duplicate id wins, while that id keeps its first insertion position. Return detached plain `{ id, owner }` rows.\nKeep external JSON validation: the payload must be an array of objects with string id and owner fields. Ignore extra fields, but reject invalid rows rather than filtering them out.\nPreserve the already-correct order semantics and add constructor, boundary, and duplicate tests.\n\n# File: AGENTS.md\n# Seat Ledger maintenance\n\nThis fixture uses Node 24 ESM without dependencies.\nRun `node --test test/*.test.mjs` from this repository.\nKeep `Seat`, `readSeats`, and `summarize` exports stable.\nUse standard collections when they provide the required ordering and lookup behavior.\nValidate untrusted JSON separately from domain construction.\n\n# File: ledger.mjs\nfunction field(value) {\n  if (typeof value !== \"string\" || value.trim() === \"\") throw new Error(\"Invalid seat field\");\n  return value.trim();\n}\n\nexport class Seat {\n  constructor(id, owner) {\n    this.id = field(id);\n    this.owner = field(owner);\n    Object.freeze(this);\n  }\n}\n\nexport function readSeats(text) {\n  const rows = JSON.parse(text);\n  if (!Array.isArray(rows)) throw new Error(\"Expected array\");\n  return rows.map((row) => {\n    if (\n      !row ||\n      typeof row !== \"object\" ||\n      typeof row.id !== \"string\" ||\n      typeof row.owner !== \"string\"\n    )\n      throw new Error(\"Invalid row\");\n    return new Seat(row.id, row.owner);\n  });\n}\n\nexport function summarize(seats) {\n  const owners = new Map();\n  for (const seat of seats) owners.set(seat.id, seat.owner);\n  return Array.from(owners, ([id, owner]) => ({ id, owner }));\n}\n\n# File: test/domain.test.mjs\nimport test from \"node:test\";\nimport assert from \"node:assert/strict\";\nimport { Seat, readSeats, summarize } from \"../ledger.mjs\";\n\ntest(\"constructor owns invariants, boundary rejects bad rows\", () => {\n  assert.deepEqual(summarize([new Seat(\" a \", \" Ada \")]), [{ id: \"a\", owner: \"Ada\" }]);\n  for (const value of [\"\", \" \", null, 5]) assert.throws(() => new Seat(value, \"Ada\"));\n  const seat = new Seat(\"a\", \"Ada\");\n  try {\n    seat.id = \"\";\n  } catch {}\n  assert.equal(seat.id, \"a\");\n  assert.throws(() => readSeats('[{\"id\":\"a\",\"owner\":false}]'));\n  assert.throws(() => readSeats('[{\"id\":\" \",\"owner\":\"Ada\"}]'));\n});\n\n# File: test/ledger.test.mjs\nimport test from \"node:test\";\nimport assert from \"node:assert/strict\";\nimport { Seat, readSeats, summarize } from \"../ledger.mjs\";\n\ntest(\"last value wins without reordering\", () => {\n  assert.deepEqual(\n    summarize([new Seat(\"b\", \"one\"), new Seat(\"a\", \"two\"), new Seat(\"b\", \"three\")]),\n    [\n      { id: \"b\", owner: \"three\" },\n      { id: \"a\", owner: \"two\" },\n    ],\n  );\n  assert.throws(() => readSeats('{\"id\":\"a\",\"owner\":\"one\"}'));\n});\n"
+      },
+      "criteria": [
+        "The rule does not apply to this code at all: the matcher caught something the rule was not written about.",
+        "The rule applies and this code satisfies it: it already does what the rule asks for.",
+        "The rule applies and this code arguably breaks it: a reviewer could raise it, and could reasonably let it go.",
+        "The rule applies and this code clearly breaks it: a reviewer would ask for a change."
+      ]
+    }
+  }
+}
