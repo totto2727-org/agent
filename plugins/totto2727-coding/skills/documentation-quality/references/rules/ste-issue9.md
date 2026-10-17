@@ -24,7 +24,9 @@ A local finding cannot establish that a whole publication complies.
 `not_applicable` requires evidence that the rule's preconditions do not hold, not merely that the check is inconvenient.
 Use `insufficient_context` for a missing deciding fact, and retain any independent proven defect.
 A high-confidence model result does not replace source verification or task-specific calibration.
-Use [decision-model](../../../../../external-information/skills/decision-model/SKILL.md) for the bounded judgment design and [cloudflare-ai](../../../../../external-information/skills/cloudflare-ai/SKILL.md) for the selected execution route.
+Use [decision-model](https://github.com/totto2727-org/agent/blob/main/plugins/external-information/skills/decision-model/SKILL.md) for the bounded judgment design and [cloudflare-ai](https://github.com/totto2727-org/agent/blob/main/plugins/external-information/skills/cloudflare-ai/SKILL.md) for the selected execution route.
+Prefer the installed skills.
+If a required skill is unavailable, use its linked source instructions.
 
 Dictionary-dependent judgments need privately supplied matched Issue 9 entries with their approved forms, meanings, and grammatical roles.
 The adapter can locate candidates deterministically but does not approve their contextual use.
