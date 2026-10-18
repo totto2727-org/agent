@@ -1,54 +1,43 @@
 ---
 name: mbt-coding
 description: >-
-  MoonBit implementation guidance for typed boundaries, state, collections, errors, concurrency, and CLI design. Use when implementing or reviewing MoonBit production code.
+  Apply MoonBit language implementation principles for typed boundaries, enum state, constructors, visibility, readonly fields and alias safety, collections, typed raise effects, and structured concurrency.
+  Use when implementing or reviewing MoonBit production code, not when selecting toolchains or libraries.
 ---
 
-# MoonBit Coding Index
+# MoonBit Coding
 
-All references below are concrete MoonBit implementation guidance. Use [`share-coding`](../share-coding/SKILL.md) for language-independent design decisions.
-Read only the relevant reference; already available principles need not be reloaded.
+For advanced users who make MoonBit-specific implementation decisions.
+Use [share-coding](../share-coding/SKILL.md) for common principles and [mbt-test](../mbt-test/SKILL.md) for tests.
 
-## Type boundaries
+## Failure representation
 
-- [`boundary-conversion.md`](references/boundary-conversion.md) — decode boundary values, validate domain models, and encode request models.
-- [`state-modeling.md`](references/state-modeling.md) — enum state variants and exhaustive transitions.
+Use the `raise` effect for synchronous operations that can fail.
+Declare the narrowest error type that callers can act on.
+Use an open `raise` effect only when the function intentionally forwards heterogeneous failures.
+Use a typed `suberror` when callers need to distinguish failure cases or inspect structured context.
+Use `fail(...)` for a generic failure that has no recoverable domain variants.
 
-## Language conventions
+Use `Result` when failure must be a value in the API contract, such as storage, deferred inspection, or an API that consumes `Result`.
+Otherwise, prefer the typed `raise` effect so the signature exposes failure without manual success and failure handling.
 
-- [`style.md`](references/style.md) — documentation, project README layout, identifiers, callbacks, and ignored results.
-- [`visibility.md`](references/visibility.md) — public type construction, direct readonly field access, `priv` exceptions, open extension boundaries, and test visibility.
-- [`constructors.md`](references/constructors.md) — canonical constructors and factories.
-- [`updates.md`](references/updates.md) — immutable value updates and mutable builder updates.
-- [`sequences.md`](references/sequences.md) — Array and Iter return shapes.
-- [`variants.md`](references/variants.md) — enum representation and typed extraction.
-- [`traits.md`](references/traits.md) — trait definitions and implementations.
-- [`pattern-matching.md`](references/pattern-matching.md) — patterns and guards.
+## Implementation decisions
 
-## Structured values
+| Decision                                          | Reference                                                |
+| ------------------------------------------------- | -------------------------------------------------------- |
+| External values and domain construction           | [Boundary conversion](references/boundary-conversion.md) |
+| Enum state and transitions                        | [State modeling](references/state-modeling.md)           |
+| Identifiers, callbacks, and labelled arguments    | [Style](references/style.md)                             |
+| Construction access, readonly fields, and aliases | [Visibility](references/visibility.md)                   |
+| Canonical constructors and factories              | [Constructors](references/constructors.md)               |
+| Values and mutable builders                       | [Updates](references/updates.md)                         |
+| Array and Iter return shapes                      | [Sequences](references/sequences.md)                     |
+| Enum representation and extraction                | [Variants](references/variants.md)                       |
+| Traits and owned wrappers                         | [Traits](references/traits.md)                           |
+| Guards and exhaustiveness                         | [Pattern matching](references/pattern-matching.md)       |
+| Typed failures and raise effects                  | [Errors](references/errors.md)                           |
+| Array construction and alias safety               | [Arrays](references/arrays.md)                           |
+| Structured execution                              | [Concurrency](references/concurrency.md)                 |
 
-- [`paths.md`](references/paths.md) — preserve `Path` values and join path segments structurally.
-- [`json.md`](references/json.md): route MoonBit JSON and Lens work to the authoritative [`lens`](https://github.com/totto2727-org/lens/blob/main/.agents/skills/lens/SKILL.md) skill, with a GitHub `main` raw-content fallback.
-
-## Failures
-
-- [`errors.md`](references/errors.md) — typed failures, effect signatures, recovery, and repository policy.
-
-## Collections
-
-- [`arrays.md`](references/arrays.md) — construction, alias safety, mutation exceptions, and review criteria.
-
-## Execution
-
-- [`concurrency.md`](references/concurrency.md) — structured concurrent work.
-- [`cli-application.md`](references/cli-application.md) — index of Admiral-based CLI practices.
-
-## Code analysis
-
-- [`code-analysis.md`](references/code-analysis.md) — symbol-aware navigation with `moon ide` for definitions, references, and change impact.
-
-## Related skills
-
-- [`lens`](https://github.com/totto2727-org/lens/blob/main/.agents/skills/lens/SKILL.md): authoritative Lens usage and MoonBit JSON boundary guidance; use [`json.md`](references/json.md) for raw-content fallback routing.
-- [`moonbit-orientation`](https://github.com/moonbitlang/skills/blob/master/skills/moonbit-orientation/SKILL.md): official MoonBit source-of-truth routing. Use the local skill when installed; otherwise fetch the [official MoonBit documentation Markdown source index](https://raw.githubusercontent.com/moonbitlang/moonbit-docs/main/next/index.md) directly. For source links beginning with `/`, strip the leading slash and resolve the path under `https://raw.githubusercontent.com/moonbitlang/moonbit-docs/main/next/`.
-- [`mbt-test`](../mbt-test/SKILL.md): MoonBit test implementation.
+Use [mbt-stack](../mbt-stack/SKILL.md) for toolchains, targets, Admiral, codecs, paths, async libraries, SDKs, and semantic navigation.
+Its [official guidance](../mbt-stack/SKILL.md#official-guidance) supplies MoonBit skill and documentation links.

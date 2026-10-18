@@ -1,74 +1,70 @@
 # Remix Client Event Boundaries
 
-> Document type: concrete TypeScript implementation guidance.
-
-Related references: [Effect Layer](effect-layer.md) and [Effect Runtime](effect-runtime.md).
+For advanced TypeScript users who maintain existing `remix/ui` integrations.
 
 ## Client Event Boundary Pattern
 
-`remix/ui` event handlers are browser boundaries. When a handler performs Effectful work, the handler must execute exactly one whole workflow Effect. The outer callback should only establish the boundary with `Effect.runPromise`; form parsing, state mutation, `handle.update()`, HTTP calls, browser APIs, navigation, and error recovery all belong inside the same `Effect.gen`.
+Treat an existing `on(...)` handler as a browser boundary.
+Use zero runtime executions for purely synchronous local UI behavior and one for a complete Effectful event workflow.
+Keep form parsing, validation, state transitions, HTTP calls, recovery, updates, and dependent navigation in that workflow.
+The outer callback establishes the Effect-to-Promise boundary rather than awaiting a partial operation.
+Use the installed Remix and Effect versions' supported event and runtime APIs.
+
+### Complete submit workflow
+
+This excerpt assumes an existing `signIn(email)` Effect with no remaining service requirements and a `SignInFailed` error.
+The application has already provided the browser HTTP Layer.
+The error's `message` must be safe to display.
+The example omits imports and component setup, not part of the submit workflow.
 
 ```tsx
 <form
-  mix={on('submit', (event) => {
-    // oxlint-disable-next-line rules/no-effect-runtime-run -- Client event boundary executes the whole submit workflow once.
+  mix={on("submit", (event) => {
     void Effect.runPromise(
       Effect.gen(function* () {
-        event.preventDefault()
+        event.preventDefault();
 
-        const formData = new FormData(event.currentTarget)
-        const email = formData.get('email')
+        const email = new FormData(event.currentTarget).get("email");
         if (!Predicate.isString(email) || String.isEmpty(email)) {
-          state.error = 'メールアドレスを入力してください'
-          void handle.update()
-          return yield* Effect.void
+          state.error = "Enter an email address";
+          void handle.update();
+          return;
         }
 
-        state.error = ''
-        state.submitting = true
-        void handle.update()
+        state.error = "";
+        state.submitting = true;
+        void handle.update();
 
-        const client = yield* HttpClient.HttpClient
-        const response = yield* client.execute(
-          HttpClientRequest.post('/api/sign-in', {
-            body: HttpBody.jsonUnsafe({ email }),
-          }),
-        )
-        if (response.status < 200 || response.status >= 300) {
-          return yield* Effect.fail(new Error('サインインに失敗しました'))
-        }
-
-        window.location.href = '/app'
-        return yield* Effect.void
+        yield* signIn(email);
+        window.location.href = "/app";
       }).pipe(
-        // oxlint-disable-next-line promise/prefer-await-to-then -- This is Effect.catch, not Promise.catch.
-        Effect.catch(() =>
+        Effect.catchTag("SignInFailed", (error) =>
           Effect.sync(() => {
-            state.error = 'サインインに失敗しました'
-            state.submitting = false
-            void handle.update()
+            state.error = error.message;
+            state.submitting = false;
+            void handle.update();
           }),
         ),
-        Effect.provide(FetchHttpClient.layer),
       ),
-    )
+    );
   })}
 >
+  <input name="email" type="email" />
+  <button type="submit">Sign in</button>
+</form>
 ```
 
 ### Key Rules
 
-- Each `on(...)` handler must contain **0 or 1 runtime execution**:
-  - 0 for purely synchronous local UI behavior.
-  - 1 when it performs Effectful work such as HTTP, schema decoding, WebAuthn, storage, or navigation coupled to Effect results.
-- Do not use `async` / `await` plus `try` / `catch` around a partial Effect.
-  Use Effect's `catch` operator, `catchTags`, or `tapError` inside the same program. If oxlint confuses `Effect.catch` with Promise `.catch()`, add a targeted `promise/prefer-await-to-then` disable explaining that the operator is Effect, not Promise.
-- Do not mutate component state before or after the Effect boundary. Initial loading state, validation errors, success state, failure state, and `handle.update()` calls are part of the workflow and belong inside `Effect.gen`.
-- Do not navigate outside the Effect after awaiting a partial program.
-  `window.location.href`, `history.pushState`, and Remix navigation helpers belong inside the workflow that proved navigation is allowed.
-- Do not nest `Effect.gen` blocks to split one event workflow. Compose the operations in a single top-level `Effect.gen` and use helper functions only when they name reusable domain behavior.
-- Browser APIs that return promises, such as WebAuthn `navigator.credentials.get/create`, should be wrapped with `Effect.promise` in the same workflow.
-- `FetchHttpClient.layer` may be provided at the client event boundary when the component is the browser runtime boundary. Do not hide that provision inside domain service implementations.
+- Compose reusable operations inside one workflow instead of running nested or sequential partial Effects.
+- Keep initial loading state, validation errors, success state, failure state, and `handle.update()` calls within the workflow when they belong to the operation.
+- Use Effect HTTP clients rather than direct `fetch` for network operations.
+- Keep navigation in the workflow whose result authorizes that transition.
+- Adapt Promise-returning browser APIs such as WebAuthn only at the required browser boundary.
+- Use an adapter with a typed failure when the browser operation can fail recoverably.
+- Provide a browser HTTP client Layer at the event boundary only when that component owns the runtime boundary.
+- Do not hide runtime provision or execution inside a domain service.
+- Keep failure reporting at the owning UI boundary and do not catch merely to discard the original cause.
 
 ## Forbidden Partial Boundary Shape
 
@@ -80,10 +76,11 @@ Related references: [Effect Layer](effect-layer.md) and [Effect Runtime](effect-
 
     await Effect.runPromise(sendRequestOnly);
 
-    // Navigation and final state are outside Effect: forbidden.
+    // Navigation and final state are outside the workflow.
     window.location.href = "/app";
   })}
 />
 ```
 
-The failure mode is the same as Hono endpoint boundaries: the important side effects happen outside the program being typed, logged, recovered, and tested.
+This counterexample leaves state changes and navigation outside the workflow being typed, recovered, and tested.
+Preserve the current application's observable event contract instead of replacing its framework during unrelated maintenance.

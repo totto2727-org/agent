@@ -1,24 +1,39 @@
 ---
 name: rust-coding
 description: >-
-  Rust implementation guidance for web UI, SSE, workflows, LLM integration, input boundaries, tracing, and library selection. Use when implementing or reviewing these concerns.
+  Implement or review Rust types, ownership, borrowing, Result errors, enums, boundary conversion, cancellation, and resource lifetimes.
+  Use for Rust code design and anti-patterns, not toolchain or framework selection.
 ---
 
-# Rust Coding Index
+# Rust Coding
 
-Use [`share-coding`](../share-coding/SKILL.md) for language-independent design decisions.
-Load only the reference that matches the implementation concern; already available principles need not be reloaded.
+For advanced users who implement or review Rust code.
+Use [share-coding](../share-coding/SKILL.md) for common design principles.
+Use [rust-stack](../rust-stack/SKILL.md) for toolchains and libraries, and [rust-test](../rust-test/SKILL.md) for tests.
 
-## Web UI
+## Ownership and borrowing
 
-- [`web-ui-topcoat-datastar.md`](references/web-ui-topcoat-datastar.md) — Topcoat and Datastar responsibilities, reactive ownership, server-rendered partial HTML, URL state, and minimal reconnect-safe SSE design.
+`Arc<T>` shares ownership, but does not make `T` thread-safe.
+Its `Send` and `Sync` implementations still depend on `T`.
+Do not hold lock guards across suspension or external I/O without a concrete lifetime requirement.
 
-## Application libraries
+## Cancellation and lifetimes
 
-- [`application-libraries.md`](references/application-libraries.md) — preferred Rust libraries for LLMs, workflows, input parsing and validation, logging, and dependency versioning.
+Future destruction stops local polling, but does not undo an external side effect.
+Before a future race or a retry, examine the interrupted operation's cancellation-safety contract.
+`Drop` cannot await I/O, so asynchronous cleanup needs explicit shutdown.
+A `'static` task bound does not need leaked or global data.
+Owned data can satisfy the bound without living forever.
 
-## Related skills
+## Official sources
 
-- [`rust-test`](../rust-test/SKILL.md): Rust test implementation.
-- [`share-test`](../share-test/SKILL.md) — language-independent test philosophy.
-- [`share-test-design`](../share-test-design/SKILL.md) — test-design decisions and suitable evidence presentation.
+- [Arc thread safety](https://doc.rust-lang.org/std/sync/struct.Arc.html#thread-safety)
+- [Future polling](https://doc.rust-lang.org/std/future/trait.Future.html)
+- [Tokio cancellation safety](https://docs.rs/tokio/latest/tokio/macro.select.html#cancellation-safety)
+- [Drop](https://doc.rust-lang.org/std/ops/trait.Drop.html)
+- [Static lifetime bounds](https://doc.rust-lang.org/rust-by-example/scope/lifetime/static_lifetime.html)
+
+## Existing web integrations
+
+The [legacy Topcoat and Datastar reference](references/web-ui-topcoat-datastar.md) applies only to maintenance of existing implementations.
+It does not define a new Rust Web profile.
