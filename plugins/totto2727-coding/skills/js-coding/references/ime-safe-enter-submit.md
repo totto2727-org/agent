@@ -1,8 +1,6 @@
 # IME-safe Enter Submission
 
-> Document type: decision guidance and official upstream source routing, not a local copy of the upstream implementation guide.
-
-Read when implementing custom Enter-to-submit behavior in a browser text editor or fixing submission during Japanese, Chinese, or Korean IME conversion.
+For advanced browser developers who implement custom Enter-to-submit behavior or fix submission during Japanese, Chinese, or Korean IME conversion.
 
 ## Decision boundary
 

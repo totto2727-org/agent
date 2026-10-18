@@ -1,6 +1,6 @@
 # MoonBit Style
 
-This reference serves developers who implement MoonBit language conventions.
+For advanced MoonBit users who implement public APIs and callbacks.
 
 ## Documentation
 
@@ -13,14 +13,9 @@ Use the stack's [project README guidance](../../mbt-stack/references/stack/share
 
 ## Names
 
-- Use PascalCase for types and traits.
-- Use snake_case for functions, methods, variables, and parameters.
-- Preserve standard abbreviations such as JSON and ID.
-- Do not invent local abbreviations.
 - Name Array values with an `_array` suffix when it prevents ambiguity about the representation.
 - Use a bare verb for a mutating operation and a past participle for an immutable transformation, such as `sort` versus `sorted`.
-- Name the canonical constructor after the type.
-- Name alternate factories by intent, such as `from_corners` or `new_unit`.
+- Use the [constructor conventions](constructors.md) for canonical construction and intent-specific factories.
 - Add `#alias` or a type alias only when the alternate name is an intentional public contract used by callers.
 
 ## Anonymous functions

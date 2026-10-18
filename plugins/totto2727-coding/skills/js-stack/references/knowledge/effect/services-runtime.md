@@ -1,41 +1,24 @@
 # Effect Services and Runtime
 
-## File Template
+For advanced Effect users who change dependency graphs or resource lifetimes.
+Check APIs against the [installed release](../effect.md).
 
-When this makes the dependency boundary explicit, keep service contracts and Layer definitions together.
+## Service identity
 
-### Export Rules
-
-Export the service contract, identity, and supported Layers.
-Keep construction helpers and raw configuration private unless another public boundary needs them.
-
-### Naming Conventions
-
-| Item                        | Name                                   |
-| --------------------------- | -------------------------------------- |
-| Service value type          | `Instance`                             |
-| Service identity            | `Service`                              |
-| Default Layer               | `layer`                                |
-| Layer variant               | `{variant}Layer`, such as `localLayer` |
-| Private construction helper | `make{Variant}`                        |
-
-### Service Tag Format
-
-Use `@app/{app-name}/feature/{feature-name}/Service` for string identities.
-Keep the identity when its implementation moves between files.
+Use a stable, collision-resistant identity when the installed service API requires a string.
+Do not change that identity merely because the implementation moves between files.
+Follow the package's existing export names rather than imposing a service file template.
 
 ## Layer Constructors
 
-Check service and scoped-resource constructors against the installed release.
 Do not assume that `ServiceMap.Service`, `Context.Service`, or `Layer.scoped` exists across Effect versions.
-
-## Service Access
-
-Do not execute a runtime to obtain dependencies inside business logic.
+For resources, use the installed acquisition and release APIs so that the owning scope controls their lifetime.
 
 ## Layer Composition
 
 Use `Layer.provide` for internal providers and `Layer.provideMerge` when downstream consumers also need those services.
+Check the resulting service outputs and unsatisfied requirements, not only whether the composition type-checks.
+Do not create another connection pool or runtime per service call to hide missing provision.
 
 ## ManagedRuntime
 
@@ -46,8 +29,5 @@ Keep request users and credentials outside process-wide Layers.
 ## DisposableRuntime Pattern
 
 Give each runtime one disposal owner.
+Dispose it on success, failure, and interruption at the end of its intended lifetime.
 Use `Symbol.asyncDispose` and `await using` only when the wrapper, compiler, and host support that contract.
-
-## Environment-Based Runtime Selection
-
-Select production, development, and test Layers at the composition root, not inside business workflows.

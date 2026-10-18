@@ -1,7 +1,7 @@
 # MoonBit Concurrency
 
 This reference serves developers who review MoonBit ordering, task ownership, and cancellation.
-Use [async stack guidance](../../mbt-stack/references/stack/async.md) for concrete library APIs.
+Use [async stack guidance](../../mbt-stack/references/knowledge/async.md) for concrete library APIs.
 
 ## Concurrency rules
 
@@ -11,13 +11,13 @@ Identify independent work before introducing concurrency, and preserve intention
 
 ### Use `@async.all` for homogeneous independent work
 
-Use the stack's [independent I/O guidance](../../mbt-stack/references/stack/async.md#independent-io) for homogeneous task composition and resolved API checks.
+Use the stack's [independent I/O guidance](../../mbt-stack/references/knowledge/async.md#independent-io) for homogeneous task composition and resolved API checks.
 Do not mutate a shared result array from concurrent tasks.
 
 ### Use a task group for heterogeneous independent work
 
 Use a structured scope for work whose result or failure belongs to the current operation.
-Follow the stack's [independent I/O guidance](../../mbt-stack/references/stack/async.md#independent-io) for task-group APIs.
+Follow the stack's [independent I/O guidance](../../mbt-stack/references/knowledge/async.md#independent-io) for task-group APIs.
 Do not let owned tasks outlive their scope.
 
 ### Keep real dependencies sequential
@@ -25,7 +25,7 @@ Do not let owned tasks outlive their scope.
 Keep operations ordered when a later step needs the earlier step's output or side effect.
 Examples include creating a directory before writing inside it and writing a lockfile before invoking its consumer.
 An explicitly sequential executor is also an ordering contract, not an optimization opportunity.
-Use the stack's [task-graph rules](../../mbt-stack/references/stack/async.md#task-graphs) when Workgraph owns execution.
+Use the stack's [task-graph rules](../../mbt-stack/references/knowledge/async.md#task-graphs) when Workgraph owns execution.
 
 ### Prevent shared-resource races
 
@@ -44,7 +44,7 @@ Keep failure identity and structured context instead of logging and discarding t
 
 Propagate cancellation instead of translating it into a successful fallback or a skippable item failure.
 Finish or cancel owned tasks and release their resources before their scope returns.
-Use the stack's [resource-lifetime guidance](../../mbt-stack/references/stack/async.md#process-and-resource-lifetime) for release-specific cleanup mechanisms.
+Use the stack's [resource-lifetime guidance](../../mbt-stack/references/knowledge/async.md#process-and-resource-lifetime) for release-specific cleanup mechanisms.
 
 ### Review the concurrency contract
 

@@ -1,5 +1,6 @@
 # Effront Integration
 
+For advanced application developers who change Effront execution targets or adapters.
 Use the maintained [Effront repository](https://github.com/totto2727-org/effront) for the installed release's documentation.
 
 Select RSC, SSR, and browser imports from the package's conditional exports.

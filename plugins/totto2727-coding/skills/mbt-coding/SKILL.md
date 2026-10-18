@@ -5,10 +5,23 @@ description: >-
   Use when implementing or reviewing MoonBit production code, not when selecting toolchains or libraries.
 ---
 
-# MoonBit Coding Index
+# MoonBit Coding
 
 For advanced users who make MoonBit-specific implementation decisions.
 Use [share-coding](../share-coding/SKILL.md) for common principles and [mbt-test](../mbt-test/SKILL.md) for tests.
+
+## Failure representation
+
+Use the `raise` effect for synchronous operations that can fail.
+Declare the narrowest error type that callers can act on.
+Use an open `raise` effect only when the function intentionally forwards heterogeneous failures.
+Use a typed `suberror` when callers need to distinguish failure cases or inspect structured context.
+Use `fail(...)` for a generic failure that has no recoverable domain variants.
+
+Use `Result` when failure must be a value in the API contract, such as storage, deferred inspection, or an API that consumes `Result`.
+Otherwise, prefer the typed `raise` effect so the signature exposes failure without manual success and failure handling.
+
+## Implementation decisions
 
 | Decision                                          | Reference                                                |
 | ------------------------------------------------- | -------------------------------------------------------- |

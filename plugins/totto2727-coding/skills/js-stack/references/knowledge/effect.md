@@ -1,6 +1,7 @@
-# Effect Knowledge Index
+# Effect Version and Transport Constraints
 
-Use [services and runtime](effect/services-runtime.md) for local service conventions and [Schema integration](effect/schema.md) for transport constraints.
+For advanced Effect users who integrate HTTP codecs or change an installed Effect release.
+Use [services and runtime](effect/services-runtime.md) when changing service identity, Layer outputs, or disposal ownership.
 
 ## Official sources and version checks
 
@@ -12,9 +13,12 @@ HTTP, CLI, Schema, Context, Layer, and runtime module locations can differ betwe
 
 Use the official [v4 migration guide](https://github.com/Effect-TS/effect-smol/blob/main/MIGRATION.md) ([raw Markdown](https://raw.githubusercontent.com/Effect-TS/effect-smol/main/MIGRATION.md)).
 
-## Schema Guide
+## Transport codecs
 
 Use the official [Schema guide](https://github.com/Effect-TS/effect-smol/blob/main/packages/effect/SCHEMA.md) ([raw Markdown](https://raw.githubusercontent.com/Effect-TS/effect-smol/main/packages/effect/SCHEMA.md)).
+Match codec and decoder APIs to the installed release.
+Select codecs for the actual transport, such as JSON, form data, or URL parameters.
+Keep HTTP contract schemas within the supported Effect HTTP API, not a parallel transport type system.
 
 ## How to Refresh
 

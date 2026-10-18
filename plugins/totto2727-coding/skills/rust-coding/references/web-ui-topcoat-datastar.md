@@ -1,40 +1,14 @@
 # Topcoat and Datastar Web UI
 
-This is a legacy maintenance reference for developers of existing Topcoat and Datastar applications.
+This reference serves advanced users who maintain existing Topcoat and Datastar applications.
 It is not a new-project standard or a Rust Web profile.
 Rust Web is outside the current [rust-stack](../../rust-stack/SKILL.md) scope.
 Apply the guidance below only within an existing implementation, and verify its selected library versions before changing behavior.
 
-## Contents
-
-- [Why Topcoat](#why-topcoat)
-- [Why Datastar](#why-datastar)
-- [Combined responsibilities](#combined-responsibilities)
-- [Topcoat reactivity versus Datastar reactivity](#topcoat-reactivity-versus-datastar-reactivity)
-- [Initial render and navigation](#initial-render-and-navigation)
-- [Minimal SSE payloads](#minimal-sse-payloads)
-- [SSE endpoint boundaries](#sse-endpoint-boundaries)
-- [Replay and reconnection](#replay-and-reconnection)
-- [Security and observability](#security-and-observability)
-- [Official sources](#official-sources)
-
-## Why Topcoat
-
-In existing applications, Topcoat keeps routing, typed request extraction, Rust view composition, application context, assets, and SSE responses in one Rust application.
-This maintenance profile applies when the existing application shares types and rendering logic with the backend.
+## Rendering and state ownership
 
 Use Topcoat views as the canonical HTML generator.
 Keep components aligned with independently rendered or patched page regions, and preserve stable element IDs at patch boundaries.
-
-Topcoat is less suitable when the product must run mostly offline, needs a large client-only state machine, or depends on an established frontend ecosystem that should remain the primary application runtime.
-
-## Why Datastar
-
-In existing applications, Datastar adds declarative browser actions, reactive signals, and SSE-driven element or signal patches without requiring application-specific JavaScript for common interactions.
-Keep the browser a thin projection of server state within this maintenance profile.
-
-Use element patches for server-rendered UI and signal patches for small client-facing values.
-Keep domain state, workflow state, authorization, filtering, and history on the server.
 
 Do not treat signals as an untyped global store.
 Use them for ephemeral UI state such as selected controls, pending state, or a trace target.
@@ -56,7 +30,8 @@ Do not independently model the same state in a Topcoat runtime signal, a Datasta
 ## Topcoat reactivity versus Datastar reactivity
 
 Use a Topcoat `#[shard]` when a cohesive component should re-run on the server whenever its reactive arguments change and replacing the shard as a unit is acceptable.
-State declared inside a shard resets when the shard is replaced, so state that must survive belongs outside the shard and flows in through arguments.
+Keep state that must survive shard replacement outside the shard and pass it through arguments.
+Check the installed release's [shard lifecycle](https://github.com/tokio-rs/topcoat/blob/371c7403fcbf4d40bbacb2f87eb98d9ce00e76c8/crates/topcoat-runtime/macro/docs/shard.md) before changing state ownership.
 
 Treat shard arguments as untrusted request input.
 A shard is exposed as its own endpoint, so it must perform the authorization and argument validation required by the rendered data instead of assuming page or layout guards already ran.
@@ -73,26 +48,13 @@ Return a complete and readable initial document through normal HTTP SSR.
 Use SSE for later changes, not as a prerequisite for the first meaningful render.
 
 Represent workflow selection, run selection, and shareable filters in canonical paths and query parameters.
-Normalize invalid or default filter values on the server, preserve active filters in links and redirects, and let reload, sharing, back, and forward navigation reconstruct the same view.
-
-Use server-rendered forms for workflow-owned inputs.
-Let each workflow module own its form fields, typed input DTO, parsing, validation, defaults, graph definition, topology metadata, and schedules.
-Let the application registry import definitions without branching on workflow-specific fields.
+Normalize invalid or default filter values on the server and preserve active filters in links and redirects.
+Reload, sharing, back, and forward navigation must reconstruct the same view.
 
 ## Minimal SSE payloads
 
-Avoid sending a full collection and filtering it in the browser.
-If one row changes in a 100-row history, sending 100 rows on every update wastes network, rendering, and reconciliation work.
-
 Prefer server-side filtering followed by a delta for the already filtered visible set.
 Generate no event when a mutation does not change the subscribed view.
-
-| Avoid                                              | Prefer                                                                              |
-| -------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| Send every history row, then filter in the browser | Parse the filter on the server and patch only an inserted, replaced, or removed row |
-| Replace a whole panel for one status field         | Patch the smallest stable panel or element boundary that remains coherent           |
-| Send an event for every domain mutation            | Send nothing when the mutation has no visible effect for this subscription          |
-| Use SSE as the initial page snapshot               | Render the snapshot with HTTP SSR and start SSE after its revision                  |
 
 For a filtered collection, classify each mutation against membership before and after the change:
 

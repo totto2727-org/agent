@@ -1,6 +1,6 @@
 # Remix Client Event Boundaries
 
-Use this reference only to maintain existing `remix/ui` integrations.
+For advanced TypeScript users who maintain existing `remix/ui` integrations.
 
 ## Client Event Boundary Pattern
 
@@ -9,6 +9,50 @@ Use zero runtime executions for purely synchronous local UI behavior and one for
 Keep form parsing, validation, state transitions, HTTP calls, recovery, updates, and dependent navigation in that workflow.
 The outer callback establishes the Effect-to-Promise boundary rather than awaiting a partial operation.
 Use the installed Remix and Effect versions' supported event and runtime APIs.
+
+### Complete submit workflow
+
+This excerpt assumes an existing `signIn(email)` Effect with no remaining service requirements and a `SignInFailed` error.
+The application has already provided the browser HTTP Layer.
+The error's `message` must be safe to display.
+The example omits imports and component setup, not part of the submit workflow.
+
+```tsx
+<form
+  mix={on("submit", (event) => {
+    void Effect.runPromise(
+      Effect.gen(function* () {
+        event.preventDefault();
+
+        const email = new FormData(event.currentTarget).get("email");
+        if (!Predicate.isString(email) || String.isEmpty(email)) {
+          state.error = "Enter an email address";
+          void handle.update();
+          return;
+        }
+
+        state.error = "";
+        state.submitting = true;
+        void handle.update();
+
+        yield* signIn(email);
+        window.location.href = "/app";
+      }).pipe(
+        Effect.catchTag("SignInFailed", (error) =>
+          Effect.sync(() => {
+            state.error = error.message;
+            state.submitting = false;
+            void handle.update();
+          }),
+        ),
+      ),
+    );
+  })}
+>
+  <input name="email" type="email" />
+  <button type="submit">Sign in</button>
+</form>
+```
 
 ### Key Rules
 
