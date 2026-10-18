@@ -31,7 +31,7 @@ Do not force a contextual relationship into a type that represents only one valu
 
 Do not construct a unique array with manual `contains`, `filter`, `fold`, or a local deduplication helper.
 When uniqueness is a domain invariant, store the values in a collection whose type guarantees uniqueness.
-Convert the set to an array only at a consumer or API boundary that requires a sequence, such as serialization, presentation, interoperability, or a detached public snapshot.
+Convert the set to an array only at a consumer or API boundary that requires a sequence.
 
 Choose the collection by its observable semantics as well as uniqueness: insertion order versus comparison order, `Eq` and `Hash` identity, and mutable versus persistent updates.
 Do not replace an order-preserving representation with a sorted collection unless the domain contract explicitly requires sorted order.
@@ -67,7 +67,7 @@ Keep it isolated at the forwarding boundary instead.
 
 ## Path form invariants
 
-When internal code expects a specific path form, validate and normalize external raw paths or strings in a constructor or equivalent factory before passing them into internal layers.
+Validate and normalize external paths in a constructor before passing them into internal code that requires a specific path form.
 Represent relative paths such as `./...` or `../...`, absolute paths, and URI forms such as `file://...` with types that preserve their distinct invariants.
 Keep filesystem paths and URIs separate.
 Validate a URI scheme before constructing its domain type.
