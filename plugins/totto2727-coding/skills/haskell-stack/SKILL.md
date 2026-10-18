@@ -14,5 +14,3 @@ Use [share-stack](../share-stack/SKILL.md) for general stack policy and [share-c
 - For compiler, manifest, dependency, and task decisions, use the [shared Haskell stack](references/stack/share.md).
 - For CLI libraries and Iris compatibility, use the [CLI stack](references/stack/cli.md).
 - For hosted services, use the shared [service-host policy](../share-stack/SKILL.md#select-a-service-host).
-- For native GUIs, use the shared [GPUI policy](../share-stack/SKILL.md#select-a-gui-stack).
-  This policy does not establish the availability of a direct Haskell binding.

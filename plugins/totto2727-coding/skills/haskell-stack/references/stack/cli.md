@@ -22,7 +22,6 @@ A mandatory Iris default needs an explicit user decision and compatibility check
 
 Use Brick/Vty when terminal interaction needs their event and rendering model.
 Keep a compiler and package plan compatible with those libraries.
-Brick/Vty does not replace the shared [GPUI native GUI policy](../../../share-stack/SKILL.md#select-a-gui-stack).
 
 ## Official references
 

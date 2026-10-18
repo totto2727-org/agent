@@ -1,7 +1,5 @@
 # Rust Desktop Profile
 
-Use GPUI for native GUI applications.
-
 GPUI scheduling and Tokio are distinct.
 Add Tokio only when selected background I/O needs it.
 Use an explicit handoff to GPUI's supported state-update mechanism.
