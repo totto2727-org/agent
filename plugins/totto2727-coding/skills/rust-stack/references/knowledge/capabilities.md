@@ -1,66 +1,51 @@
 # Rust Capability Conventions
 
-Use this reference when implementing a capability that needs workflows, typed formats, validation, or structured telemetry.
-These recommendations are independent of Web applications and apply to CLI, desktop, and LLM compositions as needed.
-Do not add graph-flow, garde, or tracing to applications that do not need the matching capability.
-Read the selected release's official documentation before using concrete APIs.
+Select graph-flow, garde, and tracing independently of one another and of Web, CLI, desktop, or LLM profiles.
 
 ## Workflows with graph-flow
 
-Use graph-flow as the standard recommendation for code-defined graph workflows, tasks, conditional edges, sessions, and observable execution status.
-Keep each workflow in its own module or directory.
-Let it own its stable workflow ID, typed input and validators, graph construction, topology description, defaults, schedules, and display metadata where needed.
-Keep forms with the workflow's input contract when a UI exists, without requiring a UI for workflow execution.
-Let an application registry enumerate definitions and select a runtime by workflow ID.
-Keep immutable graph definitions separate from per-run session state and execution history.
-Use globally unique run or session IDs when runners share storage or history.
-Choose step-by-step execution when callers need the active node, selected edge, timing, state, and output after each task.
-Use continuous execution only when intermediate observability and caller control are unnecessary.
-Keep a serializable topology descriptor beside the graph when a consumer needs introspection the selected engine API does not provide.
-Do not infer routes or domain contracts from private callbacks or engine state.
-Wrap the engine at the application boundary before considering a fork for a confirmed API gap.
-Define cancellation, retry, resume, and persistence behavior explicitly rather than assuming engine sessions provide durable or exactly-once execution.
+Use graph-flow for code-defined graph workflows and observable execution status.
+Keep workflow-owned definitions and input contracts separate from per-run session state and execution history.
+Select step-by-step execution when callers need intermediate status or execution control.
+Use continuous execution when they do not.
+
+If introspection exceeds the engine API, keep a serializable topology descriptor beside the graph.
+Do not infer routes from private callbacks.
+An engine session alone is not evidence of durable or exactly-once execution, retry, or resume semantics.
+Make sure that those contracts meet the application's needs.
 
 ## Serde, garde, then domain construction
 
-Use the format-specific Serde parser to decode bytes or text into a typed wire DTO.
-Use `serde_json` for JSON, `toml` for TOML, and `csv` record deserialization for CSV when those formats are needed.
-Do not keep generic values, maps, or string records in domain code when the input shape is known.
-Let Serde handle structural rules such as field names, required fields, enums, numeric types, and unknown-field policy.
-Prefer `#[serde(deny_unknown_fields)]` for closed input objects where compatible with the chosen representation and format.
-Do not apply that policy blindly to extensible configuration or versioned external protocols.
+| Capability                                | Choice                      |
+| ----------------------------------------- | --------------------------- |
+| JSON                                      | `serde_json`                |
+| TOML                                      | `toml`                      |
+| CSV records                               | `csv` Serde deserialization |
+| Semantic rules beyond structural decoding | garde                       |
 
-Use garde as the standard recommendation when semantic validation requires rules for blank text, lengths, ranges, formats, nested values, cross-field relationships, or custom policies.
-Validate after structural decoding and before domain execution.
-Construct the domain type through `TryFrom` or a fallible constructor after validation.
-Keep parser failures, garde reports, and domain-construction failures as distinct error categories.
-Normalize only when the accepted contract permits it, and use the validated representation for construction and execution.
-Keep workflow-specific DTOs and validators in the workflow module.
-A generic dispatcher should select the workflow and pass boundary input to its owned decoder and validator rather than know every workflow's fields.
-Apply authorization and resource limits separately from deserialization and validation.
+When all three capabilities are necessary, use the sequence `Serde wire DTO -> garde validation -> fallible domain construction`.
+Serde structural decoding is not semantic validation or authorization.
+For closed input objects, use `#[serde(deny_unknown_fields)]` where the representation and protocol let you reject unknown fields.
+Extensible configuration and versioned external protocols can need unknown fields.
+Use [share-coding](../../../share-coding/SKILL.md) for general boundary rules.
 
 ## Logging with tracing
 
-Use tracing as the standard recommendation for structured observability when that capability is needed.
-Initialize its subscriber once at the executable boundary, not inside reusable libraries.
-Prefer spans and structured fields for operation or run IDs, status, duration, and safe failure categories.
-Select consumers and a redaction policy before adding workflow or LLM diagnostics.
-Do not log secrets, complete inputs, prompts, tool arguments, documents, or responses by default.
-Review automatic argument capture and error display for accidental payload exposure.
-Omit query strings and sensitive paths by default, and allowlist only fields known to be safe.
-For existing network adapters, retain safe listening-address and completed-request diagnostics, including method, normalized route or redacted path, status, and elapsed time.
-That maintenance guidance does not select a Rust Web stack.
-For CLI applications, keep diagnostics on stderr so stdout remains a reliable result channel.
-Translate internal error causes into safe user-facing messages at the reporting boundary without destroying the internal error chain.
+Use tracing for structured observability, not as a mandatory dependency.
+Automatic argument capture and error formatting can put payloads in logs even when explicit log fields omit them.
+Do not include prompts, tool arguments, documents, responses, query strings, or sensitive paths by default.
+For existing network adapters, keep safe listening-address and completed-request diagnostics with normalized routes, status, and elapsed time.
+This maintenance requirement does not select a Web stack.
+Keep CLI diagnostics off machine-readable stdout.
 
 ## Official sources
 
 - [graph-flow repository](https://github.com/a-agmon/rs-graph-llm)
-- [graph-flow crate documentation](https://docs.rs/graph-flow/latest/graph_flow/)
+- [graph-flow API](https://docs.rs/graph-flow/latest/graph_flow/)
 - [Serde data model](https://serde.rs/data-model.html)
-- [Serde field and container attributes](https://serde.rs/attributes.html)
-- [serde_json typed deserialization](https://docs.rs/serde_json/latest/serde_json/fn.from_slice.html)
-- [toml typed deserialization](https://docs.rs/toml/latest/toml/fn.from_str.html)
-- [csv Serde deserialization](https://docs.rs/csv/latest/csv/struct.Reader.html#method.deserialize)
-- [garde documentation](https://docs.rs/garde/latest/garde/)
-- [tracing documentation](https://docs.rs/tracing/latest/tracing/)
+- [Serde attributes](https://serde.rs/attributes.html)
+- [serde_json](https://docs.rs/serde_json/latest/serde_json/)
+- [toml](https://docs.rs/toml/latest/toml/)
+- [csv deserialization](https://docs.rs/csv/latest/csv/struct.Reader.html#method.deserialize)
+- [garde](https://docs.rs/garde/latest/garde/)
+- [tracing](https://docs.rs/tracing/latest/tracing/)

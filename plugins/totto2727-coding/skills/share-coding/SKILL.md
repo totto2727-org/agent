@@ -126,7 +126,7 @@ Look for prior art in the same package before introducing a new pattern. Record 
 
 ## Workspace toolchains and tasks
 
-Use [`share-stack`](../share-stack/SKILL.md) for toolchain and dependency policy, CI, and distribution checks.
+Use [`share-stack`](../share-stack/SKILL.md) for shared stack and dependency policy.
 Read its [task orchestration](../share-stack/references/task-orchestration.md) reference when adding or changing recurring tasks, runner selection, task dependencies, or cache boundaries.
 
 ## Abstractions

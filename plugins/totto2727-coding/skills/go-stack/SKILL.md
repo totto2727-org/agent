@@ -1,20 +1,17 @@
 ---
 name: go-stack
 description: >-
-  Select and maintain Go modules, Nix toolchains and packages, gofmt, golangci-lint v2, native build and test tasks, and standard-library CLI composition.
-  Use for Go setup or stack decisions, not Go implementation principles or API lookup alone.
+  Select Go modules, Nix toolchains, gofmt, golangci-lint v2, native tasks, and CLI dependencies.
+  Use for Go stack decisions, not implementation principles or API lookup alone.
 ---
 
 # Go Stack
 
-For developers who configure Go projects and compose CLI applications.
-Read [share-stack](../share-stack/SKILL.md) and the affected repository configuration first.
-Use [go-coding](../go-coding/SKILL.md) for implementation decisions.
+For advanced Go users who select project tools and application dependencies.
+Use [share-stack](../share-stack/SKILL.md) for general stack policy and [go-coding](../go-coding/SKILL.md) for implementation constraints.
 
-- For compiler, modules, formatting, lint, tests, CI, or Nix packaging, read the [shared Go stack](references/stack/share.md).
-- For command parsing, process execution, output, or generator composition, read the [CLI stack](references/stack/cli.md).
-
-For hosted services, follow the Cloudflare Containers default and exception criteria in [share-stack](../share-stack/SKILL.md#select-a-service-host).
-Do not turn local CLI execution or library distribution into a hosted service.
-For native GUI products, follow the shared [GPUI policy](../share-stack/SKILL.md#select-a-gui-stack).
-Do not assume a direct Go binding exists.
+- For compiler, dependency, and task decisions, use the [shared Go stack](references/stack/share.md).
+- For CLI and generator dependencies, use the [CLI stack](references/stack/cli.md).
+- For hosted services, use the shared [service-host policy](../share-stack/SKILL.md#select-a-service-host).
+- For native GUIs, use the shared [GPUI policy](../share-stack/SKILL.md#select-a-gui-stack).
+  This policy does not establish the availability of a direct Go binding.

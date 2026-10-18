@@ -1,48 +1,28 @@
 # Haskell CLI Stack
 
-For developers who compose native commands, JSON adapters, and terminal interfaces.
-Read the [shared Haskell stack](share.md) for the compiler and dependency plan.
-Apply [haskell-coding](../../../haskell-coding/SKILL.md) for typed failures and resource lifetimes.
-
 ## Composition and serialization
 
-Keep a minimal base-only executable dependency-free when it does not need structured command parsing.
-Use `optparse-applicative` when typed options and subcommands are required and its bounds fit the selected compiler.
-Treat parser output as command input, then validate domain constraints before effects run.
-Assemble configuration, file and process adapters, and terminal capabilities in `Main`.
-Call application operations through those capabilities rather than reading environment settings inside pure domain functions.
-Map typed failures to diagnostics and exit status at the command boundary.
-Send machine-readable results to stdout and diagnostics to stderr.
-Do not convert all exceptions into successful empty output.
-
-Use Aeson for JSON input and output when the command has a JSON boundary.
-Decode into explicit wire types with `eitherDecode` or the appropriate strict-input variant, then validate domain invariants.
-Choose explicit field names and compatibility behavior for persisted or public formats.
-Encode outbound values with the agreed wire representation rather than exposing internal domain constructors accidentally.
-For file-backed state, keep durability, atomic replacement, and recovery in the storage adapter.
-Do not treat a file-state implementation as evidence for a universal database stack.
+Keep base-only commands free of a CLI framework when they do not need structured options.
+Use `optparse-applicative` for typed options and subcommands when its bounds fit the selected compiler.
+Use Aeson for JSON boundaries.
+These selections do not establish a database stack.
 
 ## Iris compatibility profile
 
-Iris is conditional, not mandatory for every new Haskell CLI.
-Keep `Iris + optparse-applicative` for a project that has selected this application framework and its compatible dependency plan.
-The c-plugin profile pins GHC 9.4.8 with base 4.17 because its Iris 0.1 bounds require that compiler family.
-Keep its package bounds and Nix overrides aligned instead of using `allow-newer` to force the newer template compiler.
-Do not replace a GHC 9.12 template or lower another product's compiler merely to add Iris.
-Making Iris mandatory for new projects requires an explicit user decision and compatibility validation.
+Iris is optional, not a requirement for new Haskell CLIs.
+For a project that selects Iris, keep `Iris + optparse-applicative` with a compatible dependency plan.
+The c-plugin profile uses GHC 9.4.8 and `base` 4.17 because its Iris 0.1 bounds need that compiler family.
 
-Use Brick/Vty only for terminal interaction that needs their event and rendering model, preserving a compatible compiler and package plan.
-Keep TUI state and events separate from application operations, and release terminal resources on normal exit, failure, and cancellation.
-Provide deliberate behavior for redirected output or a noninteractive terminal when the command supports such use.
-Brick/Vty is a terminal profile, not a replacement for the shared GPUI native GUI standard.
+Keep the package bounds and Nix overrides consistent.
+Do not use `allow-newer` to substitute the newer template compiler.
+Do not downgrade a GHC 9.12 template or another product's compiler only to add Iris.
+A mandatory Iris default needs an explicit user decision and compatibility checks.
 
-## Checks
+## Terminal profile
 
-Use Hspec to check parsing, validation, domain failures, and JSON round trips or compatibility fixtures where applicable.
-Check the built executable's help, stdout/stderr, exit status, and malformed input when command behavior changes.
-For the Iris profile, verify dependency resolution with the selected GHC and base before treating a successful newer-compiler test as relevant.
-Keep terminal integration and heavyweight process or Docker acceptance explicitly selected when they exceed the native test boundary.
-Check cleanup and interrupted operation behavior when terminal or subprocess ownership changes.
+Use Brick/Vty when terminal interaction needs their event and rendering model.
+Keep a compiler and package plan compatible with those libraries.
+Brick/Vty does not replace the shared [GPUI native GUI policy](../../../share-stack/SKILL.md#select-a-gui-stack).
 
 ## Official references
 

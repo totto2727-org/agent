@@ -1,8 +1,5 @@
 # Effect-TS Anti-Patterns
 
-Use this reference when reviewing JavaScript and TypeScript implementation choices.
-Use [share-coding](../../share-coding/SKILL.md) for language-independent boundaries and abstractions.
-
 - Do not write ordinary TypeScript with Effects only around selected I/O calls.
   Use Effect-TS data operations, typed failures, requirements, and explicit lifetime.
 - Do not select native array, string, or date operations because they are familiar.
@@ -17,6 +14,7 @@ Use [share-coding](../../share-coding/SKILL.md) for language-independent boundar
   Use discriminated unions and exhaustive transitions.
 - Do not catch only to log, stringify, rename, or rethrow a failure.
   Propagate the typed failure or translate it once at the owning boundary.
+  Use `Effect.mapError` for translation and `Effect.catchTag` or `Effect.catchTags` for recovery.
 - Do not repeat diagnostics in each service.
   Render and report the final outcome at the application boundary.
 - Do not run a runtime for each operation inside business services.
@@ -28,6 +26,7 @@ Use [share-coding](../../share-coding/SKILL.md) for language-independent boundar
 
 A catch is appropriate when its owner actually recovers or intentionally changes the outcome.
 Preserve structured causes when translating failures and do not turn programmer defects into recoverable errors merely to catch them.
+Define `Data.TaggedError` only when callers need a distinct failure or structured context.
+Choose `HashSet` only when its equality and hashing preserve the domain's identity contract.
 When an SDK requires a Promise, expose the smallest adapter with explicit error and resource behavior.
 Do not hide a partial workflow behind `runPromise` and perform its remaining state changes outside the Effect.
-Use [js-stack services and runtime](../../js-stack/references/knowledge/effect/services-runtime.md) for concrete Layer and lifetime conventions.
