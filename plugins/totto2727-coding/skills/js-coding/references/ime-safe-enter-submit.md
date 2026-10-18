@@ -3,7 +3,6 @@
 > Document type: decision guidance and official upstream source routing, not a local copy of the upstream implementation guide.
 
 Read when implementing custom Enter-to-submit behavior in a browser text editor or fixing submission during Japanese, Chinese, or Korean IME conversion.
-This applies across frameworks, not only Remix.
 
 ## Decision boundary
 

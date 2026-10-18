@@ -36,10 +36,4 @@ Use [Effect CLI](../js-stack/references/stack/cli.md) for new CLIs and approved 
 - [Service exports, Layers, and runtimes](../js-stack/references/knowledge/effect/services-runtime.md)
 - [Package manager](../js-stack/references/stack/share.md#package-manager) and [dependency versions](../js-stack/references/stack/share.md#dependency-versions)
 - [Test implementation](../js-test/SKILL.md)
-
-## Existing integrations
-
-For existing Remix code: [client events](references/remix-client-events.md).
-Use [Effront](../js-stack/references/stack/frontend.md) and [Effect HTTP plus Alchemy](../js-stack/references/stack/backend.md) for new applications.
-
-Use [IME-safe submission](references/ime-safe-enter-submit.md) for custom browser Enter-to-submit behavior.
+- [IME-safe submission](references/ime-safe-enter-submit.md) for custom browser Enter-to-submit behavior
