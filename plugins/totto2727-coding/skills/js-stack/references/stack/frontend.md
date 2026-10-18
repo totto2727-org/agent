@@ -17,6 +17,5 @@ Check that generator or registry output uses [Base UI](https://base-ui.com/react
 Generic shadcn/ui initialization does not establish that selection.
 Form and client-state libraries are not implicit parts of this baseline.
 
-Keep existing Radix, Remix, and Hono contracts during unrelated maintenance.
 Track replacement work in [Issue #60](https://github.com/totto2727-org/agent/issues/60).
 Use [IME-safe submission](../../../js-coding/references/ime-safe-enter-submit.md) for custom Enter-to-submit behavior.

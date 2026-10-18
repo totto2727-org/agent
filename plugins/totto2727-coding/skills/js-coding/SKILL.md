@@ -39,7 +39,6 @@ Use [Effect CLI](../js-stack/references/stack/cli.md) for new CLIs and approved 
 
 ## Existing integrations
 
-For existing Hono code: [handlers](references/hono-handler.md), [context](references/hono-middleware.md), [sub-apps](references/hono-subapp.md), [errors](references/hono-errors.md), and [middleware order](references/hono-ordering.md).
 For existing Remix code: [client events](references/remix-client-events.md).
 Use [Effront](../js-stack/references/stack/frontend.md) and [Effect HTTP plus Alchemy](../js-stack/references/stack/backend.md) for new applications.
 

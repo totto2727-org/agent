@@ -25,13 +25,13 @@ Keep migration plans and progress in issues.
 
 ## Select a language profile
 
-| Language                  | Stack                                      | Coding                                       |
-| ------------------------- | ------------------------------------------ | -------------------------------------------- |
-| JavaScript and TypeScript | [JS stack](../js-stack/SKILL.md)           | [JS coding](../js-coding/SKILL.md)           |
-| MoonBit                   | [MoonBit stack](../mbt-stack/SKILL.md)     | [MoonBit coding](../mbt-coding/SKILL.md)     |
-| Rust                      | [Rust stack](../rust-stack/SKILL.md)       | [Rust coding](../rust-coding/SKILL.md)       |
-| Go                        | [Go stack](../go-stack/SKILL.md)           | [Go coding](../go-coding/SKILL.md)           |
-| Haskell                   | [Haskell stack](../haskell-stack/SKILL.md) | [Haskell coding](../haskell-coding/SKILL.md) |
+| Language                  | Stack                                      | Coding                                    |
+| ------------------------- | ------------------------------------------ | ----------------------------------------- |
+| JavaScript and TypeScript | [JS stack](../js-stack/SKILL.md)           | [JS coding](../js-coding/SKILL.md)        |
+| MoonBit                   | [MoonBit stack](../mbt-stack/SKILL.md)     | [MoonBit coding](../mbt-coding/SKILL.md)  |
+| Rust                      | [Rust stack](../rust-stack/SKILL.md)       | [Rust coding](../rust-coding/SKILL.md)    |
+| Go                        | [Go stack](../go-stack/SKILL.md)           | [Shared coding](../share-coding/SKILL.md) |
+| Haskell                   | [Haskell stack](../haskell-stack/SKILL.md) | [Shared coding](../share-coding/SKILL.md) |
 
 ## Select a baseline without forcing a migration
 

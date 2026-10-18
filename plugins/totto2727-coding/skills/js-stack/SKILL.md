@@ -20,4 +20,3 @@ These defaults do not authorize migrations of existing applications or upstream-
 - [Effront integration](references/knowledge/effront.md): conditional exports and adapter compatibility.
 
 Use [js-test](../js-test/SKILL.md) for tests and [nix-stack](../nix-stack/SKILL.md) for Nix mechanics.
-Track Hono and Remix replacement work in [Issue #60](https://github.com/totto2727-org/agent/issues/60).

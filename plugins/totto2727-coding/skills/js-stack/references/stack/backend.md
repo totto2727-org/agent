@@ -1,6 +1,6 @@
 # Backend Composition
 
-Use Effect HTTP with Alchemy for new services, not a Hono wrapper.
+Use Effect HTTP with Alchemy for new services.
 Apply [shared hosting policy](../../../share-stack/SKILL.md#select-a-service-host) before selecting an adapter.
 
 ## HTTP and infrastructure
