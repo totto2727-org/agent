@@ -1,6 +1,7 @@
 # Hono Sub-App
 
-> Document type: concrete TypeScript implementation guidance.
+Use this reference only to maintain existing Hono sub-apps and their established factory helpers.
+Use [Effect HTTP plus Alchemy](../../js-stack/references/stack/backend.md) for new backends.
 
 ## Sub-App Pattern
 

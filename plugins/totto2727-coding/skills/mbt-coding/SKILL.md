@@ -1,54 +1,64 @@
 ---
 name: mbt-coding
 description: >-
-  MoonBit implementation guidance for typed boundaries, state, collections, errors, concurrency, and CLI design. Use when implementing or reviewing MoonBit production code.
+  Apply MoonBit language implementation principles for typed boundaries, enum state, constructors, visibility, readonly fields and alias safety, collections, typed raise effects, and structured concurrency.
+  Use when implementing or reviewing MoonBit production code, not when selecting toolchains or libraries.
 ---
 
 # MoonBit Coding Index
 
-All references below are concrete MoonBit implementation guidance. Use [`share-coding`](../share-coding/SKILL.md) for language-independent design decisions.
-Read only the relevant reference; already available principles need not be reloaded.
+Use this skill for MoonBit-specific implementation decisions.
+Use [share-coding](../share-coding/SKILL.md) for language-independent design principles.
+Use [mbt-stack](../mbt-stack/SKILL.md) for toolchains, targets, library selection, and CLI or SDK composition.
+Read only the reference needed for the current change.
+These principles do not authorize unrelated refactoring of maintained applications or upstream-first forks.
 
 ## Type boundaries
 
-- [`boundary-conversion.md`](references/boundary-conversion.md) — decode boundary values, validate domain models, and encode request models.
-- [`state-modeling.md`](references/state-modeling.md) — enum state variants and exhaustive transitions.
+- [Boundary conversion](references/boundary-conversion.md): decode external values, validate domain models, and encode request models.
+- [State modeling](references/state-modeling.md): enum variants and exhaustive transitions.
 
 ## Language conventions
 
-- [`style.md`](references/style.md) — documentation, project README layout, identifiers, callbacks, and ignored results.
-- [`visibility.md`](references/visibility.md) — public type construction, direct readonly field access, `priv` exceptions, open extension boundaries, and test visibility.
-- [`constructors.md`](references/constructors.md) — canonical constructors and factories.
-- [`updates.md`](references/updates.md) — immutable value updates and mutable builder updates.
-- [`sequences.md`](references/sequences.md) — Array and Iter return shapes.
-- [`variants.md`](references/variants.md) — enum representation and typed extraction.
-- [`traits.md`](references/traits.md) — trait definitions and implementations.
-- [`pattern-matching.md`](references/pattern-matching.md) — patterns and guards.
-
-## Structured values
-
-- [`paths.md`](references/paths.md) — preserve `Path` values and join path segments structurally.
-- [`json.md`](references/json.md): route MoonBit JSON and Lens work to the authoritative [`lens`](https://github.com/totto2727-org/lens/blob/main/.agents/skills/lens/SKILL.md) skill, with a GitHub `main` raw-content fallback.
+- [Style](references/style.md): public documentation, identifiers, callbacks, labelled arguments, and ignored results.
+- [Visibility](references/visibility.md): construction boundaries, readonly fields, alias protection, extension points, and test visibility.
+- [Constructors](references/constructors.md): canonical constructors and intent-specific factories.
+- [Updates](references/updates.md): immutable values and mutable builders.
+- [Sequences](references/sequences.md): Array and Iter return shapes.
+- [Variants](references/variants.md): enum representation and typed extraction.
+- [Traits](references/traits.md): behavior contracts, implementations, and owned wrappers.
+- [Pattern matching](references/pattern-matching.md): patterns, guards, and exhaustiveness.
 
 ## Failures
 
-- [`errors.md`](references/errors.md) — typed failures, effect signatures, recovery, and repository policy.
+- [Errors](references/errors.md): typed failures, effect signatures, recovery, and error context.
 
 ## Collections
 
-- [`arrays.md`](references/arrays.md) — construction, alias safety, mutation exceptions, and review criteria.
+- [Arrays](references/arrays.md): construction, shared-reference alias safety, and mutation exceptions.
+
+## Stack and test routing
+
+- [mbt-stack](../mbt-stack/SKILL.md): Nix and Moon tooling, target capability proof, Admiral, JSON, async I/O, and SDK boundaries.
+- [share-stack](../share-stack/SKILL.md): common environment, task, CI, hosting, and distribution policy.
+- [mbt-test](../mbt-test/SKILL.md): test implementation, assertions, and fixtures.
+
+Prefer locally installed official [MoonBit skills](https://github.com/moonbitlang/skills), including [moonbit-orientation](https://github.com/moonbitlang/skills/blob/master/skills/moonbit-orientation/SKILL.md), when available.
+Otherwise use the [official MoonBit documentation](https://docs.moonbitlang.com/en/latest/) and [Markdown source index](https://raw.githubusercontent.com/moonbitlang/moonbit-docs/main/next/index.md).
+Use the stack's [official Lens routing](../mbt-stack/references/stack/json.md#official-lens-guidance) when Lens-specific guidance is needed.
+
+## Structured values
+
+Use [JSON boundaries](../mbt-stack/references/stack/json.md) for codecs and [path boundaries](../mbt-stack/references/stack/json.md#path-boundaries) for the selected path library.
 
 ## Execution
 
-- [`concurrency.md`](references/concurrency.md) — structured concurrent work.
-- [`cli-application.md`](references/cli-application.md) — index of Admiral-based CLI practices.
+Use [concurrency principles](references/concurrency.md) for language-level execution decisions and [CLI composition](../mbt-stack/references/stack/cli.md) for Admiral applications.
 
 ## Code analysis
 
-- [`code-analysis.md`](references/code-analysis.md) — symbol-aware navigation with `moon ide` for definitions, references, and change impact.
+Use the stack's [semantic navigation](../mbt-stack/references/stack/share.md#semantic-navigation) for Moon IDE tooling.
 
 ## Related skills
 
-- [`lens`](https://github.com/totto2727-org/lens/blob/main/.agents/skills/lens/SKILL.md): authoritative Lens usage and MoonBit JSON boundary guidance; use [`json.md`](references/json.md) for raw-content fallback routing.
-- [`moonbit-orientation`](https://github.com/moonbitlang/skills/blob/master/skills/moonbit-orientation/SKILL.md): official MoonBit source-of-truth routing. Use the local skill when installed; otherwise fetch the [official MoonBit documentation Markdown source index](https://raw.githubusercontent.com/moonbitlang/moonbit-docs/main/next/index.md) directly. For source links beginning with `/`, strip the leading slash and resolve the path under `https://raw.githubusercontent.com/moonbitlang/moonbit-docs/main/next/`.
-- [`mbt-test`](../mbt-test/SKILL.md): MoonBit test implementation.
+Use the stack and test routing above to select the owning skill rather than duplicating library guidance here.

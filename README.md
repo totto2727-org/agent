@@ -61,6 +61,21 @@ Use [documentation-quality](plugins/totto2727-coding/skills/documentation-qualit
 Use [share-stack](plugins/totto2727-coding/skills/share-stack/SKILL.md) for shared toolchain, dependency, task, CI, and distribution policy.
 Use [realpath](plugins/totto2727-coding/skills/realpath/SKILL.md) for filesystem path calculations and [skill-reviewer](plugins/totto2727-coding/skills/skill-reviewer/SKILL.md) for Agent Skill reviews.
 
+Choose a coding skill for implementation principles and a stack skill for architecture, libraries, and toolchains:
+
+| Scope                     | Coding                                                                    | Stack                                                                   |
+| ------------------------- | ------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| JavaScript and TypeScript | [js-coding](plugins/totto2727-coding/skills/js-coding/SKILL.md)           | [js-stack](plugins/totto2727-coding/skills/js-stack/SKILL.md)           |
+| MoonBit                   | [mbt-coding](plugins/totto2727-coding/skills/mbt-coding/SKILL.md)         | [mbt-stack](plugins/totto2727-coding/skills/mbt-stack/SKILL.md)         |
+| Rust                      | [rust-coding](plugins/totto2727-coding/skills/rust-coding/SKILL.md)       | [rust-stack](plugins/totto2727-coding/skills/rust-stack/SKILL.md)       |
+| Go                        | [go-coding](plugins/totto2727-coding/skills/go-coding/SKILL.md)           | [go-stack](plugins/totto2727-coding/skills/go-stack/SKILL.md)           |
+| Haskell                   | [haskell-coding](plugins/totto2727-coding/skills/haskell-coding/SKILL.md) | [haskell-stack](plugins/totto2727-coding/skills/haskell-stack/SKILL.md) |
+| Nix infrastructure        | [share-coding](plugins/totto2727-coding/skills/share-coding/SKILL.md)     | [nix-stack](plugins/totto2727-coding/skills/nix-stack/SKILL.md)         |
+
+For example, ask: "Use js-stack to select the standard architecture for a new Worker API and js-coding for its implementation principles."
+The expected guidance separates the concrete stack from Effect-TS coding rules, selects pnpm for dependency management, and keeps Bun's Nix build role separate.
+The stack skills do not migrate an existing project or deploy a service without authorization.
+
 ### `external-information`
 
 Provides six coordinated skills:

@@ -1,27 +1,20 @@
 # @totto2727/fp Installation
 
-> Document type: concrete package setup guidance.
-
-A TypeScript functional programming utility library that provides unified re-exports and bridge modules for Effect, option-t, and other FP libraries.
+Read this reference only when maintaining a repository that uses `@totto2727/fp` or when its adoption is explicitly required.
+The package is not a prerequisite for generic Effect code.
 
 ## Installation
 
-`effect@beta` is a required peer dependency and must be installed alongside `@totto2727/fp`.
+Check the selected package release's published exports, peer dependencies, and supported runtimes before adding it.
+Resolve a compatible Effect version under [JS dependency safeguards](../../js-stack/references/stack/share.md#dependency-versions).
+Do not assume `effect@beta` is a permanent peer requirement or bypass release-age rules to satisfy an old example.
 
 ### Node.js
 
-```bash
-vp add jsr:@totto2727/fp effect@beta
-```
+Use the repository's Vite+ dependency interface and existing dependency manager to add the verified JSR package and required peers.
+Preserve its authoritative lockfile.
 
 ### Deno
 
-```bash
-# Add to deno.json
-deno add jsr:@totto2727/fp npm:effect@beta
-```
-
-```ts
-// Direct import (without deno.json)
-import { Result } from "jsr:@totto2727/fp@<version>/option-t";
-```
+Preserve the repository's Deno/JSR profile and use its documented dependency entry points.
+Do not change supported consumer runtimes merely to apply the pnpm default.

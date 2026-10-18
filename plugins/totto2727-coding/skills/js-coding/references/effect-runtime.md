@@ -1,18 +1,15 @@
 # Effect Runtime
 
-> Document type: concrete TypeScript implementation guidance.
+Concrete runtime conventions belong to [js-stack services and runtime](../../js-stack/references/knowledge/effect/services-runtime.md).
 
 ## ManagedRuntime
 
-`ManagedRuntime.make(composedLayer)` creates a runtime that manages the lifecycle of all services.
+Use the canonical [host-boundary guidance](../../js-stack/references/knowledge/effect/services-runtime.md#managedruntime).
 
 ## DisposableRuntime Pattern
 
-Wrap `ManagedRuntime` with `Symbol.asyncDispose` for automatic cleanup. Use `await using` for request-scoped lifecycle.
+Use the canonical [disposal guidance](../../js-stack/references/knowledge/effect/services-runtime.md#disposableruntime-pattern).
 
 ## Environment-Based Runtime Selection
 
-Provide separate runtime variants per environment (production, development, test) with different Logger configurations:
-
-- Production: `Logger.consoleJson`
-- Development: `Logger.consolePretty()`
+Use the canonical [environment selection guidance](../../js-stack/references/knowledge/effect/services-runtime.md#environment-based-runtime-selection).

@@ -1,39 +1,36 @@
 # MoonBit Boundary Conversion
 
-> Document type: concrete MoonBit implementation guidance.
+This reference serves developers who implement typed MoonBit input and output boundaries.
 
 ## Boundary pipeline
 
-Keep `Json`, `@admiral.Context`, environment strings, and weak library values inside the adapter that receives them. Convert them through explicit types:
+Keep weak external values inside the adapter that receives them.
+Convert them through explicit types:
 
 ```text
-Json -> external response type -> validated domain type -> external request type -> Json
+external value -> wire type -> validated domain type -> request type -> external value
 ```
 
-An external response type mirrors the remote contract and can use the optional and primitive fields that the source actually sends. A domain constructor validates identifiers, enum cases, units, ranges, required relationships, and cross-field invariants before returning the internal type. An external request type mirrors the outbound contract. Follow [`json.md`](json.md) for the authoritative JSON and Lens implementation rules.
+A wire type mirrors the external contract and can contain the primitive and optional fields that the source actually sends.
+A domain constructor validates identifiers, enum cases, units, ranges, and cross-field invariants before returning the internal type.
+Keep request and response types separate because they represent independently evolving contracts.
+Use typed `raise` effects to expose decoding and validation failures instead of hiding them behind unchecked casts or default values.
 
 ## JSON ingress
 
-Parse and convert incoming JSON inside the transport adapter, then expose the typed external response to the next layer. A transport boundary may translate a JSON decoding failure into its own typed error. Follow [`json.md`](json.md) for codec traits, typed Lens selection, raw-JSON exceptions, and error-path handling.
-
-For a known shape, decode standard `Json` through `FromJson`; use Lens inside a manual implementation when typed paths and precise decode errors are required. Keep representation-level checks in `FromJson`. When decoding a domain type directly, route the decoded fields through the canonical constructor described in [`constructors.md`](constructors.md) so deserialization cannot bypass domain invariants.
-
-When a TOML parser can produce `Json`, convert the document once and reuse the same `FromJson` and Lens boundary instead of maintaining a second untyped traversal. Otherwise, convert its parser-owned value promptly into an explicit wire type. Apply the same rule to each CSV row or another parser result; do not force it through `Json` when that adds no useful contract. Keep syntax, structural decoding, and domain-validation failures distinguishable.
-
-Keep response and request types separate even when their current fields are similar. They belong to different external contracts and may evolve independently.
+Decode the external representation at the adapter boundary and expose a typed wire model to the next layer.
+Keep syntax errors, structural decoding failures, and domain-validation failures distinguishable.
+When decoding a domain type directly, route the decoded fields through its [canonical constructor](constructors.md) so decoding cannot bypass invariants.
+Use [JSON stack guidance](../../mbt-stack/references/stack/json.md) for concrete codec selection and external skill routing.
 
 ## Admiral ingress
 
-Read `@admiral.Context` once in a command-local conversion function. Convert raw flags, positional values, configuration, and environment fallbacks into a validated internal command input. Internal functions must not accept `@admiral.Context`.
-
-For a command that calls an external API, use this sequence:
-
-```text
-@admiral.Context -> command input -> domain operation -> request body -> Json
-```
-
-The command input represents user intent; the request body represents the remote protocol. Do not collapse them into one type or construct request JSON while reading Admiral options.
+Use the stack's [CLI input conversion](../../mbt-stack/references/stack/cli.md#input-conversion) for the Admiral adapter.
+Keep library-owned context out of internal function signatures and represent mutually exclusive command inputs with enums.
 
 ## Library adapters
 
-Treat a library type as an external input when it is too broad to encode the domain invariant. Convert it once in a small adapter, reject unsupported variants there, and expose only the validated domain type to the rest of the program.
+Treat a library type as an external input when it is too broad to encode the domain invariant.
+Convert it once in a small adapter, reject unsupported variants there, and expose only the validated domain type to the rest of the program.
+Use an owned wrapper when a foreign trait cannot be implemented directly for a foreign type.
+Keep wrapper construction and trait behavior under the package that owns the adapter.

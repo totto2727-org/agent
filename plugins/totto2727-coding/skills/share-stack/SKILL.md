@@ -28,6 +28,23 @@ Do not distribute a copy of that skill's documentation.
 Keep temporary migration plans and progress in project issues rather than permanent stack references.
 Keep reusable target architecture and library guidance in the stack.
 
+## Select a language profile
+
+Read only the profile needed for the requested work.
+Use its coding counterpart for implementation principles rather than treating stack selection as code-design guidance.
+
+| Scope                     | Stack                                      | Coding                                               |
+| ------------------------- | ------------------------------------------ | ---------------------------------------------------- |
+| JavaScript and TypeScript | [JS stack](../js-stack/SKILL.md)           | [JS coding](../js-coding/SKILL.md)                   |
+| MoonBit                   | [MoonBit stack](../mbt-stack/SKILL.md)     | [MoonBit coding](../mbt-coding/SKILL.md)             |
+| Rust                      | [Rust stack](../rust-stack/SKILL.md)       | [Rust coding](../rust-coding/SKILL.md)               |
+| Go                        | [Go stack](../go-stack/SKILL.md)           | [Go coding](../go-coding/SKILL.md)                   |
+| Haskell                   | [Haskell stack](../haskell-stack/SKILL.md) | [Haskell coding](../haskell-coding/SKILL.md)         |
+| Nix infrastructure        | [Nix stack](../nix-stack/SKILL.md)         | [Shared coding principles](../share-coding/SKILL.md) |
+
+Nix owns flake, package, overlay, and module mechanics.
+The language profile still owns its compiler declaration, package manager, supported targets, and application architecture.
+
 ## Select a baseline without forcing a migration
 
 Follow explicit user requirements and repository instructions before shared defaults.
@@ -73,6 +90,34 @@ Use GPUI as the standard for native GUI applications across the workspace, not o
 Keep Rust-specific GPUI integration and concrete APIs in the Rust stack profile and link official library guidance.
 Do not assume that every language has a supported GPUI binding or replace an existing GUI during unrelated maintenance.
 Keep this native GUI choice separate from the approved Effront browser application stack and from service-hosting requirements.
+
+## Own database schemas and migrations
+
+For an application-exclusive local database, such as on-device storage, let that application select its schema and migration mechanism.
+Do not apply this exception to a local development replica of a remote database.
+
+For remote databases, use Atlas to own the canonical schema and versioned migration generation.
+Use a schema-first workflow, with declarative changes for local development replicas and reviewed versioned migrations for remote environments.
+Keep generated language types separate from the schema and migration source.
+Generating types does not prove that the checked-in migrations reproduce the canonical schema.
+Replay migrations and compare the resulting schema when that boundary changes.
+
+Choose one application mechanism and one applied-history owner for each deployed database.
+For D1, use Alchemy's existing migration mechanism to apply approved SQL instead of adding an independent runner.
+Check the pinned Alchemy version's directory contract before connecting Atlas output.
+Keep Atlas checksum validation separate if the application mechanism does not validate `atlas.sum`.
+Do not assume that an existing Atlas revision table is adopted by another runner.
+
+SQL-file compatibility does not establish safe execution on every target.
+D1 does not provide ordinary SQLite foreign-key disabling through `PRAGMA foreign_keys = off` inside its implicit transactions.
+A parent-table rebuild can trigger cascading deletion even when the migration reports success.
+Check data preservation as well as the resulting schema and migration history.
+An empty foreign-key check alone does not prove that rows were preserved.
+Do not replace foreign-key disabling with deferred checking and assume that cascades are disabled.
+Reject or require a safe reviewed alternative for generated SQL that cannot preserve the required data.
+
+Use the [Atlas workflow documentation](https://atlasgo.io/) and [D1 foreign-key documentation](https://developers.cloudflare.com/d1/sql-api/foreign-keys/) for the target's current constraints.
+Keep DB access-library choices and language-specific type generation in the applicable language stack.
 
 ## Keep environments and dependencies explicit
 

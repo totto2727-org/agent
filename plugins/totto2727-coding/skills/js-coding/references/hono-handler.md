@@ -1,10 +1,13 @@
 # Hono Handler Boundary
 
-> Document type: concrete TypeScript implementation guidance.
+Use this reference only to maintain existing Hono integrations.
+Use [Effect HTTP plus Alchemy](../../js-stack/references/stack/backend.md) for new backends.
+Verify existing helper and Effect APIs against the installed versions before reusing these patterns.
 
 ## Effect Handler Pattern
 
-Middleware and route handlers share the same structure: the Hono boundary is the only place that converts an `Effect` into a `Promise<Response | void>`.
+Middleware and route handlers share the same structure.
+The Hono boundary is the only place that converts an `Effect` into a `Promise<Response | void>`.
 
 1. Define the whole request workflow as one `Effect.gen`
 2. Define `programWithCatch` to handle errors separately when the endpoint has typed recoverable errors
@@ -28,18 +31,21 @@ return c.var.runtime.runPromise(programWithCatch);
 ### Key Rules
 
 - Each Hono endpoint / middleware must contain **0 or 1 runtime execution**:
-  - 0 when it is purely synchronous Hono code (`c.json`, simple redirects, etc.)
+  - 0 when it is purely synchronous Hono code such as `c.json` or a simple redirect.
   - 1 when it performs any Effectful work
 - The single `runPromise` must wrap the **entire** endpoint / middleware workflow:
   request parsing, service lookup, DB/API calls, cookie mutation, redirects, JSX server-side rendering, and response construction all belong inside the same `Effect.gen`.
 - Do not write `async (c) => { ... await c.var.runtime.runPromise(partialEffect); ... }`.
   That splits the workflow and hides side effects outside Effect.
-- Do not create several nested or sequential `Effect.gen` / `runPromise` blocks inside one Hono handler. Compose effects inside the single top-level program.
+- Do not create several nested or sequential `Effect.gen` / `runPromise` blocks inside one Hono handler.
+  Compose effects inside the single top-level program.
 - Do not `Effect.provide(...)` route-local application layers inside handlers.
-  Services (`BackendClient`, DB, `HttpClient`, etc.) must be provided by the request runtime assembled in `runtime/server.ts`. Route-level `provide` is only for genuinely local, test-only, or explicitly scoped values.
+  Services such as `BackendClient`, DB, and `HttpClient` must be provided by the existing request-runtime composition root.
+  Route-level `provide` is only for genuinely local, test-only, or explicitly scoped values.
 - Always separate `program` and `programWithCatch` when typed error recovery is needed; otherwise a direct `c.var.runtime.runPromise(Effect.gen(...))` is acceptable.
-- Always `Effect.tapError` before `catchTags` for logging.
-- Middleware: wrap `next()` with `Effect.tryPromise(next)` or `Effect.promise(() => next())` inside the same program.
+- Log a failure before recovery only when this boundary owns the final diagnostic.
+  Do not duplicate reporting already owned by another application boundary.
+- Middleware must adapt `next()` inside the same program, using the installed Effect API and an explicit recoverable failure contract where required.
 
 ## Endpoint Boundary Shape
 
@@ -106,4 +112,6 @@ app.get("/me", (c) =>
 );
 ```
 
-Service implementations may require `HttpClient.HttpClient`, but they must not provide `FetchHttpClient.layer` internally. The request runtime provides it.
+Service implementations may require `HttpClient.HttpClient`, but they must not provide `FetchHttpClient.layer` internally.
+The request runtime provides it.
+Use [services and runtime](../../js-stack/references/knowledge/effect/services-runtime.md) for reusable provision and lifetime conventions.
