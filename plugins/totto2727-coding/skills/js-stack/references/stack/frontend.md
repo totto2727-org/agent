@@ -6,8 +6,6 @@ Use [Effront integration](../knowledge/effront.md) for conditional exports and a
 ## Services and hosting
 
 Compose Effront's separate Alchemy adapter with its native Effect HTTP integration, not a second HTTP server.
-Apply [shared hosting policy](../../../share-stack/SKILL.md#select-a-service-host) when selecting the adapter.
-A Node or Bun adapter does not change that policy.
 Keep request-specific services outside a process-wide runtime under [runtime conventions](../knowledge/effect/services-runtime.md#managedruntime).
 
 ## UI components
