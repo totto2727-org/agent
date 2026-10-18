@@ -27,12 +27,3 @@ Use `buildGoModule` for installable applications and [nix-stack](../../../nix-st
 Keep `vendorHash` aligned with external module changes.
 Use `vendorHash = null` only when the dependency or vendoring arrangement supports it.
 Do not assume that a CGO binary is standalone or cross-compilable.
-
-## Official references
-
-- [Go modules and toolchain selection](https://go.dev/ref/mod)
-- [Go toolchains](https://go.dev/doc/toolchain)
-- [golangci-lint configuration](https://golangci-lint.run/docs/configuration/)
-- [Go testing](https://pkg.go.dev/testing)
-- [Race detector support](https://go.dev/doc/articles/race_detector)
-- [Nixpkgs Go packages](https://nixos.org/manual/nixpkgs/stable/#sec-language-go)
