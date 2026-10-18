@@ -1,21 +1,50 @@
 ---
 name: js-coding
 description: >-
-  TypeScript implementation guidance for package management, dependency versions, Effect, Hono, Remix, browser IME input, typed boundaries, and collections. Use when implementing or reviewing these concerns, or changing JavaScript or TypeScript dependencies or package managers.
+  Effect-TS-first JavaScript and TypeScript implementation guidance. Prefer Effect APIs over standard APIs for collections, strings, dates, typed effects, and HTTP. Use when implementing or reviewing these concerns, dependencies, package managers, or existing Hono and Remix integrations.
 ---
 
-# TypeScript Coding Index
+# Effect-TS Coding Index
+
+## Write Effect-TS, not plain TypeScript
+
+Write Effect-TS rather than plain TypeScript with occasional Effect wrappers.
+Prefer Effect-TS APIs over all corresponding JavaScript, TypeScript, and Web standard APIs.
+Apply this rule to pure data operations as well as I/O, not only asynchronous code or error handling.
+
+| Concern                       | Prefer                                                                                                                                    | Do not select by default                                            |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| Array operations              | Effect `Array`                                                                                                                            | Native array methods or custom array helpers                        |
+| String operations             | Effect `String`                                                                                                                           | Native string methods or custom string helpers                      |
+| Dates and time                | Effect `DateTime` and `Clock`                                                                                                             | Native `Date`, `Date.now()`, or manual date arithmetic              |
+| Outbound HTTP                 | Effect HTTP `HttpClient`, `HttpClientRequest`, and `HttpClientResponse`                                                                   | Direct `fetch`, native `Request`, or native `Response`              |
+| Server HTTP and API contracts | Effect HTTP `HttpServerRequest` and `HttpServerResponse`, with `HttpApi`, `HttpApiGroup`, and `HttpApiEndpoint` for typed API definitions | Native request/response classes or hand-written transport contracts |
+
+Choose the Effect API first whenever it provides the required operation.
+Do not choose a standard API merely because it is shorter or familiar.
+Keep native objects only at host or third-party boundaries that require them, and convert there to or from Effect types.
+Use the modules and import paths supported by the project's installed Effect version; confirm them in its official documentation or source.
+Do not invent an Effect replacement for an unsupported platform capability.
+Keep any necessary native operation in the smallest boundary adapter and explain why no applicable Effect API can satisfy it.
+For a new JavaScript or TypeScript CLI, or an explicitly approved CLI migration, always use Effect CLI as its foundation.
+Do not replace an existing CLI foundation during unrelated maintenance; preserve its command-line contract until the migration is authorized.
+
+Do not wrap a pure Effect `Array` or `String` operation in an `Effect` merely to make it look effectful.
+Keep real failures, dependencies, and resource lifetimes explicit through Effect's types and services.
+
+## Reference routing
 
 All references below are concrete TypeScript implementation guidance or an explicit upstream source index. Use [`share-coding`](../share-coding/SKILL.md) for language-independent design decisions.
 Read only the relevant reference; already available principles need not be reloaded.
 
 ## Package manager
 
-- Preserve the workspace template's language settings and toolchain, and extend them only as needed. Use [workspace toolchains and tasks](../share-coding/SKILL.md#workspace-toolchains-and-tasks) for runner selection and [task orchestration](../share-coding/references/task-orchestration.md) for dependencies, project-local scripts, and cache boundaries.
-- Use Node.js as the default runtime and pnpm as the underlying package manager for JavaScript and TypeScript projects maintained by the user, unless the workspace template specifies otherwise.
+- Preserve the workspace template's language settings and toolchain, and extend them only as needed. Use [`share-stack`](../share-stack/SKILL.md) for shared toolchain policy and [task orchestration](../share-stack/references/task-orchestration.md) for runner selection, dependencies, project-local scripts, and cache boundaries.
+- Use the workspace template's pinned runtime for development tooling. For deployed services, follow the [Cloudflare hosting priority](../share-stack/SKILL.md#select-a-service-host); a development runtime does not select the production host.
+- Keep pnpm as the underlying package-manager default unless the workspace template specifies otherwise.
 - Use the Vite+ CLI (`vp`) as the default interface for dependency operations and project tasks.
 - When using pnpm, keep it as the only package manager and `pnpm-lock.yaml` as the authoritative dependency lockfile.
-- Introduce Bun only when direct TypeScript execution requires it. Keep dependency management on pnpm even when Bun executes TypeScript.
+- Use Bun to build JavaScript and TypeScript applications inside Nix. This selects a build tool, not a production server runtime or a different package manager. Preserve the workspace's authoritative dependency manager and lockfile.
 - When changing package managers, preserve the existing release-age window. Convert units without reducing the duration, for example, 86400 seconds to 1440 minutes for pnpm.
 - Package-manager choice is separate from runtime support. Do not change a library's supported runtimes or its Deno design merely to adopt pnpm.
 
@@ -43,7 +72,10 @@ Read only the relevant reference; already available principles need not be reloa
 - [`effect-runtime.md`](references/effect-runtime.md) — managed runtimes, disposal, and environment selection.
 - [`effect-sources.md`](references/effect-sources.md) — live upstream migration and Schema sources.
 
-## Hono
+## Existing Hono integrations
+
+Use these references only to maintain existing Hono code.
+Use Effect HTTP for new backend implementations; track Hono replacement in the project's issues rather than a permanent migration reference.
 
 - [`hono-handler.md`](references/hono-handler.md) — endpoint Effect boundaries and dependency provision.
 - [`hono-middleware.md`](references/hono-middleware.md) — middleware context and authentication boundaries.
@@ -55,7 +87,10 @@ Read only the relevant reference; already available principles need not be reloa
 
 - [`ime-safe-enter-submit.md`](references/ime-safe-enter-submit.md) — read when adding or changing custom Enter-to-submit behavior, or fixing premature submission during IME conversion; routes to official Modern Web Guidance.
 
-## Remix
+## Existing Remix integrations
+
+Use this reference only to maintain existing Remix code.
+Use Effront for new Web applications; track replacement of Remix + Hono in the project's issues.
 
 - [`remix-client-events.md`](references/remix-client-events.md) — client event Effect boundaries.
 

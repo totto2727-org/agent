@@ -58,6 +58,7 @@ Each package contains its manifest at `plugins/<plugin>/plugin.json` and its ski
 
 Provides reusable coding and testing guidance, [documentation-principles](plugins/totto2727-coding/skills/documentation-principles/SKILL.md) for shared writing principles, [share-test-design](plugins/totto2727-coding/skills/share-test-design/SKILL.md) for test-design decisions, and [share-artifact](plugins/totto2727-coding/skills/share-artifact/SKILL.md) for adaptable README, AGENTS.md, and ADR structures.
 Use [documentation-quality](plugins/totto2727-coding/skills/documentation-quality/SKILL.md) to review developer documentation.
+Use [share-stack](plugins/totto2727-coding/skills/share-stack/SKILL.md) for shared toolchain, dependency, task, CI, and distribution policy.
 Use [realpath](plugins/totto2727-coding/skills/realpath/SKILL.md) for filesystem path calculations and [skill-reviewer](plugins/totto2727-coding/skills/skill-reviewer/SKILL.md) for Agent Skill reviews.
 
 ### `external-information`

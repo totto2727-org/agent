@@ -1,7 +1,7 @@
 ---
 name: share-coding
 description: >-
-  Language-independent production-code principles. Use for design decisions about types, boundaries, effects, abstractions, or recurring tasks.
+  Language-independent production-code principles. Use for design decisions about types, boundaries, effects, or abstractions. Use share-stack for toolchain selection and recurring task configuration.
 ---
 
 # Shared Coding Philosophy
@@ -126,14 +126,8 @@ Look for prior art in the same package before introducing a new pattern. Record 
 
 ## Workspace toolchains and tasks
 
-Use each workspace's template as the baseline for language settings and toolchains.
-Keep its compiler, runtime, formatter, linter, test tools, and pinned environment, and add only what the requested behavior requires.
-Do not replace native language entry points merely to unify task execution.
-
-Read [task orchestration](references/task-orchestration.md) when adding or changing recurring tasks or workspace-wide execution.
-Use Vite+ as the default dependency-aware, cached runner for JavaScript or mixed workspaces, or when task caching is required.
-A workspace whose entire project tree has no JavaScript dependency and no need for task-cache control can retain native task entry points without introducing Vite+ or Node.js.
-Use project-local Just recipes only for reusable scripts with complex logic, multiple lines, or many options, not as the primary cross-project runner.
+Use [`share-stack`](../share-stack/SKILL.md) for toolchain and dependency policy, CI, and distribution checks.
+Read its [task orchestration](../share-stack/references/task-orchestration.md) reference when adding or changing recurring tasks, runner selection, task dependencies, or cache boundaries.
 
 ## Abstractions
 
