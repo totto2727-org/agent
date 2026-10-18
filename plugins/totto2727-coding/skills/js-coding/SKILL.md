@@ -36,4 +36,5 @@ Use [Effect CLI](../js-stack/references/stack/cli.md) for new CLIs and approved 
 - [Service exports, Layers, and runtimes](../js-stack/references/knowledge/effect/services-runtime.md)
 - [Package manager](../js-stack/references/stack/share.md#package-manager) and [dependency versions](../js-stack/references/stack/share.md#dependency-versions)
 - [Test implementation](../js-test/SKILL.md)
+- [Remix client event boundaries](references/remix-client-events.md) for existing `remix/ui` implementations
 - [IME-safe submission](references/ime-safe-enter-submit.md) for custom browser Enter-to-submit behavior
