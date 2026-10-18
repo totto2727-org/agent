@@ -1,7 +1,7 @@
 ---
 name: share-stack
 description: >-
-  Select and maintain shared toolchain, dependency, task, CI, hosting, and distribution policies. Use when choosing a standard stack or service host, aligning development and CI commands, or organizing build and test tasks across languages. Keep language-specific choices in the language profile. Not for application-code design or library API lookup alone.
+  Select and maintain shared toolchain, dependency, task, CI, hosting, GUI, and distribution policies. Use when choosing a standard stack, native GUI framework, or service host, aligning development and CI commands, or organizing build and test tasks across languages. Keep language-specific choices in the language profile. Not for application-code design or library API lookup alone.
 ---
 
 # Shared Stack Policy
@@ -66,6 +66,13 @@ This is a service-hosting policy, not a requirement to deploy every library, dev
 When a product must execute on a user's device, identify that requirement explicitly rather than treating its language as an exemption.
 Keep build tools and package managers separate from the selected production host.
 Do not migrate an existing deployment or an upstream-first fork merely to apply the new-project default.
+
+## Select a GUI stack
+
+Use GPUI as the standard for native GUI applications across the workspace, not only for projects whose other components are written in Rust.
+Keep Rust-specific GPUI integration and concrete APIs in the Rust stack profile and link official library guidance.
+Do not assume that every language has a supported GPUI binding or replace an existing GUI during unrelated maintenance.
+Keep this native GUI choice separate from the approved Effront browser application stack and from service-hosting requirements.
 
 ## Keep environments and dependencies explicit
 
