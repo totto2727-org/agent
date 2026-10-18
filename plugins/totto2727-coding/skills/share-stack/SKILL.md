@@ -6,22 +6,53 @@ description: >-
 
 # Shared Stack Policy
 
-For advanced users who select or change a project's stack.
+## Select a service host
 
-## Keep one owner for each policy
+| Service                  | First choice          | Fallback condition                                                                    |
+| ------------------------ | --------------------- | ------------------------------------------------------------------------------------- |
+| JavaScript or TypeScript | Cloudflare Workers    | Use Cloudflare Containers only for required capabilities that Workers cannot provide. |
+| Other languages          | Cloudflare Containers | Use another host only for required capabilities that Containers cannot provide.       |
 
-| Owner                                                               | Content                                                   |
-| ------------------------------------------------------------------- | --------------------------------------------------------- |
-| `share-stack`                                                       | Shared defaults and exceptions.                           |
-| A language stack's `references/stack/share.md`                      | Compiler, package manager, tools, and targets.            |
-| A language stack's other references                                 | Application composition and library-specific constraints. |
-| [share-coding](../share-coding/SKILL.md) and language coding skills | Implementation principles.                                |
-| [share-test](../share-test/SKILL.md) and language test skills       | Test implementation.                                      |
-| [nix-stack](../nix-stack/SKILL.md)                                  | Nix infrastructure and package definitions.               |
+- For JavaScript or TypeScript, justify another host against both Workers and Containers.
+- Apply this policy to hosted services, not local applications or libraries.
 
-Use official library URLs instead of separate library skills or copied manuals.
-Prefer an installed official skill when one exists.
-Keep migration plans and progress in issues.
+## Select a GUI stack
+
+| Application                  | Stack                                                                     |
+| ---------------------------- | ------------------------------------------------------------------------- |
+| Native GUI, across languages | GPUI, with [Rust integration](../rust-stack/references/stack/desktop.md). |
+| Browser UI                   | [JS frontend](../js-stack/references/stack/frontend.md).                  |
+
+- Do not infer the availability of non-Rust GPUI bindings.
+
+## Own database schemas and migrations
+
+| Database scope                                 | Stack                                                                             |
+| ---------------------------------------------- | --------------------------------------------------------------------------------- |
+| Application-exclusive local database           | Application-owned schema and migration mechanism.                                 |
+| Remote database                                | [Atlas](https://atlasgo.io/) Schema First and versioned migrations.               |
+| Local development replica of a remote database | Atlas declarative workflow.                                                       |
+| D1 migration application                       | [Alchemy D1](https://alchemy.run/cloudflare/data/d1/), using Atlas-generated SQL. |
+
+- Keep one applied-history owner per database.
+- Verify the selected Alchemy version's SQL-file contract before applying Atlas output.
+- Do not assume support for `atlas.sum` or Atlas revision-table adoption.
+- Keep generated language types separate from the schema source.
+
+> [!WARNING]
+>
+> - D1 parent-table rebuilds can delete child rows through `ON DELETE CASCADE`.
+> - `PRAGMA foreign_keys = off` does not disable cascades inside D1's implicit transactions.
+> - Deferred checking does not disable cascades.
+> - Prove row preservation through the actual migration runner, not only its exit status or foreign-key check.
+> - Source: [D1 foreign keys](https://developers.cloudflare.com/d1/sql-api/foreign-keys/).
+
+## Keep environments and dependencies explicit
+
+- Separate development tools, dependency management, application builds, and production runtimes.
+- Select the newest compatible releases that meet release-age and supply-chain safeguards.
+- Preserve those safeguards when changing package managers.
+- Explain an urgent exception's scope and risk before applying it.
 
 ## Select a language profile
 
@@ -33,60 +64,23 @@ Keep migration plans and progress in issues.
 | Go                        | [Go stack](../go-stack/SKILL.md)           | [Shared coding](../share-coding/SKILL.md) |
 | Haskell                   | [Haskell stack](../haskell-stack/SKILL.md) | [Shared coding](../share-coding/SKILL.md) |
 
-## Select a baseline without forcing a migration
+## Keep one owner for each policy
 
-These defaults apply to new projects and approved migrations, not unrelated maintenance or upstream-first forks.
-Ask before unifying different stacks unless the user has approved that choice.
+| Owner                                                  | Content                                     |
+| ------------------------------------------------------ | ------------------------------------------- |
+| `share-stack`                                          | Cross-language selections and exceptions.   |
+| A language stack's `references/stack/share.md`         | Language toolchain.                         |
+| A language stack's other `references/stack/` pages     | One application stack per page.             |
+| A language stack's `references/knowledge/` pages       | Necessary library-specific constraints.     |
+| Coding skills                                          | Implementation principles.                  |
+| Test skills                                            | Test implementation.                        |
+| [nix-stack](../nix-stack/SKILL.md)                     | Nix infrastructure and package definitions. |
+| [Task orchestration](references/task-orchestration.md) | Shared task and CI behavior.                |
 
-## Select a service host
-
-| Service                  | Priority                                        |
-| ------------------------ | ----------------------------------------------- |
-| JavaScript or TypeScript | Cloudflare Workers, then Cloudflare Containers. |
-| Other languages          | Cloudflare Containers.                          |
-
-For JavaScript or TypeScript, use Containers only when Workers cannot meet a required capability.
-Use another host only when the applicable Cloudflare targets cannot meet a required capability.
-For JavaScript or TypeScript, give the evidence against both Workers and Containers.
-This policy applies to hosted services, not local applications or libraries.
-
-## Select a GUI stack
-
-Use GPUI for native GUI applications across languages.
-The [Rust stack](../rust-stack/references/stack/desktop.md) owns GPUI integration.
-This choice does not imply that other languages have GPUI bindings.
-Use the [JS frontend stack](../js-stack/references/stack/frontend.md) for browser applications.
-
-## Own database schemas and migrations
-
-| Database scope                                 | Schema and migration policy                                   |
-| ---------------------------------------------- | ------------------------------------------------------------- |
-| Application-exclusive local database           | The application chooses its mechanism.                        |
-| Remote database                                | Atlas Schema First with versioned migrations.                 |
-| Local development replica of a remote database | Atlas declarative workflow, not the local-database exception. |
-
-Use Alchemy's existing migration mechanism to apply Atlas SQL to D1.
-Keep one applied-history owner per database.
-Check SQL-file compatibility against the selected Alchemy version.
-Do not assume that Alchemy checks `atlas.sum` or adopts an Atlas revision table.
-Keep generated language types separate from the schema source.
-
-> [!WARNING]
-> D1 parent-table rebuilds can delete child rows through `ON DELETE CASCADE`.
-> `PRAGMA foreign_keys = off` does not disable this behavior inside D1's implicit transactions.
-> Deferred checking does not disable cascades.
-> Require proof of row preservation through the actual migration runner.
-> A successful exit or an empty foreign-key check is insufficient.
-
-References: [Atlas](https://atlasgo.io/), [Alchemy D1](https://alchemy.run/cloudflare/data/d1/), [D1 foreign keys](https://developers.cloudflare.com/d1/sql-api/foreign-keys/).
-
-## Keep environments and dependencies explicit
-
-Keep development tools, dependency management, application builds, and production runtimes as separate choices.
-Use the newest compatible releases that meet the repository's release-age and supply-chain safeguards.
-A package-manager change must preserve those safeguards.
-Explain an urgent exception's scope and risk before applying it.
-
-## Share task and CI behavior
-
-Use [task orchestration](references/task-orchestration.md) for runner selection and shared task policy.
+- List selected technologies before stack-specific constraints.
+- Separate fundamentally different stacks into different pages.
+- Do not infer a standard from a template's current configuration.
+- Link official library guidance instead of copying manuals or creating a skill for each library.
+- Keep migration plans and progress in issues.
+- Apply defaults to new projects and approved migrations, not unrelated maintenance or upstream-first forks.
+- Ask before unifying different stacks unless the user has approved that choice.

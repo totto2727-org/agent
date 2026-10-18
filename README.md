@@ -58,7 +58,7 @@ Each package contains its manifest at `plugins/<plugin>/plugin.json` and its ski
 
 Provides reusable coding and testing guidance, [documentation-principles](plugins/totto2727-coding/skills/documentation-principles/SKILL.md) for shared writing principles, [share-test-design](plugins/totto2727-coding/skills/share-test-design/SKILL.md) for test-design decisions, and [share-artifact](plugins/totto2727-coding/skills/share-artifact/SKILL.md) for adaptable README, AGENTS.md, and ADR structures.
 Use [documentation-quality](plugins/totto2727-coding/skills/documentation-quality/SKILL.md) to review developer documentation.
-Use [share-stack](plugins/totto2727-coding/skills/share-stack/SKILL.md) for shared toolchain, dependency, task, CI, and distribution policy.
+Use [share-stack](plugins/totto2727-coding/skills/share-stack/SKILL.md) for cross-language stack selections.
 Use [realpath](plugins/totto2727-coding/skills/realpath/SKILL.md) for filesystem path calculations and [skill-reviewer](plugins/totto2727-coding/skills/skill-reviewer/SKILL.md) for Agent Skill reviews.
 
 Choose a coding skill for implementation principles and a stack skill for architecture, libraries, and toolchains:
@@ -71,10 +71,6 @@ Choose a coding skill for implementation principles and a stack skill for archit
 | Go                        | [share-coding](plugins/totto2727-coding/skills/share-coding/SKILL.md) | [go-stack](plugins/totto2727-coding/skills/go-stack/SKILL.md)           |
 | Haskell                   | [share-coding](plugins/totto2727-coding/skills/share-coding/SKILL.md) | [haskell-stack](plugins/totto2727-coding/skills/haskell-stack/SKILL.md) |
 | Nix infrastructure        | [share-coding](plugins/totto2727-coding/skills/share-coding/SKILL.md) | [nix-stack](plugins/totto2727-coding/skills/nix-stack/SKILL.md)         |
-
-For example, ask: "Use js-stack to select the standard architecture for a new Worker API and js-coding for its implementation principles."
-The expected guidance separates the concrete stack from Effect-TS coding rules, selects pnpm for dependency management, and keeps Bun's Nix build role separate.
-The stack skills do not migrate an existing project or deploy a service without authorization.
 
 ### `external-information`
 

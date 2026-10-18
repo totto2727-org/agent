@@ -1,74 +1,60 @@
-# Task orchestration
+# Task Orchestration
 
 ## Select the runner
 
-| Project conditions                                                         | Default                                   |
-| -------------------------------------------------------------------------- | ----------------------------------------- |
-| JavaScript dependencies, including child projects                          | Vite+ for the shared task graph.          |
-| No JavaScript dependencies, but dependency-aware task caching is necessary | Vite+.                                    |
-| No JavaScript dependencies or task-cache requirement                       | Native commands or language task aliases. |
+| Project                                                           | Runner                                       |
+| ----------------------------------------------------------------- | -------------------------------------------- |
+| JavaScript dependencies, including child projects                 | Vite+.                                       |
+| No JavaScript dependencies, but dependency-aware caching required | Vite+.                                       |
+| No JavaScript dependencies or task-cache requirement              | Native commands or language task aliases.    |
+| Complex project-local scripts                                     | Just recipes, called by the selected runner. |
 
-Do not add Node.js only to give native projects uniform task names.
-Use project-local Just recipes for complex reusable scripts, not as the primary cross-project runner.
-Set the default Just recipe to `@just --list`.
-Use an explicit project Justfile when another runner invokes a recipe.
+- Do not add Node.js only to standardize task names.
+- Set the default Just recipe to `@just --list`.
+- Specify the project Justfile when another runner invokes a recipe.
 
-## Register tasks where the graph can see them
+## Task graph
 
-Declare Vite+ tasks in each project's `vite.config.*`.
-Keep project relationships in the workspace dependency graph.
-Use `dependsOn` for required stages, including stages that invoke a local Just recipe.
-Do not hide cross-project dependencies inside recipes or shell chains.
+| Concern                              | Configuration                                      |
+| ------------------------------------ | -------------------------------------------------- |
+| Vite+ tasks                          | Each project's `vite.config.*`.                    |
+| Project relationships                | Workspace dependency graph.                        |
+| Required preparation and completion  | Explicit `dependsOn` edges, including Just stages. |
+| Conflicting file or directory writes | Ordered dependency edges.                          |
 
-## Classify tasks by their result
+- Treat `pre<task>` and `post<task>` as ordinary names, not implicit hooks.
+- Include required completion stages in `build`.
+- Do not hide dependencies inside recipes or shell chains.
+- Do not use a cacheable parent to skip a dependency with external effects.
 
-| Task    | Policy                                                                              |
-| ------- | ----------------------------------------------------------------------------------- |
-| `fix`   | Automatic format and lint fixes. No task cache.                                     |
-| `check` | Static checks without source changes.                                               |
-| `build` | All stages necessary for the final deliverable, including generation and packaging. |
-| `test`  | Reproducible tests with controlled resources.                                       |
-| `e2e`   | Separately selected heavyweight or live-system tests.                               |
-| `ci`    | `check`, `build`, and `test`. No `fix`.                                             |
+## Task contracts
 
-Keep controlled integration tests in `test` when they meet its isolation requirements.
-Keep `e2e` outside default `test` and `ci` unless the project requires it.
-Use separate selections within one test framework rather than adding a framework only for E2E.
+| Task    | Result                                                 |
+| ------- | ------------------------------------------------------ |
+| `fix`   | Format and lint fixes, without task caching.           |
+| `check` | Static checks, without source changes.                 |
+| `build` | Final deliverable, including generation and packaging. |
+| `test`  | Reproducible tests with controlled resources.          |
+| `e2e`   | Separately selected heavyweight or live-system tests.  |
+| `ci`    | `check`, `build`, and `test`, without `fix`.           |
 
-Use `<task>:<CLIName>` when a stage needs separate selection or reuse.
-For one operation, use the base task directly instead of adding an empty aggregate.
+- Keep controlled integration tests in `test` when they meet its isolation requirements.
+- Keep `e2e` outside default `test` and `ci` unless required by the project.
+- Use separate selections in one test framework, not a new framework only for E2E.
+- Use `<task>:<CLIName>` for a separately selectable or reusable stage.
+- Do not add an empty aggregate for one operation.
 
-## Add explicit preparation and completion stages
+## Exclusions and cache
 
-`pre<task>` and `post<task>` are ordinary task names, not implicit lifecycle hooks.
-Declare their edges with `dependsOn`.
-A completion stage must depend on its producer.
-Listing both stages in an aggregate does not order them.
-Include required completion stages in the `build` graph.
+| Concern                                             | Selection or constraint                                                                                                   |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Vite+ formatter and linter exclusions               | [@totto2727/gitignore-patterns](https://github.com/totto2727-org/gitignore-patterns), generated when configuration loads. |
+| Child-project Gitignore rules                       | Check ancestor rules, outside the helper's scan root.                                                                     |
+| Generated escaped literals                          | `ignorePatterns` only, not general cache-input globs.                                                                     |
+| Cacheable task                                      | Deterministic outputs restored by a cache hit.                                                                            |
+| External effects                                    | No caching for deploy, publish, DB mutation, service startup, or live-service checks.                                     |
+| Container image build                               | Cache an exported archive only with complete inputs and immutable base-image references.                                  |
+| Image loading, container execution, registry pushes | Outside the cacheable image-build task.                                                                                   |
 
-## Schedule conflicting writes safely
-
-Order tasks that write the same files or output directory with explicit dependency edges.
-Do not use a cacheable parent to skip a dependency with external effects.
-
-## Derive exclusions from Gitignore
-
-Use [@totto2727/gitignore-patterns](https://github.com/totto2727-org/gitignore-patterns) for Vite+ formatter and linter `ignorePatterns`.
-Generate the patterns when the configuration loads.
-The helper scans `.gitignore` files only at or below its root.
-Check ancestor rules for child projects.
-Its escaped positive literals are not general-purpose cache-input globs.
-Do not maintain duplicate exclusion lists or copy these literals into another glob grammar.
-Add an individual exception only for a demonstrated coverage gap.
-
-## Define cache boundaries
-
-Cache deterministic tasks only when a cache hit restores their required files.
-Do not cache deployment, publication, database mutation, service startup, or checks against live services.
-
-A Docker daemon image is not a restored workspace output.
-An exported image archive can be cacheable with complete inputs and immutable base-image references.
-Keep image loading, container execution, and registry pushes outside that cacheable task.
-
-For configuration syntax, prefer the installed official [Vite+ skill](https://github.com/voidzero-dev/vite-plus).
-Use the [official Vite+ guide](https://viteplus.dev/guide/) when the skill is unavailable.
+- Add an exclusion exception only for a demonstrated coverage gap.
+- Keep configuration syntax in the official [Vite+ guidance](https://viteplus.dev/guide/), or its installed official skill.

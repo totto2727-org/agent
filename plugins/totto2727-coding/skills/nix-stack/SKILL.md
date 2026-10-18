@@ -1,18 +1,14 @@
 ---
 name: nix-stack
 description: >-
-  Select Nix toolchains, package builders, overlays, and system modules. Use for Nix infrastructure decisions, not application architecture or ordinary dependency updates.
+  Select Nix toolchains and JS application package builds. Use for Nix infrastructure decisions, not application architecture or ordinary dependency updates.
 ---
 
 # Nix Stack
 
-For advanced Nix users who select infrastructure and package tools.
-Use [share-stack](../share-stack/SKILL.md) for common policy.
+| Stack                  | Technologies                          | Reference                                            |
+| ---------------------- | ------------------------------------- | ---------------------------------------------------- |
+| Toolchain              | Nix Flakes, `flake.lock`, nixfmt      | [Toolchain](references/stack/share.md)               |
+| JS application package | pnpm dependency resolution, Bun build | [JS application](references/stack/js-application.md) |
 
-| Decision                                  | Reference                                |
-| ----------------------------------------- | ---------------------------------------- |
-| Inputs, compiler authority, formatter     | [Toolchain](references/stack/share.md)   |
-| Builders and dependency sources           | [Packages](references/stack/packages.md) |
-| NixOS, nix-darwin, Home Manager, overlays | [Systems](references/stack/systems.md)   |
-
-Application-language choices remain in their language stacks.
+- Shared policy: [share-stack](../share-stack/SKILL.md).
