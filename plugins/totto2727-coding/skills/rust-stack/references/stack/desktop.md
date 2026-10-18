@@ -1,16 +1,15 @@
-# Rust Desktop Profile
+# Rust Native Desktop Addition
 
-GPUI scheduling and Tokio are distinct.
-Add Tokio only when selected background I/O needs it.
-Use an explicit handoff to GPUI's supported state-update mechanism.
-A background thread must not mutate UI state directly.
-Use the selected GPUI revision's APIs as evidence of executor interoperability.
+| Selected technology                                                 | Role                                                           |
+| ------------------------------------------------------------------- | -------------------------------------------------------------- |
+| [Rust baseline](share.md)                                           | Compiler, dependencies, packaging                              |
+| [GPUI](https://github.com/zed-industries/zed/tree/main/crates/gpui) | Native UI and UI scheduling                                    |
+| [Tokio](https://docs.rs/tokio/latest/tokio/)                        | Optional background I/O runtime, separate from GPUI scheduling |
 
-A Cargo build is not a complete macOS app bundle.
-Examine resource lookup, permissions, native libraries, and launch behavior in the actual bundle.
+| Integration boundary      | Required evidence                                                                                       |
+| ------------------------- | ------------------------------------------------------------------------------------------------------- |
+| Background I/O to UI      | Handoff through the selected GPUI revision's state-update API, not direct background-thread UI mutation |
+| Executor interoperability | Actual integration with the selected GPUI revision, not assumed Tokio compatibility                     |
+| macOS distribution        | Actual app-bundle launch with verified resource lookup, permissions, and native libraries               |
 
-## Official sources
-
-- [GPUI site](https://www.gpui.rs/)
-- [GPUI source and examples](https://github.com/zed-industries/zed/tree/main/crates/gpui)
-- [GPUI crate documentation](https://docs.rs/gpui/latest/gpui/)
+- Audience: advanced native desktop stack consumers.

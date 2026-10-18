@@ -7,7 +7,10 @@ description: >-
 
 # Go Stack
 
-For advanced Go users who select project tools and application dependencies.
-Use [share-stack](../share-stack/SKILL.md) for general stack policy and [share-coding](../share-coding/SKILL.md) for implementation principles.
+| Stack                                     | Selected technologies                                           |
+| ----------------------------------------- | --------------------------------------------------------------- |
+| [Go toolchain](references/stack/share.md) | Nix, Go modules, gofmt, golangci-lint v2, native Go tasks, Just |
 
-- For compiler, dependency, and task decisions, use the [shared Go stack](references/stack/share.md).
+- Audience: advanced Go users who select project tools.
+- General stack policy: [share-stack](../share-stack/SKILL.md).
+- Implementation principles: [share-coding](../share-coding/SKILL.md).

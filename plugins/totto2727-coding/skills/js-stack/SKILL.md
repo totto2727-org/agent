@@ -8,15 +8,15 @@ description: >-
 
 # JavaScript and TypeScript Stack
 
-Approved stack choices for advanced TypeScript users.
-Apply [share-stack](../share-stack/SKILL.md) for shared policy and [js-coding](../js-coding/SKILL.md) for Effect-first implementation.
-These defaults do not authorize migrations of existing applications or upstream-first forks.
+| Scope                    | Selected technologies                                            | Details                                  |
+| ------------------------ | ---------------------------------------------------------------- | ---------------------------------------- |
+| Shared toolchain         | pnpm + Vite+, Bun for Nix application builds                     | [Toolchain](references/stack/share.md)   |
+| Browser application      | Effront + Base UI-based shadcn/ui                                | [Frontend](references/stack/frontend.md) |
+| Backend                  | Effect HTTP + Alchemy + Better Auth + Kysely, D1 or Turso/libSQL | [Backend](references/stack/backend.md)   |
+| Command-line application | Effect CLI                                                       | [CLI](references/stack/cli.md)           |
 
-- [Shared JS toolchain](references/stack/share.md): pnpm, Vite+, dependency compatibility, and Bun Nix builds.
-- [Frontend](references/stack/frontend.md): Effront and Base UI-based shadcn/ui.
-- [Backend](references/stack/backend.md): Effect HTTP, Alchemy, Better Auth, and Kysely.
-- [CLI](references/stack/cli.md): Effect CLI.
-- [Effect](references/knowledge/effect.md): official sources and local service conventions.
-- [Effront integration](references/knowledge/effront.md): conditional exports and adapter compatibility.
-
-Use [js-test](../js-test/SKILL.md) for tests and [nix-stack](../nix-stack/SKILL.md) for Nix mechanics.
+- Audience: advanced TypeScript users selecting application stacks.
+- Shared policy: [share-stack](../share-stack/SKILL.md).
+- Implementation: [js-coding](../js-coding/SKILL.md), [Effect knowledge](references/knowledge/effect.md).
+- Tests: [js-test](../js-test/SKILL.md).
+- Nix packaging: [nix-stack](../nix-stack/SKILL.md).

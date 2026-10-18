@@ -7,21 +7,16 @@ description: >-
 
 # Rust Stack
 
-For advanced users who select or maintain the approved Rust stack.
-Apply [share-stack](../share-stack/SKILL.md) for common policy.
-Keep existing application contracts and upstream-first fork constraints.
-Rust Web is out of scope, with no new Web profile.
+| Selected technologies                                                                                                                                                           | Composition                                                                               |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| [rustup](https://rust-lang.github.io/rustup/overrides.html#the-toolchain-file), [Cargo](https://doc.rust-lang.org/cargo/), [Nix](https://nixos.org/manual/nixpkgs/stable/#rust) | [Rust baseline](references/stack/share.md)                                                |
+| [clap](https://docs.rs/clap/latest/clap/), optional [Tokio](https://docs.rs/tokio/latest/tokio/)                                                                                | [CLI addition](references/stack/cli.md)                                                   |
+| [GPUI](https://www.gpui.rs/)                                                                                                                                                    | [Native desktop addition](references/stack/desktop.md)                                    |
+| [Rig](https://rig.rs/docs)                                                                                                                                                      | [LLM addition](references/stack/llm.md)                                                   |
+| [graph-flow](https://docs.rs/graph-flow/latest/graph_flow/), [garde](https://docs.rs/garde/latest/garde/), [tracing](https://docs.rs/tracing/latest/tracing/)                   | Independent [capability additions](references/knowledge/capabilities.md), not a Web stack |
 
-| Decision                                                | Reference                                            |
-| ------------------------------------------------------- | ---------------------------------------------------- |
-| Compiler, Cargo, Nix alignment, and capability defaults | [Shared Rust stack](references/stack/share.md)       |
-| clap and conditional Tokio use                          | [CLI](references/stack/cli.md)                       |
-| Native GPUI integration                                 | [Desktop](references/stack/desktop.md)               |
-| Rig and provider composition                            | [LLM](references/stack/llm.md)                       |
-| Independent graph-flow, garde, and tracing choices      | [Capabilities](references/knowledge/capabilities.md) |
-
-Add each library only when its capability is necessary.
-Use the resolved release's official guidance, not examples for another release.
-Use an installed official library skill when available, with its upstream source and documentation as fallbacks.
-
-Use [rust-coding](../rust-coding/SKILL.md) for language decisions and [rust-test](../rust-test/SKILL.md) for tests.
+- Audience: advanced users selecting or maintaining Rust application stacks.
+- Scope: one Rust baseline with capability additions.
+- Rust Web excluded.
+- Common policy: [share-stack](../share-stack/SKILL.md).
+- Language and tests: [rust-coding](../rust-coding/SKILL.md), [rust-test](../rust-test/SKILL.md).

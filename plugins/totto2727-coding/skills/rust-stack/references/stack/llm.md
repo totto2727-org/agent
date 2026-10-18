@@ -1,17 +1,16 @@
-# Rust LLM Profile
+# Rust LLM Addition
 
-Use Rig first for completions, agents, tools, embeddings, and provider clients.
-Select only the crates and features necessary for the capability.
-Make sure that the resolved Rig release has the necessary provider and streaming support.
+| Selected technology                                         | Role                                                     |
+| ----------------------------------------------------------- | -------------------------------------------------------- |
+| [Rust baseline](share.md)                                   | Compiler, dependencies, packaging                        |
+| [Rig](https://rig.rs/docs)                                  | Completions, agents, tools, embeddings, provider clients |
+| [graph-flow](https://docs.rs/graph-flow/latest/graph_flow/) | Optional code-defined workflows, not implied by Rig      |
 
-Provider-profile resolution and optional Rig adapters do not initialize application-owned prompts, tools, or the execution runtime.
-Keep those responsibilities separate when a profile library is present.
-Token streaming and workflow progress are different timelines unless they describe the same application operation.
+| Composition boundary           | Selection                                                                                     |
+| ------------------------------ | --------------------------------------------------------------------------------------------- |
+| Rig crates and features        | Required capabilities with verified provider and streaming support in the resolved release    |
+| Provider profiles and adapters | Profile resolution separate from application-owned prompts, tools, and runtime initialization |
+| Progress                       | Token streaming separate from workflow progress unless both represent the same operation      |
+| Validation and telemetry       | Independent [capability additions](../knowledge/capabilities.md), not a Web baseline          |
 
-Select [graph-flow](../knowledge/capabilities.md#workflows-with-graph-flow) only for code-defined workflows, not merely because Rig is present.
-Use [validation](../knowledge/capabilities.md#serde-garde-then-domain-construction) for model boundaries and [tracing guidance](../knowledge/capabilities.md#logging-with-tracing) for payload exposure risks.
-
-## Official sources
-
-- [Rig documentation](https://rig.rs/docs)
-- [Rig repository and releases](https://github.com/0xPlaygrounds/rig)
+- Audience: advanced LLM stack consumers.

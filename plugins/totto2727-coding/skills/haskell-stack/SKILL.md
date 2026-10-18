@@ -2,14 +2,19 @@
 name: haskell-stack
 description: >-
   Select Haskell Cabal and hpack projects with Nix-managed GHC, Fourmolu, HLint, Hspec, and native tasks.
-  Use for toolchain, dependency, Aeson, or CLI decisions, including conditional Iris compatibility.
+  Use for toolchain, dependency, optparse-applicative/Aeson CLI, Iris CLI, or Brick/Vty TUI decisions.
   This skill does not select the Stack build tool.
 ---
 
 # Haskell Stack
 
-For advanced Haskell users who select project tools and application dependencies.
-Use [share-stack](../share-stack/SKILL.md) for general stack policy and [share-coding](../share-coding/SKILL.md) for implementation principles.
+| Stack                                          | Selected technologies                                                 |
+| ---------------------------------------------- | --------------------------------------------------------------------- |
+| [Haskell toolchain](references/stack/share.md) | Nix-managed GHC, Cabal, hpack, Fourmolu, HLint, Hspec                 |
+| [CLI](references/stack/cli.md)                 | Haskell toolchain, optparse-applicative, Aeson                        |
+| [Iris CLI](references/stack/iris-cli.md)       | Iris 0.1, optparse-applicative, compatible Nix-managed GHC/Cabal plan |
+| [Terminal UI](references/stack/tui.md)         | Haskell toolchain, Brick, Vty                                         |
 
-- For compiler, manifest, dependency, and task decisions, use the [shared Haskell stack](references/stack/share.md).
-- For CLI libraries and Iris compatibility, use the [CLI stack](references/stack/cli.md).
+- Audience: advanced Haskell users who select project tools and application dependencies.
+- General stack policy: [share-stack](../share-stack/SKILL.md).
+- Implementation principles: [share-coding](../share-coding/SKILL.md).
