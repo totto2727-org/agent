@@ -8,7 +8,8 @@ Read when implementing custom Enter-to-submit behavior in a browser text editor 
 
 Treat IME candidate confirmation and submission as different user intents.
 A custom Enter handler must not submit partially composed text or interfere with conversion confirmation.
-Keep an explicit submit button and the native form submission path; a keyboard shortcut is an additional interaction, not their replacement.
+Keep an explicit submit button and the native form submission path.
+A keyboard shortcut is an additional interaction, not their replacement.
 Do not add custom keyboard interception to an ordinary native single-line form solely to apply this guidance.
 
 ## Official source
