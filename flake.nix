@@ -24,13 +24,16 @@
             inherit system;
           };
         in
-        {
+        rec {
           default = pkgs.mkShell {
             shellHook = ''
               # Enable Git Hook
               vp config
             '';
           };
+          ci = default.overrideAttrs (_: {
+            shellHook = "";
+          });
         }
       );
     };
