@@ -62,9 +62,10 @@ Use [realpath](plugins/totto2727-coding/skills/realpath/SKILL.md) for filesystem
 
 ### `external-information`
 
-Provides six coordinated skills:
+Provides seven coordinated skills:
 
 - [`open-connector`](plugins/external-information/skills/open-connector/SKILL.md): use connected services through OpenConnector.
+- [`projektor`](plugins/external-information/skills/projektor/SKILL.md): retrieve Projektor workspaces, issues, and project information through the OOMOL OpenConnector CLI.
 - [`monid`](plugins/external-information/skills/monid/SKILL.md): use Monid for external information services.
 - [`web-search`](plugins/external-information/skills/web-search/SKILL.md): find and retrieve web sources for research.
 - [`doc-search`](plugins/external-information/skills/doc-search/SKILL.md): look up library and framework documentation.
