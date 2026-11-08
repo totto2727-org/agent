@@ -28,11 +28,9 @@ Do not silently switch providers when the selected route fails.
 This preference does not establish that one provider is always cheaper or more accurate.
 
 OpenAI Decisions is not a drop-in Jev interface.
-Map shared `state` to `input`, question keys to unique `name` values, Noul to `predicate`, choice criteria to `choices`, and score criteria to ordered `levels`.
-OpenAI returns an ordered `answers` array, not Jev's keyed answer object.
-Preserve choice value types, probability distributions, score scales, and question identity when adapting responses.
-Do not assume confidence values or acceptance thresholds are calibrated across providers.
-If these differences affect required behavior and cannot be verified with a small adapter, use Jev.
+Use [OpenAI behind a Jev-compatible interface](references/openai-as-jev.md) to assess request conversion, answer reconstruction, and unsupported behavior.
+The guide covers only callers that keep Jev-shaped data while OpenAI performs inference.
+If required behavior cannot be preserved and verified with a small adapter, use Jev.
 
 ## Design the judgment
 
