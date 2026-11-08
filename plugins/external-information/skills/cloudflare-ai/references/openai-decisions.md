@@ -16,7 +16,7 @@ A successful request does not establish subscription coverage or the final bille
 ## Prepare the request
 
 Run preparation, execution, and validation in the same Bash process.
-Use [PassCLI injection](../SKILL.md#passcli-credential-injection) when the required variables are not inherited.
+Use the required [connection variables](../SKILL.md#connection).
 Apply the shared [cache and equivalent-call rules](decision-models.md#cache-and-equivalent-calls).
 
 ```bash
