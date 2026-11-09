@@ -12,10 +12,9 @@ Use this skill for inference through the configured Cloudflare AI Gateway or Wor
 ## Choose a workflow
 
 - **LLM:** for generated text, coding, reasoning, or summarization, follow [LLM requests](references/llm.md) for model selection and invocation.
-- **Decision Model:** for constrained choices, scores, and probabilities, follow [Decision Model requests](references/decision-models.md).
+- **Decision Model:** for constrained choices, scores, and probabilities, apply [interface selection](../decision-model/SKILL.md#select-the-interface).
   OpenCode Go currently does not provide this typed interface.
-  Default to **`typesafe/jev` through Cloudflare Workers AI with the configured AI Gateway**.
-  Use another configured Decision Model only when explicitly requested or justified by task requirements and representative accuracy and total-cost evidence.
+  Use [OpenAI Decisions requests](references/openai-decisions.md) for the OpenAI interface and [Jev and Clef requests](references/decision-models.md) for the Jev-compatible route.
   Do not switch models after authentication or billing failures, assume one is always cheapest, or use these routes for ordinary generated text.
   Use [decision-model](../decision-model/SKILL.md) to design the judgment and application acceptance criteria.
 
@@ -24,7 +23,7 @@ Do not silently switch models, providers, or billing routes after authentication
 
 ## Connection
 
-These variables are already available to the process:
+The calling process needs these variables:
 
 | Variable                        | Meaning                                                      |
 | ------------------------------- | ------------------------------------------------------------ |

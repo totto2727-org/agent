@@ -1,14 +1,14 @@
 # Decision Model requests
 
-Select a configured Decision Model using [Cloudflare AI](../SKILL.md#choose-a-workflow) and use [decision-model](../../decision-model/SKILL.md) to design the state, questions, and criteria.
-Default to `typesafe/jev` through Cloudflare Workers AI with the configured AI Gateway.
-Use another supported model only for an explicit request or a justified override under Cloudflare AI.
+Use this reference for Jev and Clef requests after applying [interface selection](../../decision-model/SKILL.md#select-the-interface).
+For the OpenAI interface, use [OpenAI Decisions requests](openai-decisions.md) instead.
+Use `typesafe/jev` through Cloudflare Workers AI with the configured AI Gateway when Jev compatibility is required or a compatibility adapter is difficult to verify.
 Do not call the Typesafe API directly or silently change routes after a failure.
 Native Clef models use `{model, state, questions}`; universal `typesafe/jev` uses `{model, input: {state, questions}}`.
 
 ## Prepare the request and record paths
 
-This example prepares the default universal `typesafe/jev` request.
+This example prepares a universal `typesafe/jev` request.
 
 ```bash
 set +x
