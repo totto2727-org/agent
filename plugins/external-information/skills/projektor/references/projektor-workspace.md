@@ -5,10 +5,26 @@ It does not set assignees or operating policy for other Projektor workspaces.
 
 ## Open-PR coverage
 
-Keep at least one corresponding active tracking task for every open PR in the user's requested repository scope.
+Keep at least one corresponding active tracking task for every open PR in the user's requested repository scope, after applying the exclusion below.
 Audit all existing open PRs and create missing tasks under that authorization, not only tasks for newly opened PRs.
 Use the [reconciliation procedure](../SKILL.md#reconcile-open-pull-requests) to reuse tasks by actual scope, exclude incidental references and duplicates from active coverage, and preserve history.
 Maintain this coverage when continuing work or handing off a PR.
+
+## Dependency-maintenance exclusion
+
+Exclude routine dependency-maintenance PRs from task creation and active PR-coverage requirements unless the user explicitly requests that work.
+This exclusion includes package and lockfile version updates, GitHub Actions version updates, and dependency-update automation setup such as Renovate onboarding.
+It applies to human-authored and bot-authored PRs.
+A dependency bot, version change, or security label alone does not establish an explicit user request.
+
+Classify the actual scope, not only the title or author.
+Do not exclude a substantive implementation, compatibility fix, toolchain migration, or requested security remediation merely because it also changes dependencies.
+Record any explicit request that makes a dependency-maintenance PR an exception.
+Report excluded PRs separately from uncovered in-scope PRs.
+
+When the user requests closure of tasks created for excluded dependency maintenance, use `cancelled`, not `done`.
+Record the exclusion reason, preserve the task history and PR URL, and remove the assignee.
+Do not close the PR itself, delete the task, or reopen the cancelled task during a later audit without a new explicit request.
 
 ## Assignment by the next actual actor
 
