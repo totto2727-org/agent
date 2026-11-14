@@ -109,15 +109,37 @@ Deselecting a target removes it from review tracking without deleting the attach
 | `done`              | 完了       | Review is complete for this target.   |
 
 These are per-target statuses, not issue statuses.
-The issue-list **Review targets** summary shows an `in_review` target first and `+N` for additional selected targets.
-Open the summary or the issue's focused view with `?tab=review-targets` to inspect all selected targets and their statuses, preserving existing URL query parameters.
+The issue-list **Review targets** summary shows an `in_review` target first and `+N` for additional visible targets.
+Only `in_review` requires review now.
+Targets in `fixing` or `changes_requested` remain visible with muted styling, without a review-now emphasis.
+The `done` status remains saved, but completed targets are not displayed in review-target views or included in their counts, summaries, or `+N`.
+This does not delete the attachment.
+Open the summary or the issue's focused view with `?tab=review-targets` to inspect visible targets and their statuses, preserving existing URL query parameters.
 Do not infer that all targets are complete from the summary alone.
 
-Review-target updates currently use the web UI's ServerFn, not a documented connector API.
-Discover current API support before attempting automation, and use the native UI when the operation is not exposed.
-Do not invent connector endpoints or send target-status fields in issue-update payloads.
+Discover current API and provider support before attempting automation.
+The [file routes](https://github.com/totto2727-org/projektor/blob/main/src/api/routes/files.ts) expose `GET /api/files` with `entityType=issue` and the issue UUID as `entityId` to list attachments, including `reviewStatus`.
+Resolve the issue UUID and attachment ID from saved records, not an issue reference or a filename.
+Use `PATCH /api/files/<attachment-id>/review-status` with `issueId` and `status` to select or update one target.
+For example, replace the placeholder IDs and workspace slug before running:
+
+```bash
+oo connector proxy projektor \
+  --endpoint '/api/files/<attachment-id>/review-status' \
+  --method PATCH \
+  --headers '{"X-Workspace-Slug":"example"}' \
+  --body '{"issueId":"<issue-uuid>","status":"fixing"}' \
+  --json
+```
+
+Use one of the four status values above, or `null` to deselect without deleting the attachment.
+Do not send target-status fields in issue-update payloads.
+Check both CLI and backend status, then GET the attachments again to verify the saved `reviewStatus`, including `done` targets hidden by the UI.
+Use the native UI when the deployed API or connector does not expose the required operation.
+Do not assume that a file-upload route makes multipart uploads available through the proxy, which accepts a JSON body.
+Follow the provider contract's transport limits and use the native UI for unsupported uploads.
 See the current [attachment input contracts](https://github.com/totto2727-org/projektor/blob/main/src/contracts/inputs/files.ts) and [review-target UI](https://github.com/totto2727-org/projektor/blob/main/src/web/features/issues/legacy/ReviewTargetsSection.tsx) when checking supported behavior.
-After a change, reopen the issue and verify the attachment, target selection, and saved status.
+After a change, verify the attachment, target selection, and saved status.
 
 When an issue or a review target is **要修正** (`changes_requested`), read both the Projektor issue comments and feedback in the linked system's own review function before making corrections.
 For example, a linked GitHub PR can have review comments that are absent from the Projektor issue.
