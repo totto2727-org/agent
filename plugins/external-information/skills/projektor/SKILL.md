@@ -97,7 +97,7 @@ Review-target selection is separate from attachment creation.
 Only issue attachments of kind `file` or `url` can be review targets, and each is selected independently.
 Select only the attachments that require review for the requested work, not every attachment.
 Leave unrelated reference material and wiki attachments unchanged.
-In the issue detail, use the **Review targets** section to select each required attachment and set its status.
+In the issue detail, use the **レビュー対象** section to select each required attachment and set its status.
 A newly selected target starts at `fixing`.
 Deselecting a target removes it from review tracking without deleting the attachment.
 
