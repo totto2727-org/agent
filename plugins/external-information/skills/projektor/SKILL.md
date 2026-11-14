@@ -114,6 +114,11 @@ Only `in_review` requires review now.
 Targets in `fixing` or `changes_requested` remain visible with muted styling, without a review-now emphasis.
 The `done` status remains saved, but completed targets are not displayed in review-target views or included in their counts, summaries, or `+N`.
 This does not delete the attachment.
+When the owning issue moves to `done`, its selected review targets automatically become `done` and disappear from review-target views and counts.
+When the owning issue moves to `cancelled`, its review selection is cleared (`null`), but the attachments remain.
+Reopening the issue does not automatically restore completed or cleared review selections.
+Reconfigure targets explicitly when the reopened work requires review.
+After closing or reopening an issue, read its attachments to verify the saved review state.
 Open the summary or the issue's focused view with `?tab=review-targets` to inspect visible targets and their statuses, preserving existing URL query parameters.
 Do not infer that all targets are complete from the summary alone.
 
