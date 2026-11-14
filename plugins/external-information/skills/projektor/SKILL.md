@@ -83,6 +83,48 @@ Do not invite members or change workspace access without explicit approval.
 Check both CLI and backend status after POST or PATCH, then GET the saved issue to verify its scope, body, state, links, and assignment.
 If a write has an uncertain result, read and reconcile before retrying, especially before creating another task.
 
+## Set up attachments and review targets
+
+When the user requests attachments, read the issue and its existing attachments first.
+Reuse an attachment that already represents the requested file or URL instead of adding a duplicate.
+Attach the requested file or URL to the issue, then verify that the saved attachment opens the intended content.
+Discover supported attachment operations from the current provider contract and API routes before using the connector.
+Do not infer upload payloads or endpoint paths from UI behavior.
+If the required operation is not exposed through the connector, use the native Projektor UI within the same authorization scope.
+If UI access is unavailable, report the specific setup step that remains blocked.
+
+Review-target selection is separate from attachment creation.
+Only issue attachments of kind `file` or `url` can be review targets, and each is selected independently.
+Select only the attachments that require review for the requested work, not every attachment.
+Leave unrelated reference material and wiki attachments unchanged.
+In the issue detail, use the **Review targets** section to select each required attachment and set its status.
+A newly selected target starts at `fixing`.
+Deselecting a target removes it from review tracking without deleting the attachment.
+
+| Target status       | UI label   | Meaning                               |
+| ------------------- | ---------- | ------------------------------------- |
+| `fixing`            | 修正中     | Work or corrections are in progress.  |
+| `in_review`         | レビュー中 | The target is ready for review.       |
+| `changes_requested` | 要修正     | Review feedback requires corrections. |
+| `done`              | 完了       | Review is complete for this target.   |
+
+These are per-target statuses, not issue statuses.
+The issue-list **Review targets** summary shows an `in_review` target first and `+N` for additional selected targets.
+Open the summary or the issue's focused view with `?tab=review-targets` to inspect all selected targets and their statuses, preserving existing URL query parameters.
+Do not infer that all targets are complete from the summary alone.
+
+Review-target updates currently use the web UI's ServerFn, not a documented connector API.
+Discover current API support before attempting automation, and use the native UI when the operation is not exposed.
+Do not invent connector endpoints or send target-status fields in issue-update payloads.
+See the current [attachment input contracts](https://github.com/totto2727-org/projektor/blob/main/src/contracts/inputs/files.ts) and [review-target UI](https://github.com/totto2727-org/projektor/blob/main/src/web/features/issues/legacy/ReviewTargetsSection.tsx) when checking supported behavior.
+After a change, reopen the issue and verify the attachment, target selection, and saved status.
+
+When an issue or a review target is **要修正** (`changes_requested`), read both the Projektor issue comments and feedback in the linked system's own review function before making corrections.
+For example, a linked GitHub PR can have review comments that are absent from the Projektor issue.
+Do not treat either location alone as the complete feedback record.
+Address applicable feedback from both locations before returning the target to `in_review`, and preserve feedback history.
+If either location is inaccessible, report the missing review context rather than claiming that all feedback was checked or resolved.
+
 ## Reconcile open pull requests
 
 Use this procedure when the user requests PR tracking or an audit, within the authorized repository and workspace scope.
