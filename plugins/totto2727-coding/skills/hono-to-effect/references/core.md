@@ -50,8 +50,14 @@ const handler = Effect.gen(function* () {
   ),
 );
 
-export const fetch = HttpEffect.toWebHandler(handler);
+export const fetch = HttpEffect.toWebHandler(Effect.interruptible(handler));
 ```
+
+`HttpEffect.toWebHandler` runs supplied request work uninterruptibly by default.
+Wrap ordinary request effects in `Effect.interruptible`, as above, so aborting the Web Request can interrupt pending work and run finalizers.
+Use an uninterruptible region only for a deliberately bounded critical section, not the whole request.
+Router handlers created through `HttpRouter` are interruptible by default.
+This concerns response construction; streamed-body cancellation still needs its own lifecycle test.
 
 `schemaBodyJson` can fail on body reading as well as schema decoding; do not label every infrastructure failure as malformed input.
 For a declared API, put `payload`, `params`, `query`, `headers`, and `success` schemas on `HttpApiEndpoint` and let `HttpApiBuilder` decode the boundary once.
@@ -149,7 +155,7 @@ const handler = lookup("42").pipe(
   ),
 );
 
-export const fetch = HttpEffect.toWebHandler(handler);
+export const fetch = HttpEffect.toWebHandler(Effect.interruptible(handler));
 ```
 
 There is no `getResponse()` compatibility method or universal thrown-error-to-status coercion.
@@ -243,7 +249,7 @@ export const fetch = HttpEffect.toWebHandler(
       contentType: "text/event-stream",
       headers: { "cache-control": "no-cache" },
     }),
-  ),
+  ).pipe(Effect.interruptible),
 );
 ```
 
@@ -344,7 +350,7 @@ const fetch = HttpEffect.toWebHandler(
   Effect.gen(function* () {
     const request = yield* HttpServerRequest.HttpServerRequest;
     return HttpServerResponse.text(request.method);
-  }),
+  }).pipe(Effect.interruptible),
 );
 
 export async function checkRequestBoundary(): Promise<void> {

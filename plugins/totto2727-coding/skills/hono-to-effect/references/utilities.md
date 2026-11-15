@@ -40,7 +40,7 @@ const handler = Effect.gen(function* () {
   return yield* HttpServerResponse.json({ title: form.title });
 });
 
-export const fetch = HttpEffect.toWebHandler(handler);
+export const fetch = HttpEffect.toWebHandler(Effect.interruptible(handler));
 ```
 
 This endpoint accepts URL-encoded form fields, not an unrestricted mixture of uploads and JSON.
