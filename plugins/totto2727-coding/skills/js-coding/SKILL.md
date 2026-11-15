@@ -45,6 +45,9 @@ Read only the relevant reference; already available principles need not be reloa
 
 ## Hono
 
+For replacing Hono with Effect HTTP or effront, use [hono-to-effect](../hono-to-effect/SKILL.md) for the complete import-path map, concrete migration recipes, and separate implementation proposals.
+Use the following references when retaining Hono:
+
 - [`hono-handler.md`](references/hono-handler.md) — endpoint Effect boundaries and dependency provision.
 - [`hono-middleware.md`](references/hono-middleware.md) — middleware context and authentication boundaries.
 - [`hono-subapp.md`](references/hono-subapp.md) — sub-application construction.
