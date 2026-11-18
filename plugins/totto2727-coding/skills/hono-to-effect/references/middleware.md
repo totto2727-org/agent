@@ -3,7 +3,8 @@
 This guide serves intermediate and advanced users who replace Hono middleware with Effect handlers.
 It does not reproduce Hono's `Context`, `next()` protocol, or renderer integration.
 The fixed sources are [Hono f6fbaf0](https://github.com/honojs/hono/tree/f6fbaf0299c48eea9e656e03e2ffe7ac755e8823/src), [Effect 4.1.4, 3e2030b](https://github.com/Effect-TS/effect/tree/3e2030b43e86a60113f2f32671076ff3b1d84ce4/packages/effect/src), and [effront 3c8c55](https://github.com/totto2727-org/effront/tree/3c8c55c8f99242b0c45c5a672fe3ea22f9e26614).
-The six existing effect-http exports are `Accepts`, `CacheControl`, `ConditionalRequest`, `Csrf`, `ResponseCache`, and `SecureHeaders`.
+The six existing effect-http module subpaths are `accepts`, `cacheControl`, `conditionalRequest`, `csrf`, `responseCache`, and `secureHeaders`.
+Use namespace imports for the module-qualified API names below; the package has no root export.
 Names in [Implementation proposals](./implementation-proposals.md) are not additional exports.
 
 ## Contents
@@ -254,7 +255,7 @@ The cache skips Authorization, Cookie, forbidden cache directives, undeclared Va
 It is bounded process-local storage, not a distributed cache or an effront page/Flight cache.
 Use `CacheControl` to parse and serialize policy rather than concatenating unvalidated directives.
 Keep compression outside cache policy and test the final encoded representation and Vary behavior.
-See [existing ResponseCache source](https://github.com/totto2727-org/effect-http/blob/a6b9ee6409a54c510108e49a92068303061d48cd/src/ResponseCache.ts).
+See [existing ResponseCache source](https://github.com/totto2727-org/effect-http/blob/feat/hono-http-utilities/src/responseCache.ts).
 
 ## Combine
 
@@ -329,7 +330,7 @@ Use `Csrf.decide` when the host already owns the response boundary and pass norm
 Malformed policy is configuration failure, not an authentication success.
 CORS does not replace this check for cookie-authenticated endpoints.
 Do not insert this policy into effront Server Functions without checking their existing origin enforcement.
-See [existing Csrf source](https://github.com/totto2727-org/effect-http/blob/a6b9ee6409a54c510108e49a92068303061d48cd/src/Csrf.ts).
+See [existing Csrf source](https://github.com/totto2727-org/effect-http/blob/feat/hono-http-utilities/src/csrf.ts).
 
 ## ETag
 
@@ -344,7 +345,7 @@ The deferred compression transform then runs first.
 Compressed streams need supplied validators, preferably weak validators that are valid across encodings.
 Do not generate one strong hash for multiple different wire representations.
 Static ETag, range, and file serving remain owned by Effect/effront.
-See [existing ConditionalRequest source](https://github.com/totto2727-org/effect-http/blob/a6b9ee6409a54c510108e49a92068303061d48cd/src/ConditionalRequest.ts).
+See [existing ConditionalRequest source](https://github.com/totto2727-org/effect-http/blob/feat/hono-http-utilities/src/conditionalRequest.ts).
 
 ## IP restriction
 
@@ -394,7 +395,7 @@ Validate each candidate against a finite supported-language list before using it
 Provide the selected language as a request-local service and merge `Vary: Accept-Language` when headers affect the representation.
 If Cookie or query affects the choice, the cache key and cacheability must reflect that choice too.
 A reusable header-only service adapter is possible, but a universal locale policy would bake in application decisions.
-See [existing Accepts source](https://github.com/totto2727-org/effect-http/blob/a6b9ee6409a54c510108e49a92068303061d48cd/src/Accepts.ts).
+See [existing Accepts source](https://github.com/totto2727-org/effect-http/blob/feat/hono-http-utilities/src/accepts.ts).
 
 ## Logger
 
@@ -476,7 +477,7 @@ Configure HSTS only where HTTPS deployment guarantees make it valid.
 Configure CSP for the actual renderer and asset origins rather than copying a broad policy.
 Nonce generation, nonce insertion into rendered scripts, and React/effront integration are outside this middleware's ownership.
 Do not return unvalidated CSP directive values from request data.
-See [existing SecureHeaders source](https://github.com/totto2727-org/effect-http/blob/a6b9ee6409a54c510108e49a92068303061d48cd/src/SecureHeaders.ts).
+See [existing SecureHeaders source](https://github.com/totto2727-org/effect-http/blob/feat/hono-http-utilities/src/secureHeaders.ts).
 
 ## Timeout
 

@@ -1,8 +1,8 @@
 # Standalone HTTP policy recipes
 
 For developers replacing Hono's Accept, cache, conditional-response, CSRF, and security-header behavior on standalone endpoints.
-Use the existing public exports of `@totto2727/effect-http`, not proposed middleware from the separate proposal document.
-The source baseline is [effect-http `67a3839969e989b9634c14c30ca74aa090384ee9`](https://github.com/totto2727-org/effect-http/tree/67a3839969e989b9634c14c30ca74aa090384ee9), with Effect 4.1.4.
+Import each policy from its public subpath. The package has no root export.
+The [effect-http source](https://github.com/totto2727-org/effect-http/tree/feat/hono-http-utilities) uses Effect 4.1.4.
 Confirm registry availability before installing a release; a repository or enabled publish workflow does not prove an npm release exists.
 Do not add Hono as a dependency.
 
@@ -33,7 +33,7 @@ The language middleware also uses this primitive, but query/cookie/path preceden
 This example keeps pure negotiation separate from request-based negotiation:
 
 ```ts
-import { Accepts } from "@totto2727/effect-http";
+import * as Accepts from "@totto2727/effect-http/accepts";
 import { Effect, Option } from "effect";
 import { HttpServerResponse } from "effect/http";
 
@@ -79,7 +79,8 @@ Path: `hono/cache`.
 5. Call `invalidateAll` after writes that invalidate this public representation, including writes outside the route.
 
 ```ts
-import { CacheControl, ResponseCache } from "@totto2727/effect-http";
+import * as CacheControl from "@totto2727/effect-http/cacheControl";
+import * as ResponseCache from "@totto2727/effect-http/responseCache";
 import { Effect } from "effect";
 import { HttpServerResponse } from "effect/http";
 
@@ -117,15 +118,19 @@ Path: `hono/etag`.
 4. Leave static files to their existing static server validators.
    Supply a known validator for streams instead of draining them to compute a digest.
 
-The pure evaluator handles a write precondition before the application mutates state:
+Use `ConditionalRequest.parseEtag` to obtain the schema-validated ETag from the quoted validator.
+Reject an invalid current validator before you evaluate the request.
 
 ```ts
-import { ConditionalRequest } from "@totto2727/effect-http";
+import * as ConditionalRequest from "@totto2727/effect-http/conditionalRequest";
+import { Option } from "effect";
+
+const etag = Option.getOrThrow(Option.fromNullishOr(ConditionalRequest.parseEtag('"revision-8"')));
 
 export const decision = ConditionalRequest.evaluate({
   method: "PUT",
   headers: { "if-match": '"revision-7"' },
-  etag: { _tag: "Strong", value: "revision-8" },
+  etag,
   exists: true,
 });
 ```
@@ -149,7 +154,8 @@ Paths: `hono/csrf`, `hono/secure-headers`.
 5. Map application failures inside the outer header policy when those error responses also require its headers.
 
 ```ts
-import { Csrf, SecureHeaders } from "@totto2727/effect-http";
+import * as Csrf from "@totto2727/effect-http/csrf";
+import * as SecureHeaders from "@totto2727/effect-http/secureHeaders";
 import { Effect } from "effect";
 import { HttpServerResponse } from "effect/http";
 
@@ -172,19 +178,21 @@ effront's existing internal Server Function Origin checks are not replaced by th
 With automatic conditionals and Effect's deferred compression, use:
 
 ```ts
-import { ConditionalRequest } from "@totto2727/effect-http";
+import * as ConditionalRequest from "@totto2727/effect-http/conditionalRequest";
 import { Effect } from "effect";
 import { Digest } from "effect/crypto";
 import { HttpMiddleware, HttpServerResponse } from "effect/http";
 
 export const configured = Effect.succeed(HttpServerResponse.text("Hello")).pipe(
   ConditionalRequest.middleware({ maxBodyBytes: 64 * 1024 }),
-  HttpMiddleware.compression(),
+  HttpMiddleware.compression({ minSize: 0, algorithms: ["gzip"] }),
   Effect.provide(Digest.layerWebCrypto),
 );
 ```
 
-`configured` still needs the HTTP request supplied by the server.
+`minSize: 0` and `algorithms: ["gzip"]` make this five-byte demonstration exercise gzip; omit those options to retain Effect's defaults.
+`configured` still needs `HttpPlatform` from the host composition root and the HTTP request supplied by the server.
+The host's `HttpPlatform` service owns compression; `Digest.layerWebCrypto` does not supply it.
 The layer here is supplied by application composition, not hidden in a reusable generator or middleware.
 Compression registers before conditional processing; validators then apply to the selected response in the pre-response phase.
 Compressed streams are not buffered to invent a strong ETag.
@@ -193,6 +201,6 @@ Test the real Web/native response path: observing only the handler's intermediat
 
 ## Sources
 
-- [Accepts](https://github.com/totto2727-org/effect-http/blob/67a3839969e989b9634c14c30ca74aa090384ee9/src/Accepts.ts), [CacheControl](https://github.com/totto2727-org/effect-http/blob/67a3839969e989b9634c14c30ca74aa090384ee9/src/CacheControl.ts), and [ResponseCache](https://github.com/totto2727-org/effect-http/blob/67a3839969e989b9634c14c30ca74aa090384ee9/src/ResponseCache.ts).
-- [ConditionalRequest](https://github.com/totto2727-org/effect-http/blob/67a3839969e989b9634c14c30ca74aa090384ee9/src/ConditionalRequest.ts), [Csrf](https://github.com/totto2727-org/effect-http/blob/67a3839969e989b9634c14c30ca74aa090384ee9/src/Csrf.ts), and [SecureHeaders](https://github.com/totto2727-org/effect-http/blob/67a3839969e989b9634c14c30ca74aa090384ee9/src/SecureHeaders.ts).
-- [Real Web Request integration examples](https://github.com/totto2727-org/effect-http/blob/67a3839969e989b9634c14c30ca74aa090384ee9/src/integration.test.ts).
+- [Accepts](https://github.com/totto2727-org/effect-http/blob/feat/hono-http-utilities/src/accepts.ts), [CacheControl](https://github.com/totto2727-org/effect-http/blob/feat/hono-http-utilities/src/cacheControl.ts), and [ResponseCache](https://github.com/totto2727-org/effect-http/blob/feat/hono-http-utilities/src/responseCache.ts).
+- [ConditionalRequest](https://github.com/totto2727-org/effect-http/blob/feat/hono-http-utilities/src/conditionalRequest.ts), [Csrf](https://github.com/totto2727-org/effect-http/blob/feat/hono-http-utilities/src/csrf.ts), and [SecureHeaders](https://github.com/totto2727-org/effect-http/blob/feat/hono-http-utilities/src/secureHeaders.ts).
+- [Real Web Request integration examples](https://github.com/totto2727-org/effect-http/blob/feat/hono-http-utilities/src/integration.test.ts).
