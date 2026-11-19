@@ -47,6 +47,7 @@ For each non-excluded import, apply the documented sequence and preserve the req
 Record the exact target import, configuration, request/response boundary, service requirements, and important differences.
 Do not report an API name alone as a completed migration.
 Use references as version-bound evidence, not as permission to add every dependency in them.
+For standalone Effect HTTP middleware, follow the [route scope and startup rules](references/middleware.md#composition-and-error-boundaries).
 
 ### Distinguish availability from integration work
 
@@ -69,6 +70,7 @@ Do not label these compositions as ready middleware or import a proposed API as 
 
 - Keep cryptographic services and host layers caller-provided at the application composition root.
   Never create a runtime or provide a crypto implementation inside a reusable decoder, policy, or identifier generator.
+  Initialize shared state during application layer construction and run the application once from its entry point.
 - Check authorization, CSRF, and write preconditions before an operation that changes state.
   Response middleware cannot undo a mutation.
 - Do not share request services, request scopes, private page output, or Server Function responses across requests.

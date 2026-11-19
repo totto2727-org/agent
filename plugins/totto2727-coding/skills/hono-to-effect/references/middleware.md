@@ -40,13 +40,20 @@ Names in [Implementation proposals](./implementation-proposals.md) are not addit
 ## Composition and error boundaries
 
 A middleware transforms an `Effect<HttpServerResponse, E, R>` and preserves or explicitly changes its error and service requirements.
+For one route, pass `handler.pipe(policy)` directly to `HttpRouter.route` and register the route with `HttpRouter.addAll`.
+For a group that shares the same policy, build it with `HttpRouter.middleware(policy).layer` and provide it to that group's registration layer with `Layer.provide`.
+Use global middleware only when the policy must apply across route groups.
+See the [shared policy server example](https://github.com/totto2727-org/effect-http/blob/74aa92388ba4a43dad0c5bb9261d97bb06b30a76/README.md#usage).
 In `handler.pipe(inner, outer)`, `outer` starts first.
 Ordinary `Effect.map` transforms a successful response only.
 A response registered through `HttpEffect.withPreResponseHandler` runs at the HTTP boundary, including on responses produced by error conversion.
 Do not infer final wire order from the order of `Effect.map` calls.
 The compression recipe and conditional-request recipe depend on this distinction.
 
-Provide process resources, such as cryptography and HTTP clients, once through layers.
+Provide services such as `Digest` and HTTP clients to `HttpRouter.serve(Routes)` at startup, alongside the host layer.
+Leave those service requirements in the handler or middleware type.
+Initialize shared state during route or application layer construction, not with a separate `Effect.runPromise` or inside each request.
+Prefer `Effect.gen` and `yield*` for sequential work; use `pipe` to compose middleware, error policies, and layers.
 Provide request-local values inside the request effect, not in a mutable global variable or a process-wide layer.
 Map known domain failures to HTTP responses before outer successful-response decorators when those decorators must apply to errors too.
 Keep defects observable and keep interruption intact rather than catching every cause and returning success.
@@ -264,7 +271,8 @@ Replace sequential composition with `pipe`, conditional execution with `Effect.i
 An authentication rejection must not be represented as an arbitrary failed cause, because a catch-all fallback can hide an outage or defect.
 Do not race middleware alternatives that can both consume one request body or run side effects.
 A pure predicate can choose a branch before either branch reads the body.
-Install reusable router middleware with `HttpRouter.middleware`, preserving request requirements rather than asserting them away.
+Use the [middleware scope rules](#composition-and-error-boundaries) to choose direct application or a shared router layer.
+Preserve request requirements rather than asserting them away.
 See [HttpRouter.middleware](https://github.com/Effect-TS/effect/blob/3e2030b43e86a60113f2f32671076ff3b1d84ce4/packages/effect/src/http/HttpRouter.ts).
 
 ## Compress

@@ -5,6 +5,7 @@ Import each policy from its public subpath. The package has no root export.
 The [effect-http source](https://github.com/totto2727-org/effect-http/tree/feat/hono-http-utilities) uses Effect 4.1.4.
 Confirm registry availability before installing a release; a repository or enabled publish workflow does not prove an npm release exists.
 Do not add Hono as a dependency.
+Use the [middleware scope and startup rules](middleware.md#composition-and-error-boundaries) for standalone routes.
 
 ## Contents
 
@@ -30,32 +31,30 @@ The language middleware also uses this primitive, but query/cookie/path preceden
 6. Emit `Vary` for the selected request header when the representation depends on it.
    Negotiation itself does not set `Vary` or construct a response.
 
-This example keeps pure negotiation separate from request-based negotiation:
+This example keeps pure negotiation separate from an HTTP middleware that requires JSON:
 
 ```ts
 import * as Accepts from "@totto2727/effect-http/accepts";
-import { Effect, Option } from "effect";
-import { HttpServerResponse } from "effect/http";
+import { Effect, Option, Result } from "effect";
+import { HttpRouter, HttpServerResponse } from "effect/http";
+import { listProducts } from "./products.ts";
 
 export const rawPreference = Accepts.negotiate("mediaType", "application/json, text/plain;q=0.5", [
   "text/plain",
   "application/json",
 ]);
 
-export const negotiated = Effect.gen(function* () {
-  const choice = yield* Accepts.negotiateEffect("mediaType", ["application/json"]);
-  if (Option.isNone(choice)) {
-    return HttpServerResponse.empty({ status: 406, headers: { vary: "Accept" } });
-  }
-  return HttpServerResponse.text('{"ok":true}', {
-    contentType: choice.value,
-    headers: { vary: "Accept" },
-  });
-}).pipe(
-  Effect.catchTag("AcceptsParseError", () =>
-    Effect.succeed(HttpServerResponse.empty({ status: 400, headers: { vary: "Accept" } })),
-  ),
-);
+const acceptJson = <E, R>(handler: Effect.Effect<HttpServerResponse.HttpServerResponse, E, R>) =>
+  Effect.gen(function* () {
+    const choice = yield* Effect.result(Accepts.negotiateEffect("mediaType", ["application/json"]));
+    if (Result.isFailure(choice)) return HttpServerResponse.empty({ status: 400 });
+    if (Option.isNone(choice.success)) return HttpServerResponse.empty({ status: 406 });
+    return yield* handler;
+  }).pipe(Effect.map(HttpServerResponse.setHeader("vary", "Accept")));
+
+export const Routes = HttpRouter.addAll([
+  HttpRouter.route("GET", "/products", listProducts.pipe(acceptJson)),
+]);
 ```
 
 A missing header accepts every server offer.
@@ -72,32 +71,36 @@ Path: `hono/cache`.
 
 1. Use `CacheControl.middleware` when the requirement is a response caching header only.
    Use `CacheControl.parse` and `format` outside middleware for policy parsing/serialization.
-2. If server-side response reuse is required, acquire `ResponseCache.make` once per application sharing boundary, not inside each request.
+2. If server-side response reuse is required, acquire `ResponseCache.make` once during route or application layer construction.
+   Do not run a separate `Effect.runPromise` to create the cache.
 3. Set capacity, TTL, maximum buffered body bytes, and all request-header variants explicitly.
    `publicRoute: true` asserts that output is independent of identity and undeclared inputs.
 4. Put the route's cache header inside `cache.middleware`, so a stored response includes its policy.
-5. Call `invalidateAll` after writes that invalidate this public representation, including writes outside the route.
+5. Yield `invalidateAll` on the same cache instance after writes that invalidate this public representation, including writes outside the route.
 
 ```ts
 import * as CacheControl from "@totto2727/effect-http/cacheControl";
 import * as ResponseCache from "@totto2727/effect-http/responseCache";
 import { Effect } from "effect";
-import { HttpServerResponse } from "effect/http";
+import { HttpRouter } from "effect/http";
+import { listProducts } from "./products.ts";
 
-export const makePublicRoute = Effect.gen(function* () {
-  const cache = yield* ResponseCache.make({
-    publicRoute: true,
-    capacity: 128,
-    ttlMilliseconds: 60_000,
-    maxBodyBytes: 64 * 1024,
-    vary: ["accept-language"],
-  });
-  const route = Effect.succeed(HttpServerResponse.text("Public content")).pipe(
-    CacheControl.middleware({ public: true, maxAge: 30 }),
-    cache.middleware,
-  );
-  return { route, invalidate: cache.invalidateAll };
-});
+export const Routes = HttpRouter.addAll(
+  Effect.gen(function* () {
+    const cache = yield* ResponseCache.make({
+      publicRoute: true,
+      capacity: 128,
+      ttlMilliseconds: 60_000,
+      maxBodyBytes: 64 * 1024,
+      vary: [],
+    });
+    const cachedProducts = listProducts.pipe(
+      CacheControl.middleware({ public: true, maxAge: 30 }),
+      cache.middleware,
+    );
+    return [HttpRouter.route("GET", "/products", cachedProducts)];
+  }),
+);
 ```
 
 This is an in-memory, bounded, public GET route cache, not the platform Cache API or a distributed reverse proxy.
@@ -156,13 +159,14 @@ Paths: `hono/csrf`, `hono/secure-headers`.
 ```ts
 import * as Csrf from "@totto2727/effect-http/csrf";
 import * as SecureHeaders from "@totto2727/effect-http/secureHeaders";
-import { Effect } from "effect";
-import { HttpServerResponse } from "effect/http";
+import { HttpRouter } from "effect/http";
+import { updateProfile } from "./profile.ts";
 
-export const guarded = Effect.succeed(HttpServerResponse.empty({ status: 204 })).pipe(
+const guarded = updateProfile.pipe(
   Csrf.middleware({ allowedOrigins: ["https://trusted.example"] }),
   SecureHeaders.middleware(),
 );
+export const Routes = HttpRouter.addAll([HttpRouter.route("POST", "/profile", guarded)]);
 ```
 
 CSRF protection does not authenticate a user or replace CORS.
@@ -175,25 +179,37 @@ effront's existing internal Server Function Origin checks are not replaced by th
 
 ## Order and service ownership
 
-With automatic conditionals and Effect's deferred compression, use:
+With automatic conditionals and Effect's deferred compression, apply both to the route handler and inject `Digest` at server startup:
 
 ```ts
+import { createServer } from "node:http";
+import { NodeHttpServer, NodeRuntime } from "@effect/platform-node";
 import * as ConditionalRequest from "@totto2727/effect-http/conditionalRequest";
-import { Effect } from "effect";
+import { Layer } from "effect";
 import { Digest } from "effect/crypto";
-import { HttpMiddleware, HttpServerResponse } from "effect/http";
+import { HttpMiddleware, HttpRouter } from "effect/http";
+import { listProducts } from "./products.ts";
 
-export const configured = Effect.succeed(HttpServerResponse.text("Hello")).pipe(
+const conditionalProducts = listProducts.pipe(
   ConditionalRequest.middleware({ maxBodyBytes: 64 * 1024 }),
   HttpMiddleware.compression({ minSize: 0, algorithms: ["gzip"] }),
-  Effect.provide(Digest.layerWebCrypto),
+);
+const Routes = HttpRouter.addAll([HttpRouter.route("GET", "/products", conditionalProducts)]);
+
+HttpRouter.serve(Routes).pipe(
+  Layer.provide([
+    NodeHttpServer.layer(createServer, { host: "127.0.0.1", port: 3000 }),
+    Digest.layerWebCrypto,
+  ]),
+  Layer.launch,
+  NodeRuntime.runMain,
 );
 ```
 
-`minSize: 0` and `algorithms: ["gzip"]` make this five-byte demonstration exercise gzip; omit those options to retain Effect's defaults.
-`configured` still needs `HttpPlatform` from the host composition root and the HTTP request supplied by the server.
-The host's `HttpPlatform` service owns compression; `Digest.layerWebCrypto` does not supply it.
-The layer here is supplied by application composition, not hidden in a reusable generator or middleware.
+`minSize: 0` and `algorithms: ["gzip"]` let a small response exercise gzip when the client accepts it.
+Omit those options to retain Effect's defaults.
+`NodeHttpServer.layer` supplies the `HttpPlatform` service for compression.
+`Digest.layerWebCrypto` supplies the digest service separately at the same startup boundary.
 Compression registers before conditional processing; validators then apply to the selected response in the pre-response phase.
 Compressed streams are not buffered to invent a strong ETag.
 Use a known validator, often weak for equivalent representations across encodings, when automatic hashing cannot apply.
