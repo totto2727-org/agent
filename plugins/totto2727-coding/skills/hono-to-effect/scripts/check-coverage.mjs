@@ -120,10 +120,10 @@ function main() {
   assertInventory(expected, rows, "Skill inventory");
   assertInventory(expected, compatibility, "Compatibility inventory");
   const owners = new Map([
-    ["Effect を利用", "Effect"],
-    ["effront を利用", "effront"],
-    ["追加", "effect-http"],
-    ["対象外", "Excluded"],
+    ["Use Effect", "Effect"],
+    ["Use effront", "effront"],
+    ["Add", "effect-http"],
+    ["Out of scope", "Excluded"],
   ]);
   const classifications = new Map(compatibility.map((row) => [row.path, owners.get(row.owner)]));
   const totals = { Effect: 0, effront: 0, "effect-http": 0, Excluded: 0 };

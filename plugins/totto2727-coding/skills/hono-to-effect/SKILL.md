@@ -48,6 +48,7 @@ Record the exact target import, configuration, request/response boundary, servic
 Do not report an API name alone as a completed migration.
 Use references as version-bound evidence, not as permission to add every dependency in them.
 For standalone Effect HTTP middleware, follow the [route scope and startup rules](references/middleware.md#composition-and-error-boundaries).
+For application authentication, follow the [Better Auth migration policy](references/middleware.md#authentication) instead of writing replacement middleware.
 
 ### Distinguish availability from integration work
 
@@ -60,7 +61,6 @@ Classify the result for each used feature:
 - **effront-owned**: use its public application or host boundary, without duplicating the runtime.
 - **Excluded**: use the map's explicit reason and obtain an application decision when removal would change behavior.
 
-An authentication scheme is not an authenticator.
 An Effect timeout is not an HTTP timeout response policy.
 An IP parser is not an access-control middleware.
 A cryptographic MAC is not a signed-cookie protocol.

@@ -10,9 +10,7 @@ Names in [Implementation proposals](./implementation-proposals.md) are not addit
 ## Contents
 
 - [Composition and error boundaries](#composition-and-error-boundaries)
-- [Basic auth](#basic-auth)
-- [Bearer auth](#bearer-auth)
-- [JWT and JWK](#jwt-and-jwk)
+- [Authentication](#authentication)
 - [Body limit](#body-limit)
 - [Cache](#cache)
 - [Combine](#combine)
@@ -61,156 +59,13 @@ Keep defects observable and keep interruption intact rather than catching every 
 A stream can still fail after headers are sent, when replacing the response with a new status is no longer possible.
 See [HttpEffect](https://github.com/Effect-TS/effect/blob/3e2030b43e86a60113f2f32671076ff3b1d84ce4/packages/effect/src/http/HttpEffect.ts) and [HttpServerError](https://github.com/Effect-TS/effect/blob/3e2030b43e86a60113f2f32671076ff3b1d84ce4/packages/effect/src/http/HttpServerError.ts).
 
-## Basic auth
+## Authentication
 
-Path: `hono/basic-auth`.
-Use `HttpApiSecurity.basic` with `HttpApiMiddleware.Service` for typed HTTP APIs.
-The scheme supplies `{ username, password }`, where `password` is redacted, to the security implementation.
-The implementation must call an application credential service, fail with a declared 401 error on rejection, and provide an authenticated principal service on success.
-Attach the middleware to the endpoint or group and provide its implementation layer to the API builder.
-A security declaration is not a credential database or password verifier.
-Configure a `WWW-Authenticate: Basic realm="..."` challenge at the error-response boundary if clients require it.
-Use TLS, rate limits, and a password verification service rather than a plain string equality example.
-Do not log decoded passwords or raw Authorization headers.
-This typed-API adapter delegates verification and provides only the returned principal.
-Provide `CredentialsVerifier` when building `BasicAuthLive`, then provide that layer to the API routes containing `protectedEndpoint`.
-The declaration uses the built-in Unauthorized schema, so rejection remains a declared 401 error.
-
-```ts
-import { Context, Effect, Layer } from "effect";
-import { HttpApiEndpoint, HttpApiError, HttpApiMiddleware, HttpApiSecurity } from "effect/http-api";
-
-export class CurrentUser extends Context.Service<CurrentUser, { readonly id: string }>()(
-  "example/CurrentUser",
-) {}
-export class CredentialsVerifier extends Context.Service<
-  CredentialsVerifier,
-  {
-    readonly verify: (
-      credentials: HttpApiSecurity.Credentials,
-    ) => Effect.Effect<CurrentUser["Service"], HttpApiError.Unauthorized>;
-  }
->()("example/CredentialsVerifier") {}
-export class BasicAuth extends HttpApiMiddleware.Service<BasicAuth, { provides: CurrentUser }>()(
-  "example/BasicAuth",
-  {
-    security: { basic: HttpApiSecurity.basic },
-    error: HttpApiError.Unauthorized,
-  },
-) {}
-export const BasicAuthLive = Layer.effect(
-  BasicAuth,
-  Effect.gen(function* () {
-    const verifier = yield* CredentialsVerifier;
-    return {
-      basic: (handler, { credential }) =>
-        verifier
-          .verify(credential)
-          .pipe(Effect.flatMap((user) => Effect.provideService(handler, CurrentUser, user))),
-    };
-  }),
-);
-export const protectedEndpoint = HttpApiEndpoint.get("profile", "/profile").middleware(BasicAuth);
-```
-
-See [HttpApiMiddleware security contract](https://github.com/Effect-TS/effect/blob/3e2030b43e86a60113f2f32671076ff3b1d84ce4/packages/effect/src/http-api/HttpApiMiddleware.ts) and [HttpApiSecurity.Credentials](https://github.com/Effect-TS/effect/blob/3e2030b43e86a60113f2f32671076ff3b1d84ce4/packages/effect/src/http-api/HttpApiSecurity.ts).
-
-## Bearer auth
-
-Path: `hono/bearer-auth`.
-Use `HttpApiSecurity.bearer` to extract a redacted token and an application authentication service to validate it.
-For opaque tokens, use bounded database or introspection calls and distinguish invalid credentials from service outages.
-Provide the principal only around the protected handler.
-Return 401 for missing or invalid credentials and 403 for a valid principal that lacks permission.
-Keep a browser cookie fallback opt-in, with CSRF protection, instead of silently accepting a second credential source.
-For a plain handler, the following complete example uses an injected verifier and a strict, single Bearer credential.
-The verifier is deliberately application-owned and must be supplied before serving this handler.
-
-```ts
-import { Context, Effect } from "effect";
-import { HttpServerRequest, HttpServerResponse } from "effect/http";
-
-export class Principal extends Context.Service<Principal, { readonly subject: string }>()(
-  "example/Principal",
-) {}
-export class TokenVerifier extends Context.Service<
-  TokenVerifier,
-  {
-    readonly verify: (token: string) => Effect.Effect<Principal["Service"], "InvalidToken">;
-  }
->()("example/TokenVerifier") {}
-
-export const bearerApp = Effect.gen(function* () {
-  const request = yield* HttpServerRequest.HttpServerRequest;
-  const match = /^Bearer ([^\s,]+)$/i.exec(request.headers.authorization ?? "");
-  const denied = HttpServerResponse.empty({
-    status: 401,
-    headers: { "www-authenticate": "Bearer" },
-  });
-  const token = match?.[1];
-  if (token === undefined) return denied;
-  const verifier = yield* TokenVerifier;
-  const protectedHandler = Principal.use((principal) =>
-    Effect.succeed(HttpServerResponse.text(principal.subject)),
-  );
-  return yield* verifier.verify(token).pipe(
-    Effect.flatMap((principal) => Effect.provideService(protectedHandler, Principal, principal)),
-    Effect.catch(() => Effect.succeed(denied)),
-  );
-});
-```
-
-The verifier's error channel contains only credential rejection, so this catch does not mask infrastructure errors.
-Keep outages in a distinct error channel when extending this service.
-
-```ts
-import { Effect } from "effect";
-import { HttpServerResponse } from "effect/http";
-
-export const invalidTokenBoundary = (check: Effect.Effect<string, "InvalidToken">) =>
-  check.pipe(
-    Effect.map((subject) => HttpServerResponse.text(subject)),
-    Effect.catch(() => Effect.succeed(HttpServerResponse.empty({ status: 401 }))),
-  );
-```
-
-## JWT and JWK
-
-Paths: `hono/jwt`, `hono/jwk`.
-Use `Jwt.verify(schema, token, key, options)` for a configured verification key.
-Use `Jwt.verifyWithKeySet(schema, token, options)` with `Jwks.Jwks` and `Signature.Signature` for key-set selection.
-The latter requires an explicit algorithm allow-list through its options.
-Configure `Jwks.layerRemote(options)` once, including its configured URL and HTTP client dependencies, rather than fetching a key set on every request.
-Allow only a deployment-configured HTTPS issuer/key URL, not a token-controlled URL.
-The remote Jwks service validates an HTTPS URL without credentials or fragment, caches successful fetches, coalesces concurrent resolution, and bounds response bytes and key count.
-Its default TTL is 10 minutes, cooldown is 30 seconds, and fetch/body timeout is 5 seconds.
-Supply an HTTP client with redirects disabled.
-`FetchHttpClient` follows redirects by default, so provide its `RequestInit` service with `{ redirect: "manual" }` on the client layer.
-The key-set service rejects a redirected final response, but that check cannot undo a redirect request the client already sent.
-Set issuer, audience, required claims, and token-age policy independently of signature validation.
-`exp` is not mandatory unless policy requires it.
-A decoded token from `Jwt.decodeUnverified` is untrusted data, not a principal.
-
-```ts
-import { Schema } from "effect";
-import { Jwt } from "effect/jose";
-
-const Claims = Schema.Struct({ sub: Schema.String });
-export const verifyAccessToken = (token: string) =>
-  Jwt.verifyWithKeySet(Claims, token, {
-    algorithms: ["RS256"],
-    issuer: "https://issuer.example",
-    audience: "example-api",
-    requiredClaims: ["exp", "sub"],
-    clockTolerance: "5 seconds",
-  });
-```
-
-Feed the verified result's `claims` into the application principal mapping, then provide the principal around the protected handler.
-Map token format, signature, and claim rejection to 401 without exposing details.
-Do not turn an upstream outage into a successful anonymous request.
-The reusable adapter, challenge formatting, and error classification are still missing middleware, even though JOSE primitives exist.
-See [Jwt](https://github.com/Effect-TS/effect/blob/3e2030b43e86a60113f2f32671076ff3b1d84ce4/packages/effect/src/jose/Jwt.ts), [Jwks](https://github.com/Effect-TS/effect/blob/3e2030b43e86a60113f2f32671076ff3b1d84ce4/packages/effect/src/jose/Jwks.ts), and [Jws verification options](https://github.com/Effect-TS/effect/blob/3e2030b43e86a60113f2f32671076ff3b1d84ce4/packages/effect/src/jose/Jws.ts).
+Paths: `hono/basic-auth`, `hono/bearer-auth`, `hono/jwt`, `hono/jwk`.
+Use [Alchemy's Better Auth integration](https://alchemy.run/better-auth/what-is-better-auth/) for application authentication instead of writing replacement middleware.
+Require an authenticated identity on protected routes and keep authorization checks in the application.
+Do not assume Better Auth accepts existing credentials or returns the same HTTP challenge.
+If clients depend on that behavior, document the contract and verify it before switching the route.
 
 ## Body limit
 
@@ -607,12 +462,11 @@ See [request conversion](https://github.com/Effect-TS/effect/blob/3e2030b43e86a6
 
 The examples target the installed Effect 4.1.4 source, not the older `@effect/platform` import layout.
 Typechecking establishes signatures and service/error requirements, not compression on the wire, interruption timing, adapter body limits, or cryptographic interoperability.
-All ten TypeScript fences were extracted and passed strict typechecking against the installed baseline.
-Web-handler checks exercised bearer acceptance/rejection, uncompressed and expanded body overflow (413), malformed gzip (400), unsupported coding (415), unread compressed-body laziness, cookie headers, concurrent request-ID isolation, and timeout finalization.
+Web-handler checks exercised uncompressed and expanded body overflow (413), malformed gzip (400), unsupported coding (415), unread compressed-body laziness, cookie headers, concurrent request-ID isolation, and timeout finalization.
 A separate Web-platform compression check verified that direct evaluation is uncompressed while the HTTP boundary emits valid gzip bytes, with q=0 and small-body Vary behavior.
 IP checks covered normal and mapped addresses, missing/malformed input, denial before handler execution, and trusted versus untrusted forwarded chains.
 The compression smoke check used a no-op filesystem only to supply the real Web HttpPlatform layer and did not test file serving.
-JWT/JWKS cryptographic verification, Basic-auth API integration, signed-cookie interoperability, production adapters, and outbound proxy lifetime were not runtime-tested here.
+Signed-cookie interoperability, production adapters, and outbound proxy lifetime were not runtime-tested here.
 Run the actual server or Web handler boundary for those acceptance checks.
 Renderer, static serving, and related effront integration are outside this document.
 `hono/method-not-allowed` and `hono/method-override` remain excluded rather than being implied middleware exports.

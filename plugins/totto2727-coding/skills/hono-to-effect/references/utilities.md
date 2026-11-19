@@ -368,14 +368,9 @@ The `hono/ip-restriction` middleware recipe owns the allow/deny policy; this uti
 
 ### hono/utils/basic-auth
 
-1. For an API endpoint, declare `HttpApiSecurity.basic` through `HttpApiMiddleware` and implement credential verification in an injected authentication service.
-2. For a raw header parser only, read `Authorization`, require the intended scheme, decode the Base64 payload with `Base64.decode`, decode valid UTF-8, and split at the first colon.
-3. Treat malformed Base64, missing colon, and absent credentials as authentication failures under the application policy.
-4. Check credentials using the application's password verifier and return an explicit challenge on failure.
-
-Use the concrete [authentication recipe](middleware.md#basic-auth) for service wiring and challenge behavior.
-A raw Basic parser is not a credential verifier, and Base64 provides no secrecy; require TLS.
-Do not compare stored password hashes with plain string equality or reproduce Hono's Web-Request-only convenience parser.
+For application authentication, follow the [Better Auth migration policy](middleware.md#authentication).
+If a separate integration requires raw parsing, check the Basic scheme, limit the input size, decode with `Base64.decode`, and split valid UTF-8 at the first colon.
+Parsing does not verify credentials.
 
 ### hono/cookie and hono/utils/cookie
 
@@ -394,7 +389,7 @@ Expire a cookie with the same scope used when setting it.
 
 ## JWT paths
 
-The [JWT authentication recipe](middleware.md#jwt-and-jwk) covers token verification, claim policy, key-set selection, and injected crypto service composition.
+Use these mappings for token processing outside [application authentication](middleware.md#authentication).
 The following mappings remain separate because the Hono wildcard exposes each import independently.
 No mapping means that token decoding alone authenticates a request.
 
@@ -402,7 +397,6 @@ No mapping means that token decoding alone authenticates a request.
 
 1. Replace the barrel's signing and verification calls with `Jwt.sign`, `Jwt.verify`, or `Jwt.verifyWithKeySet`.
 2. Declare the payload schema and required issuer, audience, expiration, and algorithm policy.
-3. Pass the verified claims to the application authentication service as in the middleware recipe.
 
 This fixed export and `hono/utils/jwt/index` happen to reach the same Hono implementation but remain different migration paths.
 Effect verification returns a structured result with decoded claims and protected-header information, not Hono's payload alias.
@@ -411,7 +405,7 @@ Effect verification returns a structured result with decoded claims and protecte
 
 1. Remove the nested barrel import rather than creating another local barrel that mimics Hono's `Jwt` object.
 2. Import `Jwt` and, for rotating keys, `Jwks` from `effect/jose`.
-3. Apply the same concrete verify/sign workflow as `hono/utils/jwt` and the middleware recipe.
+3. Apply the same verification and signing workflow as `hono/utils/jwt`.
 
 The filename `index` does not require a second runtime implementation or a separate validation policy.
 
@@ -465,7 +459,7 @@ The reusable `roundTrip` function makes no runtime choice; applications using as
 3. Inspect the returned verified claims, not a separately decoded unverified payload.
 4. Reject missing required claims and invalid time, issuer, audience, and schema values.
 
-Check the exact Effect argument order in the middleware recipe; it is not Hono's `verify(token, secret, alg)` order.
+Effect's `Jwt.verify(schema, token, key, options)` uses a different argument order from Hono's `verify(token, secret, alg)`.
 Verified signature alone is not sufficient when the application also requires audience, issuer, or expiry restrictions.
 Do not log raw tokens or expose signature validation details as public authentication responses.
 
@@ -473,11 +467,10 @@ Do not log raw tokens or expose signature validation details as public authentic
 
 1. Replace Hono JWT payload aliases with an application `Schema` and its inferred Type.
 2. Use `Jwt.RegisteredClaims` only for registered JWT claim structure, not as proof of required application claims.
-3. Handle `Jwt.JwtError` and `JoseError.JoseError` in the typed error channel at the authentication boundary.
-4. Map public authentication failures consistently without copying Hono exception classes or enums.
+3. Handle `Jwt.JwtError` and `JoseError.JoseError` in the typed error channel without copying Hono exception classes or enums.
 
 A structural payload type does not perform runtime validation; use the schema passed to `Jwt.verify`.
-Use the [typed-error recipe](core.md#typed-http-errors) when the application must translate an authentication error into HTTP.
+Use the [typed-error recipe](core.md#typed-http-errors) when the application must translate a token-processing error into HTTP.
 
 ### hono/utils/jwt/utf8
 

@@ -12,7 +12,6 @@ Use [Middleware recipes](./middleware.md) for the migration that is possible now
 - [IP restriction](#ip-restriction)
 - [Request ID](#request-id)
 - [Signed cookies](#signed-cookies)
-- [Authentication adapters](#authentication-adapters)
 - [HTTP timeout mapping](#http-timeout-mapping)
 - [Eager body gate](#eager-body-gate)
 - [Outbound proxy policy](#outbound-proxy-policy)
@@ -35,24 +34,24 @@ Available primitives remove the need to rebuild cryptography, timers, or CIDR pa
 They do not remove the need for parsing, trust policy, request-local services, error mapping, final-response integration, and security tests.
 
 Propose narrow Effect-native adapters, not a Hono `Context` compatibility framework.
-Keep credential storage, role decisions, issuer selection, upstream selection, locale precedence, and deployment trust in the application.
+Use [Alchemy's Better Auth integration](middleware.md#authentication) for application authentication rather than adding an effect-http adapter.
+Keep authorization, upstream selection, locale precedence, and deployment trust in the application.
 Keep rendering, static files, RSC/Flight, Server Functions, runtime deployment integration, and nonce insertion in effront or its underlying platform.
 The excluded `hono/method-not-allowed` and `hono/method-override` do not become implementation candidates through this review.
 
 ## Priority summary
 
-| Priority | Proposed area             | Hono paths                                                    | Recommendation                                                                   |
-| -------- | ------------------------- | ------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| P1       | `IpRestriction`           | `hono/ip-restriction`, `hono/conninfo`                        | Implement a pure decision engine and thin middleware                             |
-| P1       | `RequestId`               | `hono/request-id`                                             | Implement request service, trust validation, logs, and final response header     |
-| P1       | `SignedCookies`           | `hono/cookie`, `hono/utils/cookie`                            | Implement authenticated codec and cookie helpers without new cryptography        |
-| P1       | `Authentication` adapters | `hono/basic-auth`, `hono/bearer-auth`, `hono/jwt`, `hono/jwk` | Implement credential extraction and HTTP integration, inject verification policy |
-| P2       | `HttpTimeout`             | `hono/timeout`                                                | Small candidate only if a reusable response/error contract is needed             |
-| P2       | `BodyGate`                | `hono/body-limit`                                             | Implement only for demonstrated eager-rejection requirements                     |
-| P2       | `Proxy`                   | `hono/proxy`                                                  | Implement a constrained streaming forwarder, not an open proxy                   |
-| P3       | `ServerTiming`            | `hono/timing`                                                 | Optional serializer and request-local measurement registry                       |
-| P3       | `Language`                | `hono/language`                                               | Optional header-only adapter, keep detector precedence in apps                   |
-| P3       | `CanonicalPath`           | `hono/trailing-slash`                                         | Optional explicit redirect policy, not router-history inspection                 |
+| Priority | Proposed area   | Hono paths                             | Recommendation                                                               |
+| -------- | --------------- | -------------------------------------- | ---------------------------------------------------------------------------- |
+| P1       | `IpRestriction` | `hono/ip-restriction`, `hono/conninfo` | Implement a pure decision engine and thin middleware                         |
+| P1       | `RequestId`     | `hono/request-id`                      | Implement request service, trust validation, logs, and final response header |
+| P1       | `SignedCookies` | `hono/cookie`, `hono/utils/cookie`     | Implement authenticated codec and cookie helpers without new cryptography    |
+| P2       | `HttpTimeout`   | `hono/timeout`                         | Small candidate only if a reusable response/error contract is needed         |
+| P2       | `BodyGate`      | `hono/body-limit`                      | Implement only for demonstrated eager-rejection requirements                 |
+| P2       | `Proxy`         | `hono/proxy`                           | Implement a constrained streaming forwarder, not an open proxy               |
+| P3       | `ServerTiming`  | `hono/timing`                          | Optional serializer and request-local measurement registry                   |
+| P3       | `Language`      | `hono/language`                        | Optional header-only adapter, keep detector precedence in apps               |
+| P3       | `CanonicalPath` | `hono/trailing-slash`                  | Optional explicit redirect policy, not router-history inspection             |
 
 P1 means a reusable security-sensitive HTTP boundary is absent and copy-paste is error-prone.
 P2 means the primitive composition is short or scope-sensitive, so adopt it only when the documented shared behavior is useful.
@@ -120,30 +119,6 @@ Preserve __Host-/__Secure-, Secure, SameSite, path, and domain constraints throu
 **Tests:** Hono-generated fixtures in both directions, Unicode, URL escaping, dots in values, invalid Base64, tag truncation, wrong keys, rotation, maximum length, missing cookie, prefix constraints, expiry if supported, and ordinary valid unsigned-cookie behavior remaining separate.
 **Dependencies:** Effect Mac, SecureRandom layer dependency where required, encoding, and HTTP cookies only.
 **Boundary:** Session storage, refresh/revocation policy, and encryption remain outside the helper.
-
-## Authentication adapters
-
-**Paths:** `hono/basic-auth`, `hono/bearer-auth`, `hono/jwt`, `hono/jwk`.
-**Existing primitives:** `HttpApiSecurity.basic` and `.bearer`, `HttpApiMiddleware.Service`, redacted credentials, `Jwt.verify`, `Jwt.verifyWithKeySet`, `Jwks` local/remote layers, schema decoding, and crypto services.
-See [HttpApiSecurity](https://github.com/Effect-TS/effect/blob/3e2030b43e86a60113f2f32671076ff3b1d84ce4/packages/effect/src/http-api/HttpApiSecurity.ts) and [Jwt](https://github.com/Effect-TS/effect/blob/3e2030b43e86a60113f2f32671076ff3b1d84ce4/packages/effect/src/jose/Jwt.ts).
-
-**Missing behavior:** Plain-handler credential extraction and challenge responses, typed principal provision, credential-source policy, and consistent mapping of malformed/invalid credentials versus verification service failure.
-The API security scheme is not a ready authentication service.
-**Suggested scope:** Proposed `Authentication.basic`, `.bearer`, and a JOSE verifier adapter that accepts a schema, configured verification policy, and a principal mapper.
-Accept effectful verifier functions rather than credentials embedded in middleware configuration.
-For HttpApi users, provide an adapter or documented layer recipe over existing security services, not a second API framework.
-Keep 401 challenge construction and 403 authorization distinct.
-
-**Security:** Default to Authorization only, reject ambiguity, require algorithm allow-lists, support mandatory issuer/audience/expiry policy configuration, and redact tokens from errors/logs.
-Never fetch a token-supplied JWK URL.
-Construct remote JWKS services once with bounded cache/refresh settings and configured HTTPS origins.
-Supply a no-redirect HTTP client, because the built-in post-response redirect rejection cannot prevent a client from already following the redirect.
-Do not accept `decodeUnverified` output as authentication.
-Keep credential rejection separate from key retrieval outages and other operational failures.
-**Tests:** Missing header, malformed Base64/basic encoding, username/password edge cases, scheme casing, duplicate or combined credentials, invalid signature, disallowed algorithm, wrong issuer/audience, expired/not-yet-valid/missing required claims, rotated/missing key IDs, network failure, challenge formatting, and principal isolation under concurrency.
-**Dependencies:** Effect http-api/jose/crypto and injected HttpClient only, no parallel JOSE library.
-**Boundary:** Identity provider choice, password verification, token introspection, authorization, and user persistence remain application-owned.
-A complete login/session framework is not proposed.
 
 ## HTTP timeout mapping
 
