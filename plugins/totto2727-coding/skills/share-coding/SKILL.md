@@ -8,6 +8,19 @@ description: >-
 
 > Content type: conceptual guidance shared by every language.
 
+## Coding principles
+
+1. When replacing code or interfaces, remove the obsolete implementation outright. Do not preserve backward compatibility, add compatibility layers, write migration scripts, or keep fallback rollback paths.
+2. Choose the simplest implementation that meets the current requirements. Do not add abstractions or configuration layers for hypothetical needs.
+3. Start with the smallest working end-to-end version. Verify it works before extending it. Do not break working behavior to prepare for hypothetical complexity.
+4. Give each module a clear responsibility. Keep unrelated concerns separate.
+5. Prefer mature, actively maintained third-party libraries. Reimplement their capabilities only when there is a compelling reason.
+6. Before writing code, check what the project's existing dependencies can do. Use that evidence to decide whether to add a package or write custom code.
+7. Make architecture decisions for long-term maintenance. Do not ship temporary workarounds with a plan to revisit them later.
+8. Look at how mature products solve the same problem before choosing a design. Reuse proven patterns instead of inventing new ones.
+
+[Source](https://x.com/murong97358/status/2124531122826854873)
+
 ## Type safety
 
 Express invariants in the type system whenever possible. Preserve paths, identifiers, commands, and domain payloads as specific structural values while they cross application layers. Keep generic JSON at serialization boundaries, and convert structural values to text only when an external protocol or display requires it.
