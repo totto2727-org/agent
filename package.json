@@ -1,4 +1,10 @@
 {
   "name": "@totto2727/agent",
-  "private": true
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "@totto2727/oxlint": "^0.2.0",
+    "vite-plus": "^1.5.0"
+  },
+  "packageManager": "pnpm@11.21.0"
 }
