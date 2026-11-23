@@ -1,15 +1,13 @@
 # IME-safe Enter Submission
 
-> Document type: decision guidance and official upstream source routing, not a local copy of the upstream implementation guide.
-
-Read when implementing custom Enter-to-submit behavior in a browser text editor or fixing submission during Japanese, Chinese, or Korean IME conversion.
-This applies across frameworks, not only Remix.
+For advanced browser developers who implement custom Enter-to-submit behavior or fix submission during Japanese, Chinese, or Korean IME conversion.
 
 ## Decision boundary
 
 Treat IME candidate confirmation and submission as different user intents.
 A custom Enter handler must not submit partially composed text or interfere with conversion confirmation.
-Keep an explicit submit button and the native form submission path; a keyboard shortcut is an additional interaction, not their replacement.
+Keep an explicit submit button and the native form submission path.
+A keyboard shortcut is an additional interaction, not their replacement.
 Do not add custom keyboard interception to an ordinary native single-line form solely to apply this guidance.
 
 ## Official source

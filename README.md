@@ -58,7 +58,19 @@ Each package contains its manifest at `plugins/<plugin>/plugin.json` and its ski
 
 Provides reusable coding and testing guidance, [documentation-principles](plugins/totto2727-coding/skills/documentation-principles/SKILL.md) for shared writing principles, [share-test-design](plugins/totto2727-coding/skills/share-test-design/SKILL.md) for test-design decisions, and [share-artifact](plugins/totto2727-coding/skills/share-artifact/SKILL.md) for adaptable README, AGENTS.md, and ADR structures.
 Use [documentation-quality](plugins/totto2727-coding/skills/documentation-quality/SKILL.md) to review developer documentation.
+Use [share-stack](plugins/totto2727-coding/skills/share-stack/SKILL.md) for cross-language stack selections.
 Use [realpath](plugins/totto2727-coding/skills/realpath/SKILL.md) for filesystem path calculations and [skill-reviewer](plugins/totto2727-coding/skills/skill-reviewer/SKILL.md) for Agent Skill reviews.
+
+Choose a coding skill for implementation principles and a stack skill for architecture, libraries, and toolchains:
+
+| Scope                     | Coding                                                                | Stack                                                                   |
+| ------------------------- | --------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| JavaScript and TypeScript | [js-coding](plugins/totto2727-coding/skills/js-coding/SKILL.md)       | [js-stack](plugins/totto2727-coding/skills/js-stack/SKILL.md)           |
+| MoonBit                   | [mbt-coding](plugins/totto2727-coding/skills/mbt-coding/SKILL.md)     | [mbt-stack](plugins/totto2727-coding/skills/mbt-stack/SKILL.md)         |
+| Rust                      | [rust-coding](plugins/totto2727-coding/skills/rust-coding/SKILL.md)   | [rust-stack](plugins/totto2727-coding/skills/rust-stack/SKILL.md)       |
+| Go                        | [share-coding](plugins/totto2727-coding/skills/share-coding/SKILL.md) | [go-stack](plugins/totto2727-coding/skills/go-stack/SKILL.md)           |
+| Haskell                   | [share-coding](plugins/totto2727-coding/skills/share-coding/SKILL.md) | [haskell-stack](plugins/totto2727-coding/skills/haskell-stack/SKILL.md) |
+| Nix infrastructure        | [share-coding](plugins/totto2727-coding/skills/share-coding/SKILL.md) | [nix-stack](plugins/totto2727-coding/skills/nix-stack/SKILL.md)         |
 
 ### `external-information`
 

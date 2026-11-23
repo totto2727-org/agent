@@ -1,70 +1,40 @@
 ---
 name: js-coding
 description: >-
-  TypeScript implementation guidance for package management, dependency versions, Effect, Hono, Remix, browser IME input, typed boundaries, and collections. Use when implementing or reviewing these concerns, or changing JavaScript or TypeScript dependencies or package managers.
+  Apply Effect-TS-first implementation principles when writing or reviewing JavaScript and TypeScript types, boundaries, state, errors, collections, strings, dates, or HTTP operations.
+  Use js-stack for toolchain selection and application composition, and js-test for test implementation.
 ---
 
-# TypeScript Coding Index
+# Effect-TS Coding Index
 
-All references below are concrete TypeScript implementation guidance or an explicit upstream source index. Use [`share-coding`](../share-coding/SKILL.md) for language-independent design decisions.
-Read only the relevant reference; already available principles need not be reloaded.
+Implementation choices for advanced TypeScript users.
+Use [share-coding](../share-coding/SKILL.md) for language-independent design and [js-stack](../js-stack/SKILL.md) for application composition.
 
-## Package manager
+## Write Effect-TS, not plain TypeScript
 
-- Preserve the workspace template's language settings and toolchain, and extend them only as needed. Use [workspace toolchains and tasks](../share-coding/SKILL.md#workspace-toolchains-and-tasks) for runner selection and [task orchestration](../share-coding/references/task-orchestration.md) for dependencies, project-local scripts, and cache boundaries.
-- Use Node.js as the default runtime and pnpm as the underlying package manager for JavaScript and TypeScript projects maintained by the user, unless the workspace template specifies otherwise.
-- Use the Vite+ CLI (`vp`) as the default interface for dependency operations and project tasks.
-- When using pnpm, keep it as the only package manager and `pnpm-lock.yaml` as the authoritative dependency lockfile.
-- Introduce Bun only when direct TypeScript execution requires it. Keep dependency management on pnpm even when Bun executes TypeScript.
-- When changing package managers, preserve the existing release-age window. Convert units without reducing the duration, for example, 86400 seconds to 1440 minutes for pnpm.
-- Package-manager choice is separate from runtime support. Do not change a library's supported runtimes or its Deno design merely to adopt pnpm.
+Use Effect APIs wherever they provide the operation, including pure data operations and HTTP, not only I/O wrappers.
 
-## Dependency versions
+| Concern        | Effect APIs                                                                             |
+| -------------- | --------------------------------------------------------------------------------------- |
+| Collections    | `Array`                                                                                 |
+| Strings        | `String`                                                                                |
+| Dates and time | `DateTime`, `Clock`                                                                     |
+| Outbound HTTP  | `HttpClient`, `HttpClientRequest`, `HttpClientResponse`                                 |
+| Server HTTP    | `HttpServerRequest`, `HttpServerResponse`, `HttpApi`, `HttpApiGroup`, `HttpApiEndpoint` |
 
-- Use caret ranges such as `^1.2.3` for external dependency declarations. Do not use exact versions unless an unavoidable compatibility requirement needs them. Record the reason and its supporting evidence.
-- Select the newest compatible version that the package manager can install with its default minimum release age and supply-chain waiting period in force. Do not select an ineligible release merely because it is the latest published version.
-  On pnpm versions that support [`minimumReleaseAgeStrict`](https://pnpm.io/settings/dependency-resolution#minimumreleaseagestrict), set `minimumReleaseAgeStrict: true` when using the built-in age to prevent fallback to younger releases. This enforces the existing waiting period without changing its duration, and must not be copied to package managers that do not support it.
-- Do not disable or shorten those waiting periods, or add `minimumReleaseAgeExclude`, for routine updates. Permit only a genuinely urgent exception, such as a critical security fix. Record the urgency, evidence, and smallest necessary scope before applying it.
-- Do not use `overrides` or `resolutions` by default. Use them only for an unavoidable requirement, such as an official Vite+ toolchain requirement. Record the reason, affected packages, and official source or other concrete evidence.
-  For Vite+, keep the direct `vite-plus` declaration as a caret range. In package-manager overrides, map `vite` to `npm:@voidzero-dev/vite-plus-core@<installed-vite-plus-version>` and pin `vitest` to the exact bundled version. Use the project's local CLI to check it with `vp toolchain vitest`. Update both overrides whenever `vite-plus` changes. Follow the [official migration guide](https://viteplus.dev/guide/migrate) and [update guide](https://viteplus.dev/guide/upgrade-project) for package-manager-specific forms.
-- These rules concern external dependency declarations, not a package's own `version`, concrete lockfile resolutions, or internal `workspace:` references. Preserve those values and protocols unless the task requires their change.
+Use pure Effect data APIs directly, without an `Effect` wrapper.
+Keep native APIs at required host or third-party boundaries, or in a small adapter when Effect lacks the capability.
+Use imports supported by the [installed Effect version](../js-stack/references/knowledge/effect.md).
 
-## Type boundaries
+These defaults do not authorize upstream-first fork rewrites or unnecessary Effect dependencies in public libraries.
+Use [Effect CLI](../js-stack/references/stack/cli.md) for new CLIs and approved migrations.
 
-- [`boundary-conversion.md`](references/boundary-conversion.md) — decode weak external values into wire models, validate domain models, and encode request models.
-- [`state-modeling.md`](references/state-modeling.md) — discriminated unions, exhaustive transitions, and impossible-state elimination.
-- [`error-handling.md`](references/error-handling.md) — typed Effect failures, propagation, recovery, and error translation.
-- [`collections.md`](references/collections.md) — unique collection choices and boundary conversion.
+## Reference routing
 
-## Effect
-
-- [`effect-layer.md`](references/effect-layer.md) — service tags and Layer definitions.
-- [`effect-layer-composition.md`](references/effect-layer-composition.md) — dependency provision and Layer exposure.
-- [`effect-runtime.md`](references/effect-runtime.md) — managed runtimes, disposal, and environment selection.
-- [`effect-sources.md`](references/effect-sources.md) — live upstream migration and Schema sources.
-
-## Hono
-
-- [`hono-handler.md`](references/hono-handler.md) — endpoint Effect boundaries and dependency provision.
-- [`hono-middleware.md`](references/hono-middleware.md) — middleware context and authentication boundaries.
-- [`hono-subapp.md`](references/hono-subapp.md) — sub-application construction.
-- [`hono-errors.md`](references/hono-errors.md) — HTTP error types.
-- [`hono-ordering.md`](references/hono-ordering.md) — middleware registration order.
-
-## Browser input
-
-- [`ime-safe-enter-submit.md`](references/ime-safe-enter-submit.md) — read when adding or changing custom Enter-to-submit behavior, or fixing premature submission during IME conversion; routes to official Modern Web Guidance.
-
-## Remix
-
-- [`remix-client-events.md`](references/remix-client-events.md) — client event Effect boundaries.
-
-## @totto2727/fp
-
-- [`totto2727-fp.md`](references/totto2727-fp.md) — package-specific reference index.
-
-## Related skills
-
-- [`vite-plus`](https://github.com/voidzero-dev/vite-plus): official repository toolchain and build orchestration skill. Prefer the installed skill; otherwise use the [official Vite+ guide](https://viteplus.dev/guide/).
-- `remix` — Remix application structure and framework conventions.
-- [`js-test`](../js-test/SKILL.md): TypeScript test implementation.
+- [Anti-patterns](references/anti-patterns.md)
+- [Effect transport codecs](../js-stack/references/knowledge/effect.md#transport-codecs)
+- [Service exports, Layers, and runtimes](../js-stack/references/knowledge/effect/services-runtime.md)
+- [Package manager](../js-stack/references/stack/share.md#package-manager) and [dependency versions](../js-stack/references/stack/share.md#dependency-versions)
+- [Test implementation](../js-test/SKILL.md)
+- [Remix client event boundaries](references/remix-client-events.md) for existing `remix/ui` implementations
+- [IME-safe submission](references/ime-safe-enter-submit.md) for custom browser Enter-to-submit behavior
