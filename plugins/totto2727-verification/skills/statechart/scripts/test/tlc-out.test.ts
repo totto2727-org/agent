@@ -29,7 +29,7 @@ const steady = (text: string): string =>
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test(
   "each corpus spec's TLC output reads as plain TLC prints it at -workers 1",
-  { skip, concurrency: 4 },
+  { concurrency: 4, skip },
   async (testContext) => {
     await Promise.all(
       fs.readdirSync(corpus).map((name) =>

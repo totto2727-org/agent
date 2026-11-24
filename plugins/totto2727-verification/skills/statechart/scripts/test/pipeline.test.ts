@@ -17,7 +17,7 @@ const sources = (target: string): string[] => {
   const full = path.join(scripts, target);
   if (!fs.statSync(full).isDirectory()) {return [target];}
   return fs
-    .readdirSync(full, { recursive: true, encoding: "utf8" })
+    .readdirSync(full, { encoding: "utf8", recursive: true })
     .map((entry) => path.join(target, entry))
     .filter((file) => fs.statSync(path.join(scripts, file)).isFile());
 };

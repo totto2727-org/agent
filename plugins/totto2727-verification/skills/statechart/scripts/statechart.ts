@@ -155,8 +155,8 @@ try {
       exitCode = verdict;
     } else {exitCode = 2;}
   } finally {
-    fs.rmSync(stage, { recursive: true, force: true });
-    if (tmp) {fs.rmSync(tmp, { recursive: true, force: true });}
+    fs.rmSync(stage, { force: true, recursive: true });
+    if (tmp) {fs.rmSync(tmp, { force: true, recursive: true });}
     janitor?.kill("SIGKILL");
   }
   process.exit(exitCode);

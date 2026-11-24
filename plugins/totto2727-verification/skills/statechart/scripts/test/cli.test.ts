@@ -496,7 +496,7 @@ Iterator.from(["SIGINT", "SIGTERM"] satisfies NodeJS.Signals[]).forEach((signal)
       signalWhile(signal, () => ({
         dir: gridCase(150),
         reached: (parent) => {
-          for (const f of fs.readdirSync(parent, { recursive: true, encoding: "utf8" }))
+          for (const f of fs.readdirSync(parent, { encoding: "utf8", recursive: true }))
             {if (
               path.basename(f) === "chart.mmd" &&
               fs.statSync(path.join(parent, f), { throwIfNoEntry: false })?.size

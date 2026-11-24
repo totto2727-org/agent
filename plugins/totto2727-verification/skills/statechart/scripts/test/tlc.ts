@@ -151,6 +151,6 @@ export function agrees(module: string, files: Record<string, string[]>, cfg: str
     });
     return { status: cli.status, breaks, holds, unchecked, chart, report };
   } finally {
-    fs.rmSync(dir, { recursive: true, force: true });
+    fs.rmSync(dir, { force: true, recursive: true });
   }
 }

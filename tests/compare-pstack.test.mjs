@@ -11,7 +11,7 @@ test("a retired skill stays absent while every distributed skill keeps its notic
   const scratch = fileURLToPath(new URL("../tmp/", import.meta.url));
   mkdirSync(scratch, { recursive: true });
   const root = mkdtempSync(join(scratch, "pstack-rename-"));
-  t.after(() => rmSync(root, { recursive: true, force: true }));
+  t.after(() => rmSync(root, { force: true, recursive: true }));
   const upstream = join(root, "upstream");
   const local = join(root, "plugins/example/skills/kept");
   Iterator.from([

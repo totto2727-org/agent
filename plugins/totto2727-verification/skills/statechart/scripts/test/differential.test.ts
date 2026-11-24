@@ -390,7 +390,7 @@ const answer = async function (c: Case): Promise<string> {
     assert.deepEqual(compilerAnswers(compiled, c), plain);
     return compiled.stdout;
   } finally {
-    fs.rmSync(dir, { recursive: true, force: true });
+    fs.rmSync(dir, { force: true, recursive: true });
   }
 };
 
