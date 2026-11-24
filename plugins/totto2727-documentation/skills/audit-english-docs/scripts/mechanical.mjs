@@ -44,6 +44,21 @@ const literalTerms = (value, allowEmpty) => {
 /** @typedef {TextRange & { kind: string }} Exclusion */
 /** @typedef {TextRange & { reason: string }} Uncertainty */
 /** @typedef {{ hyphenComponentCounts: number[] | null, sourceRange: SourceRange, status: "counted" | "insufficient_context", wordCount: number | null }} NounGroupEvidence */
+/** @typedef {"ste-dictionary-membership" | "ste-paragraph-length" | "ste-punctuation"} StaticSteKind */
+/** @typedef {{ kind: StaticSteKind } | { kind: "ste-sentence-length", writingMode: "procedural" | "descriptive" }} SteCheck */
+/** @typedef {SteCheck | { kind: "fenced-code-language" } | { caseSensitive?: boolean, kind: "prohibited-terms", protectedTerms?: string[], terms: string[] }} MechanicalCheck */
+/** @typedef {{ approved: boolean, forms?: string[], meaning: string, partOfSpeech: string, word: string }} VocabularyEntry */
+/** @typedef {{ category: number, kind: "noun" | "verb", source: string, text: string }} TechnicalTerm */
+/** @typedef {{ entries: VocabularyEntry[], technicalTerms?: Array<string | TechnicalTerm> }} Vocabulary */
+/** @typedef {import("./ste.mjs").ProseContext & { vocabulary?: Vocabulary }} MechanicalContext */
+/** @typedef {"fail" | "insufficient_context" | "not_applicable" | "pass"} Choice */
+/** @typedef {{ reason: string, sourceRange: SourceRange }} ParserWarning */
+/** @typedef {{ claim: string, excluded: Array<{ kind: string, sourceRange: SourceRange }>, parserWarnings: ParserWarning[] }} Coverage */
+/** @typedef {{ limit: number, parenthetical?: boolean, sentenceCount?: number, sourceRange: SourceRange, wordCount?: number }} ProseCount */
+/** @typedef {{ basis?: string, defect?: string, limit?: number, message: string, parenthetical?: boolean, sentenceCount?: number, sourceRange: SourceRange, term?: string, wordCount?: number }} Finding */
+/** @typedef {{ membership: "approved-form" | "not-approved-entry" | "unlisted", records: Array<Omit<VocabularyEntry, "forms"> & { listedForms: string[] }>, sourceRange: SourceRange, technicalRecords: TechnicalTerm[], technicalTermCandidate: boolean, term: string }} LexicalCandidate */
+/** @typedef {{ choice: Choice, confidence: number, coverage: Coverage, findings: Finding[], reviewRequired: boolean, type: "choice" }} MechanicalResult */
+/** @typedef {MechanicalResult & { counts: ProseCount[], coverage: Coverage & { declaredWordGroups: import("./ste.mjs").DeclaredWordGroup[], writingMode: MechanicalContext["writingMode"] | null }, lexicalCandidates: LexicalCandidate[] }} SteResult */
 /**
  * @template Context
  * @typedef {{ headingPath: string[], id: string, sourceRange: SourceRange, ste: Context | undefined, text: string }} Paragraph
@@ -55,7 +70,7 @@ const literalTerms = (value, allowEmpty) => {
  * @param {unknown} check - The manifest's mechanical criterion.
  * @param {string} label - Its location in the manifest.
  * @param {new (message: string) => Error} [ErrorType] - The caller's validation error constructor.
- * @returns {{ kind: string, writingMode?: "procedural" | "descriptive", terms?: string[], protectedTerms?: string[], caseSensitive?: boolean }} A check restricted to the supported parameters.
+ * @returns {MechanicalCheck} A check restricted to the supported parameters.
  */
 export function validateMechanicalCheck(check, label, ErrorType = Error) {
   /** @type {(message: string) => never} */
@@ -107,7 +122,17 @@ export function validateMechanicalCheck(check, label, ErrorType = Error) {
       caseSensitive: caseSensitive ?? false,
     };
   }
-  return { kind };
+  switch (kind) {
+    case "fenced-code-language":
+    case "ste-dictionary-membership":
+    case "ste-paragraph-length":
+    case "ste-punctuation": {
+      return { kind };
+    }
+    default: {
+      return reject("unsupported mechanical kind");
+    }
+  }
 }
 
 /**
@@ -192,24 +217,25 @@ export function inspectMarkdown(markdown) {
     frontmatter = { start: 0, end: closing ? closing.index + closing[0].length : markdown.length };
     exclude(frontmatter.start, frontmatter.end, "frontmatter");
   }
-  /** @type {FenceOpening | null} */
-  let opening = null;
+  /** @type {{ opening: FenceOpening | null }} */
+  const scan = { opening: null };
   Iterator.from(lines).forEach((line) => {
     if (frontmatter && line.index < frontmatter.end) {
       return;
     }
+    const { opening } = scan;
     if (opening) {
       const close = /^ {0,3}(`{3,}|~{3,})\s*$/u.exec(line[0]);
       if (close && close[1][0] === opening.character && close[1].length >= opening.length) {
         const end = line.index + line[0].length;
         fences.push({ ...opening, end, closed: true });
         exclude(opening.start, end, "fenced-code");
-        opening = null;
+        scan.opening = null;
       }
     } else {
       const match = /^ {0,3}(`{3,}|~{3,})([^\n]*)/.exec(line[0]);
       if (match && !(match[1][0] === "`" && match[2].includes("`"))) {
-        opening = {
+        scan.opening = {
           start: line.index,
           openingEnd: line.index + line[0].trimEnd().length,
           character: match[1][0],
@@ -219,6 +245,7 @@ export function inspectMarkdown(markdown) {
       }
     }
   });
+  const { opening } = scan;
   if (opening) {
     fences.push({ ...opening, end: markdown.length, closed: false });
     exclude(opening.start, markdown.length, "fenced-code");
@@ -418,24 +445,40 @@ export function paragraphUnits(markdown, sections) {
   return units;
 }
 
+/**
+ * @param {SteCheck} check - The selected mechanical criterion.
+ * @param {string} markdown - The source document.
+ * @param {SourceRange} targetRange - The complete range to check.
+ * @param {MechanicalContext} context - The declared language context.
+ * @returns {SteResult} The result and evidence for one STE criterion.
+ */
 function runSteMechanical(check, markdown, targetRange, context) {
   const inspection = inspectMarkdown(markdown);
+  /** @type {Finding[]} */
   const findings = [];
+  /** @type {ProseCount[]} */
   const counts = [];
+  /** @type {LexicalCandidate[]} */
   const lexicalCandidates = [];
+  /** @type {ParserWarning[]} */
   const parserWarnings = [];
+  /** @type {(range: SourceRange) => boolean} */
   const overlaps = (range) =>
     range.startByte < targetRange.endByte && range.endByte > targetRange.startByte;
+  /** @type {(range: SourceRange) => boolean} */
   const contains = (range) =>
     range.startByte >= targetRange.startByte && range.endByte <= targetRange.endByte;
-  const warning = (reason, range = targetRange) =>
+  /** @type {(reason: string, range?: SourceRange) => void} */
+  const warning = (reason, range = targetRange) => {
     parserWarnings.push({ reason, sourceRange: range });
+  };
   Iterator.from(inspection.uncertainties).forEach((entry) => {
     const range = sourceRange(markdown, entry.start, entry.end);
     if (overlaps(range)) {
       warning(entry.reason, range);
     }
   });
+  /** @type {(choice: Choice) => SteResult} */
   const result = (choice) => ({
     type: "choice",
     choice,
@@ -455,14 +498,14 @@ function runSteMechanical(check, markdown, targetRange, context) {
         .filter((entry) => overlaps(entry.sourceRange)),
     },
   });
-  if (["ste-sentence-length", "ste-paragraph-length"].includes(check.kind)) {
+  if (check.kind === "ste-sentence-length" || check.kind === "ste-paragraph-length") {
     if (!context.writingMode) {
       warning(
         "Declare document.ste.writingMode or an explicit section.ste.writingMode. Procedures, descriptions, notes and safety instructions have different applicability.",
       );
       return result("insufficient_context");
     }
-    const mode = check.kind === "ste-paragraph-length" ? "descriptive" : check.writingMode;
+    const mode = check.kind === "ste-sentence-length" ? check.writingMode : "descriptive";
     if (context.writingMode !== mode) {
       return result("not_applicable");
     }
@@ -546,6 +589,7 @@ function runSteMechanical(check, markdown, targetRange, context) {
         );
         continue;
       }
+      /** @type {Map<string, VocabularyEntry[]>} */
       const entries = new Map();
       Iterator.from(context.vocabulary.entries).forEach((entry) => {
         for (const form of [entry.word, ...(entry.forms ?? [])]) {
@@ -779,15 +823,40 @@ function runSteMechanical(check, markdown, targetRange, context) {
   );
 }
 
+/**
+ * @overload
+ * @param {SteCheck} check - The selected STE criterion.
+ * @param {string} markdown - The source document.
+ * @param {SourceRange} targetRange - The complete range to check.
+ * @param {MechanicalContext} [context] - The declared language context.
+ * @returns {SteResult} The result and STE evidence.
+ */
+/**
+ * @overload
+ * @param {MechanicalCheck} check - The selected mechanical criterion.
+ * @param {string} markdown - The source document.
+ * @param {SourceRange} targetRange - The complete range to check.
+ * @param {MechanicalContext} [context] - The declared language context.
+ * @returns {MechanicalResult | SteResult} The result and collected evidence.
+ */
+/**
+ * @param {MechanicalCheck} check - The selected mechanical criterion.
+ * @param {string} markdown - The source document.
+ * @param {SourceRange} targetRange - The complete range to check.
+ * @param {MechanicalContext} [context] - The declared language context.
+ * @returns {MechanicalResult | SteResult} The result and collected evidence.
+ */
 export function runMechanical(check, markdown, targetRange, context = {}) {
-  if (check.kind.startsWith("ste-")) {
+  if (check.kind !== "fenced-code-language" && check.kind !== "prohibited-terms") {
     return runSteMechanical(check, markdown, targetRange, context);
   }
   const { visible, exclusions, fences, uncertainties } = inspectMarkdown(markdown);
+  /** @type {(start: number, end: number) => boolean} */
   const within = (start, end) => {
     const range = sourceRange(markdown, start, end);
     return range.startByte >= targetRange.startByte && range.endByte <= targetRange.endByte;
   };
+  /** @type {Finding[]} */
   const findings = [];
   let applicable = false;
   if (check.kind === "fenced-code-language") {
@@ -814,6 +883,7 @@ export function runMechanical(check, markdown, targetRange, context = {}) {
       }
     });
   } else {
+    /** @type {(term: string) => string} */
     const normalize = (term) => (check.caseSensitive ? term : term.toLowerCase());
     const prohibited = new Set(check.terms.map(normalize));
     const protectedTerms = new Set((check.protectedTerms ?? []).map(normalize));
