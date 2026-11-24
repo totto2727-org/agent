@@ -100,7 +100,7 @@ export function labelGraph(
   const n = shapes.length;
   const m = stepLabels.length;
   const onPath = new Set<Step>();
-  Iterator.from(found).forEach((b) => {for (const p of b.path) {onPath.add(p.step);}});
+  Iterator.from(found).forEach((b) => {for (const currentStep of b.path) {onPath.add(currentStep.step);}});
   const pathStepIndex = new Map<Step, number>();
   if (onPath.size)
     {for (let j = 0; j < m; j++)
@@ -132,15 +132,15 @@ export function labelGraph(
     kinds.push(kind);
     sizes.push(keyOf.length);
   });
-  for (const b of found) {
+  for (const currentBug of found) {
     let t: Step | undefined;
-    for (const p of b.path)
-      {if (matchesNull(stepLabels[must(pathStepIndex, p.step)])) {
-        t = p.step;
+    for (const currentStep of currentBug.path)
+      {if (matchesNull(stepLabels[must(pathStepIndex, currentStep.step)])) {
+        t = currentStep.step;
         break;
       }}
     if (!t) {
-      const inLoop = loopOf(b, index);
+      const inLoop = loopOf(currentBug, index);
       if (inLoop.size)
         {for (let j = 0; j < m; j++)
           {if (inLoop.has(from[j]) && !inLoop.has(to[j]) && matchesNull(stepLabels[j])) {
@@ -148,7 +148,7 @@ export function labelGraph(
             break;
           }}}
     }
-    if (t) {unlabeled(t.action, must(graph.states, t.from).vars, must(graph.states, t.to).vars, b);}
+    if (t) {unlabeled(t.action, must(graph.states, t.from).vars, must(graph.states, t.to).vars, currentBug);}
   }
   const drawn: number[] = [];
   const drawnLabels = new Array<string>(m);

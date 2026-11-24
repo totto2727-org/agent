@@ -400,34 +400,34 @@ const expected = function (chart: Chart): Want {
     const drawn = drawnEdges(region);
     const tree = (prefix: string[], parent: string | null, below: ChartState[]): void => {
       const heads = new Map<string, ChartState[]>();
-      Iterator.from(below).forEach((s) => {
-        const head = s.path[prefix.length];
-        heads.set(head, [...(heads.get(head) ?? []), s]);
+      Iterator.from(below).forEach((currentState) => {
+        const head = currentState.path[prefix.length];
+        heads.set(head, [...(heads.get(head) ?? []), currentState]);
       });
       Iterator.from(heads).forEach(([head, under]) => {
         const path = [...prefix, head];
         const inner: ChartState[] = [];
         let leaf: ChartState | undefined;
-        for (const s of under)
-          {if (s.path.length > path.length) {inner.push(s);}
-          else {leaf = s;}}
+        for (const currentState of under)
+          {if (currentState.path.length > path.length) {inner.push(currentState);}
+          else {leaf = currentState;}}
         const node = id(region.name, path);
         nodes.set(node, { text: head, parent, group: inner.length > 0 });
         if (inner.length) {
           tree(path, node, inner);
           const key = JSON.stringify(path);
-          for (const e of drawn)
-            {if (e.start && JSON.stringify(e.from) === key)
-              {edges.push([`${node}_start`, id(region.name, e.to), e.label ?? ""]);}}
+          for (const currentEdge of drawn)
+            {if (currentEdge.start && JSON.stringify(currentEdge.from) === key)
+              {edges.push([`${node}_start`, id(region.name, currentEdge.to), currentEdge.label ?? ""]);}}
         } else if (leaf?.group !== undefined) {used.add(chart.colors[String(leaf.group)]);}
       });
     };
     tree([], wrap, region.states);
-    Iterator.from(drawn).forEach((e) => {if (!e.start || !e.from.length)
+    Iterator.from(drawn).forEach((currentEdge) => {if (!currentEdge.start || !currentEdge.from.length)
         {edges.push([
-          e.start ? `${wrap ?? "root"}_start` : id(region.name, e.from),
-          id(region.name, e.to),
-          e.label ?? "",
+          currentEdge.start ? `${wrap ?? "root"}_start` : id(region.name, currentEdge.from),
+          id(region.name, currentEdge.to),
+          currentEdge.label ?? "",
         ]);}});
   }
   let legend = 0;

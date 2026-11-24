@@ -31,11 +31,11 @@ export function walk(graph: Graph): Walk {
   const action = new Int32Array(m);
   const actions = new Map<string, number>();
   for (let j = 0; j < m; j++) {
-    const t = graph.steps[j];
-    from[j] = must(index, t.from);
-    to[j] = must(index, t.to);
-    let a = actions.get(t.action);
-    if (matchesUndefined(a)) {actions.set(t.action, (a = actions.size));}
+    const currentStep = graph.steps[j];
+    from[j] = must(index, currentStep.from);
+    to[j] = must(index, currentStep.to);
+    let a = actions.get(currentStep.action);
+    if (matchesUndefined(a)) {actions.set(currentStep.action, (a = actions.size));}
     action[j] = a;
   }
   const actionRank = new Int32Array(actions.size);

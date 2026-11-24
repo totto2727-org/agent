@@ -34,9 +34,9 @@ const firstLine = ({ code, level }: Message, line: string): string => {
   return (PREFIX[level] ?? "") + line;
 };
 
-const render = (m: Message): string =>
-  (m.beforeMarker ?? "") +
-  firstLine(m, m.body.map((part) => (isString(part) ? part : render(part))).join("\n"));
+const render = (message: Message): string =>
+  (message.beforeMarker ?? "") +
+  firstLine(message, message.body.map((part) => (isString(part) ? part : render(part))).join("\n"));
 
 function* printed(parts: Iterable<Part>): Generator<string> {
   let warned = false;

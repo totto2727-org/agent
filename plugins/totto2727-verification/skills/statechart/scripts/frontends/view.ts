@@ -21,8 +21,8 @@ export const json = (v: Value): Json => {
     } else {
       const fields: [string, Json][] = [];
       for (let i = 0; i < v.keys.length; i++) {
-        const k = json(v.keys[i]);
-        fields.push([typeof k === "object" ? JSON.stringify(k) : String(k), json(v.values[i])]);
+        const currentJson = json(v.keys[i]);
+        fields.push([typeof currentJson === "object" ? JSON.stringify(currentJson) : String(currentJson), json(v.values[i])]);
       }
       j = Object.fromEntries(fields);
     }

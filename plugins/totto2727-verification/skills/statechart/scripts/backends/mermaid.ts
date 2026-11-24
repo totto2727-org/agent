@@ -223,15 +223,15 @@ export function mermaidLines(chart: Chart): string[] {
         const path = [...prefix, head];
         let leaf: ChartState | undefined;
         const inner: ChartState[] = [];
-        for (const s of under)
-          {if (s.path.length > path.length) {inner.push(s);}
-          else {leaf = s;}}
+        for (const currentState of under)
+          {if (currentState.path.length > path.length) {inner.push(currentState);}
+          else {leaf = currentState;}}
         if (inner.length) {
           out.push(`${indent}state "${esc(head, true)}" as ${id(path)} {`);
           tree(path, `${indent  }  `, inner);
           const key = tupleKey(path);
-          for (const e of drawn)
-            {if (e.start && tupleKey(e.from) === key) {out.push(line(e, `${indent}  `));}}
+          for (const currentEdge of drawn)
+            {if (currentEdge.start && tupleKey(currentEdge.from) === key) {out.push(line(currentEdge, `${indent}  `));}}
           out.push(`${indent}}`);
         } else if (leaf) {
           const sid = idOf(leaf.path);

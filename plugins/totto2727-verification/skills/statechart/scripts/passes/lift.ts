@@ -58,16 +58,16 @@ export function lift(chart: Chart): Chart {
       return i;
     };
     const merged = new Map<number | string, ChartStep>();
-    for (const s of liftToParents(region.states, region.steps)) {
-      const f = pathIndex(s.from);
-      const t = pathIndex(s.to);
+    for (const currentStep of liftToParents(region.states, region.steps)) {
+      const f = pathIndex(currentStep.from);
+      const t = pathIndex(currentStep.to);
       const k =
-        matchesUndefined(s.when) && f < 2 ** 26 && t < 2 ** 26
+        matchesUndefined(currentStep.when) && f < 2 ** 26 && t < 2 ** 26
           ? f * 2 ** 26 + t
-          : `${f},${t}:${s.when}`;
+          : `${f},${t}:${currentStep.when}`;
       const prior = merged.get(k);
-      if (prior) {prior.label += ` or ${s.label}`;}
-      else {merged.set(k, { ...s });}
+      if (prior) {prior.label += ` or ${currentStep.label}`;}
+      else {merged.set(k, { ...currentStep });}
     }
     regions.push({ ...region, steps: [...merged.values()] });
   });

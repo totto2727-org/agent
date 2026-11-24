@@ -64,8 +64,8 @@ const field = (value: Value, name: string) => {
   if (typeof value !== "object" || value.kind !== "function")
     {throw new Error(`${inspect(value)} is not a function.`);}
   for (let i = 0; i < value.keys.length; i++) {
-    const k = value.keys[i];
-    if (k === name || (typeof k === "object" && k.kind === "model" && k.name === name))
+    const currentValue = value.keys[i];
+    if (currentValue === name || (typeof currentValue === "object" && currentValue.kind === "model" && currentValue.name === name))
       {return value.values[i];}
   }
   throw new Error(`${inspect(value)} has no ${name}.`);
@@ -239,7 +239,7 @@ test("each corpus bug path is the shortest way to its rule", () => {
     replay(name, graph);
     for (const bug of bugs(graph)) {
       paths[bug.rule.name] = [];
-      for (const p of bug.path) {paths[bug.rule.name].push(p.action);}
+      for (const stepItem of bug.path) {paths[bug.rule.name].push(stepItem.action);}
     }
   });
   assert.deepEqual(paths.NotSolved, [

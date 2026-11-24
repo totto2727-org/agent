@@ -60,10 +60,10 @@ export function drawRegions(
     const keyOf = new Array<string>(sizes[r]);
     const position = new Int32Array(sizes[r]);
     Iterator.from(order).forEach((i) => {
-      const s = tla[i];
-      let o = objectOf[kind[i]];
-      if (!o) {
-        o = {
+      const currentState = tla[i];
+      let stateItem = objectOf[kind[i]];
+      if (!stateItem) {
+        stateItem = {
           path: shapes[i][name],
           start: false,
           members: [],
@@ -73,16 +73,16 @@ export function drawRegions(
           breaks: [],
           group: undefined,
         };
-        objectOf[kind[i]] = o;
+        objectOf[kind[i]] = stateItem;
         keyOf[kind[i]] = key[i];
         position[kind[i]] = states.size;
-        states.set(key[i], o);
+        states.set(key[i], stateItem);
       }
-      o.start ||= s.start;
-      o.works ||= clean[i] === 1;
-      o.lead ||= lead[i] === 1;
-      o.repeats ||= looped[i] === 1;
-      o.members.push(i);
+      stateItem.start ||= currentState.start;
+      stateItem.works ||= clean[i] === 1;
+      stateItem.lead ||= lead[i] === 1;
+      stateItem.repeats ||= looped[i] === 1;
+      stateItem.members.push(i);
     });
     const parents = new Set<string>();
     Iterator.from(states.values()).forEach((state) => {for (let i = 1; i < state.path.length; i++) {parents.add(tupleKey(state.path.slice(0, i)));}});
@@ -249,10 +249,10 @@ export function drawRegions(
     const ps: ChartState[] = [];
     for (let r = 0; r < R; r++) {ps.push(objects[r][kinds[r][i]]);}
     let works = true;
-    for (const s of ps) {works &&= s.works;}
+    for (const currentState of ps) {works &&= currentState.works;}
     if (works) {hidden.push(ps);}
   });
-  Iterator.from(hidden).forEach((ps) => {for (const s of ps) {s.works = false;}});
+  Iterator.from(hidden).forEach((ps) => {for (const currentState of ps) {currentState.works = false;}});
   const paths: string[] = [];
   const loops: string[] = [];
   Iterator.from(found).forEach((b) => {

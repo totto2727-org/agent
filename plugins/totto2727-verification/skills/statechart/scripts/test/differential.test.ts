@@ -267,8 +267,8 @@ const run = (command: string, args: string[], cwd: string) =>
     });
     const stdout: Buffer[] = [];
     const stderr: Buffer[] = [];
-    child.stdout.on("data", (b: Buffer) => stdout.push(b));
-    child.stderr.on("data", (b: Buffer) => stderr.push(b));
+    child.stdout.on("data", (buffer: Buffer) => stdout.push(buffer));
+    child.stderr.on("data", (buffer: Buffer) => stderr.push(buffer));
     child.on("error", reject);
     child.on("close", (status) =>
       resolve({

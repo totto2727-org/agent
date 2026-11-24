@@ -20,12 +20,12 @@ const markTexts = (chunk: string, top: number[], inner: number[]) => {
   return { values: texts, rules: chunk.slice(b + 1, end) };
 };
 
-const ruleNames = (v: Value): string[] | undefined => {
-  if (typeof v !== "object" || v.kind !== "set") {return undefined;}
+const ruleNames = (currentValue: Value): string[] | undefined => {
+  if (typeof currentValue !== "object" || currentValue.kind !== "set") {return undefined;}
   const names: string[] = [];
-  for (const m of v.members) {
-    if (!isString(m)) {return undefined;}
-    names.push(m);
+  for (const valueItem of currentValue.members) {
+    if (!isString(valueItem)) {return undefined;}
+    names.push(valueItem);
   }
   return names;
 };

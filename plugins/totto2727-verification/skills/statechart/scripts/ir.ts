@@ -410,8 +410,8 @@ const span = (lo: number, hi: number): string => (hi > lo ? `${lo}..${hi}` : Str
 const setKey = (members: Value[]): string => {
   const ints: number[] = [];
   let others: string[] = [];
-  Iterator.from(members).forEach((m) => {if (typeof m === "number") {ints.push(m);}
-    else {others.push(key(m));}});
+  Iterator.from(members).forEach((currentValue) => {if (typeof currentValue === "number") {ints.push(currentValue);}
+    else {others.push(key(currentValue));}});
   for (let i = 1; i < ints.length; i++)
     {if (ints[i - 1] >= ints[i]) {
       ints.sort((a, b) => a - b);

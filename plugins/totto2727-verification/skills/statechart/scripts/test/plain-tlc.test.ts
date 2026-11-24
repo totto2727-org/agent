@@ -40,10 +40,10 @@ test(
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a rule that breaks before a step fails to evaluate breaks", { skip }, () => {
   Iterator.from(["div", "assert"]).forEach((mode) => {
-    const v = agrees("Late", { Late: late }, lateCfg(mode, "Small"));
-    assert.equal(v.status, 1);
-    assert.deepEqual(v.breaks, new Map([["Small", 1]]));
-    assert.deepEqual(v.unchecked, ["NoDeadlock"]);
+    const verdict = agrees("Late", { Late: late }, lateCfg(mode, "Small"));
+    assert.equal(verdict.status, 1);
+    assert.deepEqual(verdict.breaks, new Map([["Small", 1]]));
+    assert.deepEqual(verdict.unchecked, ["NoDeadlock"]);
   });
 });
 
@@ -62,31 +62,31 @@ const warnPath = (next: string): string[] => [
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a rule that breaks before it fails to evaluate breaks", { skip }, () => {
-  const v = agrees(
+  const verdict = agrees(
     "WarnPath",
     { WarnPath: warnPath("One \\/ Two") },
     "INIT Init\nNEXT Next\nINVARIANT Zero\n",
   );
-  assert.equal(v.status, 1);
-  assert.equal(v.breaks.get("Zero"), 1);
+  assert.equal(verdict.status, 1);
+  assert.equal(verdict.breaks.get("Zero"), 1);
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a rule that fails to evaluate before TLC reaches a break exits 2", { skip }, () => {
   Iterator.from(["", "CHECK_DEADLOCK FALSE\n"]).forEach((deadlock) => {
-    const v = agrees(
+    const verdict = agrees(
       "WarnPath",
       { WarnPath: warnPath("Two \\/ One") },
       `INIT Init\nNEXT Next\nINVARIANT Zero\n${deadlock}`,
     );
-    assert.equal(v.status, 2);
-    assert.deepEqual(v.holds, []);
+    assert.equal(verdict.status, 2);
+    assert.deepEqual(verdict.holds, []);
   });
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a rule that no verdict run checks stays not checked under a SYMMETRY", { skip }, () => {
-  const v = agrees(
+  const verdict = agrees(
     "Hide",
     {
       Hide: [
@@ -105,10 +105,10 @@ test("a rule that no verdict run checks stays not checked under a SYMMETRY", { s
     },
     "CONSTANTS a = a b = b S = {a, b}\nSYMMETRY Perms\nINIT Init\nNEXT Next\nINVARIANTS Early Boom Bad\n",
   );
-  assert.equal(v.status, 1);
-  assert.deepEqual(v.breaks, new Map([["Early", 1]]));
-  assert.deepEqual(v.holds, []);
-  assert.deepEqual(v.unchecked, ["Bad", "Boom", "NoDeadlock"]);
+  assert.equal(verdict.status, 1);
+  assert.deepEqual(verdict.breaks, new Map([["Early", 1]]));
+  assert.deepEqual(verdict.holds, []);
+  assert.deepEqual(verdict.unchecked, ["Bad", "Boom", "NoDeadlock"]);
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
@@ -133,7 +133,7 @@ test("a deadlock breaks whatever shape the SPECIFICATION has", { skip }, () => {
   assert.deepEqual(live.breaks, new Map([["NoDeadlock", 2]]));
   assert.deepEqual(live.holds, ["TypeOK"]);
   Iterator.from(["[][Next \\/ Tick]_vars", "[][\\E i \\in 1..2 : Step(i)]_vars"]).forEach((next) => {
-    const v = agrees(
+    const verdict = agrees(
       "Shape",
       {
         Shape: [
@@ -151,14 +151,14 @@ test("a deadlock breaks whatever shape the SPECIFICATION has", { skip }, () => {
       },
       "SPECIFICATION Spec\n",
     );
-    assert.equal(v.status, 1);
-    assert.ok(v.breaks.has("NoDeadlock"));
+    assert.equal(verdict.status, 1);
+    assert.ok(verdict.breaks.has("NoDeadlock"));
   });
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a SPECIFICATION from an INSTANCE checks deadlock and finds none", { skip }, () => {
-  const v = agrees(
+  const verdict = agrees(
     "Outer",
     {
       Inner: [
@@ -178,13 +178,13 @@ test("a SPECIFICATION from an INSTANCE checks deadlock and finds none", { skip }
     },
     "SPECIFICATION Spec\n",
   );
-  assert.equal(v.status, 0);
-  assert.deepEqual(v.holds, ["NoDeadlock"]);
+  assert.equal(verdict.status, 0);
+  assert.deepEqual(verdict.holds, ["NoDeadlock"]);
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a state at a CONSTRAINT bound is no deadlock", { skip }, () => {
-  const v = agrees(
+  const verdict = agrees(
     "Bound",
     {
       Bound: [
@@ -199,9 +199,9 @@ test("a state at a CONSTRAINT bound is no deadlock", { skip }, () => {
     },
     "INIT Init\nNEXT Next\nCONSTRAINT Small\n",
   );
-  assert.equal(v.status, 0);
-  assert.deepEqual(v.holds, ["NoDeadlock"]);
-  assert.doesNotMatch(v.chart, /^ {2}class s\d+ breaks$/mu);
+  assert.equal(verdict.status, 0);
+  assert.deepEqual(verdict.holds, ["NoDeadlock"]);
+  assert.doesNotMatch(verdict.chart, /^ {2}class s\d+ breaks$/mu);
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
@@ -209,7 +209,7 @@ test(
   "a model with no initial state passes as it does in TLC, and the report says why",
   { skip },
   () => {
-    const v = agrees(
+    const verdict = agrees(
       "NoInit",
       {
         NoInit: [
@@ -224,10 +224,10 @@ test(
       },
       "INIT Init\nNEXT Next\nINVARIANT Small\n",
     );
-    assert.equal(v.status, 0);
-    assert.deepEqual(v.holds, ["NoDeadlock", "Small"]);
+    assert.equal(verdict.status, 0);
+    assert.deepEqual(verdict.holds, ["NoDeadlock", "Small"]);
     assert.match(
-      v.report,
+      verdict.report,
       /^TLC found no state that satisfies Init, so no state can break a rule\.$/mu,
     );
   },
@@ -238,7 +238,7 @@ test(
   "a run after a break stops at the state bound and leaves its rules not checked",
   { skip },
   () => {
-    const v = agrees(
+    const verdict = agrees(
       "Cycle",
       {
         Cycle: [
@@ -254,12 +254,12 @@ test(
       },
       "SPECIFICATION Spec\nINVARIANT Early\nPROPERTY Back\n",
     );
-    assert.equal(v.status, 1);
-    assert.deepEqual(v.breaks, new Map([["Early", 3]]));
-    assert.deepEqual(v.holds, []);
-    assert.deepEqual(v.unchecked, ["Back", "NoDeadlock"]);
+    assert.equal(verdict.status, 1);
+    assert.deepEqual(verdict.breaks, new Map([["Early", 3]]));
+    assert.deepEqual(verdict.holds, []);
+    assert.deepEqual(verdict.unchecked, ["Back", "NoDeadlock"]);
     assert.match(
-      v.report,
+      verdict.report,
       /^After the first break, each TLC run stops at 100,000 distinct states\./mu,
     );
   },

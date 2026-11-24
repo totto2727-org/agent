@@ -155,8 +155,8 @@ const runToFiles = (
         output: joined(files),
         error,
       });
-    child.on("error", (e) => {
-      error = e;
+    child.on("error", (currentError) => {
+      error = currentError;
       if (matchesUndefined(child.pid)) {settle(null);}
     });
     child.on("close", (code) => {
@@ -387,10 +387,10 @@ export async function check(specFile: string, configFile: string): Promise<Check
       const properties: Property[] = [];
       Iterator.from(all).forEach((rule) => {
         if (rule.kind !== "property") {return;}
-        const v = must(verdicts, ruleKey(rule));
+        const verdict = must(verdicts, ruleKey(rule));
         properties.push({
-          ...v,
-          bug: v.outcome === "broken" && v.messages ? bugOf(readTrace(v.messages)) : undefined,
+          ...verdict,
+          bug: verdict.outcome === "broken" && verdict.messages ? bugOf(readTrace(verdict.messages)) : undefined,
           initialOnly: initialOnly.has(rule.name),
         });
       });

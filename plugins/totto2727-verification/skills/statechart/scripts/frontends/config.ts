@@ -235,41 +235,41 @@ export function readConfig({ file, text }: { file: string; text: string }): Conf
     constraints: [],
     actionConstraints: [],
   };
-  for (let t = next(); t !== eof;) {
-    const keyword = t;
+  for (let token = next(); token !== eof;) {
+    const keyword = token;
     const section = SECTIONS.get(keyword.image);
-    if (!section) {throw refuse(t.line, "It was expecting a keyword, but did not find it.");}
+    if (!section) {throw refuse(token.line, "It was expecting a keyword, but did not find it.");}
     const { key, field, undefinedNoun } = section;
     const begin = at;
     if (matchesUndefined(field)) {
-      for (t = next(); t !== eof && !SECTIONS.has(t.image); t = next()) {constant(t, keyword.line);}
+      for (token = next(); token !== eof && !SECTIONS.has(token.image); token = next()) {constant(token, keyword.line);}
     } else if (isListField(field)) {
-      for (t = next(); t !== eof && !SECTIONS.has(t.image); t = next()) {
-        config[field].push(t.image);
-        defined(t, undefinedNoun);
+      for (token = next(); token !== eof && !SECTIONS.has(token.image); token = next()) {
+        config[field].push(token.image);
+        defined(token, undefinedNoun);
       }
     } else {
-      t = next();
-      if (t === eof)
+      token = next();
+      if (token === eof)
         {throw refuse(
           keyword.line,
           `The keyword ${keyword.image} was not followed by an identifier.`,
         );}
-      if (field === "checkDeadlock" && t.image !== "TRUE" && t.image !== "FALSE")
-        {throw refuse(t.line, "It was expecting TRUE or FALSE, but did not find it.");}
+      if (field === "checkDeadlock" && token.image !== "TRUE" && token.image !== "FALSE")
+        {throw refuse(token.line, "It was expecting TRUE or FALSE, but did not find it.");}
       if (!matchesUndefined(config[field]))
         {throw refuse(keyword.line, `The keyword ${keyword.image} appeared twice.`);}
-      if (field === "checkDeadlock") {config[field] = t.image === "TRUE";}
+      if (field === "checkDeadlock") {config[field] = token.image === "TRUE";}
       else {
-        config[field] = t.image;
-        if (SECTIONS.has(t.image))
-          {defer(cannot(t.line, `TLC would read the keyword ${t.image} as the name after ${key}.`));}
-        else if (undefinedNoun) {defined(t, undefinedNoun);}
+        config[field] = token.image;
+        if (SECTIONS.has(token.image))
+          {defer(cannot(token.line, `TLC would read the keyword ${token.image} as the name after ${key}.`));}
+        else if (undefinedNoun) {defined(token, undefinedNoun);}
       }
-      t = next();
+      token = next();
     }
     const images: string[] = [];
-    for (let k = begin; k < (t === eof ? tokens.length : at - 1); k++) {images.push(tokens[k].image);}
+    for (let k = begin; k < (token === eof ? tokens.length : at - 1); k++) {images.push(tokens[k].image);}
     config.sections.push({ key, line: keyword.line, tokens: images });
   }
   if (deferred) {throw deferred;}

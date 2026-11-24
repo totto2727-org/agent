@@ -95,9 +95,9 @@ export function lasso(
   const route: PathStep[] = [];
   for (let i = 1; i < seq.length; i++) {
     let step: Step | undefined;
-    for (const t of out.get(seq[i - 1].id) ?? [])
-      {if (t.to === seq[i].id && t.action === seq[i].action) {
-        step = t;
+    for (const stepItem of out.get(seq[i - 1].id) ?? [])
+      {if (stepItem.to === seq[i].id && stepItem.action === seq[i].action) {
+        step = stepItem;
         break;
       }}
     if (!step) {return undefined;}
