@@ -4,20 +4,22 @@ import fs from "node:fs";
 import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
+// oxlint-disable-next-line rules/no-node-imports, vitest/no-import-node-test -- Statechart runs these fixtures with Node's test runner as part of the standalone skill.
 import { before, test } from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { mermaid as chartText } from "../backends/mermaid.ts";
 import type { Graph } from "../ir.ts";
 import { walk } from "../passes/reach.ts";
 import { project } from "../pipeline.ts";
-import { fuzz, type Html, type Mermaid, type Render } from "./labels.ts";
+import { fuzz } from './labels.ts';
+import type { Html, Mermaid, Render } from './labels.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const charts = [];
 for (const f of fs.readdirSync(path.join(here, "charts")))
-  charts.push(path.join(here, "charts", f));
+  {charts.push(path.join(here, "charts", f));}
 for (const d of fs.readdirSync(path.join(here, "corpus")))
-  charts.push(path.join(here, "corpus", d, "chart.mmd"));
+  {charts.push(path.join(here, "corpus", d, "chart.mmd"));}
 const guide = fs.readFileSync(path.join(here, "../../references/render.md"), "utf8");
 const css = guide.match(/```css\n([\s\S]*?)```/);
 assert.ok(css, "references/render.md has no css block");
@@ -58,24 +60,27 @@ const classes = new Set<string>();
 for (const chart of charts) {
   const name = path.relative(here, chart);
   const text = fs.readFileSync(chart, "utf8");
-  const marks = [...text.matchAll(/^ {2}class (\w+) (\w+)$/gm)];
-  for (const [, , mark] of marks) classes.add(mark);
+  const marks = [...text.matchAll(/^ {2}class (\w+) (\w+)$/gmu)];
+  for (const [, , mark] of marks) {classes.add(mark);}
 
+  // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
   test(`${name} renders in Pele 1.9.0 with each class on its node`, () => {
     const { svg } = render(text);
     assert.match(svg, /^<svg /);
     for (const [, id, mark] of marks)
-      assert.match(svg, new RegExp(`class="pele-node[^"]* ${mark}\\b[^"]*" data-id="${id}"`), id);
+      {assert.match(svg, new RegExp(`class="pele-node[^"]* ${mark}\\b[^"]*" data-id="${id}"`), id);}
   });
 
+  // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
   test(`${name} parses in mermaid.js, which chat views use`, async () => {
     await mermaid.parse(text);
   });
 }
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("random labels and colors keep their text and the chart's shape in Mermaid and Pele", async () => {
   const { drawn, refused, failure } = await fuzz({ seed: 1, charts: 500, render, mermaid, html });
-  if (failure) assert.fail(failure);
+  if (failure) {assert.fail(failure);}
   assert.ok(drawn > 400 && refused > 20, `${drawn} charts drawn, ${refused} refused`);
 });
 
@@ -83,10 +88,10 @@ const pathPoints = (d: string) => {
   const points: number[][] = [];
   let [ax, ay] = [0, 0];
   for (const [, cmd, args] of d.matchAll(/([MLC])([^MLC]*)/g)) {
-    const n = args.split(/[ ,]/).filter(Boolean).map(Number);
+    const n = args.split(/[ ,]/u).filter(Boolean).map(Number);
     const [x, y] = n.slice(-2);
     if (cmd !== "M")
-      for (let t = 0; t <= 1; t += 1 / 64) {
+      {for (let t = 0; t <= 1; t += 1 / 64) {
         const u = 1 - t;
         points.push(
           cmd === "L"
@@ -96,12 +101,13 @@ const pathPoints = (d: string) => {
                 u ** 3 * ay + 3 * u * u * t * n[1] + 3 * u * t * t * n[3] + t ** 3 * y,
               ],
         );
-      }
+      }}
     [ax, ay] = [x, y];
   }
   return points;
 };
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("an arrow into a parent from its only way in stays out of the parent's title bar in Pele 1.9.0", () => {
   const graph: Graph = { states: new Map(), steps: [] };
   for (const [id, at] of [
@@ -110,13 +116,13 @@ test("an arrow into a parent from its only way in stays out of the parent's titl
     ["parents", "Laying out the chart/Parent states"],
     ["regions", "Laying out the chart/Regions"],
   ])
-    graph.states.set(id, { vars: { at }, start: id === "ask", breaks: [] });
+    {graph.states.set(id, { vars: { at }, start: id === "ask", breaks: [] });}
   for (const [to, action] of [
     ["flat", "String"],
     ["parents", "Array"],
     ["regions", "Object"],
   ])
-    graph.steps.push({ from: "ask", to, action });
+    {graph.steps.push({ from: "ask", to, action });}
   const { chart } = project(graph, walk(graph), { state: (v) => String(v.at).split("/") }, []);
   const { svg } = render(chartText(chart));
   const bars = [
@@ -129,17 +135,18 @@ test("an arrow into a parent from its only way in stays out of the parent's titl
   for (const [, id, d] of svg.matchAll(
     /<g class="pele-edge pele-transition" data-id="([^"]*)"><path d="([^"]*)"/g,
   ))
-    for (const bar of bars)
-      if (
+    {for (const bar of bars)
+      {if (
         pathPoints(d).some(
           ([x, y]) => x > bar.left && x < bar.right && y > bar.top && y < bar.bottom,
         )
       )
-        crossings.push(`${id} crosses the title bar of ${bar.id}`);
+        {crossings.push(`${id} crosses the title bar of ${bar.id}`);}}}
   assert.deepEqual(crossings, []);
 });
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("the theme in references/render.md colors each class that the charts use", () => {
   assert.ok(classes.size > 0);
-  for (const name of classes) assert.match(theme, new RegExp(`\\.pele \\.${name} rect \\{`), name);
+  for (const name of classes) {assert.match(theme, new RegExp(`\\.pele \\.${name} rect \\{`), name);}
 });

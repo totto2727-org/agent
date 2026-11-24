@@ -27,9 +27,11 @@ const { values, positionals } = parseArgs({
   },
 });
 const [action] = positionals;
-function requireThat(ok, message) {
-  if (!ok) throw new Error(message);
-}
+const requireThat = function (ok, message) {
+  if (!ok) {
+    throw new Error(message);
+  }
+};
 requireThat(
   positionals.length === 1 &&
     ["plan", "install", "uninstall"].includes(action) &&
@@ -57,11 +59,12 @@ const readJson = (file, fallback) =>
 const lock = () => readJson(lockPath, { skills: {} }).skills;
 const present = (p) => lstatSync(p, { throwIfNoEntry: false }) !== undefined;
 const safeName = (n) => typeof n === "string" && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(n);
-for (const p of [metadata, dest, lockPath, journal])
+for (const p of [metadata, dest, lockPath, journal]) {
   requireThat(
     !present(p) || !lstatSync(p).isSymbolicLink(),
     `Refusing symlinked management path: ${p}`,
   );
+}
 const readLedger = () => readJson(journal, { version: 1, root, scope: values.scope, owned: {} });
 const ledger = readLedger();
 requireThat(
@@ -74,26 +77,28 @@ requireThat(
       ([name, record]) =>
         safeName(name) &&
         typeof record?.lock?.source === "string" &&
-        /^[a-f0-9]{40}$/.test(record.lock.commit) &&
-        /^[a-f0-9]{64}$/.test(record.hash),
+        /^[a-f0-9]{40}$/u.test(record.lock.commit) &&
+        /^[a-f0-9]{64}$/u.test(record.hash),
     ),
   "Receipt is invalid or belongs to another scope.",
 );
 const save = () => {
   mkdirSync(metadata, { recursive: true });
-  const p = journal + ".tmp";
-  writeFileSync(p, JSON.stringify(ledger, null, 2) + "\n", { flag: "wx", mode: 0o600 });
+  const p = `${journal}.tmp`;
+  writeFileSync(p, `${JSON.stringify(ledger, null, 2)}\n`, { flag: "wx", mode: 0o600 });
   renameSync(p, journal);
 };
-function run(command, args, quiet = false) {
+const run = function (command, args, quiet = false) {
   const r = spawnSync(command, args, {
     encoding: "utf8",
     stdio: quiet ? ["ignore", "pipe", "pipe"] : ["ignore", "inherit", "inherit"],
   });
-  if (r.error) throw r.error;
+  if (r.error) {
+    throw r.error;
+  }
   requireThat(r.status === 0, `${command} ${args[0]} failed (${r.status}): ${r.stderr ?? ""}`);
   return r.stdout?.trim();
-}
+};
 const cli = (args) =>
   run("vpx", [
     "skills@1.9.0",
@@ -103,16 +108,18 @@ const cli = (args) =>
     "--yes",
     ...(global ? ["--global"] : []),
   ]);
-function fingerprint(name) {
+const fingerprint = function (name) {
   const dir = join(dest, name);
-  if (!present(dir) || !lstatSync(dir).isDirectory()) return null;
+  if (!present(dir) || !lstatSync(dir).isDirectory()) {
+    return null;
+  }
   const hash = createHash("sha256");
-  function walk(p, rel) {
+  const walk = function (p, rel) {
     for (const entry of readdirSync(p, { withFileTypes: true }).sort((a, b) =>
       a.name < b.name ? -1 : 1,
     )) {
-      const f = join(p, entry.name),
-        key = rel + "/" + entry.name;
+      const f = join(p, entry.name);
+      const key = `${rel}/${entry.name}`;
       if (entry.isDirectory()) {
         hash.update(JSON.stringify([key, "directory"]));
         walk(f, key);
@@ -124,18 +131,19 @@ function fingerprint(name) {
         hash.update(JSON.stringify([key, "non-regular"]));
       }
     }
-  }
+  };
   walk(dir, "");
   return hash.digest("hex");
-}
-function uninstall() {
-  const entries = lock(),
-    names = [];
-  for (const n of values.keep)
+};
+const uninstall = function () {
+  const entries = lock();
+  const names = [];
+  for (const n of values.keep) {
     requireThat(
       safeName(n) && (ledger.owned[n] || present(join(dest, n))),
       `Unknown skill to keep: ${n}`,
     );
+  }
   for (const [name, record] of Object.entries(ledger.owned)) {
     if (values.keep.includes(name) || name === "orca-cli" || name === "orchestration") {
       delete ledger.owned[name];
@@ -155,16 +163,24 @@ function uninstall() {
     }
     names.push(name);
   }
-  if (names.length) cli(["remove", ...names]);
+  if (names.length) {
+    cli(["remove", ...names]);
+  }
   const after = lock();
   for (const n of names) {
-    if (!present(join(dest, n)) && !after[n]) delete ledger.owned[n];
-    else console.log(`Retained by skills CLI: ${n}`);
+    if (!present(join(dest, n)) && !after[n]) {
+      delete ledger.owned[n];
+    } else {
+      console.log(`Retained by skills CLI: ${n}`);
+    }
   }
-  if (Object.keys(ledger.owned).length) save();
-  else if (existsSync(journal)) rmSync(journal);
-}
-function ownNames(ref) {
+  if (Object.keys(ledger.owned).length) {
+    save();
+  } else if (existsSync(journal)) {
+    rmSync(journal);
+  }
+};
+const ownNames = function (ref) {
   requireThat(
     typeof ref === "string" && /^[a-zA-Z0-9][a-zA-Z0-9._/-]*$/.test(ref),
     "Select a branch, tag, or commit with --ref, or install the bootstrap from a pinned source first.",
@@ -192,12 +208,12 @@ function ownNames(ref) {
     );
     return { repo: firstParty, pin, names };
   } finally {
-    rmSync(dir, { recursive: true, force: true });
+    rmSync(dir, { force: true, recursive: true });
   }
-}
-function install() {
-  const before = lock(),
-    bootstrap = before[self];
+};
+const install = function () {
+  const before = lock();
+  const bootstrap = before[self];
   const ref = values.ref ?? (bootstrap?.source === firstParty ? bootstrap.commit : undefined);
   const own = ownNames(ref);
   const manifest = JSON.parse(
@@ -208,7 +224,7 @@ function install() {
   const plan = [];
   for (const { repo, pin, names } of groups) {
     requireThat(
-      /^[\w.-]+\/[\w.-]+$/.test(repo) && /^[a-f0-9]{40}$/.test(pin),
+      /^[\w.-]+\/[\w.-]+$/.test(repo) && /^[a-f0-9]{40}$/u.test(pin),
       "Invalid source pin.",
     );
     const missing = [];
@@ -237,9 +253,13 @@ function install() {
     console.log(`${repo}#${pin}: ${missing.length} to add`, missing.join(" "));
     plan.push({ repo, pin, source: `${repo}#${pin}`, names: missing });
   }
-  if (action === "plan") return;
+  if (action === "plan") {
+    return;
+  }
   for (const { repo, pin, source, names } of plan) {
-    if (!names.length) continue;
+    if (!names.length) {
+      continue;
+    }
     try {
       cli(["add", source, "--full-depth", "--copy", "--skill", ...names]);
     } finally {
@@ -250,8 +270,9 @@ function install() {
           entry?.source?.toLowerCase() === repo.toLowerCase() &&
           entry.commit === pin &&
           existsSync(join(dest, name, "SKILL.md"))
-        )
+        ) {
           ledger.owned[name] = { lock: entry, hash: fingerprint(name) };
+        }
       }
       save();
     }
@@ -260,19 +281,23 @@ function install() {
       `Incomplete install from ${repo}. Inspect the output and receipt before retrying.`,
     );
   }
-}
-if (action === "plan") install();
-else if (action === "install" || existsSync(journal)) {
+};
+if (action === "plan") {
+  install();
+} else if (action === "install" || existsSync(journal)) {
   mkdirSync(metadata, { recursive: true });
-  const mutex = journal + ".lock";
+  const mutex = `${journal}.lock`;
   writeFileSync(mutex, String(process.pid), { flag: "wx", mode: 0o600 });
   try {
     requireThat(
       JSON.stringify(ledger) === JSON.stringify(readLedger()),
       "Receipt changed before acquisition. Retry with the current receipt.",
     );
-    if (action === "uninstall") uninstall();
-    else install();
+    if (action === "uninstall") {
+      uninstall();
+    } else {
+      install();
+    }
   } finally {
     rmSync(mutex);
   }

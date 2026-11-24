@@ -220,7 +220,7 @@ describe("closed enum parsing", () => {
       throw new Error("expected parser to throw");
     } catch (error) {
       expect(error).toBeInstanceOf(WatcherQueryError);
-      if (!(error instanceof WatcherQueryError)) throw error;
+      if (!(error instanceof WatcherQueryError)) {throw error;}
       expect(error.failure).toMatchObject({
         kind: "missing-key",
         retryable: true,
@@ -466,7 +466,7 @@ describe("context and stack discovery", () => {
 
   it("terminates when an unrelated fork opens main against main", () => {
     // Bound the subprocess so this regression reports a failure instead of hanging the suite.
-    const program = `import { orderStack } from ${JSON.stringify(import.meta.dir + "/github.ts")};
+    const program = `import { orderStack } from ${JSON.stringify(`${import.meta.dir  }/github.ts`)};
       console.log(JSON.stringify(orderStack(${JSON.stringify(context)}, [
         { number: 41, headRefName: "main", baseRefName: "main", isCrossRepository: true },
         { number: 42, headRefName: "feature", baseRefName: "main", isCrossRepository: false }
@@ -487,11 +487,11 @@ case "$*" in
 esac
 printf '%s\\n' '[{"number":42,"headRefName":"feature","baseRefName":"main","isCrossRepository":true}]'
 `, { mode: 0o755 });
-      const program = `import { GhGitHubReader } from ${JSON.stringify(import.meta.dir + "/github.ts")};
+      const program = `import { GhGitHubReader } from ${JSON.stringify(`${import.meta.dir  }/github.ts`)};
         console.log(JSON.stringify(await new GhGitHubReader().openPullRequests({ owner: "owner", repo: "repo" })));`;
       const child = spawnSync(process.execPath, ["-e", program], {
         encoding: "utf8", timeout: 2000,
-        env: { ...process.env, PATH: directory + ":" + process.env.PATH },
+        env: { ...process.env, PATH: `${directory  }:${  process.env.PATH}` },
       });
       expect(child.error).toBeUndefined();
       expect(child.status).toBe(0);
@@ -499,7 +499,7 @@ printf '%s\\n' '[{"number":42,"headRefName":"feature","baseRefName":"main","isCr
         { number: 42, headRefName: "feature", baseRefName: "main", isCrossRepository: true },
       ]);
     } finally {
-      rmSync(directory, { recursive: true, force: true });
+      rmSync(directory, { force: true, recursive: true });
     }
   });
 

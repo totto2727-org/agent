@@ -4,6 +4,7 @@ import { once } from "node:events";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+// oxlint-disable-next-line rules/no-node-imports, vitest/no-import-node-test -- Statechart runs these fixtures with Node's test runner as part of the standalone skill.
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { plainText } from "../backends/plain-text.ts";
@@ -18,20 +19,21 @@ const plain = (text: string) => [...plainText(readMessages(text))].join("");
 
 const steady = (text: string) =>
   text
-    .replace(/"chart-[0-9a-f]{32}"/g, '"chart"')
+    .replace(/"chart-[0-9a-f]{32}"/gu, '"chart"')
     .replace(/\bfp \d+ and seed -?\d+/g, "fp _ and seed _")
-    .replace(/\[pid: \d+\]/g, "[pid: _]")
-    .replace(/\d{4}-\d\d-\d\d \d\d:\d\d:\d\d/g, "_")
+    .replace(/\[pid: \d+\]/gu, "[pid: _]")
+    .replace(/\d{4}-\d\d-\d\d \d\d:\d\d:\d\d/gu, "_")
     .replace(/ \([\d,]+ d?s\/min\)/g, "")
     .replace(/ in (?:\d+d \d\dh|\d\dh \d\dmin|\d\dmin \d\ds|\d\ds) at /g, " in _ at ");
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test(
   "each corpus spec's TLC output reads as plain TLC prints it at -workers 1",
   { skip, concurrency: 4 },
-  async (t) => {
+  async (testContext) => {
     await Promise.all(
       fs.readdirSync(corpus).map((name) =>
-        t.test(name, async () => {
+        testContext.test(name, async () => {
           const dir = path.join(corpus, name);
           const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "statechart-plain-"));
           const [tool, twin, out] = ["tool", "plain", "out"].map((f) => path.join(tmp, f));
@@ -65,7 +67,7 @@ test(
           const runs = fs.readdirSync(twin).filter((f) => f.endsWith(".out"));
           assert.ok(runs.includes("ChartRun.out"), "the drawing run has a plain twin");
           for (const run of runs) {
-            const exit = run.replace(/\.out$/, ".exit");
+            const exit = run.replace(/\.out$/u, ".exit");
             assert.equal(maybe(path.join(tool, exit)), maybe(path.join(twin, exit)), exit);
             assert.equal(
               steady(plain(read(path.join(tool, run)))),
@@ -79,10 +81,10 @@ test(
           );
           const verdicts = new Set<string>();
           for (const run of runs)
-            if (run.startsWith("verdict-")) verdicts.add(steady(`${read(path.join(twin, run))}\n`));
+            {if (run.startsWith("verdict-")) {verdicts.add(steady(`${read(path.join(twin, run))}\n`));}}
           for (const f of fs.readdirSync(out))
-            if (/^tlc-\w+\.out$/.test(f))
-              assert.ok(verdicts.has(steady(read(path.join(out, f)))), f);
+            {if (/^tlc-\w+\.out$/u.test(f))
+              {assert.ok(verdicts.has(steady(read(path.join(out, f)))), f);}}
         }),
       ),
     );

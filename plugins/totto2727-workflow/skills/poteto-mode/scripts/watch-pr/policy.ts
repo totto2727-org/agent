@@ -5,17 +5,18 @@ import {
 } from "./github.ts";
 import type * as T from "./types.ts";
 import { nonEmpty } from "./types.ts";
-export function assessGitHubMerge(args: {
-  readonly mergeStateStatus: T.MergeStateStatus;
-  readonly headRollupState: T.RollupState;
-}): T.GitHubMergeAssessment {
+import { matchesNull, matchesUndefined } from "./native-predicates.ts";
+export function assessGitHubMerge(args: Readonly<{
+  mergeStateStatus: T.MergeStateStatus;
+  headRollupState: T.RollupState;
+}>): T.GitHubMergeAssessment {
   if (args.mergeStateStatus === "BLOCKED") {
     if (args.headRollupState === "ERROR" || args.headRollupState === "FAILURE")
-      return {
+      {return {
         kind: "refused",
         mergeStateStatus: args.mergeStateStatus,
         headRollupState: args.headRollupState,
-      };
+      };}
     return {
       kind: "allowed",
       basis: "rollup",
@@ -30,13 +31,13 @@ export function assessGitHubMerge(args: {
     headRollupState: args.headRollupState,
   };
 }
-async function mergeAssessment(
+const mergeAssessment = async function (
   reader: T.GitHubReader,
   facts: T.PullRequestFacts
 ) {
   const commits = await reader.commitRollups(facts.context);
   const headRollupState =
-    facts.headRefOid === null
+    matchesNull(facts.headRefOid)
       ? null
       : (commits.find((commit) => commit.oid === facts.headRefOid)?.state ??
         null);
@@ -49,24 +50,24 @@ async function mergeAssessment(
       headRollupState,
     }),
   };
-}
+};
 const AUTOMATION_TOKENS = [
   "bugbot",
   "security review",
   "pr review automation",
   "review automation",
 ] as const;
-export async function readSnapshot(args: {
-  readonly reader: T.GitHubReader;
-  readonly context: T.PrContext;
-  readonly pendingHistory: "include" | "omit";
-  readonly allowDraft: boolean;
-}): Promise<T.PrSnapshot> {
+export async function readSnapshot(args: Readonly<{
+  reader: T.GitHubReader;
+  context: T.PrContext;
+  pendingHistory: "include" | "omit";
+  allowDraft: boolean;
+}>): Promise<T.PrSnapshot> {
   const facts = await args.reader.pullRequest(args.context);
-  if (facts.state === "MERGED" || facts.mergedAt !== null)
-    return { kind: "merged", context: args.context, facts };
+  if (facts.state === "MERGED" || !matchesNull(facts.mergedAt))
+    {return { kind: "merged", context: args.context, facts };}
   if (facts.state === "CLOSED")
-    return { kind: "closed", context: args.context, facts };
+    {return { kind: "closed", context: args.context, facts };}
   const threads = await resolveReviewThreads(args.reader, args.context);
   const checks = await resolveChecks(args.reader, args.context);
   const failed = nonEmpty(
@@ -80,15 +81,15 @@ export async function readSnapshot(args: {
     )
   );
   let ci: T.CiState;
-  if (failed === null && pending !== null && args.pendingHistory === "omit")
-    ci = {
+  if (matchesNull(failed) && !matchesNull(pending) && args.pendingHistory === "omit")
+    {ci = {
       kind: "ci-pending",
       source: checks.source,
       all: checks.checks,
       failed: [],
       pending,
       hadPreviousPassingCi: false,
-    };
+    };}
   else {
     const merge = await mergeAssessment(args.reader, facts);
     const base = {
@@ -96,32 +97,32 @@ export async function readSnapshot(args: {
       all: checks.checks,
       hadPreviousPassingCi: merge.hadPreviousPassingCi,
     };
-    if (failed !== null)
-      ci = {
+    if (!matchesNull(failed))
+      {ci = {
         ...base,
         kind: "ci-failing",
         failed,
         pending: pending ?? [],
         github: merge.github,
-      };
+      };}
     else if (merge.github.kind === "refused")
-      ci = {
+      {ci = {
         ...base,
         kind: "ci-github-rejected",
         failed: [],
         pending: pending ?? [],
         github: merge.github,
-      };
-    else if (pending !== null)
-      ci = { ...base, kind: "ci-pending", failed: [], pending };
+      };}
+    else if (!matchesNull(pending))
+      {ci = { ...base, kind: "ci-pending", failed: [], pending };}
     else
-      ci = {
+      {ci = {
         ...base,
         kind: "ci-clean",
         failed: [],
         pending: [],
         github: merge.github,
-      };
+      };}
   }
   return {
     kind: "open",
@@ -145,61 +146,61 @@ const conflictBlocker = (row: T.PrSnapshot): T.MergeBlocker | null =>
     row.facts.mergeStateStatus === "CONFLICTING")
     ? { kind: "merge-conflicts", pr: row.context, facts: row.facts }
     : null;
-function threadBlocker(row: T.PrSnapshot): T.MergeBlocker | null {
-  if (row.kind !== "open") return null;
+const threadBlocker = function (row: T.PrSnapshot): T.MergeBlocker | null {
+  if (row.kind !== "open") {return null;}
   const threads = nonEmpty(row.threads);
-  return threads === null
+  return matchesNull(threads)
     ? null
     : { kind: "review-threads", pr: row.context, threads };
-}
+};
 const ciBlocker = (row: T.PrSnapshot): T.MergeBlocker | null =>
   row.kind === "open" &&
   (row.ci.kind === "ci-failing" || row.ci.kind === "ci-github-rejected")
     ? { kind: "failing-checks", pr: row.context, ci: row.ci }
     : null;
-function gateReason(
+const gateReason = function (
   row: T.PrSnapshot,
   allowDraft: boolean
 ): T.MergeGateReason | null {
-  if (row.kind === "merged") return null;
-  if (row.kind === "closed") return "closed-without-merge";
-  if (row.facts.isDraft && !allowDraft) return "draft-pr";
+  if (row.kind === "merged") {return null;}
+  if (row.kind === "closed") {return "closed-without-merge";}
+  if (row.facts.isDraft && !allowDraft) {return "draft-pr";}
   return row.facts.reviewDecision === "CHANGES_REQUESTED"
     ? "changes-requested"
     : null;
-}
-function gateBlocker(
+};
+const gateBlocker = function (
   row: T.PrSnapshot,
   allowDraft: boolean
 ): T.MergeBlocker | null {
   const reason = gateReason(row, allowDraft);
-  return reason === null ||
+  return matchesNull(reason) ||
     (reason === "draft-pr" &&
       row.kind === "open" &&
       row.ci.kind === "ci-pending")
     ? null
     : { kind: "merge-gate", pr: row.context, reason };
-}
-function readyContribution(
+};
+const readyContribution = function (
   row: T.PrSnapshot,
   allowDraft: boolean
 ): T.ReadyPr | T.MergedPr | null {
   if (row.kind === "merged")
-    return {
+    {return {
       kind: "merged-pr",
       context: row.context,
       mergedAt: row.facts.mergedAt,
-    };
+    };}
   if (
     row.kind !== "open" ||
     row.ci.kind !== "ci-clean" ||
     row.threads.length !== 0 ||
-    conflictBlocker(row) !== null ||
-    gateReason(row, allowDraft) !== null
+    !matchesNull(conflictBlocker(row)) ||
+    !matchesNull(gateReason(row, allowDraft))
   )
-    return null;
+    {return null;}
   const reviewDecision = row.facts.reviewDecision;
-  if (reviewDecision === "CHANGES_REQUESTED") return null;
+  if (reviewDecision === "CHANGES_REQUESTED") {return null;}
   return {
     kind: "ready-pr",
     context: row.context,
@@ -214,7 +215,7 @@ function readyContribution(
       },
     },
   };
-}
+};
 export function classifyPr(
   row: T.PrSnapshot,
   allowDraft = false
@@ -225,11 +226,11 @@ export function classifyPr(
     ciBlocker(row),
     gateBlocker(row, allowDraft),
   ])
-    if (blocker !== null) return { kind: "blocker", blocker };
+    {if (!matchesNull(blocker)) {return { kind: "blocker", blocker };}}
   if (row.kind === "open" && row.ci.kind === "ci-pending")
-    return { kind: "waiting", frontier: row.context, pending: row.ci.pending };
+    {return { kind: "waiting", frontier: row.context, pending: row.ci.pending };}
   const ready = readyContribution(row, allowDraft);
-  if (ready === null) throw new Error("snapshot has no classified decision");
+  if (matchesNull(ready)) {throw new Error("snapshot has no classified decision");}
   return ready.kind === "merged-pr"
     ? { kind: "merged", pr: ready }
     : { kind: "ready", pr: ready };
@@ -239,28 +240,28 @@ export function selectTierMajorStackDecision(
   allowDraft = false
 ): T.StackDecision {
   for (const tier of [conflictBlocker, threadBlocker, ciBlocker])
-    for (const row of rows) {
+    {for (const row of rows) {
       const blocker = tier(row);
-      if (blocker !== null) return { kind: "blocker", blocker };
-    }
+      if (!matchesNull(blocker)) {return { kind: "blocker", blocker };}
+    }}
   for (const row of rows) {
     const blocker = gateBlocker(row, allowDraft);
-    if (blocker !== null) return { kind: "blocker", blocker };
+    if (!matchesNull(blocker)) {return { kind: "blocker", blocker };}
   }
   for (const row of rows)
-    if (row.kind === "open" && row.ci.kind === "ci-pending")
-      return {
+    {if (row.kind === "open" && row.ci.kind === "ci-pending")
+      {return {
         kind: "waiting",
         frontier: row.context,
         pending: row.ci.pending,
-      };
+      };}}
   const prs = nonEmpty(
     rows
       .map((row) => readyContribution(row, allowDraft))
-      .filter((row): row is T.ReadyPr | T.MergedPr => row !== null)
+      .filter((row): row is T.ReadyPr | T.MergedPr => !matchesNull(row))
   );
-  if (prs === null || prs.length !== rows.length)
-    throw new Error("stack has no classified decision");
+  if (matchesNull(prs) || prs.length !== rows.length)
+    {throw new Error("stack has no classified decision");}
   return { kind: "clear", prs };
 }
 export const queryBackoffSeconds = (
@@ -308,25 +309,29 @@ export function verdictFactory<M extends T.WatchMode>(
   }
   return stamp;
 }
-function blockerVerdict(
+const blockerVerdict = function (
   stamp: VerdictStamp,
   blocker: T.MergeBlocker
 ): T.BlockerVerdict {
   switch (blocker.kind) {
-    case "merge-conflicts":
+    case "merge-conflicts": {
       return stamp({ kind: "BLOCKER", terminal: true, exitCode: 2, blocker });
-    case "review-threads":
+    }
+    case "review-threads": {
       return stamp({ kind: "BLOCKER", terminal: true, exitCode: 3, blocker });
-    case "failing-checks":
+    }
+    case "failing-checks": {
       return stamp({ kind: "BLOCKER", terminal: true, exitCode: 4, blocker });
-    case "merge-gate":
+    }
+    case "merge-gate": {
       return stamp({ kind: "BLOCKER", terminal: true, exitCode: 6, blocker });
+    }
     default: {
       const exhaustive: never = blocker;
       return exhaustive;
     }
   }
-}
+};
 export function statusQueryVerdict(
   stamp: VerdictStamp,
   failures: number,
@@ -355,19 +360,19 @@ const deadlinePassed = (
   now: number
 ): boolean => options.timeout > 0 && now - started >= options.timeout;
 type StepResult<V> =
-  | { readonly kind: "terminal"; readonly verdict: V }
-  | {
-      readonly kind: "sleep";
-      readonly seconds: number;
-      readonly onDeadline?: () => V;
-    }
-  | { readonly kind: "continue" };
-async function pollUntilTerminal<V>(args: {
-  readonly dependencies: RunDependencies;
-  readonly options: T.PollingOptions;
-  readonly stamp: VerdictStamp;
-  readonly step: () => Promise<StepResult<V>>;
-}): Promise<V | T.BlockerVerdict | T.TimeoutVerdict> {
+  | Readonly<{ kind: "terminal"; verdict: V }>
+  | Readonly<{
+      kind: "sleep";
+      seconds: number;
+      onDeadline?: () => V;
+    }>
+  | Readonly<{ kind: "continue" }>;
+const pollUntilTerminal = async function <V>(args: Readonly<{
+  dependencies: RunDependencies;
+  options: T.PollingOptions;
+  stamp: VerdictStamp;
+  step: () => Promise<StepResult<V>>;
+}>): Promise<V | T.BlockerVerdict | T.TimeoutVerdict> {
   let failures = 0;
   const started = args.dependencies.clock.now();
   const sleep = async (seconds: number): Promise<void> => {
@@ -382,10 +387,10 @@ async function pollUntilTerminal<V>(args: {
       result = await args.step();
       failures = 0;
     } catch (error) {
-      if (!(error instanceof WatcherQueryError)) throw error;
+      if (!(error instanceof WatcherQueryError)) {throw error;}
       failures += 1;
       if (!error.failure.retryable || failures >= args.options.maxQueryErrors)
-        return statusQueryVerdict(args.stamp, failures, error.failure);
+        {return statusQueryVerdict(args.stamp, failures, error.failure);}
       const retryInSeconds = queryBackoffSeconds(
         args.options.interval,
         failures
@@ -400,49 +405,49 @@ async function pollUntilTerminal<V>(args: {
         })
       );
       if (deadlinePassed(started, args.options, args.dependencies.clock.now()))
-        return args.stamp({
+        {return args.stamp({
           kind: "TIMEOUT",
           terminal: true,
           exitCode: 5,
           reason: { kind: "status-unavailable", failure: error.failure },
-        });
+        });}
       await sleep(retryInSeconds);
       continue;
     }
-    if (result.kind === "terminal") return result.verdict;
+    if (result.kind === "terminal") {return result.verdict;}
     if (result.kind === "sleep") {
       if (
-        result.onDeadline !== undefined &&
+        !matchesUndefined(result.onDeadline) &&
         deadlinePassed(started, args.options, args.dependencies.clock.now())
       )
-        return result.onDeadline();
+        {return result.onDeadline();}
       await sleep(result.seconds);
     }
   }
-}
-export async function runSimple(args: {
-  readonly dependencies: RunDependencies;
-  readonly contexts: T.NonEmpty<T.PrContext>;
-  readonly mode: T.WatchMode;
-  readonly statusOnly: boolean;
-  readonly options: T.PollingOptions;
-}): Promise<T.TerminalVerdict> {
+};
+export async function runSimple(args: Readonly<{
+  dependencies: RunDependencies;
+  contexts: T.NonEmpty<T.PrContext>;
+  mode: T.WatchMode;
+  statusOnly: boolean;
+  options: T.PollingOptions;
+}>): Promise<T.TerminalVerdict> {
   const stamp = verdictFactory(args.dependencies.clock, args.mode);
   const step = async (): Promise<StepResult<T.TerminalVerdict>> => {
     const rows: T.PrSnapshot[] = [];
     for (const context of args.contexts)
-      rows.push(
+      {rows.push(
         await readSnapshot({
           reader: args.dependencies.reader,
           context,
           pendingHistory: "include",
           allowDraft: args.options.allowDraft,
         })
-      );
+      );}
     const complete = nonEmpty(rows);
-    if (complete === null) throw new Error("watch context cannot be empty");
+    if (matchesNull(complete)) {throw new Error("watch context cannot be empty");}
     if (args.statusOnly)
-      return {
+      {return {
         kind: "terminal",
         verdict: stamp({
           kind: "STATUS",
@@ -451,27 +456,27 @@ export async function runSimple(args: {
           reason: "status-only",
           rows: complete,
         }),
-      };
+      };}
     if (args.mode === "queued-stack")
-      throw new Error("queued-stack requires status-only in the simple runner");
+      {throw new Error("queued-stack requires status-only in the simple runner");}
     if (args.mode === "stack")
-      args.dependencies.emit(
+      {args.dependencies.emit(
         stamp(
           { kind: "STATUS", terminal: false, reason: "poll", rows: complete },
           args.mode
         )
-      );
+      );}
     const decision =
       args.mode === "single"
         ? classifyPr(complete[0], args.options.allowDraft)
         : selectTierMajorStackDecision(complete, args.options.allowDraft);
     if (decision.kind === "blocker")
-      return {
+      {return {
         kind: "terminal",
         verdict: blockerVerdict(stamp, decision.blocker),
-      };
+      };}
     if (decision.kind === "ready" || decision.kind === "merged")
-      return {
+      {return {
         kind: "terminal",
         verdict: stamp(
           {
@@ -482,9 +487,9 @@ export async function runSimple(args: {
           },
           args.mode
         ),
-      };
+      };}
     if (decision.kind === "clear")
-      return {
+      {return {
         kind: "terminal",
         verdict: stamp(
           {
@@ -495,7 +500,7 @@ export async function runSimple(args: {
           },
           args.mode
         ),
-      };
+      };}
     args.dependencies.emit(
       stamp({
         kind: "WAITING",
@@ -524,11 +529,11 @@ export async function runSimple(args: {
   });
 }
 export type QueueWork =
-  | {
-      readonly kind: "whole-stack-sweep";
-      readonly remaining: T.NonEmpty<T.PrContext>;
-    }
-  | { readonly kind: "frontier-poll"; readonly frontier: T.PrContext };
+  | Readonly<{
+      kind: "whole-stack-sweep";
+      remaining: T.NonEmpty<T.PrContext>;
+    }>
+  | Readonly<{ kind: "frontier-poll"; frontier: T.PrContext }>;
 export interface QueueState {
   readonly queue: T.NonEmpty<T.PrContext>;
   readonly snapshots: ReadonlyMap<T.PrNumber, T.PrSnapshot>;
@@ -553,23 +558,23 @@ export const createQueueState = (
 const orderedRows = (state: QueueState): T.PrSnapshot[] =>
   state.queue.flatMap((context) => {
     const row = state.snapshots.get(context.number);
-    return row === undefined ? [] : [row];
+    return matchesUndefined(row) ? [] : [row];
   });
 const activeRows = (state: QueueState): T.PrSnapshot[] =>
   orderedRows(state).filter((row) => row.kind !== "merged");
 export function planQueue(state: QueueState, now: number): QueueState {
-  if (state.work !== null) return state;
+  if (!matchesNull(state.work)) {return state;}
   if (state.snapshots.size === 0 || now >= state.nextSweepAt) {
     const remaining = nonEmpty(
       state.queue.filter(
         (context) => state.snapshots.get(context.number)?.kind !== "merged"
       )
     );
-    if (remaining !== null)
-      return { ...state, work: { kind: "whole-stack-sweep", remaining } };
+    if (!matchesNull(remaining))
+      {return { ...state, work: { kind: "whole-stack-sweep", remaining } };}
   }
   const frontier = activeRows(state)[0]?.context;
-  return frontier === undefined
+  return matchesUndefined(frontier)
     ? state
     : { ...state, work: { kind: "frontier-poll", frontier } };
 }
@@ -583,70 +588,70 @@ export function applyQueueSnapshot(
   now: number,
   options: T.PollingOptions
 ): QueueSnapshotResult {
-  if (state.work === null) throw new Error("queue has no read in flight");
+  if (matchesNull(state.work)) {throw new Error("queue has no read in flight");}
   const snapshots = new Map(state.snapshots);
   snapshots.set(snapshot.context.number, snapshot);
   const base = { ...state, snapshots };
   if (state.work.kind === "frontier-poll")
-    return { state: { ...base, work: null }, completedSweepRows: null };
+    {return { state: { ...base, work: null }, completedSweepRows: null };}
   const [head, ...tail] = state.work.remaining;
   if (head.number !== snapshot.context.number)
-    throw new Error("snapshot does not match sweep head");
+    {throw new Error("snapshot does not match sweep head");}
   const remaining = nonEmpty(tail);
-  if (remaining !== null)
-    return {
+  if (!matchesNull(remaining))
+    {return {
       state: { ...base, work: { kind: "whole-stack-sweep", remaining } },
       completedSweepRows: null,
-    };
+    };}
   const rows = nonEmpty(
     state.queue.flatMap((context) => {
       const row = snapshots.get(context.number);
-      return row === undefined ? [] : [row];
+      return matchesUndefined(row) ? [] : [row];
     })
   );
-  if (rows === null || rows.length !== state.queue.length)
-    throw new Error("sweep completed without every snapshot");
+  if (matchesNull(rows) || rows.length !== state.queue.length)
+    {throw new Error("sweep completed without every snapshot");}
   return {
     state: { ...base, work: null, nextSweepAt: now + options.sweepInterval },
     completedSweepRows: rows,
   };
 }
 export type QueueEvaluation =
-  | {
-      readonly kind: "complete";
-      readonly state: QueueState;
-      readonly merged: T.NonEmpty<T.MergedPr>;
-    }
-  | {
-      readonly kind: "blocker";
-      readonly state: QueueState;
-      readonly blocker: T.MergeBlocker;
-    }
-  | {
-      readonly kind: "advance";
-      readonly state: QueueState;
-      readonly merged: T.PrContext;
-      readonly frontier: T.PrContext;
-      readonly remaining: number;
-    }
-  | {
-      readonly kind: "timeout";
-      readonly state: QueueState;
-      readonly frontier: T.PrContext;
-      readonly unmergedCount: number;
-    }
-  | {
-      readonly kind: "waiting";
-      readonly state: QueueState;
-      readonly frontier: T.PrContext;
-      readonly reason:
-        | {
-            readonly kind: "pending-checks";
-            readonly pending: T.NonEmpty<T.PendingCheck>;
-          }
-        | { readonly kind: "merge-queue"; readonly unmergedCount: number };
-      readonly emit: boolean;
-    };
+  | Readonly<{
+      kind: "complete";
+      state: QueueState;
+      merged: T.NonEmpty<T.MergedPr>;
+    }>
+  | Readonly<{
+      kind: "blocker";
+      state: QueueState;
+      blocker: T.MergeBlocker;
+    }>
+  | Readonly<{
+      kind: "advance";
+      state: QueueState;
+      merged: T.PrContext;
+      frontier: T.PrContext;
+      remaining: number;
+    }>
+  | Readonly<{
+      kind: "timeout";
+      state: QueueState;
+      frontier: T.PrContext;
+      unmergedCount: number;
+    }>
+  | Readonly<{
+      kind: "waiting";
+      state: QueueState;
+      frontier: T.PrContext;
+      reason:
+        | Readonly<{
+            kind: "pending-checks";
+            pending: T.NonEmpty<T.PendingCheck>;
+          }>
+        | Readonly<{ kind: "merge-queue"; unmergedCount: number }>;
+      emit: boolean;
+    }>;
 export function evaluateQueue(
   state: QueueState,
   now: number,
@@ -667,35 +672,35 @@ export function evaluateQueue(
           : []
       )
     );
-    if (merged === null) throw new Error("empty queue cannot complete");
+    if (matchesNull(merged)) {throw new Error("empty queue cannot complete");}
     return { kind: "complete", state, merged };
   }
   const rows = nonEmpty(active);
-  if (rows === null) throw new Error("active queue cannot be empty");
+  if (matchesNull(rows)) {throw new Error("active queue cannot be empty");}
   const decision = selectTierMajorStackDecision(rows, options.allowDraft);
   if (decision.kind === "blocker")
-    return { kind: "blocker", state, blocker: decision.blocker };
+    {return { kind: "blocker", state, blocker: decision.blocker };}
   const frontier = rows[0].context;
-  if (state.frontier !== null && state.frontier.number !== frontier.number)
-    return {
+  if (!matchesNull(state.frontier) && state.frontier.number !== frontier.number)
+    {return {
       kind: "advance",
       state: { ...state, frontier, lastWaitKey: null },
       merged: state.frontier,
       frontier,
       remaining: active.length,
-    };
+    };}
   if (deadlinePassed(state.startedAt, options, now))
-    return {
+    {return {
       kind: "timeout",
       state: { ...state, frontier },
       frontier,
       unmergedCount: active.length,
-    };
+    };}
   const row = rows[0];
   const pending =
     row.kind === "open" && row.ci.kind === "ci-pending" ? row.ci.pending : null;
   const reason =
-    pending === null
+    matchesNull(pending)
       ? ({ kind: "merge-queue", unmergedCount: active.length } as const)
       : ({ kind: "pending-checks", pending } as const);
   const key =
@@ -710,11 +715,11 @@ export function evaluateQueue(
     emit: state.lastWaitKey !== key,
   };
 }
-export async function runQueued(args: {
-  readonly dependencies: RunDependencies;
-  readonly contexts: T.NonEmpty<T.PrContext>;
-  readonly options: T.PollingOptions;
-}): Promise<T.QueueTerminalVerdict> {
+export async function runQueued(args: Readonly<{
+  dependencies: RunDependencies;
+  contexts: T.NonEmpty<T.PrContext>;
+  options: T.PollingOptions;
+}>): Promise<T.QueueTerminalVerdict> {
   let state = createQueueState(args.contexts, args.dependencies.clock.now());
   const stamp = verdictFactory(args.dependencies.clock, "queued-stack");
   args.dependencies.emit(
@@ -722,14 +727,14 @@ export async function runQueued(args: {
   );
   const step = async (): Promise<StepResult<T.QueueTerminalVerdict>> => {
     state = planQueue(state, args.dependencies.clock.now());
-    if (state.work === null) {
+    if (matchesNull(state.work)) {
       const complete = evaluateQueue(
         state,
         args.dependencies.clock.now(),
         args.options
       );
       if (complete.kind !== "complete")
-        throw new Error("queue has no work while active");
+        {throw new Error("queue has no work while active");}
       return {
         kind: "terminal",
         verdict: stamp({
@@ -758,16 +763,16 @@ export async function runQueued(args: {
       args.options
     );
     state = applied.state;
-    if (applied.completedSweepRows !== null)
-      args.dependencies.emit(
+    if (!matchesNull(applied.completedSweepRows))
+      {args.dependencies.emit(
         stamp({
           kind: "STATUS",
           terminal: false,
           reason: "whole-stack-sweep",
           rows: applied.completedSweepRows,
         })
-      );
-    if (state.work !== null) return { kind: "continue" };
+      );}
+    if (!matchesNull(state.work)) {return { kind: "continue" };}
     const evaluation = evaluateQueue(
       state,
       args.dependencies.clock.now(),
@@ -775,7 +780,7 @@ export async function runQueued(args: {
     );
     state = evaluation.state;
     switch (evaluation.kind) {
-      case "complete":
+      case "complete": {
         return {
           kind: "terminal",
           verdict: stamp({
@@ -786,12 +791,14 @@ export async function runQueued(args: {
             merged: evaluation.merged,
           }),
         };
-      case "blocker":
+      }
+      case "blocker": {
         return {
           kind: "terminal",
           verdict: blockerVerdict(stamp, evaluation.blocker),
         };
-      case "advance":
+      }
+      case "advance": {
         args.dependencies.emit(
           stamp({
             kind: "ADVANCE",
@@ -802,7 +809,8 @@ export async function runQueued(args: {
           })
         );
         return { kind: "continue" };
-      case "timeout":
+      }
+      case "timeout": {
         return {
           kind: "terminal",
           verdict: stamp({
@@ -816,17 +824,19 @@ export async function runQueued(args: {
             },
           }),
         };
-      case "waiting":
+      }
+      case "waiting": {
         if (evaluation.emit)
-          args.dependencies.emit(
+          {args.dependencies.emit(
             stamp({
               kind: "WAITING",
               terminal: false,
               frontier: evaluation.frontier,
               reason: evaluation.reason,
             })
-          );
+          );}
         return { kind: "sleep", seconds: args.options.interval };
+      }
       default: {
         const exhaustive: never = evaluation;
         return exhaustive;

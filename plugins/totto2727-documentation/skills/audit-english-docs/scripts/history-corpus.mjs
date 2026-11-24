@@ -1,10 +1,21 @@
 #!/usr/bin/env node
 
+// oxlint-disable-next-line rules/no-node-imports -- Run Git with the standalone corpus builder's native child process API.
 import { execFile } from "node:child_process";
+// oxlint-disable-next-line rules/no-node-imports -- Read and write corpus files from the standalone Node.js CLI.
 import { mkdir, readFile, writeFile } from "node:fs/promises";
+// oxlint-disable-next-line rules/no-node-imports -- Resolve Git checkout paths without requiring packages in the target checkout.
 import { dirname, isAbsolute, resolve } from "node:path";
+// oxlint-disable-next-line rules/no-node-imports -- Locate the corpus builder's resources relative to the installed script.
 import { fileURLToPath } from "node:url";
+// oxlint-disable-next-line rules/no-node-imports -- Await the native Git child process without an additional runtime dependency.
 import { promisify } from "node:util";
+import {
+  hasObjectType,
+  matchesNull,
+  matchesString,
+  matchesUndefined,
+} from "./native-predicates.mjs";
 
 const execute = promisify(execFile);
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
@@ -12,27 +23,30 @@ const defaultSpec = resolve(scriptDirectory, "../references/history-corpus.json"
 const defaultRules = resolve(scriptDirectory, "../references/rules.json");
 const choices = new Set(["pass", "fail", "not_applicable", "insufficient_context"]);
 
-function requireValue(condition, message) {
-  if (!condition) throw new Error(message);
-}
+const requireValue = function (condition, message) {
+  if (!condition) {
+    throw new Error(message);
+  }
+};
 
-function nonempty(value) {
-  return typeof value === "string" && value.trim().length > 0;
-}
+const nonempty = function (value) {
+  return matchesString(value) && value.trim().length > 0;
+};
 
-function record(value) {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
+const record = function (value) {
+  return !matchesNull(value) && hasObjectType(value) && !Array.isArray(value);
+};
 
-function validateSamples(raw) {
+const validateSamples = function (raw) {
   const samples = Array.isArray(raw) ? raw : raw?.samples;
   requireValue(Array.isArray(samples) && samples.length > 0, "Corpus must contain samples");
   const ids = new Set();
   const families = new Map();
   for (const sample of samples) {
     requireValue(record(sample), "Each sample must be an object");
-    for (const field of ["id", "family", "purpose", "audience", "path"])
+    for (const field of ["id", "family", "purpose", "audience", "path"]) {
       requireValue(nonempty(sample[field]), `Sample ${field} must be non-empty`);
+    }
     requireValue(!ids.has(sample.id), `Duplicate sample id: ${sample.id}`);
     ids.add(sample.id);
     requireValue(["calibration", "holdout"].includes(sample.split), "Invalid sample split");
@@ -42,7 +56,7 @@ function validateSamples(raw) {
     );
     families.set(sample.family, sample.split);
     requireValue(
-      typeof sample.revision === "string" && /^(?:[a-f\d]{40}|[a-f\d]{64})$/i.test(sample.revision),
+      matchesString(sample.revision) && /^(?:[a-f\d]{40}|[a-f\d]{64})$/i.test(sample.revision),
       "Each revision must be a full Git object ID",
     );
     requireValue(
@@ -73,13 +87,13 @@ function validateSamples(raw) {
       "Expected labels must map selected rules to pass or fail",
     );
     requireValue(
-      sample.headingPath === undefined ||
+      matchesUndefined(sample.headingPath) ||
         (Array.isArray(sample.headingPath) && sample.headingPath.every(nonempty)),
       "headingPath must be an array of non-empty strings",
     );
   }
   return samples;
-}
+};
 
 export async function prepareCorpus({
   repository,
@@ -164,8 +178,9 @@ export async function prepareCorpus({
   };
   const labelFile = { version: 1, samples: labels };
   await mkdir(outputDir, { recursive: true });
-  for (const { path, page } of pages)
+  for (const { path, page } of pages) {
     await writeFile(resolve(outputDir, path), page, { flag: "wx" });
+  }
   await writeFile(resolve(outputDir, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`, {
     flag: "wx",
   });
@@ -175,7 +190,7 @@ export async function prepareCorpus({
   return { manifest, labels: labelFile };
 }
 
-function counters() {
+const counters = function () {
   return {
     total: 0,
     labeled: 0,
@@ -192,21 +207,28 @@ function counters() {
     infrastructureError: 0,
     missing: 0,
   };
-}
+};
 
-function addCount(count, row) {
+const addCount = function (count, row) {
   count.total += 1;
-  count[row.expected === null ? "exploratory" : "labeled"] += 1;
-  if (row.expected !== null) count[row.expected === "pass" ? "expectedPass" : "expectedFail"] += 1;
+  count[matchesNull(row.expected) ? "exploratory" : "labeled"] += 1;
+  if (!matchesNull(row.expected)) {
+    count[row.expected === "pass" ? "expectedPass" : "expectedFail"] += 1;
+  }
   if (row.outcome === "pass" || row.outcome === "fail") {
     count[row.outcome === "pass" ? "predictedPass" : "predictedFail"] += 1;
-    if (row.expected === "fail")
+    if (row.expected === "fail") {
       count[row.outcome === "fail" ? "truePositive" : "falseAcceptance"] += 1;
-    else if (row.expected === "pass")
+    } else if (row.expected === "pass") {
       count[row.outcome === "pass" ? "trueNegative" : "falseRejection"] += 1;
-  } else count[row.outcome] += 1;
-  if (row.reason === "missing") count.missing += 1;
-}
+    }
+  } else {
+    count[row.outcome] += 1;
+  }
+  if (row.reason === "missing") {
+    count.missing += 1;
+  }
+};
 
 export function scoreReport(report, labels) {
   requireValue(
@@ -240,8 +262,9 @@ export function scoreReport(report, labels) {
       issues.push({ kind: "malformed_evaluation" });
       continue;
     }
-    if (!documents.has(evaluation.documentId))
+    if (!documents.has(evaluation.documentId)) {
       issues.push({ kind: "unexpected_document", documentId: evaluation.documentId });
+    }
     const answers = Array.isArray(evaluation.answers) ? evaluation.answers : [];
     const questionIds = new Set(evaluation.questions.map((question) => question?.id));
     const ambiguousIds = new Set(
@@ -252,12 +275,13 @@ export function scoreReport(report, labels) {
         .map((question) => question?.id),
     );
     for (const answer of answers) {
-      if (!questionIds.has(answer?.questionId))
+      if (!questionIds.has(answer?.questionId)) {
         issues.push({
           kind: "unexpected_answer",
           documentId: evaluation.documentId,
           questionId: answer?.questionId,
         });
+      }
     }
     for (const question of evaluation.questions) {
       if (!nonempty(question?.id) || ambiguousIds.has(question.id)) {
@@ -313,12 +337,15 @@ export function scoreReport(report, labels) {
     } else {
       const { evaluation, answers } = matches[0];
       const answer = answers[0];
-      if (evaluation.status !== "complete")
+      if (evaluation.status !== "complete") {
         row.reason = evaluation.status === "error" ? "evaluation_error" : "not_evaluated";
-      else if (answers.length !== 1) {
+      } else if (answers.length !== 1) {
         row.reason = answers.length === 0 ? "missing" : "duplicate_answer";
-        if (answers.length === 0) missing += 1;
-        else duplicates += answers.length - 1;
+        if (answers.length === 0) {
+          missing += 1;
+        } else {
+          duplicates += answers.length - 1;
+        }
       } else if (
         !choices.has(answer.choice) ||
         !Number.isFinite(answer.confidence) ||
@@ -341,7 +368,9 @@ export function scoreReport(report, labels) {
               : answer.choice === "pass"
                 ? "review_required"
                 : answer.choice;
-        } else row.outcome = answer.choice;
+        } else {
+          row.outcome = answer.choice;
+        }
       }
     }
     rows.push(row);
@@ -350,10 +379,15 @@ export function scoreReport(report, labels) {
   const perRule = new Map();
   const perFamily = new Map();
   for (const row of rows) {
-    if (!perRule.has(row.ruleId)) perRule.set(row.ruleId, counters());
-    if (!perFamily.has(row.family)) perFamily.set(row.family, counters());
-    for (const count of [totals, perRule.get(row.ruleId), perFamily.get(row.family)])
+    if (!perRule.has(row.ruleId)) {
+      perRule.set(row.ruleId, counters());
+    }
+    if (!perFamily.has(row.family)) {
+      perFamily.set(row.family, counters());
+    }
+    for (const count of [totals, perRule.get(row.ruleId), perFamily.get(row.family)]) {
       addCount(count, row);
+    }
   }
   return {
     version: 1,
@@ -361,8 +395,8 @@ export function scoreReport(report, labels) {
     threshold,
     coverage: {
       expected: expected.size,
-      labeled: rows.filter((row) => row.expected !== null).length,
-      exploratory: rows.filter((row) => row.expected === null).length,
+      labeled: rows.filter((row) => !matchesNull(row.expected)).length,
+      exploratory: rows.filter((row) => matchesNull(row.expected)).length,
       matched: [...expected.values()].filter((target) => target.matches.length > 0).length,
       missing,
       duplicates,
@@ -397,21 +431,22 @@ export function parseArguments(argv) {
   const options = {};
   for (let index = 0; index < argumentsList.length; index += 2) {
     const flags = argumentsList[index];
-    const flag = typeof flags === "string" ? flags : "";
+    const flag = matchesString(flags) ? flags : "";
     const value = argumentsList[index + 1];
     requireValue(flag.startsWith("--") && allowed.has(flag.slice(2)), `Unknown argument: ${flag}`);
     requireValue(nonempty(value) && !value.startsWith("--"), `Missing value for ${flag}`);
-    requireValue(options[flag.slice(2)] === undefined, `Duplicate argument: ${flag}`);
+    requireValue(matchesUndefined(options[flag.slice(2)]), `Duplicate argument: ${flag}`);
     options[flag.slice(2)] = value;
   }
   for (const required of command === "prepare"
     ? ["repository", "output-dir"]
-    : ["report", "labels", "output"])
+    : ["report", "labels", "output"]) {
     requireValue(options[required], `--${required} is required`);
+  }
   return { command, options };
 }
 
-async function main() {
+const main = async function () {
   try {
     const { command, options } = parseArguments(process.argv.slice(2));
     if (command === "prepare") {
@@ -428,12 +463,16 @@ async function main() {
         labelsPath: options.labels,
         outputPath: options.output,
       });
-      if (!result.coverage.exact || result.totals.infrastructureError > 0) process.exitCode = 1;
+      if (!result.coverage.exact || result.totals.infrastructureError > 0) {
+        process.exitCode = 1;
+      }
     }
   } catch (error) {
     console.error(error instanceof Error ? error.message : "History corpus operation failed");
     process.exitCode = 2;
   }
-}
+};
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await main();
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  await main();
+}

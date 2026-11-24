@@ -11,6 +11,7 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { join } from "node:path";
+// oxlint-disable-next-line rules/no-node-imports -- The setup ownership suite runs directly on Node.
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
@@ -31,7 +32,7 @@ const lockEntry = (name, source = "totto2727-org/agent") => ({
   installMode: "copy",
 });
 
-async function fixture(t) {
+const fixture = async function (t) {
   await mkdir(scratch, { recursive: true });
   const base = await realpath(await mkdtemp(join(scratch, "setup-ownership-")));
   t.after(() => rm(base, { force: true, recursive: true }));
@@ -50,14 +51,15 @@ async function fixture(t) {
       timeout: 10000,
     });
   return { root, home, uninstall };
-}
+};
 
-async function skill(parent, name, content) {
+const skill = async function (parent, name, content) {
   const dir = join(parent, name);
   await mkdir(dir, { recursive: true });
   await writeFile(join(dir, "SKILL.md"), content, { mode: 0o644 });
-}
+};
 
+// oxlint-disable-next-line typescript/no-floating-promises -- The setup ownership suite registers this test with Node's runner.
 test("project uninstall retains user files, replacement sources, and links into another scope", async (t) => {
   const { root, home, uninstall } = await fixture(t);
   const dest = join(root, ".agents", "skills");
@@ -84,7 +86,7 @@ test("project uninstall retains user files, replacement sources, and links into 
   const entries = Object.fromEntries([...names, "unowned"].map((n) => [n, lockEntry(n)]));
   entries.replaced = lockEntry("replaced", "user/replacement");
   const lock = join(root, "skills-lock.json");
-  const initialLock = JSON.stringify({ version: 2, skills: entries }, null, 2) + "\n";
+  const initialLock = `${JSON.stringify({ version: 2, skills: entries }, null, 2)}\n`;
   await writeFile(lock, initialLock);
 
   const result = uninstall();
@@ -98,10 +100,13 @@ test("project uninstall retains user files, replacement sources, and links into 
   assert.equal(await readFile(join(external, "linked/SKILL.md"), "utf8"), pristine);
 });
 
+// oxlint-disable-next-line typescript/no-floating-promises -- The setup ownership suite registers this test with Node's runner.
 test("project uninstall refuses a receipt copied from another scope without changing either scope", async (t) => {
   const { root, home, uninstall } = await fixture(t);
   const name = "shared";
-  for (const base of [root, home]) await skill(join(base, ".agents/skills"), name, pristine);
+  for (const base of [root, home]) {
+    await skill(join(base, ".agents/skills"), name, pristine);
+  }
   const foreignReceipt = JSON.stringify({
     version: 1,
     scope: "global",
@@ -114,10 +119,12 @@ test("project uninstall refuses a receipt copied from another scope without chan
   const result = uninstall();
   assert.equal(result.error, undefined);
   assert.notEqual(result.status, 0);
-  for (const path of [receipt, original])
+  for (const path of [receipt, original]) {
     assert.equal(await readFile(path, "utf8"), foreignReceipt);
-  for (const base of [root, home])
+  }
+  for (const base of [root, home]) {
     assert.equal(await readFile(join(base, ".agents/skills/shared/SKILL.md"), "utf8"), pristine);
+  }
 });
 
 test("uninstall leaves Orca's host-provided guides and their lock entries intact", async (t) => {

@@ -3,11 +3,13 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+// oxlint-disable-next-line rules/no-node-imports, vitest/no-import-node-test -- Statechart runs these fixtures with Node's test runner as part of the standalone skill.
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { configText } from "../backends/cfg.ts";
 import { readConfig } from "../frontends/config.ts";
-import { type Checks, readChecks } from "../frontends/spec.ts";
+import { readChecks } from '../frontends/spec.ts';
+import type { Checks } from '../frontends/spec.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const skip = !process.env.TLA2TOOLS && "set TLA2TOOLS to the path of tla2tools.jar to run TLC";
@@ -94,43 +96,43 @@ const isRecord = (v: unknown): v is Reading =>
   typeof v === "object" && v !== null && !Array.isArray(v);
 
 const tableOf = (reading: Reading) => {
-  if (!isRecord(reading.table)) throw new Error(`TLC printed no table: ${JSON.stringify(reading)}`);
+  if (!isRecord(reading.table)) {throw new Error(`TLC printed no table: ${JSON.stringify(reading)}`);}
   return reading.table;
 };
 
-function mulberry32(seed: number) {
+const mulberry32 = function (seed: number) {
   return () => {
     seed = (seed + 0x6d2b79f5) | 0;
     let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
     t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
-}
+};
 
-function generate(random: () => number) {
+const generate = function (random: () => number) {
   const int = (n: number) => Math.floor(random() * n);
   const pick = <T>(list: T[]) => list[int(list.length)];
   const section = (key: string) => {
     const out = [{ gap: pick(BREAKS), text: key }];
     const add = (text: string) => out.push({ gap: pick(SPACES), text });
-    if (key === "CHECK_DEADLOCK") add(pick(["TRUE", "FALSE"]));
-    else if (ONE_NAME.includes(key)) add(pick(NAMES));
-    else if (!key.startsWith("CONSTANT")) for (let n = 1 + int(3); n--;) add(pick(NAMES));
+    if (key === "CHECK_DEADLOCK") {add(pick(["TRUE", "FALSE"]));}
+    else if (ONE_NAME.includes(key)) {add(pick(NAMES));}
+    else if (!key.startsWith("CONSTANT")) {for (let n = 1 + int(3); n--;) {add(pick(NAMES));}}
     else
-      for (let n = 1 + int(2); n--;) {
+      {for (let n = 1 + int(2); n--;) {
         const form = pick(["=", "<-", "<-[M]"]);
         add(pick(["N", "K", "S"]));
         add(form.slice(0, 2));
-        if (form === "<-[M]") add("[M]");
+        if (form === "<-[M]") {add("[M]");}
         add(form === "=" ? pick(VALUES) : pick(NAMES));
-      }
+      }}
     return out;
   };
   const tokens = [];
-  for (const key of pick([["SPECIFICATION"], ["INIT", "NEXT"]])) tokens.push(...section(key));
-  for (let n = int(4); n--;) tokens.splice(pick([0, tokens.length]), 0, ...section(pick(KEYWORDS)));
+  for (const key of pick([["SPECIFICATION"], ["INIT", "NEXT"]])) {tokens.push(...section(key));}
+  for (let n = int(4); n--;) {tokens.splice(pick([0, tokens.length]), 0, ...section(pick(KEYWORDS)));}
   for (let n = int(3); n--;)
-    tokens.splice(int(tokens.length + 1), 0, { gap: pick(GAPS), text: pick(COMMENTS) });
+    {tokens.splice(int(tokens.length + 1), 0, { gap: pick(GAPS), text: pick(COMMENTS) });}
   const mutations = int(4);
   for (let n = mutations; n--;) {
     const kind = pick(["typo", "case", "space", "insert", "drop", "section"]);
@@ -143,19 +145,19 @@ function generate(random: () => number) {
         pick(["", "E", "_", "0", ",", t.text[k] + t.text[k]]) +
         t.text.slice(k + 1);
     } else if (kind === "case")
-      t.text = pick([t.text.toLowerCase(), t.text[0] + t.text.slice(1).toLowerCase()]);
-    else if (kind === "space") t.gap = pick(ODD_SPACES);
+      {t.text = pick([t.text.toLowerCase(), t.text[0] + t.text.slice(1).toLowerCase()]);}
+    else if (kind === "space") {t.gap = pick(ODD_SPACES);}
     else if (kind === "insert")
-      tokens.splice(at, 0, { gap: pick(GAPS), text: pick(pick([INSERTS, KEYWORDS])) });
-    else if (kind === "drop" && tokens.length > 1) tokens.splice(at % tokens.length, 1);
-    else if (kind === "section") tokens.splice(at, 0, ...section(pick(KEYWORDS)));
+      {tokens.splice(at, 0, { gap: pick(GAPS), text: pick(pick([INSERTS, KEYWORDS])) });}
+    else if (kind === "drop" && tokens.length > 1) {tokens.splice(at % tokens.length, 1);}
+    else if (kind === "section") {tokens.splice(at, 0, ...section(pick(KEYWORDS)));}
   }
   let text = "";
-  for (const t of tokens) text += t.gap + t.text;
+  for (const t of tokens) {text += t.gap + t.text;}
   return { text: `${text}\n`, mutated: mutations > 0 };
-}
+};
 
-function readInTlc(files: string[], jar: string) {
+const readInTlc = function (files: string[], jar: string) {
   const r = spawnSync(
     process.env.JAVA || "java",
     ["-cp", jar, path.join(here, "ConfigOracle.java")],
@@ -166,40 +168,41 @@ function readInTlc(files: string[], jar: string) {
   const readings = new Map<string, Reading>();
   for (let i = 0; i < files.length; i++) {
     const reading: unknown = JSON.parse(lines[i]);
-    if (!isRecord(reading)) throw new Error(`TLC printed ${lines[i]}`);
+    if (!isRecord(reading)) {throw new Error(`TLC printed ${lines[i]}`);}
     readings.set(files[i], reading);
   }
   return readings;
-}
+};
 
-function passesTlcStartChecks(reading: Reading) {
-  if (reading.error) return false;
+const passesTlcStartChecks = function (reading: Reading) {
+  if (reading.error) {return false;}
   const table = tableOf(reading);
   for (const key of ["INVARIANT", "PROPERTY", "CONSTRAINT", "ACTION_CONSTRAINT"]) {
     const names: unknown = table[key];
-    if (!Array.isArray(names)) throw new Error(`TLC printed no list for ${key}.`);
-    for (const name of names) if (!NAME.test(String(name))) return false;
+    if (!Array.isArray(names)) {throw new Error(`TLC printed no list for ${key}.`);}
+    for (const name of names) {if (!NAME.test(String(name))) {return false;}}
   }
   for (const key of ["INIT", "NEXT", "SPECIFICATION", "VIEW", "SYMMETRY"])
-    if (table[key] && !NAME.test(String(table[key]))) return false;
+    {if (table[key] && !NAME.test(String(table[key]))) {return false;}}
   return table.SPECIFICATION ? !table.INIT && !table.NEXT : Boolean(table.INIT);
-}
+};
 
-function model(reading: Reading | undefined) {
-  if (!reading || reading.error) return reading;
+const model = function (reading: Reading | undefined) {
+  if (!reading || reading.error) {return reading;}
   const { overrides, modConstants, modOverrides } = reading;
   const table = tableOf(reading);
   const out: Reading = { overrides, modConstants, modOverrides };
-  for (const key of MODEL) out[key] = table[key];
+  for (const key of MODEL) {out[key] = table[key];}
   return out;
-}
+};
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test(
   `${CONFIGS} configs from seed ${SEED} read in the skill as in TLC, or stop before TLC runs`,
   { skip },
-  (t) => {
+  (testContext) => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "statechart-config-fuzz-"));
-    t.after(() => fs.rmSync(dir, { recursive: true }));
+    testContext.after(() => fs.rmSync(dir, { recursive: true }));
     const random = mulberry32(SEED);
     const cases: {
       i: number;
@@ -222,7 +225,7 @@ test(
         fs.writeFileSync(written, configText(skill.written, []));
         files.push(written);
       } catch (error) {
-        if (!(error instanceof Error)) throw error;
+        if (!(error instanceof Error)) {throw error;}
         skill = error;
       }
       cases.push({ i, text, mutated, skill, file, written });
@@ -234,12 +237,12 @@ test(
       const where = `config ${i} of seed ${SEED}: ${JSON.stringify(text)}\nTLC reads ${JSON.stringify(want)}`;
       if (skill instanceof Error) {
         if (skill.message.startsWith("TLC refuses"))
-          assert.ok(!passesTlcStartChecks(want), `The skill says TLC refuses ${where}`);
+          {assert.ok(!passesTlcStartChecks(want), `The skill says TLC refuses ${where}`);}
         else
-          assert.ok(
+          {assert.ok(
             mutated && skill.message.startsWith("The command cannot read"),
             `${skill.message}\n${where}`,
-          );
+          );}
         continue;
       }
       assert.ok(passesTlcStartChecks(want), `The skill reads ${where}`);

@@ -1,8 +1,14 @@
+// oxlint-disable-next-line rules/no-node-imports -- Test the distributed script as a native Node.js subprocess.
 import { execFile } from "node:child_process";
+// oxlint-disable-next-line rules/no-node-imports -- Create and inspect filesystem fixtures for the subprocess.
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+// oxlint-disable-next-line rules/no-node-imports -- Place subprocess fixtures in the system temporary directory.
 import { tmpdir } from "node:os";
+// oxlint-disable-next-line rules/no-node-imports -- Resolve test fixture paths for the subprocess.
 import { resolve } from "node:path";
+// oxlint-disable-next-line rules/no-node-imports -- Find the distributed entry point relative to this test module.
 import { fileURLToPath } from "node:url";
+// oxlint-disable-next-line rules/no-node-imports -- Await the native subprocess and preserve its exit status in these tests.
 import { promisify } from "node:util";
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -12,7 +18,7 @@ const directories = [];
 const sentence = (count) => `Check ${"the ".repeat(count - 2)}panel.`;
 const checkFor = (mode = "procedural") => ({ kind: "ste-sentence-length", writingMode: mode });
 
-async function cli(
+const cli = async function (
   markdown,
   {
     check = checkFor(),
@@ -29,8 +35,9 @@ async function cli(
   const directory = await mkdtemp(resolve(tmpdir(), "ste-public-cli-"));
   directories.push(directory);
   await writeFile(resolve(directory, "guide.md"), markdown);
-  if (vocabulary)
+  if (vocabulary) {
     await writeFile(resolve(directory, "vocabulary.json"), JSON.stringify(vocabulary));
+  }
   const manifest = {
     ...(model ? { model } : {}),
     rules: rules ?? [{ id: "ste", engine: "mechanical", scope, check }],
@@ -71,15 +78,17 @@ async function cli(
     exitCode = error.code;
     stderr = error.stderr;
   }
-  if (exitCode === 2) return { exitCode, stderr };
+  if (exitCode === 2) {
+    return { exitCode, stderr };
+  }
   const report = JSON.parse(await readFile(outputPath, "utf8"));
   expect(report.requestCount).toBe(0);
   return { exitCode, report, answers: report.evaluations.flatMap((entry) => entry.answers) };
-}
+};
 
 afterEach(async () => {
   await Promise.all(
-    directories.splice(0).map((directory) => rm(directory, { recursive: true, force: true })),
+    directories.splice(0).map((directory) => rm(directory, { force: true, recursive: true })),
   );
 });
 

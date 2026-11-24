@@ -1,9 +1,10 @@
-import { type Graph, type State, type Step, type Value, type Vars } from "../ir.ts";
+import type { Graph, State, Step, Value, Vars } from '../ir.ts';
 import { parseValue } from "./value.ts";
+import { isString, matchesUndefined } from "../ir.ts";
 
 const unescapeDot = (s: string) => {
   let i = s.indexOf("\\");
-  if (i === -1) return s;
+  if (i === -1) {return s;}
   let out = "";
   let from = 0;
   for (; i !== -1 && i + 1 < s.length; i = s.indexOf("\\", i)) {
@@ -25,7 +26,7 @@ export const parseState = (label: string, parsed = new Map<string, [string, Valu
     let pair = parsed.get(part);
     if (!pair) {
       const [, name, value] = /^(\w+)\s*=\s*([\s\S]*)$/.exec(part) ?? [];
-      if (!name) throw new Error(`cannot read the TLC state line "${part}"`);
+      if (!name) {throw new Error(`cannot read the TLC state line "${part}"`);}
       parsed.set(part, (pair = [name, parseValue(value)]));
     }
     pairs.push(pair);
@@ -36,9 +37,9 @@ export const parseState = (label: string, parsed = new Map<string, [string, Valu
 export type Lines = string | Iterable<string>;
 
 export const splitLines = (text: string) =>
-  (text.endsWith("\r") ? text.slice(0, -1) : text).split(/\r?\n/);
+  (text.endsWith("\r") ? text.slice(0, -1) : text).split(/\r?\n/u);
 
-export const linesOf = (input: Lines) => (typeof input === "string" ? splitLines(input) : input);
+export const linesOf = (input: Lines) => (isString(input) ? splitLines(input) : input);
 
 export function parseDot(input: Lines): Graph {
   const states = new Map<string, State>();
@@ -47,7 +48,7 @@ export function parseDot(input: Lines): Graph {
   const owned = new Map<string, string>();
   const own = (s: string) => {
     let copy = owned.get(s);
-    if (copy === undefined) owned.set((copy = String(JSON.parse(JSON.stringify(s)))), copy);
+    if (matchesUndefined(copy)) {owned.set((copy = String(JSON.parse(JSON.stringify(s)))), copy);}
     return copy;
   };
   for (const line of linesOf(input)) {
@@ -62,16 +63,16 @@ export function parseDot(input: Lines): Graph {
     }
     const node = /^(-?\d+) \[label="((?:[^"\\]|\\.)*)"(,style = filled)?/.exec(line);
     if (node)
-      states.set(own(node[1]), {
+      {states.set(own(node[1]), {
         vars: parseState(unescapeDot(node[2]), parsed),
         start: !!node[3],
         breaks: [],
-      });
+      });}
   }
   for (const loose of steps.values())
-    if (!states.has(loose.from) || !states.has(loose.to))
-      throw new Error(
+    {if (!states.has(loose.from) || !states.has(loose.to))
+      {throw new Error(
         `The TLC graph dump has a step ${loose.action} to or from a state that it does not list.`,
-      );
+      );}}
   return { states, steps: [...steps.values()] };
 }

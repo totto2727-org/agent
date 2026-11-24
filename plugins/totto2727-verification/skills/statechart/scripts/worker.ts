@@ -6,6 +6,7 @@ import { inspect } from "node:util";
 import { checkView } from "./frontends/view.ts";
 import { compile } from "./pipeline.ts";
 import { check, messageOf } from "./run.ts";
+import { isString } from "./ir.ts";
 
 const [stage, specFile, configFile, viewFile] = process.argv.slice(2);
 
@@ -21,7 +22,7 @@ try {
     const fd = fs.openSync(path.join(draft, name), "wx");
     try {
       for (const part of parts)
-        fs.writeSync(fd, typeof part === "string" ? Buffer.from(part) : part);
+        {fs.writeSync(fd, isString(part) ? Buffer.from(part) : part);}
       fs.writeSync(fd, "\n");
     } finally {
       fs.closeSync(fd);

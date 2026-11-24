@@ -1,16 +1,17 @@
 import { describe, expect, it } from "bun:test";
-import { type CliRuntime, main, parseArgs } from "./cli.ts";
+import { main, parseArgs } from './cli.ts';
+import type { CliRuntime } from './cli.ts';
 import { fakeReader, passingCheck } from "./fakes.test-helper.ts";
 import { renderJson, renderPretty } from "./render.ts";
 import type { GitHubReader, WatcherVerdict } from "./types.ts";
 import { parsePrNumber } from "./types.ts";
 
 
-function testRuntime(reader: GitHubReader): {
-  readonly runtime: CliRuntime;
-  readonly stdout: string[];
-  readonly stderr: string[];
-} {
+const testRuntime = function (reader: GitHubReader): Readonly<{
+  runtime: CliRuntime;
+  stdout: string[];
+  stderr: string[];
+}> {
   const stdout: string[] = [];
   const stderr: string[] = [];
   return {
@@ -29,7 +30,7 @@ function testRuntime(reader: GitHubReader): {
       stderr: (value) => stderr.push(value),
     },
   };
-}
+};
 
 describe("parseArgs", () => {
   it("uses the specified defaults", () => {

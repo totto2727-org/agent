@@ -3,6 +3,7 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+// oxlint-disable-next-line rules/no-node-imports, vitest/no-import-node-test -- Statechart runs these fixtures with Node's test runner as part of the standalone skill.
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { check, PINNED_FLAGS } from "../run.ts";
@@ -13,6 +14,7 @@ const skip = !process.env.TLA2TOOLS && "set TLA2TOOLS to the path of tla2tools.j
 const read = (file: string) => fs.readFileSync(file, "utf8");
 
 for (const name of fs.readdirSync(corpus)) {
+  // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
   test(`${name} gives the committed chart and report when TLC runs`, { skip }, () => {
     const dir = path.join(corpus, name);
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "statechart-corpus-"));
@@ -42,10 +44,10 @@ for (const name of fs.readdirSync(corpus)) {
     assert.equal(r.stderr, "");
     if (process.env.STATECHART_UPDATE) {
       for (const f of fs.readdirSync(dir))
-        if (/\.(out|exit|dot|mmd|md)$/.test(f)) fs.rmSync(path.join(dir, f));
-      for (const f of fs.readdirSync(tlc)) fs.copyFileSync(path.join(tlc, f), path.join(dir, f));
+        {if (/\.(out|exit|dot|mmd|md)$/u.test(f)) {fs.rmSync(path.join(dir, f));}}
+      for (const f of fs.readdirSync(tlc)) {fs.copyFileSync(path.join(tlc, f), path.join(dir, f));}
       for (const f of ["chart.mmd", "report.md"])
-        fs.copyFileSync(path.join(out, f), path.join(dir, f));
+        {fs.copyFileSync(path.join(out, f), path.join(dir, f));}
     }
     const report = read(path.join(out, "report.md"));
     const first = path.join(dir, "verdict-1.exit");
@@ -56,6 +58,7 @@ for (const name of fs.readdirSync(corpus)) {
   });
 }
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a spec in a folder whose name is not ASCII checks under the POSIX locale", { skip }, () => {
   const dir = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "statechart-corpus-")), "spec-é");
   fs.cpSync(path.join(corpus, "Login"), dir, { recursive: true });
@@ -77,6 +80,7 @@ test("a spec in a folder whose name is not ASCII checks under the POSIX locale",
   assert.equal(read(path.join(out, "chart.mmd")), read(path.join(corpus, "Login", "chart.mmd")));
 });
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("an invariant named NoDeadlock and a deadlock break as two rules", { skip }, () => {
   const out = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "statechart-corpus-")), "out");
   const r = spawnSync(
@@ -133,8 +137,8 @@ const plainTlc = (base: string) => {
   );
   return {
     exit: r.status === 0 ? 0 : [11, 12, 13].includes(r.status ?? -1) ? 1 : 2,
-    rule: r.stdout.match(/^Error: Invariant (\w+) is violated\.$/m)?.[1],
-    path: [...r.stdout.matchAll(/^State \d+: <(\w+) line/gm)].map((m) => m[1]),
+    rule: r.stdout.match(/^Error: Invariant (\w+) is violated\.$/mu)?.[1],
+    path: [...r.stdout.matchAll(/^State \d+: <(\w+) line/gmu)].map((m) => m[1]),
   };
 };
 
@@ -196,6 +200,7 @@ for (const [input, name, tla] of [
     counter("Pre", ["Notes before the header: VARIABLES fake"], ["VARIABLE x"]),
   ],
 ] as const) {
+  // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
   test(`a spec with ${input} gives plain TLC's exit and path`, { skip }, () => {
     const base = writeSpec(name, [...tla], "SPECIFICATION Spec\nINVARIANT Low\n");
     const tlc = plainTlc(base);
@@ -216,12 +221,13 @@ for (const [input, name, tla] of [
     );
     assert.ok(steps, `the report has a path for ${tlc.rule}`);
     assert.deepEqual(
-      [...steps[1].matchAll(/^\d+\. (\w+): /gm)].map((m) => m[1]),
+      [...steps[1].matchAll(/^\d+\. (\w+): /gmu)].map((m) => m[1]),
       tlc.path,
     );
   });
 }
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a property that breaks on a loop draws the loop and reports it", { skip }, () => {
   const base = writeSpec(
     "Cycle",
@@ -249,9 +255,10 @@ test("a property that breaks on a loop draws the loop and reports it", { skip },
     read(path.join(out, "report.md")),
     /^## Prop breaks\nTLC's counterexample is in tlc-Prop\.out\. It has 3 steps:\n0\. 0\n1\. Next: 1\n2\. Next: 2\n3\. Next: 0\nThe run loops through "0", "1" and "2" forever\.$/m,
   );
-  assert.equal(read(path.join(out, "chart.mmd")).match(/^ {2}class s\d+ repeats$/gm)?.length, 3);
+  assert.equal(read(path.join(out, "chart.mmd")).match(/^ {2}class s\d+ repeats$/gmu)?.length, 3);
 });
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test(
   "a property's loop comes from the whole state graph when TLC explores for over 3 seconds",
   { skip },
@@ -338,7 +345,8 @@ for (const [width, height, config, status, drawn, chart, header] of [
     "TLC reached more states than the chart budget of 500, so the chart draws only the bug paths: 79 states and 78 arrows.",
   ],
 ] as const)
-  test(
+  // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
+  {test(
     `TLC keeps the chart within its budget of 500 states on a ${width} by ${height} grid with ${config}`,
     { skip },
     () => {
@@ -381,7 +389,7 @@ for (const [width, height, config, status, drawn, chart, header] of [
       assert.equal(fs.existsSync(path.join(out, "chart.mmd")), chart);
       assert.equal(read(path.join(out, "report.md")).split("\n")[2], header);
     },
-  );
+  );}
 
 for (const [what, tla, where] of [
   [
@@ -407,7 +415,8 @@ for (const [what, tla, where] of [
     /^\*\*\* Errors: 12\n+line 4, col 7 to line 4, col 8 of module Broken\n+Unknown operator: `u0'\.$/m,
   ],
 ] as const)
-  test(
+  // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
+  {test(
     `a spec with ${what} gets SANY's line and column, not a Java stack trace`,
     { skip },
     async () => {
@@ -419,8 +428,9 @@ for (const [what, tla, where] of [
         return true;
       });
     },
-  );
+  );}
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test(
   "check() leaves no statechart- folder in the temp dir when it returns and when it throws",
   { skip },
@@ -433,8 +443,8 @@ test(
       await check(`${login}.tla`, `${login}.cfg`);
       await assert.rejects(check(`${base}.tla`, `${base}.cfg`), /SANY could not read/);
     } finally {
-      if (saved === undefined) delete process.env.TMPDIR;
-      else process.env.TMPDIR = saved;
+      if (saved === undefined) {delete process.env.TMPDIR;}
+      else {process.env.TMPDIR = saved;}
     }
     assert.deepEqual(fs.readdirSync(tmp), []);
   },

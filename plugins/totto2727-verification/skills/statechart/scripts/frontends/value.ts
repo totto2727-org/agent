@@ -1,8 +1,9 @@
 import type { Value } from "../ir.ts";
+import { matchesUndefined } from "../ir.ts";
 
 export const BRACKET = new Int8Array(128);
-for (const c of "<{[(") BRACKET[c.charCodeAt(0)] = 1;
-for (const c of ">}])") BRACKET[c.charCodeAt(0)] = -1;
+for (const c of "<{[(") {BRACKET[c.charCodeAt(0)] = 1;}
+for (const c of ">}])") {BRACKET[c.charCodeAt(0)] = -1;}
 const PUNCT = new Map([
   [60, "<<"],
   [62, ">>"],
@@ -24,21 +25,21 @@ export const tokenEnd = (s: string, i: number) => {
   if (c === 34) {
     for (let j = i + 1; j < s.length; j++) {
       const d = s.charCodeAt(j);
-      if (d === 34) return j + 1;
-      if (d === 92 && (++j >= s.length || isLineEnd(s.charCodeAt(j)))) return -1;
+      if (d === 34) {return j + 1;}
+      if (d === 92 && (++j >= s.length || isLineEnd(s.charCodeAt(j)))) {return -1;}
     }
     return -1;
   }
   const punct = PUNCT.get(c);
-  if (punct) return s.startsWith(punct, i) ? i + punct.length : -1;
-  if (BRACKET[c] || c === 44) return i + 1;
+  if (punct) {return s.startsWith(punct, i) ? i + punct.length : -1;}
+  if (BRACKET[c] || c === 44) {return i + 1;}
   let j = i + 1;
   if (c === 45 || isDigit(c)) {
-    while (isDigit(s.charCodeAt(j))) j++;
+    while (isDigit(s.charCodeAt(j))) {j++;}
     return c === 45 && j === i + 1 ? -1 : j;
   }
-  if (!isWord(c)) return -1;
-  while (isWord(s.charCodeAt(j))) j++;
+  if (!isWord(c)) {return -1;}
+  while (isWord(s.charCodeAt(j))) {j++;}
   return j;
 };
 
@@ -59,7 +60,7 @@ const UNESCAPED: { [c: string]: string } = {
 const models = new Map<string, Value>();
 const model = (name: string) => {
   let v = models.get(name);
-  if (v === undefined) models.set(name, (v = { kind: "model", name }));
+  if (matchesUndefined(v)) {models.set(name, (v = { kind: "model", name }));}
   return v;
 };
 
@@ -67,10 +68,10 @@ export function parseValue(text: string): Value {
   const tokens: string[] = [];
   const starts: number[] = [];
   for (let pos = 0; ;) {
-    while (pos < text.length && isSpace(text.charCodeAt(pos))) pos++;
-    if (pos === text.length) break;
+    while (pos < text.length && isSpace(text.charCodeAt(pos))) {pos++;}
+    if (pos === text.length) {break;}
     const end = tokenEnd(text, pos);
-    if (end === -1) throw unreadable(text, pos);
+    if (end === -1) {throw unreadable(text, pos);}
     tokens.push(text.slice(pos, end));
     starts.push(pos);
     pos = end;
@@ -81,7 +82,7 @@ export function parseValue(text: string): Value {
   };
   const next = () => (i < tokens.length ? tokens[i++] : fail());
   const eat = (t: string) => {
-    if (next() !== t) fail();
+    if (next() !== t) {fail();}
   };
   const items = <T>(close: string, item: () => T) => {
     const out: T[] = [];
@@ -92,17 +93,17 @@ export function parseValue(text: string): Value {
     for (;;) {
       out.push(item());
       const t = next();
-      if (t === close) return out;
-      if (t !== ",") fail();
+      if (t === close) {return out;}
+      if (t !== ",") {fail();}
     }
   };
   const string = (t: string) => {
     let s = "";
     for (let j = 1, from = 1; ;) {
       const k = t.indexOf("\\", j);
-      if (k === -1 || k >= t.length - 1) return s + t.slice(from, -1);
+      if (k === -1 || k >= t.length - 1) {return s + t.slice(from, -1);}
       const c = UNESCAPED[t[k + 1]];
-      if (c === undefined) fail();
+      if (matchesUndefined(c)) {fail();}
       s += t.slice(from, k) + c;
       j = from = k + 2;
     }
@@ -110,16 +111,19 @@ export function parseValue(text: string): Value {
   const value = (): Value => {
     const t = next();
     switch (t) {
-      case "TRUE":
+      case "TRUE": {
         return true;
-      case "FALSE":
+      }
+      case "FALSE": {
         return false;
-      case "{":
+      }
+      case "{": {
         return { kind: "set", members: items("}", value) };
+      }
       case "<<": {
         const values = items(">>", value);
         const keys: Value[] = [];
-        for (let k = 1; k <= values.length; k++) keys.push(k);
+        for (let k = 1; k <= values.length; k++) {keys.push(k);}
         return { kind: "function", printedAs: "tuple", keys, values };
       }
       case "[": {
@@ -127,7 +131,7 @@ export function parseValue(text: string): Value {
         const values: Value[] = [];
         items("]", () => {
           const name = next();
-          if (!NAME.test(name)) fail();
+          if (!NAME.test(name)) {fail();}
           eat("|->");
           keys.push(name);
           values.push(value());
@@ -142,19 +146,19 @@ export function parseValue(text: string): Value {
           eat(":>");
           values.push(value());
         } while (next() === "@@");
-        if (tokens[i - 1] !== ")") fail();
+        if (tokens[i - 1] !== ")") {fail();}
         return { kind: "function", printedAs: "pairs", keys, values };
       }
     }
-    if (t.charCodeAt(0) === 34) return string(t);
+    if (t.charCodeAt(0) === 34) {return string(t);}
     if (INT.test(t)) {
-      if (tokens[i] !== "..") return Number(t);
+      if (tokens[i] !== "..") {return Number(t);}
       i++;
       const hi = next();
-      if (!INT.test(hi)) fail();
+      if (!INT.test(hi)) {fail();}
       return { kind: "interval", lo: Number(t), hi: Number(hi) };
     }
-    if (NAME.test(t)) return model(t);
+    if (NAME.test(t)) {return model(t);}
     return fail();
   };
   const out = value();

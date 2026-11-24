@@ -1,12 +1,12 @@
 declare const prNumberBrand: unique symbol;
-export type PrNumber = number & { readonly [prNumberBrand]: "PrNumber" };
-export type NonEmpty<T> = readonly [T, ...T[]];
-export function nonEmpty<T>(items: readonly T[]): NonEmpty<T> | null {
+export type PrNumber = number & Readonly<{ [prNumberBrand]: "PrNumber" }>;
+export type NonEmpty<T> = Readonly<[T, ...T[]]>;
+export function nonEmpty<T>(items: Readonly<T[]>): NonEmpty<T> | null {
   return items.length === 0 ? null : [items[0], ...items.slice(1)];
 }
 export function parsePrNumber(value: unknown, label = "PR number"): PrNumber {
   if (typeof value !== "number" || !Number.isInteger(value) || value <= 0)
-    throw new Error(`${label} must be a positive integer`);
+    {throw new Error(`${label} must be a positive integer`);}
   return value as PrNumber;
 }
 export interface Repository {
@@ -77,16 +77,16 @@ interface CheckDetails {
   readonly workflow: string;
 }
 export type Check =
-  | (CheckDetails & { readonly kind: "passed" })
-  | (CheckDetails & { readonly kind: "skipped" })
-  | (CheckDetails & { readonly kind: "failed" })
-  | (CheckDetails & { readonly kind: "pending" })
-  | (CheckDetails & {
-      readonly kind: "code-review-gate";
-      readonly name: "Code Review Gate";
-    });
-export type FailedCheck = Extract<Check, { readonly kind: "failed" }>;
-export type PendingCheck = Extract<Check, { readonly kind: "pending" }>;
+  | (CheckDetails & Readonly<{ kind: "passed" }>)
+  | (CheckDetails & Readonly<{ kind: "skipped" }>)
+  | (CheckDetails & Readonly<{ kind: "failed" }>)
+  | (CheckDetails & Readonly<{ kind: "pending" }>)
+  | (CheckDetails & Readonly<{
+      kind: "code-review-gate";
+      name: "Code Review Gate";
+    }>);
+export type FailedCheck = Extract<Check, Readonly<{ kind: "failed" }>>;
+export type PendingCheck = Extract<Check, Readonly<{ kind: "pending" }>>;
 export interface CheckRead {
   readonly source: "gh-pr-checks" | "graphql-rollup";
   readonly checks: NonEmpty<Check>;
@@ -101,75 +101,75 @@ export interface GitHubMergeRefusal {
   readonly headRollupState: "ERROR" | "FAILURE";
 }
 export type GitHubMergeAllowed =
-  | {
-      readonly kind: "allowed";
-      readonly basis: "merge-state";
-      readonly mergeStateStatus: Exclude<MergeStateStatus, "BLOCKED">;
-      readonly headRollupState: RollupState;
-    }
-  | {
-      readonly kind: "allowed";
-      readonly basis: "rollup";
-      readonly mergeStateStatus: "BLOCKED";
-      readonly headRollupState: Exclude<RollupState, "ERROR" | "FAILURE">;
-    };
+  | Readonly<{
+      kind: "allowed";
+      basis: "merge-state";
+      mergeStateStatus: Exclude<MergeStateStatus, "BLOCKED">;
+      headRollupState: RollupState;
+    }>
+  | Readonly<{
+      kind: "allowed";
+      basis: "rollup";
+      mergeStateStatus: "BLOCKED";
+      headRollupState: Exclude<RollupState, "ERROR" | "FAILURE">;
+    }>;
 export type GitHubMergeAssessment = GitHubMergeAllowed | GitHubMergeRefusal;
 interface CiBase {
   readonly source: CheckRead["source"];
   readonly all: NonEmpty<Check>;
   readonly hadPreviousPassingCi: boolean;
 }
-export type CiFailing = CiBase & {
-  readonly kind: "ci-failing";
-  readonly failed: NonEmpty<FailedCheck>;
-  readonly pending: readonly PendingCheck[];
-  readonly github: GitHubMergeAssessment;
-};
-export type CiGithubRejected = CiBase & {
-  readonly kind: "ci-github-rejected";
-  readonly failed: readonly [];
-  readonly pending: readonly PendingCheck[];
-  readonly github: GitHubMergeRefusal;
-};
-export type CiPending = CiBase & {
-  readonly kind: "ci-pending";
-  readonly failed: readonly [];
-  readonly pending: NonEmpty<PendingCheck>;
-};
-export type CiClean = CiBase & {
-  readonly kind: "ci-clean";
-  readonly failed: readonly [];
-  readonly pending: readonly [];
-  readonly github: GitHubMergeAllowed;
-};
+export type CiFailing = CiBase & Readonly<{
+  kind: "ci-failing";
+  failed: NonEmpty<FailedCheck>;
+  pending: Readonly<PendingCheck[]>;
+  github: GitHubMergeAssessment;
+}>;
+export type CiGithubRejected = CiBase & Readonly<{
+  kind: "ci-github-rejected";
+  failed: Readonly<[]>;
+  pending: Readonly<PendingCheck[]>;
+  github: GitHubMergeRefusal;
+}>;
+export type CiPending = CiBase & Readonly<{
+  kind: "ci-pending";
+  failed: Readonly<[]>;
+  pending: NonEmpty<PendingCheck>;
+}>;
+export type CiClean = CiBase & Readonly<{
+  kind: "ci-clean";
+  failed: Readonly<[]>;
+  pending: Readonly<[]>;
+  github: GitHubMergeAllowed;
+}>;
 export type CiState = CiFailing | CiGithubRejected | CiPending | CiClean;
 export type PrSnapshot =
-  | {
-      readonly kind: "merged" | "closed";
-      readonly context: PrContext;
-      readonly facts: PullRequestFacts;
-    }
-  | {
-      readonly kind: "open";
-      readonly context: PrContext;
-      readonly facts: PullRequestFacts;
-      readonly threads: readonly ReviewThread[];
-      readonly ci: CiState;
-      readonly reviewAutomationRunning: boolean;
-    };
+  | Readonly<{
+      kind: "merged" | "closed";
+      context: PrContext;
+      facts: PullRequestFacts;
+    }>
+  | Readonly<{
+      kind: "open";
+      context: PrContext;
+      facts: PullRequestFacts;
+      threads: Readonly<ReviewThread[]>;
+      ci: CiState;
+      reviewAutomationRunning: boolean;
+    }>;
 export interface ReadyPr {
   readonly kind: "ready-pr";
   readonly context: PrContext;
-  readonly proof: {
-    readonly mergeability: "clear";
-    readonly threads: readonly [];
-    readonly ci: CiClean;
-    readonly gate: {
-      readonly state: "OPEN";
-      readonly reviewDecision: Exclude<ReviewDecision, "CHANGES_REQUESTED">;
-      readonly draft: "not-draft" | "draft-allowed";
-    };
-  };
+  readonly proof: Readonly<{
+    mergeability: "clear";
+    threads: Readonly<[]>;
+    ci: CiClean;
+    gate: Readonly<{
+      state: "OPEN";
+      reviewDecision: Exclude<ReviewDecision, "CHANGES_REQUESTED">;
+      draft: "not-draft" | "draft-allowed";
+    }>;
+  }>;
 }
 export interface MergedPr {
   readonly kind: "merged-pr";
@@ -181,55 +181,55 @@ export type MergeGateReason =
   | "draft-pr"
   | "changes-requested";
 export type MergeBlocker =
-  | {
-      readonly kind: "merge-conflicts";
-      readonly pr: PrContext;
-      readonly facts: PullRequestFacts;
-    }
-  | {
-      readonly kind: "review-threads";
-      readonly pr: PrContext;
-      readonly threads: NonEmpty<ReviewThread>;
-    }
-  | {
-      readonly kind: "failing-checks";
-      readonly pr: PrContext;
-      readonly ci: CiFailing | CiGithubRejected;
-    }
-  | {
-      readonly kind: "merge-gate";
-      readonly pr: PrContext;
-      readonly reason: MergeGateReason;
-    };
+  | Readonly<{
+      kind: "merge-conflicts";
+      pr: PrContext;
+      facts: PullRequestFacts;
+    }>
+  | Readonly<{
+      kind: "review-threads";
+      pr: PrContext;
+      threads: NonEmpty<ReviewThread>;
+    }>
+  | Readonly<{
+      kind: "failing-checks";
+      pr: PrContext;
+      ci: CiFailing | CiGithubRejected;
+    }>
+  | Readonly<{
+      kind: "merge-gate";
+      pr: PrContext;
+      reason: MergeGateReason;
+    }>;
 export type QueryFailure =
-  | {
-      readonly kind: "json-parse";
-      readonly retryable: true;
-      readonly detail: string;
-    }
-  | {
-      readonly kind: "missing-key";
-      readonly retryable: true;
-      readonly detail: string;
-      readonly rawValue?: string;
-    }
-  | {
-      readonly kind: "command-exit";
-      readonly retryable: true;
-      readonly detail: string;
-      readonly code: number;
-    }
-  | {
-      readonly kind: "checks-unavailable";
-      readonly retryable: true;
-      readonly detail: string;
-    }
-  | {
-      readonly kind: "invalid-context-url";
-      readonly retryable: false;
-      readonly detail: string;
-      readonly rawValue: string;
-    };
+  | Readonly<{
+      kind: "json-parse";
+      retryable: true;
+      detail: string;
+    }>
+  | Readonly<{
+      kind: "missing-key";
+      retryable: true;
+      detail: string;
+      rawValue?: string;
+    }>
+  | Readonly<{
+      kind: "command-exit";
+      retryable: true;
+      detail: string;
+      code: number;
+    }>
+  | Readonly<{
+      kind: "checks-unavailable";
+      retryable: true;
+      detail: string;
+    }>
+  | Readonly<{
+      kind: "invalid-context-url";
+      retryable: false;
+      detail: string;
+      rawValue: string;
+    }>;
 /**
  * `frontier` names the lowest unmerged PR that is actually waiting, and
  * `pending` is that PR's checks only. Pooling every row's pending under the
@@ -247,14 +247,14 @@ export interface WaitingDecision {
   readonly pending: NonEmpty<PendingCheck>;
 }
 export type PrDecision =
-  | { readonly kind: "blocker"; readonly blocker: MergeBlocker }
+  | Readonly<{ kind: "blocker"; blocker: MergeBlocker }>
   | WaitingDecision
-  | { readonly kind: "ready"; readonly pr: ReadyPr }
-  | { readonly kind: "merged"; readonly pr: MergedPr };
+  | Readonly<{ kind: "ready"; pr: ReadyPr }>
+  | Readonly<{ kind: "merged"; pr: MergedPr }>;
 export type StackDecision =
-  | { readonly kind: "blocker"; readonly blocker: MergeBlocker }
+  | Readonly<{ kind: "blocker"; blocker: MergeBlocker }>
   | WaitingDecision
-  | { readonly kind: "clear"; readonly prs: NonEmpty<ReadyPr | MergedPr> };
+  | Readonly<{ kind: "clear"; prs: NonEmpty<ReadyPr | MergedPr> }>;
 export type WatchMode = "single" | "stack" | "queued-stack";
 interface EventBase<K extends string, M extends WatchMode = WatchMode> {
   readonly schemaVersion: 1;
@@ -276,108 +276,108 @@ interface Terminal<
   readonly exitCode: C;
 }
 export type ProgressVerdict =
-  | (Progress<"QUEUE", "queued-stack"> & {
-      readonly queue: NonEmpty<PrContext>;
-    })
-  | (Progress<"STATUS", "stack" | "queued-stack"> & {
-      readonly reason: "poll" | "whole-stack-sweep";
-      readonly rows: NonEmpty<PrSnapshot>;
-    })
-  | (Progress<"WAITING"> & {
-      readonly frontier: PrContext;
-      readonly reason:
-        | {
-            readonly kind: "pending-checks";
-            readonly pending: NonEmpty<PendingCheck>;
-          }
-        | { readonly kind: "merge-queue"; readonly unmergedCount: number };
-    })
-  | (Progress<"ADVANCE", "queued-stack"> & {
-      readonly merged: PrContext;
-      readonly frontier: PrContext;
-      readonly remaining: number;
-    })
-  | (Progress<"RETRY"> & {
-      readonly failure: QueryFailure;
-      readonly consecutiveFailures: number;
-      readonly retryInSeconds: number;
-    });
+  | (Progress<"QUEUE", "queued-stack"> & Readonly<{
+      queue: NonEmpty<PrContext>;
+    }>)
+  | (Progress<"STATUS", "stack" | "queued-stack"> & Readonly<{
+      reason: "poll" | "whole-stack-sweep";
+      rows: NonEmpty<PrSnapshot>;
+    }>)
+  | (Progress<"WAITING"> & Readonly<{
+      frontier: PrContext;
+      reason:
+        | Readonly<{
+            kind: "pending-checks";
+            pending: NonEmpty<PendingCheck>;
+          }>
+        | Readonly<{ kind: "merge-queue"; unmergedCount: number }>;
+    }>)
+  | (Progress<"ADVANCE", "queued-stack"> & Readonly<{
+      merged: PrContext;
+      frontier: PrContext;
+      remaining: number;
+    }>)
+  | (Progress<"RETRY"> & Readonly<{
+      failure: QueryFailure;
+      consecutiveFailures: number;
+      retryInSeconds: number;
+    }>);
 export type BlockerVerdict =
-  | (Terminal<"BLOCKER", 2> & {
-      readonly blocker: Extract<
+  | (Terminal<"BLOCKER", 2> & Readonly<{
+      blocker: Extract<
         MergeBlocker,
-        { readonly kind: "merge-conflicts" }
+        Readonly<{ kind: "merge-conflicts" }>
       >;
-    })
-  | (Terminal<"BLOCKER", 3> & {
-      readonly blocker: Extract<
+    }>)
+  | (Terminal<"BLOCKER", 3> & Readonly<{
+      blocker: Extract<
         MergeBlocker,
-        { readonly kind: "review-threads" }
+        Readonly<{ kind: "review-threads" }>
       >;
-    })
-  | (Terminal<"BLOCKER", 4> & {
-      readonly blocker: Extract<
+    }>)
+  | (Terminal<"BLOCKER", 4> & Readonly<{
+      blocker: Extract<
         MergeBlocker,
-        { readonly kind: "failing-checks" }
+        Readonly<{ kind: "failing-checks" }>
       >;
-    })
-  | (Terminal<"BLOCKER", 6> & {
-      readonly blocker: Extract<MergeBlocker, { readonly kind: "merge-gate" }>;
-    })
-  | (Terminal<"BLOCKER", 7> & {
-      readonly blocker: {
-        readonly kind: "status-query";
-        readonly failures: number;
-        readonly failure: QueryFailure;
-      };
-    });
-export type TimeoutVerdict = Terminal<"TIMEOUT", 5> & {
-  readonly reason:
-    | {
-        readonly kind: "pending-checks";
-        readonly pending: NonEmpty<PendingCheck>;
-      }
-    | { readonly kind: "status-unavailable"; readonly failure: QueryFailure }
-    | {
-        readonly kind: "queued-stack";
-        readonly frontier: PrContext;
-        readonly unmergedCount: number;
-      };
-};
+    }>)
+  | (Terminal<"BLOCKER", 6> & Readonly<{
+      blocker: Extract<MergeBlocker, Readonly<{ kind: "merge-gate" }>>;
+    }>)
+  | (Terminal<"BLOCKER", 7> & Readonly<{
+      blocker: Readonly<{
+        kind: "status-query";
+        failures: number;
+        failure: QueryFailure;
+      }>;
+    }>);
+export type TimeoutVerdict = Terminal<"TIMEOUT", 5> & Readonly<{
+  reason:
+    | Readonly<{
+        kind: "pending-checks";
+        pending: NonEmpty<PendingCheck>;
+      }>
+    | Readonly<{ kind: "status-unavailable"; failure: QueryFailure }>
+    | Readonly<{
+        kind: "queued-stack";
+        frontier: PrContext;
+        unmergedCount: number;
+      }>;
+}>;
 export type TerminalVerdict =
-  | (Terminal<"STATUS", 0> & {
-      readonly reason: "status-only";
-      readonly rows: NonEmpty<PrSnapshot>;
-    })
-  | (Terminal<"READY", 0, "single" | "stack"> & {
-      readonly scope:
-        | { readonly kind: "single"; readonly pr: ReadyPr | MergedPr }
-        | {
-            readonly kind: "stack";
-            readonly prs: NonEmpty<ReadyPr | MergedPr>;
-          };
-    })
-  | (Terminal<"COMPLETE", 0, "queued-stack"> & {
-      readonly queue: NonEmpty<PrContext>;
-      readonly merged: NonEmpty<MergedPr>;
-    })
+  | (Terminal<"STATUS", 0> & Readonly<{
+      reason: "status-only";
+      rows: NonEmpty<PrSnapshot>;
+    }>)
+  | (Terminal<"READY", 0, "single" | "stack"> & Readonly<{
+      scope:
+        | Readonly<{ kind: "single"; pr: ReadyPr | MergedPr }>
+        | Readonly<{
+            kind: "stack";
+            prs: NonEmpty<ReadyPr | MergedPr>;
+          }>;
+    }>)
+  | (Terminal<"COMPLETE", 0, "queued-stack"> & Readonly<{
+      queue: NonEmpty<PrContext>;
+      merged: NonEmpty<MergedPr>;
+    }>)
   | BlockerVerdict
   | TimeoutVerdict;
 export type WatcherVerdict = ProgressVerdict | TerminalVerdict;
 export type ExitCode = TerminalVerdict["exitCode"];
 export type QueueTerminalVerdict =
-  | Extract<TerminalVerdict, { readonly kind: "COMPLETE" }>
+  | Extract<TerminalVerdict, Readonly<{ kind: "COMPLETE" }>>
   | BlockerVerdict
   | TimeoutVerdict;
 export type ChecksFastPath =
-  | { readonly kind: "checks"; readonly checks: readonly Check[] }
-  | {
-      readonly kind: "unusable";
-      readonly exitCode: number;
-      readonly stderr: string;
-    };
+  | Readonly<{ kind: "checks"; checks: Readonly<Check[]> }>
+  | Readonly<{
+      kind: "unusable";
+      exitCode: number;
+      stderr: string;
+    }>;
 export interface RollupPage {
-  readonly checks: readonly Check[];
+  readonly checks: Readonly<Check[]>;
   readonly endCursor: string | null;
 }
 export interface RawReviewThread {
@@ -386,14 +386,14 @@ export interface RawReviewThread {
   readonly resolved: boolean;
 }
 export interface ReviewThreadPage {
-  readonly threads: readonly RawReviewThread[];
+  readonly threads: Readonly<RawReviewThread[]>;
   readonly endCursor: string | null;
 }
 export interface GitHubReader {
   originRepo(): Promise<Repository | null>;
   currentPr(pr: PrNumber | null): Promise<PrContext>;
   pullRequest(context: PrContext): Promise<PullRequestFacts>;
-  openPullRequests(repository: Repository): Promise<readonly OpenPullRequest[]>;
+  openPullRequests(repository: Repository): Promise<Readonly<OpenPullRequest[]>>;
   checksFastPath(context: PrContext): Promise<ChecksFastPath>;
   checkRollupPage(
     context: PrContext,
@@ -403,7 +403,7 @@ export interface GitHubReader {
     context: PrContext,
     after: string | null
   ): Promise<ReviewThreadPage>;
-  commitRollups(context: PrContext): Promise<readonly CommitRollup[]>;
+  commitRollups(context: PrContext): Promise<Readonly<CommitRollup[]>>;
 }
 export interface PollingOptions {
   readonly interval: number;

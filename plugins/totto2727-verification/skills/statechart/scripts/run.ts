@@ -1,5 +1,6 @@
 import { Buffer } from "node:buffer";
-import { type ChildProcess, execFile, type ExecFileException, spawn } from "node:child_process";
+import { execFile, spawn } from 'node:child_process';
+import type { ChildProcess, ExecFileException } from 'node:child_process';
 import { randomBytes } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
@@ -13,30 +14,10 @@ import { readCounterexample, readMarks } from "./frontends/marks.ts";
 import { readMessages } from "./frontends/messages.ts";
 import { initialOnlyProperties, readChecks, readSany, readSpec } from "./frontends/spec.ts";
 import { readTrace } from "./frontends/trace.ts";
-import { type Break, readVerdict } from "./frontends/verdict.ts";
-import {
-  type Bug,
-  CHART_STATES,
-  type CheckResult,
-  type ConfigSection,
-  hasSection,
-  type Lasso,
-  LEVEL,
-  type Mark,
-  must,
-  type Outcome,
-  type Output,
-  PART,
-  type Part,
-  type Property,
-  RERUN_STATES,
-  type Rule,
-  ruleKey,
-  type Stop,
-  stateRules,
-  type Trace,
-  type Verdict,
-} from "./ir.ts";
+import { readVerdict } from './frontends/verdict.ts';
+import type { Break } from './frontends/verdict.ts';
+import { CHART_STATES, LEVEL, PART, RERUN_STATES, hasSection, isString, matchesNull, matchesUndefined, must, ruleKey, stateRules } from './ir.ts';
+import type { Bug, CheckResult, ConfigSection, Lasso, Mark, Outcome, Output, Part, Property, Rule, Stop, Trace, Verdict } from './ir.ts';
 import { addPast, deadEnds, finder, lasso, mark } from "./passes/annotate.ts";
 import { pathGraph } from "./passes/paths.ts";
 
@@ -46,9 +27,9 @@ export function* fileLines(file: string) {
     let buf = Buffer.allocUnsafe(PART);
     let kept = 0;
     for (;;) {
-      if (kept === buf.length) buf = Buffer.concat([buf], buf.length * 2);
+      if (kept === buf.length) {buf = Buffer.concat([buf], buf.length * 2);}
       const n = fs.readSync(fd, buf, kept, buf.length - kept, null);
-      if (!n) break;
+      if (!n) {break;}
       const end = kept + n;
       const cut = buf.lastIndexOf(10, end - 1);
       if (cut === -1) {
@@ -88,16 +69,16 @@ const runChild = (file: string, args: string[], options: { cwd: string; env: Nod
           status: error ? (typeof error.code === "number" ? error.code : null) : 0,
           stdout,
           stderr,
-          error: typeof error?.code === "string" ? error : undefined,
+          error: isString(error?.code) ? error : undefined,
         }),
     );
   });
 
 export const messageOf = (error: unknown) =>
   typeof error === "object" &&
-  error !== null &&
+  !matchesNull(error) &&
   "message" in error &&
-  typeof error.message === "string"
+  isString(error.message)
     ? error.message
     : inspect(error);
 
@@ -112,13 +93,13 @@ const joined = (files: string[]): Output => {
   return {
     *[Symbol.iterator]() {
       for (let f = 0; f < fds.length; f++)
-        for (let pos = 0; pos < sizes[f];) {
+        {for (let pos = 0; pos < sizes[f];) {
           const buf = Buffer.allocUnsafe(Math.min(PART, sizes[f] - pos));
           const n = fs.readSync(fds[f], buf, 0, buf.length, pos);
-          if (!n) break;
+          if (!n) {break;}
           pos += n;
           yield buf.subarray(0, n);
-        }
+        }}
     },
   };
 };
@@ -159,12 +140,12 @@ const runToFiles = (
   new Promise<FileResult>((resolve) => {
     const files = [`${out}.stdout`, `${out}.stderr`];
     const fds: number[] = [];
-    for (const f of files) fds.push(fs.openSync(f, "w"));
+    for (const f of files) {fds.push(fs.openSync(f, "w"));}
     let child: ChildProcess;
     try {
       child = spawn(file, args, { ...options, stdio: ["ignore", ...fds], windowsHide: true });
     } finally {
-      for (const fd of fds) fs.closeSync(fd);
+      for (const fd of fds) {fs.closeSync(fd);}
     }
     let error: Error | undefined;
     const settle = (code: number | null) =>
@@ -176,16 +157,16 @@ const runToFiles = (
       });
     child.on("error", (e) => {
       error = e;
-      if (child.pid === undefined) settle(null);
+      if (matchesUndefined(child.pid)) {settle(null);}
     });
     child.on("close", (code) => {
-      if (child.pid !== undefined) settle(code);
+      if (!matchesUndefined(child.pid)) {settle(code);}
     });
   });
 
-async function findTlc(cwd: string) {
+const findTlc = async function (cwd: string) {
   const { TLA2TOOLS, JAVA } = process.env;
-  if (TLA2TOOLS) return { jar: TLA2TOOLS, java: JAVA || "java" };
+  if (TLA2TOOLS) {return { jar: TLA2TOOLS, java: JAVA || "java" };}
   const mise = (...args: string[]) =>
     runChild("mise", args, { cwd, env: { ...process.env, MISE_CEILING_PATHS: cwd } });
   const where = () =>
@@ -194,54 +175,54 @@ async function findTlc(cwd: string) {
   if (found.some((r) => r.status !== 0)) {
     const r = await mise("install", JAVA_TOOL, TLC_TOOL);
     if (r.status !== 0)
-      throw new Error(
+      {throw new Error(
         `Cannot find TLC: mise install failed: ${r.error?.message ?? r.stderr.trim()}\nOr set TLA2TOOLS to the path of tla2tools.jar, and JAVA to a java binary (Java 11 or later).`,
-      );
+      );}
     found = await where();
   }
   return {
     jar: path.join(found[0].stdout.trim(), "tla2tools.jar"),
     java: JAVA || found[1].stdout.trim(),
   };
-}
+};
 
 const exitClass = (status: number | null) =>
   status === 0 ? 0 : status === 11 || status === 12 || status === 13 ? 1 : 2;
 
 const tail = (r: FileResult) => {
-  if (r.error) return r.error.message;
+  if (r.error) {return r.error.message;}
   const kept: string[] = [];
   let size = 0;
   for (const chunk of plainText(messagesOf(r.output))) {
     kept.push(chunk);
     size += chunk.length;
-    while (size - kept[0].length >= 1 << 28) size -= kept.shift()!.length;
+    while (size - kept[0].length >= 1 << 28) {size -= kept.shift()!.length;}
   }
   return kept.join("").trim().split("\n").slice(-30).join("\n");
 };
 
 const firstLines = (text: string) => {
   const lines = text.trim().split("\n");
-  if (lines.length > 40) lines.splice(40, Infinity, `... ${lines.length - 40} more lines`);
+  if (lines.length > 40) {lines.splice(40, Infinity, `... ${lines.length - 40} more lines`);}
   return lines.join("\n");
 };
 
 const stopOf = (r: FileResult): Stop => {
   const errors: Part[] = [];
   for (const m of r.error ? [] : messagesOf(r.output))
-    if (
-      typeof m !== "string" &&
+    {if (
+      !isString(m) &&
       (m.level === LEVEL.ERROR ||
         m.level === LEVEL.TLCBUG ||
         (errors.length && m.level === LEVEL.STATE))
     )
-      errors.push(m);
-  if (!errors.length) return { status: r.status, message: tail(r) };
+      {errors.push(m);}}
+  if (!errors.length) {return { status: r.status, message: tail(r) };}
   return { status: r.status, message: firstLines([...plainText(errors)].join("")) };
 };
 
 const sanyErrors = (r: FileResult) => {
-  if (r.error) return undefined;
+  if (r.error) {return undefined;}
   const text = [...plainText(messagesOf(r.output))].join("");
   const at = text.search(SANY_ERRORS);
   return at === -1 ? undefined : firstLines(text.slice(at));
@@ -249,25 +230,25 @@ const sanyErrors = (r: FileResult) => {
 
 const names = (rules: Rule[], kind: Rule["kind"]) => {
   const found: string[] = [];
-  for (const rule of rules) if (rule.kind === kind) found.push(rule.name);
+  for (const rule of rules) {if (rule.kind === kind) {found.push(rule.name);}}
   return found;
 };
 
 const brokenRule = (rules: Rule[], broke: Break) => {
-  if (broke.kind === "temporal") return undefined;
+  if (broke.kind === "temporal") {return undefined;}
   for (const rule of rules)
-    if (rule.kind === broke.kind && (broke.kind === "deadlock" || rule.name === broke.name))
-      return rule;
+    {if (rule.kind === broke.kind && (broke.kind === "deadlock" || rule.name === broke.name))
+      {return rule;}}
   if (broke.kind === "invariant")
-    for (const rule of rules) if (rule.kind === "property" && rule.name === broke.name) return rule;
+    {for (const rule of rules) {if (rule.kind === "property" && rule.name === broke.name) {return rule;}}}
   return undefined;
 };
 
 function* only(marks: Iterable<Mark>, rules: Set<string>) {
   for (const { values, broken } of marks) {
     const kept: string[] = [];
-    for (const name of broken) if (rules.has(name)) kept.push(name);
-    if (kept.length) yield { values, broken: kept };
+    for (const name of broken) {if (rules.has(name)) {kept.push(name);}}
+    if (kept.length) {yield { values, broken: kept };}
   }
 }
 
@@ -331,7 +312,7 @@ export async function check(specFile: string, configFile: string): Promise<Check
     const spec = { ...readSpec({ module, sany, checks }), folder };
     const rules = stateRules(spec);
     const all = [...rules];
-    for (const name of spec.properties) all.push({ kind: "property", name });
+    for (const name of spec.properties) {all.push({ kind: "property", name });}
     const verdicts = new Map<string, Verdict>();
     const decide = (rule: Rule, outcome: Outcome, r?: FileResult) =>
       verdicts.set(ruleKey(rule), { rule, outcome, messages: r && messagesOf(r.output) });
@@ -342,7 +323,7 @@ export async function check(specFile: string, configFile: string): Promise<Check
       const states = { distinct: 0, initial: 0, complete: false, cut: false };
       for (let k = 1; groups.length;) {
         const group: Rule[] = [];
-        for (const rule of groups[0]) if (!verdicts.has(ruleKey(rule))) group.push(rule);
+        for (const rule of groups[0]) {if (!verdicts.has(ruleKey(rule))) {group.push(rule);}}
         if (first && !group.length) {
           groups.shift();
           continue;
@@ -351,10 +332,10 @@ export async function check(specFile: string, configFile: string): Promise<Check
         const extra: string[] = [];
         const invariants = names(group, "invariant");
         const properties = names(group, "property");
-        if (invariants.length) extra.push(`INVARIANT ${invariants.join(" ")}`);
-        if (properties.length) extra.push(`PROPERTY ${properties.join(" ")}`);
-        const bounded = first !== undefined && !states.complete;
-        if (bounded) extra.push("CONSTRAINT ChartBound");
+        if (invariants.length) {extra.push(`INVARIANT ${invariants.join(" ")}`);}
+        if (properties.length) {extra.push(`PROPERTY ${properties.join(" ")}`);}
+        const bounded = !matchesUndefined(first) && !states.complete;
+        if (bounded) {extra.push("CONSTRAINT ChartBound");}
         const r = await runJava(name, "tlc2.TLC", [
           "-tool",
           ...PINNED_FLAGS,
@@ -371,31 +352,31 @@ export async function check(specFile: string, configFile: string): Promise<Check
         if (exitClass(r.status) === 2) {
           stop = stopOf(r);
           break;
-        } else if (rule) decide(rule, "broken", r);
+        } else if (rule) {decide(rule, "broken", r);}
         else if (cut && (r.status === 0 || broke?.kind === "temporal")) {
           states.cut = true;
-          for (const rule of group) decide(rule, "not checked");
+          for (const rule of group) {decide(rule, "not checked");}
         } else if (r.status === 0) {
           states.complete = true;
-          for (const rule of group) decide(rule, "holds");
+          for (const rule of group) {decide(rule, "holds");}
         } else if (broke && properties.length) {
           if (broke.kind === "temporal") {
             states.complete = true;
-            for (const rule of group) if (rule.kind !== "property") decide(rule, "holds");
+            for (const rule of group) {if (rule.kind !== "property") {decide(rule, "holds");}}
           }
           const pending: Rule[][] = [];
           const rest: Rule[] = [];
           for (const rule of group)
-            if (rule.kind === "property") pending.push([rule]);
-            else if (!verdicts.has(ruleKey(rule))) rest.push(rule);
-          if (pending.length === 1) decide(pending[0][0], "broken", r);
-          else groups.splice(0, 1, rest, ...pending);
+            {if (rule.kind === "property") {pending.push([rule]);}
+            else if (!verdicts.has(ruleKey(rule))) {rest.push(rule);}}
+          if (pending.length === 1) {decide(pending[0][0], "broken", r);}
+          else {groups.splice(0, 1, rest, ...pending);}
         } else
-          throw new Error(
+          {throw new Error(
             `TLC exited ${r.status} on ${specFile}, but its output names no rule that broke:\n${tail(r)}`,
-          );
+          );}
       }
-      for (const rule of all) if (!verdicts.has(ruleKey(rule))) decide(rule, "not checked");
+      for (const rule of all) {if (!verdicts.has(ruleKey(rule))) {decide(rule, "not checked");}}
       return { first: first!, stop, states };
     };
     fs.writeFileSync(path.join(dir, "ChartBound.tla"), boundRun(spec.module));
@@ -407,7 +388,7 @@ export async function check(specFile: string, configFile: string): Promise<Check
     const propertiesWith = (bugOf: (trace: Trace) => Lasso | undefined) => {
       const properties: Property[] = [];
       for (const rule of all) {
-        if (rule.kind !== "property") continue;
+        if (rule.kind !== "property") {continue;}
         const v = must(verdicts, ruleKey(rule));
         properties.push({
           ...v,
@@ -417,9 +398,9 @@ export async function check(specFile: string, configFile: string): Promise<Check
       }
       return properties;
     };
-    if (exit === 2) throw failed(judged.first);
+    if (exit === 2) {throw failed(judged.first);}
     const checked: Verdict[] = [];
-    for (const rule of rules) checked.push(must(verdicts, ruleKey(rule)));
+    for (const rule of rules) {checked.push(must(verdicts, ruleKey(rule)));}
     const common = {
       spec,
       exit,
@@ -442,14 +423,14 @@ export async function check(specFile: string, configFile: string): Promise<Check
         "ChartRun",
       ]);
       const file = path.join(dir, "graph.dot");
-      if (!fs.existsSync(file)) throw failed(drawn);
+      if (!fs.existsSync(file)) {throw failed(drawn);}
       if (readVerdict(messagesOf(drawn.output)).distinct <= CHART_STATES) {
         const graph = parseDot(fileLines(file));
         const find = finder(graph, spec.variables);
         const drawing = drawn.status === 0 ? undefined : { status: drawn.status };
         const broken = new Set<string>();
         for (const { rule, outcome } of verdicts.values())
-          if (rule.kind === "invariant" && outcome === "broken") broken.add(rule.name);
+          {if (rule.kind === "invariant" && outcome === "broken") {broken.add(rule.name);}}
         const marks = only(readMarks(readMessages(fileLines(drawn.stdout)), tag), broken);
         const past = mark(graph, marks, spec.variables, rules, find);
         const excludes = hasSection(spec, "ACTION_CONSTRAINT");
@@ -461,14 +442,14 @@ export async function check(specFile: string, configFile: string): Promise<Check
             !drawing &&
             !hasSection(spec, "CONSTRAINT", "ACTION_CONSTRAINT")
           )
-            deadEnds(graph, rule);
-          if (outcome !== "broken" || !messages) continue;
+            {deadEnds(graph, rule);}
+          if (outcome !== "broken" || !messages) {continue;}
           const counterexample = readCounterexample(messages);
           if (
             !drawing ||
             lasso(graph, { seq: counterexample, loop: undefined }, spec.variables, find)
           )
-            addPast(graph, counterexample, spec.variables, rule, past, excludes, find);
+            {addPast(graph, counterexample, spec.variables, rule, past, excludes, find);}
         }
         const properties = propertiesWith((trace) => lasso(graph, trace, spec.variables, find));
         return {
@@ -485,7 +466,7 @@ export async function check(specFile: string, configFile: string): Promise<Check
     for (const rule of rules) {
       const { outcome, messages } = must(verdicts, ruleKey(rule));
       if (outcome === "broken" && messages)
-        paths.push(drawn.bug(rule, readCounterexample(messages)));
+        {paths.push(drawn.bug(rule, readCounterexample(messages)));}
     }
     return {
       ...common,

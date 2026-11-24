@@ -1,4 +1,5 @@
-import { EC, type Part } from "../ir.ts";
+import { EC, isString } from '../ir.ts';
+import type { Part } from '../ir.ts';
 import { textOf } from "./messages.ts";
 
 export type Break =
@@ -24,17 +25,17 @@ export function readVerdict(messages: Iterable<Part>) {
   let distinct = 0;
   let initial = 0;
   for (const m of messages) {
-    if (typeof m === "string") continue;
+    if (isString(m)) {continue;}
     const count = DISTINCT.get(m.code)?.exec(textOf(m));
-    if (count) distinct = Math.max(distinct, Number(count[1]));
+    if (count) {distinct = Math.max(distinct, Number(count[1]));}
     if (m.code === EC.TLC_INIT_GENERATED1 || m.code === EC.TLC_INIT_GENERATED2)
-      initial = Number(/(\d+) (?:distinct )?states? generated/.exec(textOf(m))?.[1] ?? 0);
-    if (broke) continue;
-    if (m.code === EC.TLC_DEADLOCK_REACHED) broke = { kind: "deadlock" };
-    else if (m.code === EC.TLC_TEMPORAL_PROPERTY_VIOLATED) broke = { kind: "temporal" };
+      {initial = Number(/(\d+) (?:distinct )?states? generated/.exec(textOf(m))?.[1] ?? 0);}
+    if (broke) {continue;}
+    if (m.code === EC.TLC_DEADLOCK_REACHED) {broke = { kind: "deadlock" };}
+    else if (m.code === EC.TLC_TEMPORAL_PROPERTY_VIOLATED) {broke = { kind: "temporal" };}
     const named = NAMED.get(m.code);
     const name = named?.[1].exec(textOf(m))?.[1];
-    if (named && name) broke = { kind: named[0], name };
+    if (named && name) {broke = { kind: named[0], name };}
   }
   return { broke, distinct, initial };
 }

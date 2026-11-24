@@ -2,26 +2,20 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+// oxlint-disable-next-line rules/no-node-imports, vitest/no-import-node-test -- Statechart runs these fixtures with Node's test runner as part of the standalone skill.
 import { test } from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { inspect } from "node:util";
 import { checkView } from "../frontends/view.ts";
-import {
-  type CheckResult,
-  EC,
-  LEVEL,
-  type Rule,
-  type Spec,
-  stateRules,
-  type Verdict,
-} from "../ir.ts";
+import { EC, LEVEL, stateRules } from '../ir.ts';
+import type { CheckResult, Rule, Spec, Verdict } from '../ir.ts';
 import { compile } from "../pipeline.ts";
 
 const scripts = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 const sources = (target: string) => {
   const full = path.join(scripts, target);
-  if (!fs.statSync(full).isDirectory()) return [target];
+  if (!fs.statSync(full).isDirectory()) {return [target];}
   return fs
     .readdirSync(full, { recursive: true, encoding: "utf8" })
     .map((entry) => path.join(target, entry))
@@ -63,11 +57,13 @@ const TYPE_IMPORT =
 const typeImports = (file: string) =>
   Array.from(codeOf(file).matchAll(TYPE_IMPORT), (m) => path.join(path.dirname(file), m[1]));
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("ir.ts imports nothing", () => {
   assert.deepEqual(loads("ir.ts"), []);
   assert.deepEqual(typeImports("ir.ts"), []);
 });
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("each pass imports only ir.ts", () => {
   const files = sources("passes");
   assert.deepEqual(
@@ -76,21 +72,23 @@ test("each pass imports only ir.ts", () => {
   );
   const found = loads("passes");
   assert.ok(found.length > 0);
-  for (const [from, to] of found) assert.equal(to, "ir.ts", `${from} imports ${to}`);
+  for (const [from, to] of found) {assert.equal(to, "ir.ts", `${from} imports ${to}`);}
   for (const file of files)
-    for (const to of typeImports(file))
-      assert.equal(to, "ir.ts", `${file} imports types from ${to}`);
+    {for (const to of typeImports(file))
+      {assert.equal(to, "ir.ts", `${file} imports types from ${to}`);}}
 });
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("pipeline.ts reaches no node: module", () => {
   assert.deepEqual(
     loads("pipeline.ts").filter(([, to]) => to.startsWith("node:")),
     [],
   );
   for (const to of typeImports("pipeline.ts"))
-    assert.equal(to, "ir.ts", `pipeline.ts imports types from ${to}`);
+    {assert.equal(to, "ir.ts", `pipeline.ts imports types from ${to}`);}
 });
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("ir.ts, the passes, pipeline.ts, the frontends, the backends, and every file they load are .ts files that name no listed runtime global and call no import()", () => {
   const targets = ["ir.ts", "passes", "pipeline.ts", "frontends", "backends"];
   const reached = loads(...targets).flatMap(([, to]) => (to.startsWith("node:") ? [] : [to]));
@@ -99,9 +97,10 @@ test("ir.ts, the passes, pipeline.ts, the frontends, the backends, and every fil
     files.filter((file) => !file.endsWith(".ts")),
     [],
   );
-  for (const file of files) assert.deepEqual(codeOf(file).match(RUNTIME), null, file);
+  for (const file of files) {assert.deepEqual(codeOf(file).match(RUNTIME), null, file);}
 });
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("no frontend or backend loads a node: module when imported, even through another file", () => {
   for (const folder of ["frontends", "backends"]) {
     const files = fs
@@ -109,8 +108,8 @@ test("no frontend or backend loads a node: module when imported, even through an
       .filter((f) => f.endsWith(".ts"));
     assert.ok(files.length > 0, folder);
     for (const f of files)
-      for (const [, to] of loads(path.join(folder, f)))
-        assert.ok(!to.startsWith("node:"), `${folder}/${f} reaches ${to}`);
+      {for (const [, to] of loads(path.join(folder, f)))
+        {assert.ok(!to.startsWith("node:"), `${folder}/${f} reaches ${to}`);}}
   }
 });
 
@@ -121,7 +120,7 @@ const noView = checkView({}, inspect);
 const holding = (spec: Spec) => {
   const verdicts: Verdict[] = [];
   for (const rule of stateRules(spec))
-    verdicts.push({ rule, outcome: "holds", messages: undefined });
+    {verdicts.push({ rule, outcome: "holds", messages: undefined });}
   return verdicts;
 };
 
@@ -169,10 +168,11 @@ const twoStates = (breaks: Rule[], property = "Settles"): CheckResult => ({
 const body = (files: Map<string, Iterable<string | Uint8Array>>, name: string) => {
   let text = "";
   for (const part of files.get(name) ?? [])
-    text += typeof part === "string" ? part : new TextDecoder().decode(part);
+    {text += typeof part === "string" ? part : new TextDecoder().decode(part);}
   return text;
 };
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("the pipeline turns a hand-built graph into the out folder's files with no TLC", () => {
   const broken = compile(twoStates([small]), noView);
   assert.equal(broken.exit, 1);
@@ -211,6 +211,7 @@ test("the pipeline turns a hand-built graph into the out folder's files with no 
   assert.doesNotMatch(body(holds.files, "chart.mmd"), /breaks/);
 });
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("an invariant and a property with one name stay two rules", () => {
   const reportWithSmallProperty = (breaks: Rule[]) => {
     const result = twoStates(breaks);
@@ -236,6 +237,7 @@ test("an invariant and a property with one name stay two rules", () => {
   assert.match(reportWithSmallProperty([]), /^## Rules that hold\nSmall$/m);
 });
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a PROPERTY that breaks with no path writes TLC's counterexample", () => {
   const result = twoStates([]);
   result.properties[0].outcome = "broken";
@@ -247,6 +249,7 @@ test("a PROPERTY that breaks with no path writes TLC's counterexample", () => {
   assert.equal(body(files, "tlc-Settles.out"), "State 1: <Initial predicate>\nx = 0\n");
 });
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a rule named NoDeadlock leaves the deadlock rule a name of its own", () => {
   const holds = (result: CheckResult) => {
     result.spec.deadlock = true;
@@ -260,6 +263,7 @@ test("a rule named NoDeadlock leaves the deadlock rule a name of its own", () =>
   assert.equal(holds(twoStates([])), "Small, NoDeadlock, Settles");
 });
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a run that does not check for deadlock never names CHECK_DEADLOCK", () => {
   const invariant = twoStates([]);
   invariant.spec.invariants = ["Small", "NoDeadlock"];

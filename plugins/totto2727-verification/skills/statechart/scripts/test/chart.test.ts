@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+// oxlint-disable-next-line rules/no-node-imports, vitest/no-import-node-test -- Statechart runs these fixtures with Node's test runner as part of the standalone skill.
 import { test } from "node:test";
 import { inspect } from "node:util";
 import { fileURLToPath } from "node:url";
@@ -11,26 +12,8 @@ import { report } from "../backends/report.ts";
 import { readConfig } from "../frontends/config.ts";
 import { readChecks, readSany, readSpec } from "../frontends/spec.ts";
 import { checkView, json } from "../frontends/view.ts";
-import {
-  type Bug,
-  EC,
-  type Graph,
-  hasSection,
-  key,
-  type Lasso,
-  LEVEL,
-  type PathStep,
-  type Rule,
-  ruleKey,
-  show,
-  type Spec,
-  type State,
-  stateRules,
-  type Step,
-  type Value,
-  type Vars,
-  type View,
-} from "../ir.ts";
+import { EC, hasSection, key, LEVEL, ruleKey, show, stateRules } from '../ir.ts';
+import type { Bug, Graph, Lasso, PathStep, Rule, Spec, State, Step, Value, Vars, View } from '../ir.ts';
 import { addPast, deadEnds, finder, lasso, mark } from "../passes/annotate.ts";
 import { pathGraph } from "../passes/paths.ts";
 import { bugs, walk } from "../passes/reach.ts";
@@ -64,10 +47,10 @@ const graphOf = (states: StateRow[], steps: StepRow[]) => {
   const graph: Graph = { states: new Map(), steps: [] };
   for (const [id, vars, start, breaks = []] of states) {
     const rules: Rule[] = [];
-    for (const name of breaks) rules.push({ kind: "invariant", name });
+    for (const name of breaks) {rules.push({ kind: "invariant", name });}
     graph.states.set(id, { vars, start: !!start, breaks: rules });
   }
-  for (const [from, to, action] of steps) graph.steps.push({ from, to, action });
+  for (const [from, to, action] of steps) {graph.steps.push({ from, to, action });}
   return graph;
 };
 
@@ -79,16 +62,16 @@ const lookup = <K, V>(map: ReadonlyMap<K, V>, k: K) => {
 
 const field = (value: Value, name: string) => {
   if (typeof value !== "object" || value.kind !== "function")
-    throw new Error(`${inspect(value)} is not a function.`);
+    {throw new Error(`${inspect(value)} is not a function.`);}
   for (let i = 0; i < value.keys.length; i++) {
     const k = value.keys[i];
     if (k === name || (typeof k === "object" && k.kind === "model" && k.name === name))
-      return value.values[i];
+      {return value.values[i];}
   }
   throw new Error(`${inspect(value)} has no ${name}.`);
 };
 
-function draw(graph: Graph, view: View, loops: Bug[] = []) {
+const draw = function (graph: Graph, view: View, loops: Bug[] = []) {
   const found = [...bugs(graph), ...loops];
   const { chart, stories } = project(graph, walk(graph), view, found);
   const spec: Spec = {
@@ -110,7 +93,7 @@ function draw(graph: Graph, view: View, loops: Bug[] = []) {
     states: { distinct: graph.states.size, initial: 1, complete: true, cut: false },
   };
   return { chart: mermaid(chart), report: report(result, found, chart, stories) };
-}
+};
 
 const marked = (chart: string) => {
   const out: { [label: string]: string } = {};
@@ -122,6 +105,7 @@ const marked = (chart: string) => {
   return out;
 };
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("TLA+ values reach the view as the skill says: sequences from 1, sets as arrays", () => {
   const seen = (text: string) => json(parseValue(text));
   assert.deepEqual(seen('<<1, "a", <<>>>>'), { 1: 1, 2: "a", 3: {} });
@@ -139,6 +123,7 @@ test("TLA+ values reach the view as the skill says: sequences from 1, sets as ar
   });
 });
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a value outside the grammar TLC prints is an error, never a guess", () => {
   for (const text of [
     "<<1, 2",
@@ -156,9 +141,10 @@ test("a value outside the grammar TLC prints is an error, never a guess", () => 
     "SUBSET {1}",
     "[S -> T]",
   ])
-    assert.throws(() => parseValue(text), /cannot read TLA\+ value/, text);
+    {assert.throws(() => parseValue(text), /cannot read TLA\+ value/, text);}
 });
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a label prints each value in TLA+, so values that TLC tells apart look apart", () => {
   const shown = (text: string) => show(parseValue(text));
   for (const text of [
@@ -177,9 +163,10 @@ test("a label prints each value in TLA+, so values that TLC tells apart look apa
     '"a\\nb\\tc\\"d\\\\e"',
     '(<<1, 2>> :> {A, "A"} @@ 0 :> -1)',
   ])
-    assert.equal(shown(text), text);
+    {assert.equal(shown(text), text);}
 });
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("equal TLA+ values share one key and unequal ones do not, as TLC compares them", () => {
   const same = [
     ["1..3", "{1, 2, 3}"],
@@ -195,7 +182,7 @@ test("equal TLA+ values share one key and unequal ones do not, as TLC compares t
     ["{A, B}", "{B, A}"],
     ['{"b", "a"}', '{"a", "b"}'],
   ];
-  for (const [a, b] of same) assert.equal(key(parseValue(a)), key(parseValue(b)), `${a} = ${b}`);
+  for (const [a, b] of same) {assert.equal(key(parseValue(a)), key(parseValue(b)), `${a} = ${b}`);}
   const apart = [
     ['"A"', "A"],
     ["<<0>>", '("1" :> 0)'],
@@ -212,10 +199,10 @@ test("equal TLA+ values share one key and unequal ones do not, as TLC compares t
     ["{<<1>>}", "{<<2>>}"],
   ];
   for (const [a, b] of apart)
-    assert.notEqual(key(parseValue(a)), key(parseValue(b)), `${a} # ${b}`);
+    {assert.notEqual(key(parseValue(a)), key(parseValue(b)), `${a} # ${b}`);}
 });
 
-function replay(name: string, graph: Graph) {
+const replay = function (name: string, graph: Graph) {
   const spec = corpusSpec(name);
   const names = spec.variables;
   const rules = stateRules(spec);
@@ -224,19 +211,19 @@ function replay(name: string, graph: Graph) {
   const past = mark(graph, marks, names, rules, find);
   const drawn = !fs.existsSync(corpus(name, "ChartRun.exit"));
   for (const f of fs.readdirSync(path.join(here, "corpus", name)).sort()) {
-    if (!/^verdict-\d+\.out$/.test(f)) continue;
+    if (!/^verdict-\d+\.out$/u.test(f)) {continue;}
     const messages = [...readMessages(fileLines(corpus(name, f)))];
     const { broke } = readVerdict(messages);
-    if (!broke) continue;
+    if (!broke) {continue;}
     let rule: Rule | undefined;
     for (const r of rules)
-      if (r.kind === broke.kind && (broke.kind === "deadlock" || r.name === broke.name)) rule = r;
-    if (!rule) continue;
+      {if (r.kind === broke.kind && (broke.kind === "deadlock" || r.name === broke.name)) {rule = r;}}
+    if (!rule) {continue;}
     if (rule.kind === "deadlock" && drawn && !hasSection(spec, "CONSTRAINT", "ACTION_CONSTRAINT"))
-      deadEnds(graph, rule);
+      {deadEnds(graph, rule);}
     const counterexample = readCounterexample(messages);
     if (drawn || lasso(graph, { seq: counterexample, loop: undefined }, names, find))
-      addPast(
+      {addPast(
         graph,
         counterexample,
         names,
@@ -244,10 +231,11 @@ function replay(name: string, graph: Graph) {
         past,
         hasSection(spec, "ACTION_CONSTRAINT"),
         find,
-      );
+      );}
   }
-}
+};
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("each corpus bug path is the shortest way to its rule", () => {
   const paths: { [rule: string]: string[] } = {};
   for (const name of ["DieHard", "MediaPlayer", "LoginParallel", "TwoPhase", "FirstRule"]) {
@@ -255,7 +243,7 @@ test("each corpus bug path is the shortest way to its rule", () => {
     replay(name, graph);
     for (const bug of bugs(graph)) {
       paths[bug.rule.name] = [];
-      for (const p of bug.path) paths[bug.rule.name].push(p.action);
+      for (const p of bug.path) {paths[bug.rule.name].push(p.action);}
     }
   }
   assert.deepEqual(paths.NotSolved, [
@@ -276,18 +264,19 @@ test("each corpus bug path is the shortest way to its rule", () => {
   assert.deepEqual(paths.NoDeadlock, ["Next", "Next", "Next"]);
 });
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a chart of only the bug paths words each one with the view, asked once for each state and step", () => {
   const spec = corpusSpec("FirstRule");
   const rules = stateRules(spec);
   const drawn = pathGraph(spec.variables);
   const paths: Bug[] = [];
   for (const f of fs.readdirSync(path.join(here, "corpus", "FirstRule")).sort()) {
-    if (!/^verdict-\d+\.out$/.test(f)) continue;
+    if (!/^verdict-\d+\.out$/u.test(f)) {continue;}
     const messages = [...readMessages(fileLines(corpus("FirstRule", f)))];
     const { broke } = readVerdict(messages);
     for (const rule of rules)
-      if (broke?.kind === rule.kind && (broke.kind === "deadlock" || rule.name === broke.name))
-        paths.push(drawn.bug(rule, readCounterexample(messages)));
+      {if (broke?.kind === rule.kind && (broke.kind === "deadlock" || rule.name === broke.name))
+        {paths.push(drawn.bug(rule, readCounterexample(messages)));}}
   }
   const asked: { [question: string]: number } = {};
   const count = (question: string) => (asked[question] = (asked[question] ?? 0) + 1);
@@ -322,10 +311,10 @@ test("a chart of only the bug paths words each one with the view, asked once for
   );
   assert.ok(files.has("chart.mmd"));
   for (const rule of ["NotOne", "NotOneOrThree", "AlsoNotOne"])
-    assert.match(
+    {assert.match(
       text,
       new RegExp(`^## ${rule} breaks\\n.*\\n0\\. x is 0\\n1\\. Next adds one: x is 1$`, "m"),
-    );
+    );}
   assert.deepEqual(asked, {
     "state 0": 1,
     "step 0 to 1": 1,
@@ -337,6 +326,7 @@ test("a chart of only the bug paths words each one with the view, asked once for
   });
 });
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("the graph that parseDot returns keeps none of the text it read", () => {
   v8.setFlagsFromString("--expose-gc");
   const gc: () => void = vm.runInNewContext("gc");
@@ -354,7 +344,7 @@ test("the graph that parseDot returns keeps none of the text it read", () => {
         `${id} [label="n = ${i}"];`,
         `${id} -> ${id} [label="StayAtStateNumber${i}"];`,
       ];
-      while (lines.length < 1024) lines.push(`// ${"x".repeat(1020)}`);
+      while (lines.length < 1024) {lines.push(`// ${"x".repeat(1020)}`);}
       yield* `${lines.join("\n")}\n`.split("\n");
     }
   }
@@ -365,6 +355,7 @@ test("the graph that parseDot returns keeps none of the text it read", () => {
   assert.ok(kept < 4 * MiB, `the graph keeps ${(kept / MiB).toFixed(1)} MiB of ${pieces} MiB read`);
 });
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("TLC's marks place on their states even when TLC wraps them over lines", () => {
   const spec = corpusSpec("TwoPhase");
   const out = fs.readFileSync(corpus("TwoPhase", "ChartRun.out"), "utf8");
@@ -375,8 +366,8 @@ test("TLC's marks place on their states even when TLC wraps them over lines", ()
   );
   const bad: Value[][] = [];
   for (const s of graph.states.values())
-    if (s.breaks.length)
-      bad.push([field(s.vars.rmState, "r1"), field(s.vars.rmState, "r2")].sort());
+    {if (s.breaks.length)
+      {bad.push([field(s.vars.rmState, "r1"), field(s.vars.rmState, "r2")].sort());}}
   assert.deepEqual(bad, [
     ["aborted", "committed"],
     ["aborted", "committed"],
@@ -396,6 +387,7 @@ test("TLC's marks place on their states even when TLC wraps them over lines", ()
   );
 });
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a chart tuple that TLC prints inside one of its messages is not a mark", () => {
   const chart = '<<"chart", <<2>>, {"Bad"}>>';
   const out = [
@@ -411,6 +403,7 @@ test("a chart tuple that TLC prints inside one of its messages is not a mark", (
   assert.deepEqual(marks, [...readMarks(readMessages(`${chart}\n`), "chart")]);
 });
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a line that the spec prints in the shape of a mark is spec output, not a mark", () => {
   const out = [
     '<<"chart", <<2>>, {"Bad"}>>',
@@ -431,6 +424,7 @@ test("a line that the spec prints in the shape of a mark is spec output, not a m
 
 const inv: Rule = { kind: "invariant", name: "Inv" };
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a wrapped mark with a model value named constructor places on its state", () => {
   const graph = graphOf([["s0", { x: parseValue("constructor") }, true]], []);
   assert.equal(
@@ -445,6 +439,7 @@ test("a wrapped mark with a model value named constructor places on its state", 
   assert.deepEqual(graph.states.get("s0")?.breaks, [inv]);
 });
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a tagged line in the wrong shape is an error, not spec output", () => {
   for (const line of [
     '<<"chart", [x |-> 1, y |-> 2], {"Inv"}>>',
@@ -453,11 +448,11 @@ test("a tagged line in the wrong shape is an error, not spec output", () => {
     '<<"chart", <<1>>, {1}>>',
     '<<"chart", <<1>>, {"Inv"}, 2>>',
   ])
-    assert.throws(
+    {assert.throws(
       () => [...readMarks(readMessages(`${line}\n`), "chart")],
       /TLC printed a mark that the command cannot read/,
       line,
-    );
+    );}
 });
 
 const ab: View = { state: (v) => ({ A: `a${v.a}`, B: `b${v.b}` }) };
@@ -465,14 +460,14 @@ const bit = (v: Vars) => `${v.a}${v.b}${v.c}`;
 const xorStates: StateRow[] = [];
 const xorSteps: StepRow[] = [];
 for (const a of [0, 1])
-  for (const b of [0, 1])
-    for (const c of [0, 1]) {
+  {for (const b of [0, 1])
+    {for (const c of [0, 1]) {
       const v = { a, b, c };
       xorStates.push([bit(v), v, a === 0]);
-      if (a === 0 && b !== c) xorSteps.push([bit(v), bit({ ...v, a: 1 }), "Go"]);
-      if (b === 0) xorSteps.push([bit(v), bit({ ...v, b: 1 }), "FlipB"]);
-      if (c === 0) xorSteps.push([bit(v), bit({ ...v, c: 1 }), "FlipC"]);
-    }
+      if (a === 0 && b !== c) {xorSteps.push([bit(v), bit({ ...v, a: 1 }), "Go"]);}
+      if (b === 0) {xorSteps.push([bit(v), bit({ ...v, b: 1 }), "FlipB"]);}
+      if (c === 0) {xorSteps.push([bit(v), bit({ ...v, c: 1 }), "FlipC"]);}
+    }}}
 const truthGraphs: { [name: string]: [Graph, View] } = {
   starts: [
     graphOf(
@@ -554,13 +549,15 @@ for (const [name, regions] of [
   ["lockstep", true],
   ["interleaved", true],
 ] satisfies [string, boolean][]) {
+  // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
   test(`${name}: the chart uses regions only when they show the model's moves exactly`, () => {
     const { chart, report: text } = draw(...truthGraphs[name]);
     assert.equal(chart.includes('state "At the same time"'), regions);
-    assert.equal(/So the chart draws parent states in place of regions\.$/m.test(text), !regions);
+    assert.equal(/So the chart draws parent states in place of regions\.$/mu.test(text), !regions);
   });
 }
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("the report says why regions cannot show a shared step that forks", () => {
   assert.match(
     draw(...truthGraphs.fork).report,
@@ -580,12 +577,14 @@ const forkToBug = graphOf(
   ],
 );
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a chart that draws parent states in place of regions still names each region in a bug path", () => {
   const { chart, report: text } = draw(forkToBug, ab);
   assert.match(chart, /^ {2}state "A a2" as s\d+ \{$/m);
   assert.match(text, /^0\. A a0, B b0\n1\. Sync: A a2, B b2$/m);
 });
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("the view answers once for each state and step, so a chart of parent states agrees with its report", () => {
   const asked: { [question: string]: number } = {};
   const answer = (question: string) => {
@@ -616,6 +615,7 @@ test("the view answers once for each state and step, so a chart of parent states
   });
 });
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a region state is marked when every combination with it can break a rule", () => {
   const graph = graphOf(
     [
@@ -635,6 +635,7 @@ test("a region state is marked when every combination with it can break a rule",
   assert.deepEqual(marked(draw(graph, ab).chart), { a2: "breaks" });
 });
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a combination that breaks a rule marks its states when no state of it has a mark", () => {
   const graph = graphOf(
     [
@@ -653,6 +654,7 @@ test("a combination that breaks a rule marks its states when no state of it has 
   assert.deepEqual(marked(draw(graph, ab).chart), { a1: "mayBreak", b1: "mayBreak" });
 });
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a bug-path step that stays in one state is a loop in a flat chart only", () => {
   const graph = graphOf(
     [
@@ -673,6 +675,7 @@ test("a bug-path step that stays in one state is a loop in a flat chart only", (
   assert.match(regions.report, /^The chart does not draw 1 steps that stay in one chart state\.$/m);
 });
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a step that leaves every child of a parent the same way is one arrow from the parent", () => {
   const graph = graphOf(
     [
@@ -687,13 +690,14 @@ test("a step that leaves every child of a parent the same way is one arrow from 
     ],
   );
   const { chart } = draw(graph, { state: (v) => String(v.at).split(".") });
-  const open = chart.match(/^ {2}state "Open" as (s\d+) \{$/m)?.[1];
-  const closed = chart.match(/^ {2}(s\d+): Closed$/m)?.[1];
+  const open = chart.match(/^ {2}state "Open" as (s\d+) \{$/mu)?.[1];
+  const closed = chart.match(/^ {2}(s\d+): Closed$/mu)?.[1];
   const quits = [];
-  for (const m of chart.matchAll(/^ {2}(s\d+) --> (s\d+): Quit$/gm)) quits.push([m[1], m[2]]);
+  for (const m of chart.matchAll(/^ {2}(s\d+) --> (s\d+): Quit$/gmu)) {quits.push([m[1], m[2]]);}
   assert.deepEqual(quits, [[open, closed]]);
 });
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a parent's only way in ends at the parent, and its start marker goes on to each state with that step's label", () => {
   const graph = graphOf(
     [
@@ -718,6 +722,7 @@ test("a parent's only way in ends at the parent, and its start marker goes on to
   ]);
 });
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a parent that two states lead into keeps an arrow from each, since one start marker cannot say where each came from", () => {
   const graph = graphOf(
     [
@@ -736,6 +741,7 @@ test("a parent that two states lead into keeps an arrow from each, since one sta
   assert.deepEqual(drawn(chart).arrows.sort(), ["A --> B: Go", "A --> p: Left", "B --> q: Right"]);
 });
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a label codes only the characters that Mermaid reads as syntax, so TLA+ values stay as TLC prints them", () => {
   const graph = graphOf(
     [
@@ -753,6 +759,7 @@ test("a label codes only the characters that Mermaid reads as syntax, so TLA+ va
   assert.match(chart, /^ {2}s\d+ --> s\d+: say: <<1, "a">> :> \[k \|-> \{\}\] @@ 2\.\.3$/m);
 });
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a label with %% stays text and cannot open a Mermaid directive", () => {
   const graph = graphOf(
     [
@@ -771,6 +778,7 @@ test("a label with %% stays text and cannot open a Mermaid directive", () => {
   assert.match(chart, /^ {2}s\d+ --> s\d+: #37;% go$/m);
 });
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("each line break in a label or a colors key is a space, so it cannot start a chart line", () => {
   const graph = graphOf(
     [
@@ -792,6 +800,7 @@ test("each line break in a label or a colors key is a space, so it cannot start 
   assert.doesNotMatch(chart, /^\s*s9{1,2}:/m);
 });
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a label of only white space or with a lone surrogate still has text in the chart", () => {
   const graph = graphOf(
     [
@@ -809,6 +818,7 @@ test("a label of only white space or with a lone surrogate still has text in the
   assert.match(chart, /^ {2}s\d+ --> s\d+: #32;$/m);
 });
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("NUL and C1 controls in a label are left out, since a browser draws their character references as other characters", () => {
   const graph = graphOf(
     [
@@ -828,6 +838,7 @@ test("NUL and C1 controls in a label are left out, since a browser draws their c
   assert.match(chart, /^ {2}s\d+ --> s\d+: ab cd$/m);
 });
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a label puts a word joiner inside ﬂ° and ¶ß, since Mermaid decodes a label's text a second time", () => {
   const graph = graphOf(
     [
@@ -845,6 +856,7 @@ test("a label puts a word joiner inside ﬂ° and ¶ß, since Mermaid decodes a 
   assert.match(chart, /^ {2}s\d+ --> s\d+: ﬂ #176; #182; ß$/m);
 });
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test('a label puts a word joiner inside marker-end=", since Mermaid rewrites marker-end="url(…# in the drawn SVG', () => {
   const graph = graphOf(
     [
@@ -864,6 +876,7 @@ test('a label puts a word joiner inside marker-end=", since Mermaid rewrites mar
   assert.match(chart, /^ {2}s\d+ --> s\d+: a="b" = "c"$/m);
 });
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a parent or region name with [[fork]], [[join]], or [[choice]] stays text", () => {
   const nested = graphOf(
     [
@@ -891,6 +904,7 @@ test("a parent or region name with [[fork]], [[join]], or [[choice]] stays text"
   assert.doesNotMatch(parents + regions, /\[\[/);
 });
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a label with C4Container, C4Component, C4Dynamic, or C4Deployment keeps the chart a state diagram", () => {
   const graph = graphOf(
     [
@@ -910,6 +924,7 @@ test("a label with C4Container, C4Component, C4Dynamic, or C4Deployment keeps th
   assert.match(chart, /^ {2}s\d+ --> s\d+: C#52;Container C4Context$/m);
 });
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a title with < cannot open an HTML tag that rewrites the chart's quotes", () => {
   const graph = graphOf(
     [
@@ -924,6 +939,7 @@ test("a title with < cannot open an HTML tag that rewrites the chart's quotes", 
   assert.match(chart, /^ {2}state "P" as s\d+ \{$/m);
 });
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("the title writes each character outside the allow list in the form Mermaid decodes in a title", () => {
   const graph = graphOf(
     [
@@ -943,6 +959,7 @@ test("the title writes each character outside the allow list in the form Mermaid
   assert.match(blank, /^stateDiagram-v2$/m);
 });
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("labels write the space between direction and LR, RL, TB, or BT as #32;", () => {
   const graph = graphOf(
     [
@@ -975,6 +992,7 @@ test("labels write the space between direction and LR, RL, TB, or BT as #32;", (
   assert.match(chart, /^ {2}s\d+ --> s\d+: back direction#32;rl$/m);
 });
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a view that cannot give a chart says what to change", () => {
   const graph = graphOf(
     [
@@ -1022,18 +1040,20 @@ const keyTrace = () =>
     { code: EC.TLC_STATE_PRINT3, level: LEVEL.STATE, body: ["3: Stuttering"] },
   ]);
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a loop's trace finds its states when TLC prints record fields in another order", () => {
   const graph = keyGraph();
   const bug = lasso(graph, keyTrace(), ["pos", "key"]);
   assert.ok(bug);
   assert.equal(bug.start, "idle");
   const moves = [];
-  for (const p of bug.path) moves.push([p.action, p.state]);
+  for (const p of bug.path) {moves.push([p.action, p.state]);}
   assert.deepEqual(moves, [["Go", "waitKeyOff"]]);
   assert.equal(bug.loop, 1);
   assert.equal(bug.stutters, true);
 });
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a view may hide a step inside a loop, but not a step out of it", () => {
   const graph = keyGraph();
   const found = lasso(graph, keyTrace(), ["pos", "key"]);
@@ -1048,6 +1068,7 @@ test("a view may hide a step inside a loop, but not a step out of it", () => {
   );
 });
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a loop that passes one state twice names it once", () => {
   const graph = graphOf(
     [
@@ -1066,10 +1087,10 @@ test("a loop that passes one state twice names it once", () => {
   for (const [from, to] of ["ab", "ba", "ac", "ca"]) {
     let step: Step | undefined;
     for (const t of graph.steps)
-      if (t.from === from && t.to === to) {
+      {if (t.from === from && t.to === to) {
         step = t;
         break;
-      }
+      }}
     assert.ok(step);
     path.push({ action: step.action, state: to, step });
   }
@@ -1084,6 +1105,7 @@ test("a loop that passes one state twice names it once", () => {
   assert.match(report, /^The run loops through "a", "b" and "c" forever\.$/m);
 });
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a chart that draws a way out of a loop that the loop cannot take stops the command", () => {
   const graph = keyGraph();
   const found = lasso(graph, keyTrace(), ["pos", "key"]);
@@ -1098,10 +1120,11 @@ test("a chart that draws a way out of a loop that the loop cannot take stops the
     { state: (v) => `${v.pos}, key ${field(v.key, "on") ? "on" : "off"}` },
     [loop],
   );
-  const wait = chart.match(/^ {2}(s\d+): wait, key off$/m)?.[1];
+  const wait = chart.match(/^ {2}(s\d+): wait, key off$/mu)?.[1];
   assert.match(chart, new RegExp(`^ {2}class ${wait} repeats$`, "m"));
 });
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a region named __proto__ is a region like any other", () => {
   const graph = graphOf(
     [
@@ -1122,6 +1145,7 @@ test("a region named __proto__ is a region like any other", () => {
   assert.match(chart, /^ {4}state "Other" as r1 \{$/m);
 });
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("checkView takes a full view and refuses each wrong kind and every bad color", () => {
   checkView({}, inspect);
   checkView(
@@ -1143,10 +1167,11 @@ test("checkView takes a full view and refuses each wrong kind and every bad colo
       error instanceof Error &&
       /\bBusy\b[\s\S]*"red"/.test(error.message) &&
       /\bIdle\b[\s\S]*"repeats"/.test(error.message) &&
-      !/\bDone\b/.test(error.message),
+      !/\bDone\b/u.test(error.message),
   );
 });
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a group named like an Object method still needs its own color", () => {
   const graph = graphOf([["s0", { x: 0 }, true]], []);
   assert.throws(
@@ -1155,6 +1180,7 @@ test("a group named like an Object method still needs its own color", () => {
   );
 });
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a message writes each value the way JavaScript shows it", () => {
   const loop: { self?: unknown } = {};
   loop.self = loop;
@@ -1173,16 +1199,18 @@ test("a message writes each value the way JavaScript shows it", () => {
   );
 });
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("checkView takes colors only as a plain object", () => {
   const bare: object = Object.create(null);
   checkView({ colors: Object.assign(bare, { Busy: "blue" }) }, inspect);
   const inherited: object = Object.create({ Busy: "blue" });
   for (const colors of [new Map([["Busy", "blue"]]), inherited, new String("blue")])
-    assert.throws(() => checkView({ colors }, inspect), {
+    {assert.throws(() => checkView({ colors }, inspect), {
       message: "The view's colors must be a plain object.",
-    });
+    });}
 });
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("the chart uses the colors that checkView read once from the view's own keys", () => {
   const graph = graphOf([["s0", { x: 0 }, true]], []);
   let reads = 0;
@@ -1217,6 +1245,7 @@ test("the chart uses the colors that checkView read once from the view's own key
   );
 });
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a chart state with mixed groups gets no color, even when colors names undefined", () => {
   const graph = graphOf(
     [
@@ -1233,21 +1262,22 @@ test("a chart state with mixed groups gets no color, even when colors names unde
   assert.doesNotMatch(draw(graph, view).chart, /^ {2}class /m);
 });
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a graph of 10,000 states draws in seconds with no view", () => {
   const n = 100;
   const states: StateRow[] = [];
   const steps: StepRow[] = [];
   for (let x = 0; x < n; x++)
-    for (let y = 0; y < n; y++) {
+    {for (let y = 0; y < n; y++) {
       const far = x === n - 1 && y === n - 1;
       states.push([`${x},${y}`, { x, y }, x + y === 0, far ? ["Safe"] : []]);
-      if (x + 1 < n) steps.push([`${x},${y}`, `${x + 1},${y}`, "Right"]);
-      if (y + 1 < n) steps.push([`${x},${y}`, `${x},${y + 1}`, "Down"]);
-    }
+      if (x + 1 < n) {steps.push([`${x},${y}`, `${x + 1},${y}`, "Right"]);}
+      if (y + 1 < n) {steps.push([`${x},${y}`, `${x},${y + 1}`, "Down"]);}
+    }}
   const start = performance.now();
   const { chart, report: text } = draw(graphOf(states, steps), {});
   const seconds = (performance.now() - start) / 1000;
   assert.match(text, /^The shortest path has 198 steps:$/m);
-  assert.equal(chart.match(/^ {2}s\d+: /gm)?.length, n * n);
+  assert.equal(chart.match(/^ {2}s\d+: /gmu)?.length, n * n);
   assert.ok(seconds < 5, `drawing took ${seconds.toFixed(1)} s`);
 });

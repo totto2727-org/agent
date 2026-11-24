@@ -1,8 +1,14 @@
+// oxlint-disable-next-line rules/no-node-imports -- Test the distributed script as a native Node.js subprocess.
 import { execFile } from "node:child_process";
+// oxlint-disable-next-line rules/no-node-imports -- Create and inspect filesystem fixtures for the subprocess.
 import { chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+// oxlint-disable-next-line rules/no-node-imports -- Place subprocess fixtures in the system temporary directory.
 import { tmpdir } from "node:os";
+// oxlint-disable-next-line rules/no-node-imports -- Resolve test fixture paths for the subprocess.
 import { resolve } from "node:path";
+// oxlint-disable-next-line rules/no-node-imports -- Find the distributed entry point relative to this test module.
 import { fileURLToPath } from "node:url";
+// oxlint-disable-next-line rules/no-node-imports -- Await the native subprocess and preserve its exit status in these tests.
 import { promisify } from "node:util";
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -29,7 +35,7 @@ import {
 const execute = promisify(execFile);
 const script = fileURLToPath(new URL("./evaluate.mjs", import.meta.url));
 
-async function dictionaryFixture({ complete = false, vocabulary = true } = {}) {
+const dictionaryFixture = async function ({ complete = false, vocabulary = true } = {}) {
   const paths = await fixture();
   await writeFile(
     resolve(paths.directory, "guide.md"),
@@ -67,11 +73,12 @@ async function dictionaryFixture({ complete = false, vocabulary = true } = {}) {
         : []),
     ],
   };
-  if (vocabulary)
+  if (vocabulary) {
     await writeFile(resolve(paths.directory, "private-vocabulary.json"), JSON.stringify(data));
+  }
   await writeFile(paths.manifestPath, JSON.stringify(manifest));
   return { ...paths, data };
-}
+};
 
 const ACCOUNT_ID = "0123456789abcdef0123456789abcdef";
 const API_KEY = "test-gateway-key";
@@ -85,7 +92,7 @@ const CREDENTIALS = {
 const temporaryDirectories = [];
 
 // The evaluator must not send a request-level retry override, so the Gateway's
-// own configured retry policy stays in effect.
+// Own configured retry policy stays in effect.
 const hasRetryOverride = (call) =>
   call.headers.some((header) => header.startsWith("cf-aig-max-attempts:"));
 
@@ -132,7 +139,11 @@ async function fixture({ model = "clef-flash" } = {}) {
   return { directory, manifestPath, outputPath: resolve(directory, "report.json") };
 }
 
-async function duplicateFixture({ model = "clef-flash", secondAudience, secondRuleIds } = {}) {
+const duplicateFixture = async function ({
+  model = "clef-flash",
+  secondAudience,
+  secondRuleIds,
+} = {}) {
   const directory = await mkdtemp(resolve(tmpdir(), "audit-english-docs-test-"));
   temporaryDirectories.push(directory);
   await writeFile(
@@ -184,24 +195,26 @@ async function duplicateFixture({ model = "clef-flash", secondAudience, secondRu
   const manifestPath = resolve(directory, "manifest.json");
   await writeFile(manifestPath, JSON.stringify(manifest));
   return { directory, manifestPath, outputPath: resolve(directory, "report.json") };
-}
+};
 
-function evaluationOf(report, documentId, scope, sectionId = null) {
+const evaluationOf = function (report, documentId, scope, sectionId = null) {
   return report.evaluations.find(
     (entry) =>
       entry.documentId === documentId &&
       entry.scope === scope &&
       (sectionId === null || entry.section?.id === sectionId),
   );
-}
+};
 
-function assertAnswerIdentities(report) {
+const assertAnswerIdentities = function (report) {
   for (const entry of report.evaluations) {
     const ids = new Set(entry.questions.map((question) => question.id));
     expect(entry.answers.length).toBe(entry.questions.length);
-    for (const answer of entry.answers) expect(ids.has(answer.questionId)).toBe(true);
+    for (const answer of entry.answers) {
+      expect(ids.has(answer.questionId)).toBe(true);
+    }
   }
-}
+};
 
 const MOCK_SOURCE = `#!/usr/bin/env node
 const fs = require("node:fs");
@@ -247,14 +260,14 @@ setTimeout(() => {
 }, 20);
 `;
 
-async function installCurlMock(directory) {
+const installCurlMock = async function (directory) {
   const script = resolve(directory, "curl");
   await writeFile(script, MOCK_SOURCE);
   await chmod(script, 0o755);
   return script;
-}
+};
 
-async function readCalls(log) {
+const readCalls = async function (log) {
   try {
     return (await readFile(log, "utf8"))
       .trim()
@@ -264,16 +277,19 @@ async function readCalls(log) {
   } catch {
     return [];
   }
-}
+};
 
-function restoreEnvironment(saved) {
-  for (const [key, value] of Object.entries(saved)) {
-    if (value === undefined) delete process.env[key];
-    else process.env[key] = value;
-  }
-}
+const restoreEnvironment = function (saved) {
+  Object.entries(saved).forEach(([key, value]) => {
+    if (value === undefined) {
+      delete process.env[key];
+    } else {
+      process.env[key] = value;
+    }
+  });
+};
 
-async function prepareMock(paths, options = {}) {
+const prepareMock = async function (paths, options = {}) {
   await installCurlMock(paths.directory);
   const log = resolve(paths.directory, "calls.log");
   const counter = resolve(paths.directory, "counter.txt");
@@ -295,15 +311,25 @@ async function prepareMock(paths, options = {}) {
   delete process.env.CURL_MOCK_STATUS_SEQUENCE;
   delete process.env.CURL_MOCK_CACHE_STATUS;
   delete process.env.CURL_MOCK_RAY;
-  if (options.exitCode) process.env.CURL_MOCK_EXIT = String(options.exitCode);
-  if (options.mode) process.env.CURL_MOCK_MODE = options.mode;
-  if (options.statusSequence) process.env.CURL_MOCK_STATUS_SEQUENCE = options.statusSequence;
-  if (options.cacheStatus) process.env.CURL_MOCK_CACHE_STATUS = options.cacheStatus;
-  if (options.ray) process.env.CURL_MOCK_RAY = options.ray;
+  if (options.exitCode) {
+    process.env.CURL_MOCK_EXIT = String(options.exitCode);
+  }
+  if (options.mode) {
+    process.env.CURL_MOCK_MODE = options.mode;
+  }
+  if (options.statusSequence) {
+    process.env.CURL_MOCK_STATUS_SEQUENCE = options.statusSequence;
+  }
+  if (options.cacheStatus) {
+    process.env.CURL_MOCK_CACHE_STATUS = options.cacheStatus;
+  }
+  if (options.ray) {
+    process.env.CURL_MOCK_RAY = options.ray;
+  }
   return { log, restore: () => restoreEnvironment(saved) };
-}
+};
 
-async function withMock(paths, options, callback) {
+const withMock = async function (paths, options, callback) {
   const mock = await prepareMock(paths, options);
   try {
     const result = await callback();
@@ -311,13 +337,13 @@ async function withMock(paths, options, callback) {
   } finally {
     mock.restore();
   }
-}
+};
 
 afterEach(async () => {
   await Promise.all(
     temporaryDirectories
       .splice(0)
-      .map((directory) => rm(directory, { recursive: true, force: true })),
+      .map((directory) => rm(directory, { force: true, recursive: true })),
   );
 });
 
@@ -771,7 +797,7 @@ describe("documentation quality evaluator public pipeline", () => {
       expect(call.headers).toContain("cf-aig-skip-cache: false");
       expect(hasRetryOverride(call)).toBe(false);
       expect(
-        call.headers.some((header) => /^cf-aig-cache-key: decision-v1-[0-9a-f]{64}$/.test(header)),
+        call.headers.some((header) => /^cf-aig-cache-key: decision-v1-[0-9a-f]{64}$/u.test(header)),
       ).toBe(true);
     }
   });
@@ -792,7 +818,7 @@ describe("documentation quality evaluator public pipeline", () => {
       expect(call.headers).toContain("cf-aig-skip-cache: false");
       expect(hasRetryOverride(call)).toBe(false);
       expect(
-        call.headers.some((header) => /^cf-aig-cache-key: decision-v1-[0-9a-f]{64}$/.test(header)),
+        call.headers.some((header) => /^cf-aig-cache-key: decision-v1-[0-9a-f]{64}$/u.test(header)),
       ).toBe(true);
     }
     expect(report.requestCount).toBe(calls.length);
@@ -812,10 +838,10 @@ describe("documentation quality evaluator public pipeline", () => {
     expect(calls).toHaveLength(3);
     expect(new Set(calls.map((call) => call.url)).size).toBe(1);
     // The evaluator makes no client-side retry and sends no retry override, so
-    // the Gateway's configured retry policy is untouched rather than proven.
+    // The Gateway's configured retry policy is untouched rather than proven.
     expect(calls.filter(hasRetryOverride)).toHaveLength(0);
     // The first logical request observes the mocked 503 once and is reported as
-    // an error; the later distinct requests observe the mocked 200.
+    // An error; the later distinct requests observe the mocked 200.
     expect(report.evaluations[0]).toMatchObject({ status: "error", answers: [] });
     expect(report.evaluations[0].error).toContain("HTTP 503");
     expect(report.evaluations.slice(1).every((entry) => entry.status === "complete")).toBe(true);
@@ -1334,8 +1360,8 @@ describe("documentation quality evaluator public pipeline", () => {
       }),
     );
     // Each document has two distinct section units plus one page unit. The
-    // section criteria differ between documents, so only the page request is
-    // shared: four section requests plus one page request.
+    // Section criteria differ between documents, so only the page request is
+    // Shared: four section requests plus one page request.
     expect(criteriaCalls).toHaveLength(5);
     expect(criteriaReport.requestCount).toBe(5);
     const sectionA = evaluationOf(criteriaReport, "guide-a", "section", "section-1");
@@ -1359,7 +1385,7 @@ describe("documentation quality evaluator public pipeline", () => {
       }),
     );
     // The evaluator records the response header value verbatim. The mock header
-    // is not evidence of a real AI Gateway cache hit.
+    // Is not evidence of a real AI Gateway cache hit.
     expect(report.evaluations.every((entry) => entry.cache.status === "HIT")).toBe(true);
     expect(report.evaluations.every((entry) => entry.cache.reused === false)).toBe(true);
   });
@@ -1379,7 +1405,7 @@ const lexicalRule = {
   check: { kind: "prohibited-terms", terms: ["bad", "widget"], protectedTerms: ["widget"] },
 };
 
-async function localFixture({
+const localFixture = async function ({
   markdown = "# Setup\n\nUse the tool.\n\n```js\nrun();\n```\n",
   rules = [fenceRule],
   ...overrides
@@ -1394,7 +1420,7 @@ async function localFixture({
   };
   await writeFile(paths.manifestPath, JSON.stringify(manifest));
   return { ...paths, manifest, markdown };
-}
+};
 
 describe("local mechanical and semantic engine boundaries", () => {
   it.each([
@@ -1421,7 +1447,9 @@ describe("local mechanical and semantic engine boundaries", () => {
       const paths = await localFixture({ markdown, rules: [rule] });
       const { result: report, calls } = await withMock(paths, {}, async () => {
         const environment = { ...process.env };
-        for (const key of Object.keys(CREDENTIALS)) delete environment[key];
+        Object.keys(CREDENTIALS).forEach((key) => {
+          delete environment[key];
+        });
         await expect(
           execute(
             process.execPath,
@@ -1480,8 +1508,9 @@ describe("local mechanical and semantic engine boundaries", () => {
         ["pass", "pass"],
       ],
     );
-    for (const answer of report.evaluations[1].answers)
+    for (const answer of report.evaluations[1].answers) {
       expect(answer.coverage.parserWarnings).toEqual([]);
+    }
     expect(report.evaluations[0].answers[0].coverage.parserWarnings[0].sourceRange).toMatchObject({
       startLine: 5,
       endLine: 5,
@@ -1598,7 +1627,9 @@ describe("local mechanical and semantic engine boundaries", () => {
       const paths = await localFixture({ markdown });
       const { result: report, calls } = await withMock(paths, {}, async () => {
         const environment = { ...process.env };
-        for (const key of Object.keys(CREDENTIALS)) delete environment[key];
+        Object.keys(CREDENTIALS).forEach((key) => {
+          delete environment[key];
+        });
         await expect(
           execute(
             process.execPath,
@@ -1640,7 +1671,9 @@ describe("local mechanical and semantic engine boundaries", () => {
       const paths = await localFixture();
       const { result: report, calls } = await withMock(paths, {}, async () => {
         const environment = { ...process.env };
-        for (const key of Object.keys(CREDENTIALS)) delete environment[key];
+        Object.keys(CREDENTIALS).forEach((key) => {
+          delete environment[key];
+        });
         await execute(
           process.execPath,
           [
@@ -1687,7 +1720,9 @@ describe("local mechanical and semantic engine boundaries", () => {
     });
     const { result: report, calls } = await withMock(paths, {}, async () => {
       const environment = { ...process.env };
-      for (const key of Object.keys(CREDENTIALS)) delete environment[key];
+      Object.keys(CREDENTIALS).forEach((key) => {
+        delete environment[key];
+      });
       await expect(
         execute(
           process.execPath,
@@ -1785,18 +1820,20 @@ describe("local mechanical and semantic engine boundaries", () => {
       expect(JSON.stringify(questions)).not.toContain("fenced-code-language");
       expect(JSON.stringify(questions)).not.toContain("prohibited-terms");
       expect(Object.keys(state.evidence)).toEqual(["document", "page", "local"]);
-      for (const question of Object.values(questions)) {
+      Object.values(questions).forEach((question) => {
         expect(question.instructions).toContain("for this paragraph question");
         expect(question.instructions).toContain("unseen link destinations");
         expect(question.instructions).toContain("Do not require rewriting");
-      }
+      });
       if (state.evidence.page.markdown.includes("# Setup")) {
         expect(JSON.stringify(state)).not.toContain("Other-page-secret");
         expect(state.evidence.document.templateConstraints).toEqual([
           "Keep the headings in template order.",
           "Keep the summary table.",
         ]);
-      } else expect(state.evidence.page.markdown).not.toContain("run();");
+      } else {
+        expect(state.evidence.page.markdown).not.toContain("run();");
+      }
     }
     assertAnswerIdentities(report);
   });
@@ -2031,8 +2068,9 @@ describe("local mechanical and semantic engine boundaries", () => {
       "html-block",
       "url-or-markup",
       "indented-code",
-    ])
+    ]) {
       expect(kinds.has(kind)).toBe(true);
+    }
     expect(
       runMechanical(
         { ...lexicalRule.check, caseSensitive: true },

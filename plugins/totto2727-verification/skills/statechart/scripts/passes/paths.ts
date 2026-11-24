@@ -1,30 +1,18 @@
-import {
-  type Bug,
-  type Graph,
-  hasRule,
-  type Lasso,
-  must,
-  type PathStep,
-  type Rule,
-  stateKey,
-  type Step,
-  type Trace,
-  type TraceState,
-  type Vars,
-} from "../ir.ts";
+import { hasRule, matchesUndefined, must, stateKey } from '../ir.ts';
+import type { Bug, Graph, Lasso, PathStep, Rule, Step, Trace, TraceState, Vars } from '../ir.ts';
 
 export function pathGraph(names: string[]) {
   const graph: Graph = { states: new Map(), steps: [] };
   const ids = new Map<string, string>();
   const taken = new Map<string, Step>();
   const idOf = (vars: Vars | undefined, start: boolean) => {
-    if (!vars) throw new Error("TLC's trace has a state with no values.");
+    if (!vars) {throw new Error("TLC's trace has a state with no values.");}
     const k = stateKey(names.map((name) => vars[name]));
     let id = ids.get(k);
-    if (id === undefined) {
+    if (matchesUndefined(id)) {
       ids.set(k, (id = String(ids.size)));
       graph.states.set(id, { vars, start, breaks: [] });
-    } else if (start) must(graph.states, id).start = true;
+    } else if (start) {must(graph.states, id).start = true;}
     return id;
   };
   const route = (seq: { action: string; vars: Vars | undefined }[]) => {
@@ -48,10 +36,10 @@ export function pathGraph(names: string[]) {
   return {
     graph,
     bug: (rule: Rule, trace: TraceState[]): Bug => {
-      if (!trace.length) throw new Error(`TLC's trace for ${rule.name} has no states.`);
+      if (!trace.length) {throw new Error(`TLC's trace for ${rule.name} has no states.`);}
       const bug = { rule, ...route(trace) };
       const end = must(graph.states, bug.path.at(-1)?.state ?? bug.start);
-      if (!hasRule(end.breaks, rule)) end.breaks.push(rule);
+      if (!hasRule(end.breaks, rule)) {end.breaks.push(rule);}
       return bug;
     },
     lasso: ({ seq, loop }: Trace): Lasso | undefined =>

@@ -6,24 +6,33 @@ import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const [checkout, candidate] = process.argv.slice(2);
-if (!checkout || process.argv.length > 4)
+if (!checkout || process.argv.length > 4) {
   throw new Error("Usage: node scripts/compare-pstack.mjs <mirror-checkout> [candidate-commit]");
+}
 const record = readFileSync(join(root, "docs/upstream-differences.md"), "utf8");
 const base = record.match(/backnotprop\/pstack\/commit\/([0-9a-f]{40})/u)?.[1];
-if (!base) throw new Error("Missing pinned pstack mirror commit in the divergence record");
-function git(...args) {
-  return execFileSync("git", ["-C", checkout, ...args], { encoding: "utf8" });
+if (!base) {
+  throw new Error("Missing pinned pstack mirror commit in the divergence record");
 }
+const git = function (...args) {
+  return execFileSync("git", ["-C", checkout, ...args], { encoding: "utf8" });
+};
 const owners = new Map();
 const retiredSkills = new Set(
   Array.from(record.matchAll(/^Retired upstream skill: `([^`]+)`/gmu), ([, name]) => name),
 );
 for (const pkg of readdirSync(join(root, "plugins"))) {
   const dir = join(root, "plugins", pkg, "skills");
-  if (!existsSync(dir)) continue;
+  if (!existsSync(dir)) {
+    continue;
+  }
   for (const skill of readdirSync(dir)) {
-    if (!existsSync(join(dir, skill, "SKILL.md"))) continue;
-    if (owners.has(skill)) throw new Error(`Ambiguous skill name: ${skill}`);
+    if (!existsSync(join(dir, skill, "SKILL.md"))) {
+      continue;
+    }
+    if (owners.has(skill)) {
+      throw new Error(`Ambiguous skill name: ${skill}`);
+    }
     owners.set(skill, join(dir, skill));
   }
 }
@@ -47,7 +56,9 @@ for (const row of git("ls-tree", "-rz", base, "--", "skills").split("\0").filter
   const dir = owners.get(skill);
   const file = dir && join(dir, ...tail);
   if (retired.delete(path)) {
-    if (file && existsSync(file)) throw new Error(`Documented retirement still shipped: ${path}`);
+    if (file && existsSync(file)) {
+      throw new Error(`Documented retirement still shipped: ${path}`);
+    }
     removed++;
     continue;
   }
@@ -58,8 +69,9 @@ for (const row of git("ls-tree", "-rz", base, "--", "skills").split("\0").filter
   const bytes = readFileSync(file);
   const hash = createHash("sha1").update(`blob ${bytes.length}\0`).update(bytes).digest("hex");
   const executable = Boolean(statSync(file).mode & 0o111);
-  if (hash === blob && executable === (mode === "100755")) identical++;
-  else {
+  if (hash === blob && executable === (mode === "100755")) {
+    identical++;
+  } else {
     changed++;
     console.log(`Adapted: ${path}`);
   }
@@ -69,14 +81,21 @@ for (const original of retiredSkills) {
   if (!skills.has(original)) throw new Error(`Unknown retired upstream skill: ${original}`);
 }
 for (const skill of skills) {
-  if (retiredSkills.has(skill)) continue;
+  if (retiredSkills.has(skill)) {
+    continue;
+  }
   const dir = owners.get(skill);
   const file = dir && join(dir, "LICENSE");
-  if (!file || !existsSync(file) || readFileSync(file, "utf8") !== license)
+  if (!file || !existsSync(file) || readFileSync(file, "utf8") !== license) {
     missing.push(`MIT notice: ${skill}`);
+  }
 }
-for (const path of missing) console.error(`Missing: ${path}`);
-if (retired.size) throw new Error(`Unknown retired paths: ${[...retired].join(", ")}`);
+for (const path of missing) {
+  console.error(`Missing: ${path}`);
+}
+if (retired.size) {
+  throw new Error(`Unknown retired paths: ${[...retired].join(", ")}`);
+}
 console.log(
   `${skills.size} upstream skills (${skills.size - retiredSkills.size} distributed, ${retiredSkills.size} retired): ${identical} unchanged files, ${changed} adapted, ${removed} individual files retired, ${missing.length} missing files or notices.`,
 );
@@ -85,4 +104,6 @@ if (candidate) {
   console.log(`Upstream changes: ${base}..${rev}`);
   process.stdout.write(git("diff", "--name-status", base, rev, "--", "skills", "LICENSE"));
 }
-if (missing.length) process.exitCode = 1;
+if (missing.length) {
+  process.exitCode = 1;
+}

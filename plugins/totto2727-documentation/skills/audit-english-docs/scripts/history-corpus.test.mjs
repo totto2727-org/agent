@@ -1,8 +1,14 @@
+// oxlint-disable-next-line rules/no-node-imports -- Test the distributed script as a native Node.js subprocess.
 import { execFile } from "node:child_process";
+// oxlint-disable-next-line rules/no-node-imports -- Create and inspect filesystem fixtures for the subprocess.
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+// oxlint-disable-next-line rules/no-node-imports -- Place subprocess fixtures in the system temporary directory.
 import { tmpdir } from "node:os";
+// oxlint-disable-next-line rules/no-node-imports -- Resolve test fixture paths for the subprocess.
 import { resolve } from "node:path";
+// oxlint-disable-next-line rules/no-node-imports -- Find the distributed entry point relative to this test module.
 import { fileURLToPath } from "node:url";
+// oxlint-disable-next-line rules/no-node-imports -- Await the native subprocess and preserve its exit status in these tests.
 import { promisify } from "node:util";
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -14,15 +20,15 @@ const script = fileURLToPath(new URL("./history-corpus.mjs", import.meta.url));
 const directories = [];
 const revision = "a".repeat(40);
 
-async function temporaryDirectory() {
+const temporaryDirectory = async function () {
   const directory = await mkdtemp(
     resolve(process.env.JCODE_SCRATCH_DIR ?? tmpdir(), "history-corpus-test-"),
   );
   directories.push(directory);
   return directory;
-}
+};
 
-function sample(overrides = {}) {
+const sample = function (overrides = {}) {
   return {
     id: "historical-negative",
     documentId: "sample-0001",
@@ -39,9 +45,9 @@ function sample(overrides = {}) {
     ruleScopes: { direct: "section" },
     ...overrides,
   };
-}
+};
 
-function evaluation(overrides = {}) {
+const evaluation = function (overrides = {}) {
   return {
     documentId: "sample-0001",
     scope: "section",
@@ -51,13 +57,13 @@ function evaluation(overrides = {}) {
     status: "complete",
     ...overrides,
   };
-}
+};
 
-function score(entries, samples = [sample()]) {
+const score = function (entries, samples = [sample()]) {
   return scoreReport({ threshold: 0.8, evaluations: entries }, { version: 1, samples });
-}
+};
 
-async function repositoryFixture() {
+const repositoryFixture = async function () {
   const repository = await temporaryDirectory();
   const git = (...args) => execute("git", ["-C", repository, ...args]);
   await git("init", "--quiet");
@@ -90,7 +96,9 @@ async function repositoryFixture() {
       expected: { direct: "pass" },
     }),
   ];
-  for (const item of samples) delete item.documentId;
+  for (const item of samples) {
+    delete item.documentId;
+  }
   const specPath = resolve(repository, "corpus.json");
   const rulesPath = resolve(repository, "rules.json");
   await writeFile(specPath, JSON.stringify(samples));
@@ -115,11 +123,11 @@ async function repositoryFixture() {
     rulesPath,
     outputDir: resolve(repository, "prepared"),
   };
-}
+};
 
 afterEach(async () => {
   await Promise.all(
-    directories.splice(0).map((directory) => rm(directory, { recursive: true, force: true })),
+    directories.splice(0).map((directory) => rm(directory, { force: true, recursive: true })),
   );
 });
 

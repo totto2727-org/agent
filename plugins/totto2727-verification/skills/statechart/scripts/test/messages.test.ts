@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+// oxlint-disable-next-line rules/no-node-imports, vitest/no-import-node-test -- Statechart runs these fixtures with Node's test runner as part of the standalone skill.
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { plainText, runtime } from "../backends/plain-text.ts";
@@ -14,6 +15,7 @@ const tool = (code: number, level: number, ...lines: string[]) =>
 
 const plain = (text: string) => [...plainText(readMessages(text))].join("");
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("TLC output with Windows line ends names the rule that breaks and prints as with Unix ones", () => {
   const unix = fs.readFileSync(path.join(here, "corpus", "FirstRule", "verdict-1.out"), "utf8");
   const windows = unix.replaceAll("\n", "\r\n");
@@ -22,6 +24,7 @@ test("TLC output with Windows line ends names the rule that breaks and prints as
   assert.equal(plain(windows), plain(unix));
 });
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("TLC's -tool output prints as plain TLC prints it", () => {
   const text = [
     tool(2262, 0, "TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)"),
@@ -76,6 +79,7 @@ test("TLC's -tool output prints as plain TLC prints it", () => {
   );
 });
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a message that TLC prints inside another prints as plain TLC prints it", () => {
   const assertion = "The first argument of Assert evaluated to FALSE; the second argument was:";
   const text = [
@@ -105,6 +109,7 @@ test("a message that TLC prints inside another prints as plain TLC prints it", (
   );
 });
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("an end line closes the innermost message whatever code it names", () => {
   const text = [
     "@!@!@STARTMSG 2111:1 @!@!@",
@@ -125,6 +130,7 @@ test("an end line closes the innermost message whatever code it names", () => {
   );
 });
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a message that TLC starts at the end of a line of text prints on that line", () => {
   const text = [
     "@!@!@STARTMSG 1000:1 @!@!@",
@@ -176,6 +182,7 @@ test("a message that TLC starts at the end of a line of text prints on that line
   );
 });
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("output that ends where TLC died prints as plain TLC's output cut at the same point", () => {
   const computing = tool(2189, 0, "Computing initial states...");
   const assertion = "The first argument of Assert evaluated to FALSE; the second argument was:";
@@ -202,11 +209,13 @@ test("output that ends where TLC died prints as plain TLC's output cut at the sa
   assert.equal(plain(afterStarts.join("\n")), "Computing initial states...\n");
 });
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("text outside TLC's messages, such as SANY's output, passes through unchanged", () => {
   for (const text of ["", "\n", "a\n\nb\n", "Semantic errors:\n\n  line 1\n"])
-    assert.equal(plain(text), text);
+    {assert.equal(plain(text), text);}
 });
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("TLC's run time prints as plain TLC prints it, with each field wrapping", () => {
   for (const [ms, printed] of [
     [0, "00s"],
@@ -222,5 +231,5 @@ test("TLC's run time prints as plain TLC prints it, with each field wrapping", (
     [90_000_000, "1d 01h"],
     [366 * 86_400_000, "1d 00h"],
   ] satisfies [number, string][])
-    assert.equal(runtime(ms), printed, String(ms));
+    {assert.equal(runtime(ms), printed, String(ms));}
 });

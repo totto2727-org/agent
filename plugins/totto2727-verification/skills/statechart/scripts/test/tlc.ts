@@ -17,20 +17,20 @@ const exitClass = (status: number | null) =>
 
 const stepsIn = (text: string) =>
   Math.max((text.match(/^State \d+: (?!Stuttering$)/gm)?.length ?? 0) - 1, 0) +
-  (text.match(/^Back to state \d+: </gm)?.length ?? 0);
+  (text.match(/^Back to state \d+: </gmu)?.length ?? 0);
 
-function properties(cfg: string) {
+const properties = function (cfg: string) {
   const names: string[] = [];
   let section = "";
   for (const line of cfg.split("\n")) {
-    section = line.match(/^[A-Z_]+/)?.[0] ?? section;
-    if (/^PROPERT(Y|IES)$/.test(section))
-      for (const word of line.trim().split(/\s+/)) if (word && word !== section) names.push(word);
+    section = line.match(/^[A-Z_]+/u)?.[0] ?? section;
+    if (/^PROPERT(Y|IES)$/u.test(section))
+      {for (const word of line.trim().split(/\s+/u)) {if (word && word !== section) {names.push(word);}}}
   }
   return names;
-}
+};
 
-function tlc(dir: string, module: string, cfg: string) {
+const tlc = function (dir: string, module: string, cfg: string) {
   const run = `alone-${fs.readdirSync(dir).length}`;
   const file = path.join(dir, `${run}.cfg`);
   fs.writeFileSync(file, cfg);
@@ -56,27 +56,27 @@ function tlc(dir: string, module: string, cfg: string) {
   const temporal = properties(cfg);
   const broke =
     out.match(/^Error: (?:Invariant|Action property|Property) (\S+) is violated/m)?.[1] ??
-    (/^Error: Deadlock reached\./m.test(out) ? "NoDeadlock" : undefined) ??
-    (/^Error: Temporal properties were violated\./m.test(out) && temporal.length === 1
+    (/^Error: Deadlock reached\./mu.test(out) ? "NoDeadlock" : undefined) ??
+    (/^Error: Temporal properties were violated\./mu.test(out) && temporal.length === 1
       ? temporal[0]
       : undefined);
   return { status: r.status, out, broke, steps: stepsIn(out) };
-}
+};
 
-function alone(cfg: string, rule: string) {
+const alone = function (cfg: string, rule: string) {
   const lines: string[] = [];
   let section = "";
   for (const line of cfg.split("\n")) {
-    section = line.match(/^[A-Z_]+/)?.[0] ?? section;
-    if (!RULES.test(section)) lines.push(line);
+    section = line.match(/^[A-Z_]+/u)?.[0] ?? section;
+    if (!RULES.test(section)) {lines.push(line);}
   }
   if (rule !== "NoDeadlock")
-    lines.push(
+    {lines.push(
       `${properties(cfg).includes(rule) ? "PROPERTY" : "INVARIANT"} ${rule}`,
       "CHECK_DEADLOCK FALSE",
-    );
+    );}
   return `${lines.join("\n")}\n`;
-}
+};
 
 export type Verdict = {
   status: number | null;
@@ -90,8 +90,7 @@ export type Verdict = {
 export function agrees(module: string, files: { [name: string]: string[] }, cfg: string): Verdict {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "statechart-plain-"));
   try {
-    for (const [name, lines] of Object.entries(files))
-      fs.writeFileSync(path.join(dir, `${name}.tla`), `${lines.join("\n")}\n`);
+    Object.entries(files).forEach(([name, lines]) => {fs.writeFileSync(path.join(dir, `${name}.tla`), `${lines.join("\n")}\n`);});
     fs.writeFileSync(path.join(dir, `${module}.cfg`), cfg);
     const out = path.join(dir, "out");
     const cli = spawnSync(
@@ -108,8 +107,8 @@ export function agrees(module: string, files: { [name: string]: string[] }, cfg:
       `TLC says:\n${plain.out}\nThe command says:\n${shown}`,
     );
     assert.doesNotMatch(shown, /Chart\w*Mark/);
-    if (cli.status !== 2) assert.equal(cli.stderr, "");
-    if (!report) assert.match(cli.stderr, /TLC could not check/);
+    if (cli.status !== 2) {assert.equal(cli.stderr, "");}
+    if (!report) {assert.match(cli.stderr, /TLC could not check/);}
     if (cli.status === 2) {
       const error = plain.out.match(/^Error: .*$/m)?.[0];
       assert.ok(
@@ -121,15 +120,15 @@ export function agrees(module: string, files: { [name: string]: string[] }, cfg:
     const breaks = new Map<string, number>();
     const bounded = new Set<string>();
     for (const [, rule, body] of report.matchAll(/^## (\S+) breaks\n(.*)$/gm)) {
-      const said = body.match(/has (\d+) steps?:/)?.[1];
+      const said = body.match(/has (\d+) steps?:/u)?.[1];
       const file = body.match(/ is in (tlc-\S+\.out)\./)?.[1];
       if (!file) {
         breaks.set(rule, Number(said));
         continue;
       }
       const text = fs.readFileSync(path.join(out, file), "utf8");
-      if (said) assert.equal(Number(said), stepsIn(text), rule);
-      if (/^Semantic processing of module ChartBound$/m.test(text)) bounded.add(rule);
+      if (said) {assert.equal(Number(said), stepsIn(text), rule);}
+      if (/^Semantic processing of module ChartBound$/mu.test(text)) {bounded.add(rule);}
       breaks.set(rule, stepsIn(text));
     }
     const list = (title: string) =>
@@ -141,7 +140,7 @@ export function agrees(module: string, files: { [name: string]: string[] }, cfg:
     const unchecked = list("Rules not checked");
     const chartFile = path.join(out, "chart.mmd");
     const chart = fs.existsSync(chartFile) ? fs.readFileSync(chartFile, "utf8") : "";
-    if (plain.broke) assert.equal(breaks.get(plain.broke), plain.steps, shown);
+    if (plain.broke) {assert.equal(breaks.get(plain.broke), plain.steps, shown);}
     for (const rule of holds) {
       const r = tlc(dir, module, alone(cfg, rule));
       assert.equal(r.status, 0, `${rule} holds in the report, but TLC says:\n${r.out}`);
@@ -149,7 +148,7 @@ export function agrees(module: string, files: { [name: string]: string[] }, cfg:
     for (const [rule, steps] of breaks) {
       const r = tlc(dir, module, alone(cfg, rule));
       assert.equal(r.broke, rule, `${rule} breaks in the report, but TLC says:\n${r.out}`);
-      if (!bounded.has(rule)) assert.equal(steps, r.steps, rule);
+      if (!bounded.has(rule)) {assert.equal(steps, r.steps, rule);}
     }
     return { status: cli.status, breaks, holds, unchecked, chart, report };
   } finally {

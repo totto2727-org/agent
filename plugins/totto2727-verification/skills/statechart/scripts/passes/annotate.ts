@@ -1,22 +1,5 @@
-import {
-  findLoop,
-  findTrace,
-  type Graph,
-  hasRule,
-  type Lasso,
-  type Mark,
-  must,
-  type Past,
-  pastState,
-  type PathStep,
-  type Rule,
-  stateKey,
-  type Step,
-  type Trace,
-  type TraceState,
-  type Value,
-  valuesOf,
-} from "../ir.ts";
+import { findLoop, findTrace, hasRule, matchesUndefined, must, pastState, stateKey, valuesOf } from '../ir.ts';
+import type { Graph, Lasso, Mark, Past, PathStep, Rule, Step, Trace, TraceState, Value } from '../ir.ts';
 
 export const finder = (graph: Graph, names: string[]) => {
   let ids: Map<string, string> | undefined;
@@ -24,7 +7,7 @@ export const finder = (graph: Graph, names: string[]) => {
     if (!ids) {
       ids = new Map();
       for (const [id, s] of graph.states)
-        if (!s.excluded) ids.set(stateKey(valuesOf(s.vars, names)), id);
+        {if (!s.excluded) {ids.set(stateKey(valuesOf(s.vars, names)), id);}}
     }
     return ids.get(stateKey(values));
   };
@@ -40,15 +23,15 @@ export function mark(
   find = finder(graph, names),
 ) {
   const byName = new Map<string, Rule>();
-  for (const rule of rules) byName.set(rule.name, rule);
+  for (const rule of rules) {byName.set(rule.name, rule);}
   const past: Past = new Map();
   for (const { values, broken } of marks) {
     const id = find(values);
-    const state = id === undefined ? undefined : graph.states.get(id);
+    const state = matchesUndefined(id) ? undefined : graph.states.get(id);
     for (const name of broken) {
       const rule = must(byName, name);
-      if (state) state.breaks.push(rule);
-      else past.set(stateKey(values), (past.get(stateKey(values)) ?? new Set()).add(rule));
+      if (state) {state.breaks.push(rule);}
+      else {past.set(stateKey(values), (past.get(stateKey(values)) ?? new Set()).add(rule));}
     }
   }
   return past;
@@ -56,8 +39,8 @@ export function mark(
 
 export function deadEnds(graph: Graph, rule: Rule) {
   const from = new Set<string>();
-  for (const t of graph.steps) from.add(t.from);
-  for (const [id, s] of graph.states) if (!s.past && !from.has(id)) s.breaks.push(rule);
+  for (const t of graph.steps) {from.add(t.from);}
+  for (const [id, s] of graph.states) {if (!s.past && !from.has(id)) {s.breaks.push(rule);}}
 }
 
 export function addPast(
@@ -75,24 +58,24 @@ export function addPast(
   const action = trace[end].action;
   const taken = (to: string | undefined) => {
     for (const t of graph.steps)
-      if (t.from === from && t.to === to && t.action === action) return true;
+      {if (t.from === from && t.to === to && t.action === action) {return true;}}
     return false;
   };
   let to = trace[end].id;
-  const reached = to === undefined ? undefined : graph.states.get(to);
-  const excluded = excludes && reached !== undefined && end > 0 && !reached.past && !taken(to);
-  if (excluded) to = `past ${to} ${action} ${from}`;
+  const reached = matchesUndefined(to) ? undefined : graph.states.get(to);
+  const excluded = excludes && !matchesUndefined(reached) && end > 0 && !reached.past && !taken(to);
+  if (excluded) {to = `past ${to} ${action} ${from}`;}
   to ??= `past ${graph.states.size}`;
   let last = graph.states.get(to);
   if (!last) {
     const marked = excluded ? reached.breaks : (past.get(stateKey(trace[end].values)) ?? []);
     last = pastState(trace[end].vars, end === 0, marked, excluded);
     graph.states.set(to, last);
-    if (!excluded) find.add(to, trace[end].values);
+    if (!excluded) {find.add(to, trace[end].values);}
   }
-  if (!hasRule(last.breaks, rule)) last.breaks.push(rule);
+  if (!hasRule(last.breaks, rule)) {last.breaks.push(rule);}
   (last.ends ??= []).push(rule);
-  if (from !== undefined && last.past && !taken(to)) graph.steps.push({ from, to, action });
+  if (!matchesUndefined(from) && last.past && !taken(to)) {graph.steps.push({ from, to, action });}
 }
 
 export function lasso(
@@ -103,19 +86,19 @@ export function lasso(
 ): Lasso | undefined {
   const { seq, loop } = findLoop(trace, names, find);
   const start = seq[0]?.id;
-  if (start === undefined) return undefined;
+  if (matchesUndefined(start)) {return undefined;}
   const out = new Map<string | undefined, Step[]>();
-  for (const s of seq) out.set(s.id, []);
-  for (const t of graph.steps) out.get(t.from)?.push(t);
+  for (const s of seq) {out.set(s.id, []);}
+  for (const t of graph.steps) {out.get(t.from)?.push(t);}
   const route: PathStep[] = [];
   for (let i = 1; i < seq.length; i++) {
     let step: Step | undefined;
     for (const t of out.get(seq[i - 1].id) ?? [])
-      if (t.to === seq[i].id && t.action === seq[i].action) {
+      {if (t.to === seq[i].id && t.action === seq[i].action) {
         step = t;
         break;
-      }
-    if (!step) return undefined;
+      }}
+    if (!step) {return undefined;}
     route.push({ action: step.action, state: step.to, step });
   }
   const stutters = loop === seq.length - 1;

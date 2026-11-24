@@ -1,4 +1,5 @@
-import { append, byText, type Chart, type ChartState, type Region, tupleKey } from "../ir.ts";
+import { append, byText, matchesUndefined, tupleKey } from '../ir.ts';
+import type { Chart, ChartState, Region } from '../ir.ts';
 
 const BLANK = /\p{White_Space}/u;
 const SAFE = /^[\p{L}\p{N} !'()+,\-./=?[\]"_|@{}:\\^%<>]$/u;
@@ -37,9 +38,9 @@ const kindOf = (n: number) => {
 const ASCII = Uint8Array.from({ length: 128 }, (_, n) => kindOf(n));
 const wide = new Map<number, number>();
 const kindAt = (n: number) => {
-  if (n < 128) return ASCII[n];
+  if (n < 128) {return ASCII[n];}
   let kind = wide.get(n);
-  if (kind === undefined) wide.set(n, (kind = kindOf(n)));
+  if (matchesUndefined(kind)) {wide.set(n, (kind = kindOf(n)));}
   return kind;
 };
 const encode = (s: string, ref: (n: number) => string) => {
@@ -54,7 +55,7 @@ const encode = (s: string, ref: (n: number) => string) => {
       if (n <= 0xdbff && low >= 0xdc00 && low <= 0xdfff) {
         n = 0x10000 + ((n - 0xd800) << 10) + (low - 0xdc00);
         width = 2;
-      } else n = 0xfffd;
+      } else {n = 0xfffd;}
     }
     let kind = kindAt(n);
     if (kind === DROPPED) {
@@ -65,8 +66,8 @@ const encode = (s: string, ref: (n: number) => string) => {
       kind &= ~JOINS;
       if (joined || kind !== KEPT) {
         out += s.slice(run, i);
-        if (joined) out += ref(0x2060);
-        if (kind === KEPT) run = i;
+        if (joined) {out += ref(0x2060);}
+        if (kind === KEPT) {run = i;}
         else {
           out += kind === BLANKED ? " " : ref(n);
           run = i + width;
@@ -85,7 +86,7 @@ const code = (s: string, ref: (n: number) => string) =>
 const esc = (s: string, quoted = false) => {
   const plain = code(s, (n) => `#${n};`);
   const out = quoted ? plain.replaceAll('"', "#34;") : plain;
-  if (!out.trim()) return "#32;";
+  if (!out.trim()) {return "#32;";}
   const turned = out.replace(DIRECTION, "$1#32;");
   const opened = turned.includes("[[") ? turned.replace(DOUBLE_BRACKET, "#91;") : turned;
   return opened.includes("C4") ? opened.replace(C4, "C#52;") : opened;
@@ -102,25 +103,25 @@ const wayIn = (e: Edge) => tupleKey([e.start, e.from]);
 export function drawnEdges(r: Region): Edge[] {
   let out: Edge[] = [];
   for (const s of r.states)
-    if (s.start) out.push({ from: [], start: true, to: s.path, label: undefined });
+    {if (s.start) {out.push({ from: [], start: true, to: s.path, label: undefined });}}
   for (const s of r.steps)
-    out.push({
+    {out.push({
       from: s.from,
       start: false,
       to: s.to,
       label: s.label + (s.when ? ` [${s.when}]` : ""),
-    });
+    });}
   const parents = new Map<string, string[]>();
   for (const s of r.states)
-    for (let i = 1; i < s.path.length; i++) {
+    {for (let i = 1; i < s.path.length; i++) {
       const prefix = s.path.slice(0, i);
       parents.set(tupleKey(prefix), prefix);
-    }
+    }}
   for (const parent of [...parents.values()].sort((a, b) => a.length - b.length)) {
     const into = out.filter(
       (e) => e.to.length > parent.length && within(parent, e.to) && !within(parent, e.from),
     );
-    if (!into.length || into.some((e) => wayIn(e) !== wayIn(into[0]))) continue;
+    if (!into.length || into.some((e) => wayIn(e) !== wayIn(into[0]))) {continue;}
     const one = into.length === 1;
     const at = out.indexOf(into[0]);
     out = out.filter((e) => !into.includes(e));
@@ -158,67 +159,67 @@ export function mermaidLines(chart: Chart) {
       const named = top ? topIds : nestedIds;
       const k = top ? path[0] : tupleKey(path);
       let s = named.get(k);
-      if (s === undefined) named.set(k, (s = `s${next++}`));
+      if (matchesUndefined(s)) {named.set(k, (s = `s${next++}`));}
       return s;
     };
     const known = new Map<string[], string>();
     const idOf = (path: string[]) => {
       let s = known.get(path);
-      if (s === undefined) known.set(path, (s = id(path)));
+      if (matchesUndefined(s)) {known.set(path, (s = id(path)));}
       return s;
     };
     const drawn = drawnEdges(r);
     const line = (e: Edge, indent: string) =>
-      `${indent}${e.start ? "[*]" : idOf(e.from)} --> ${idOf(e.to)}${e.label === undefined ? "" : `: ${esc(e.label)}`}`;
+      `${indent}${e.start ? "[*]" : idOf(e.from)} --> ${idOf(e.to)}${matchesUndefined(e.label) ? "" : `: ${esc(e.label)}`}`;
     const tree = (prefix: string[], indent: string, below: ChartState[]) => {
       const heads = new Map<string, ChartState[]>();
-      for (const s of below) append(heads, s.path[prefix.length], s);
+      for (const s of below) {append(heads, s.path[prefix.length], s);}
       for (const [head, under] of heads) {
         const path = [...prefix, head];
         let leaf: ChartState | undefined;
         const inner: ChartState[] = [];
         for (const s of under)
-          if (s.path.length > path.length) inner.push(s);
-          else leaf = s;
+          {if (s.path.length > path.length) {inner.push(s);}
+          else {leaf = s;}}
         if (inner.length) {
           out.push(`${indent}state "${esc(head, true)}" as ${id(path)} {`);
-          tree(path, indent + "  ", inner);
+          tree(path, `${indent  }  `, inner);
           const key = tupleKey(path);
           for (const e of drawn)
-            if (e.start && tupleKey(e.from) === key) out.push(line(e, `${indent}  `));
+            {if (e.start && tupleKey(e.from) === key) {out.push(line(e, `${indent}  `));}}
           out.push(`${indent}}`);
         } else if (leaf) {
           const sid = idOf(leaf.path);
           out.push(`${indent}${sid}: ${esc(head)}`);
           let mark: "breaks" | "mayBreak" | undefined =
             leaf.breaks.length && !leaf.works ? "mayBreak" : undefined;
-          if (mark) for (const b of leaf.breaks) if (b.always) mark = "breaks";
-          if (mark) for (const b of leaf.breaks) rules[mark].add(b.rule.name);
+          if (mark) {for (const b of leaf.breaks) {if (b.always) {mark = "breaks";}}}
+          if (mark) {for (const b of leaf.breaks) {rules[mark].add(b.rule.name);}}
           const trail = [leaf.lead && "bugPath", leaf.repeats && "repeats"];
-          const color = leaf.group === undefined ? undefined : chart.colors[String(leaf.group)];
+          const color = matchesUndefined(leaf.group) ? undefined : chart.colors[String(leaf.group)];
           for (const cls of [color, mark, ...trail])
-            if (cls) {
+            {if (cls) {
               used.add(cls);
               marks.push(`  class ${sid} ${cls}`);
-            }
+            }}
         }
       }
     };
     tree([], "  ", r.states);
-    for (const e of drawn) if (!e.start || !e.from.length) out.push(line(e, "  "));
+    for (const e of drawn) {if (!e.start || !e.from.length) {out.push(line(e, "  "));}}
     return out;
   };
   let body: string[];
   if (chart.regions.length > 1) {
     body = [`  state "At the same time" as all {`];
     for (const [i, r] of chart.regions.entries()) {
-      if (i) body.push("    --");
+      if (i) {body.push("    --");}
       body.push(`    state "${esc(r.name, true)}" as r${i} {`);
-      for (const line of region(r)) body.push(`    ${line}`);
+      for (const line of region(r)) {body.push(`    ${line}`);}
       body.push("    }");
     }
     body.push("  }");
-  } else body = region(chart.regions[0]);
+  } else {body = region(chart.regions[0]);}
   const legend: string[][] = [];
   for (const entry of [
     ...Object.entries(chart.colors),
@@ -227,22 +228,21 @@ export function mermaidLines(chart: Chart) {
     [`Path to the ${or(chart.paths)} bug`, "bugPath"],
     [`Repeats forever, so ${or(chart.loops)} breaks`, "repeats"],
   ])
-    if (used.has(entry[1])) legend.push(entry);
+    {if (used.has(entry[1])) {legend.push(entry);}}
   const lines: string[] = [];
   const title = chart.title && code(chart.title, (n) => `ﬂ°°${n}¶ß`).replaceAll("<", "ﬂ°°60¶ß");
-  if (title) lines.push("---", `title: ${JSON.stringify(title)}`, "---");
+  if (title) {lines.push("---", `title: ${JSON.stringify(title)}`, "---");}
   lines.push("stateDiagram-v2");
-  if (chart.regions.length > 1) lines.push("  direction LR");
+  if (chart.regions.length > 1) {lines.push("  direction LR");}
   if (legend.length) {
     lines.push(`  state "Legend" as legend {`);
-    for (const [i, [text]] of legend.entries()) lines.push(`    lg${i}: ${esc(text)}`);
+    for (const [i, [text]] of legend.entries()) {lines.push(`    lg${i}: ${esc(text)}`);}
     lines.push("  }");
-    for (const [i, [, cls]] of legend.entries()) lines.push(`  class lg${i} ${cls}`);
+    for (const [i, [, cls]] of legend.entries()) {lines.push(`  class lg${i} ${cls}`);}
   }
-  for (const line of body) lines.push(line);
-  for (const [cls, style] of Object.entries(MARK_STYLES))
-    if (used.has(cls)) lines.push(`  classDef ${cls} ${style}`);
-  for (const line of marks) lines.push(line);
+  for (const line of body) {lines.push(line);}
+  Object.entries(MARK_STYLES).forEach(([cls, style]) => {if (used.has(cls)) {lines.push(`  classDef ${cls} ${style}`);}});
+  for (const line of marks) {lines.push(line);}
   return lines;
 }
 

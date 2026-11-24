@@ -45,11 +45,11 @@ const options = {
 
 describe("readiness truth table", () => {
   it("covers every specified row and every UNKNOWN rollup value", () => {
-    const cases: readonly [
+    const cases: Readonly<[
       PullRequestFacts["mergeStateStatus"],
       RollupState,
       "allowed" | "refused",
-    ][] = [
+    ][]> = [
       ["BLOCKED", "FAILURE", "refused"],
       ["BLOCKED", "ERROR", "refused"],
       ["BLOCKED", "PENDING", "allowed"],
@@ -82,7 +82,7 @@ describe("readiness truth table", () => {
       allowDraft: false,
     });
     expect(snapshot.kind).toBe("open");
-    if (snapshot.kind !== "open") throw new Error("expected open snapshot");
+    if (snapshot.kind !== "open") {throw new Error("expected open snapshot");}
     expect(snapshot.ci.kind).toBe("ci-github-rejected");
     expect(classifyPr(snapshot)).toMatchObject({
       kind: "blocker",
@@ -103,7 +103,7 @@ describe("snapshot query planning", () => {
       allowDraft: false,
     });
     expect(snapshot.kind).toBe("open");
-    if (snapshot.kind !== "open") throw new Error("expected open snapshot");
+    if (snapshot.kind !== "open") {throw new Error("expected open snapshot");}
     expect(snapshot.ci.kind).toBe("ci-pending");
     expect(reader.calls).toEqual([
       "pullRequest",
@@ -223,14 +223,14 @@ it("waits on a draft while checks are pending, then reports the draft gate", asy
 });
 
 describe("queued-stack cadence", () => {
-  async function openSnapshot(pr: PrContext) {
+  const openSnapshot = async function (pr: PrContext) {
     return readSnapshot({
       reader: fakeReader(),
       context: pr,
       pendingHistory: "omit",
       allowDraft: false,
     });
-  }
+  };
 
   it("drops a sweep head only after its snapshot succeeds", async () => {
     const queue = [
@@ -287,7 +287,7 @@ describe("queued-stack cadence", () => {
             timeline.push("sleep");
             now += seconds;
             sleeps += 1;
-            if (sleeps === 2) throw new Error("stop after resume proof");
+            if (sleeps === 2) {throw new Error("stop after resume proof");}
           },
         },
         emit(verdict) {
@@ -370,7 +370,7 @@ describe("queued-stack cadence", () => {
             timeline.push("sleep");
             now += seconds;
             sleeps += 1;
-            if (sleeps === 2) throw new Error("stop after advance proof");
+            if (sleeps === 2) {throw new Error("stop after advance proof");}
           },
         },
         emit(verdict) {
@@ -404,11 +404,11 @@ describe("queued-stack cadence", () => {
     ).state;
     const first = evaluateQueue(state, 0, options);
     expect(first.kind).toBe("waiting");
-    if (first.kind !== "waiting") throw new Error("expected waiting");
+    if (first.kind !== "waiting") {throw new Error("expected waiting");}
     expect(first.emit).toBe(true);
     const second = evaluateQueue(first.state, 10, options);
     expect(second.kind).toBe("waiting");
-    if (second.kind !== "waiting") throw new Error("expected waiting");
+    if (second.kind !== "waiting") {throw new Error("expected waiting");}
     expect(second.emit).toBe(false);
     expect(planQueue(second.state, 300).work?.kind).toBe("whole-stack-sweep");
   });

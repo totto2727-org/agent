@@ -1,4 +1,6 @@
+// oxlint-disable-next-line rules/no-node-imports -- Read the installed rule catalog fixture with the existing Vitest runner.
 import { readFile } from "node:fs/promises";
+// oxlint-disable-next-line rules/no-node-imports -- Find the packaged catalog fixture relative to this test module.
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
@@ -13,13 +15,13 @@ const numberedRules = sectionCounts.flatMap((count, section) =>
 const loadCatalog = async () => JSON.parse(await readFile(catalogPath, "utf8"));
 
 // This inventory protects the maintained map. Source interpretation requires
-// independent reading of the actual standard, not merely this inventory test.
+// Independent reading of the actual standard, not merely this inventory test.
 describe("Issue 9 executable rule catalog", () => {
   it("maps all 53 numbered rules, including explicit counting dependencies", async () => {
     const rules = await loadCatalog();
     const mapped = rules
       .flatMap((rule) => [rule.source?.rule, ...(rule.source?.requiredRules ?? [])])
-      .filter((rule) => typeof rule === "string" && /^\d+\.\d+$/.test(rule));
+      .filter((rule) => typeof rule === "string" && /^\d+\.\d+$/u.test(rule));
     expect([...new Set(mapped)].sort()).toEqual([...numberedRules].sort());
     expect(numberedRules).toHaveLength(53);
   });

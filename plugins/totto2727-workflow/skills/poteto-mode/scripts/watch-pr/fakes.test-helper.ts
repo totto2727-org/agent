@@ -13,22 +13,23 @@ import type {
   RollupPage,
 } from "./types.ts";
 import { parsePrNumber } from "./types.ts";
+import { matchesUndefined } from "./native-predicates.ts";
 
 export interface FakeReaderOptions {
   readonly facts?: Partial<Omit<PullRequestFacts, "context">>;
   readonly fastPath?: ChecksFastPath;
-  readonly rollupPages?: readonly RollupPage[];
-  readonly threads?: readonly ReviewThread[];
-  readonly threadPages?: readonly ReviewThreadPage[];
-  readonly commitRollups?: readonly CommitRollup[];
-  readonly openPullRequests?: readonly OpenPullRequest[];
+  readonly rollupPages?: Readonly<RollupPage[]>;
+  readonly threads?: Readonly<ReviewThread[]>;
+  readonly threadPages?: Readonly<ReviewThreadPage[]>;
+  readonly commitRollups?: Readonly<CommitRollup[]>;
+  readonly openPullRequests?: Readonly<OpenPullRequest[]>;
   readonly origin?: Repository | null;
   readonly current?: PrContext;
 }
 
-function toRawThread(thread: ReviewThread): RawReviewThread {
+const toRawThread = function (thread: ReviewThread): RawReviewThread {
   return { id: thread.id, firstComment: thread.firstComment, resolved: false };
-}
+};
 
 export function passingCheck(name = "ci"): Check {
   return {
@@ -65,7 +66,7 @@ export function failedCheck(name = "ci"): Check {
 
 export function fakeReader(
   options: FakeReaderOptions = {}
-): GitHubReader & { readonly calls: readonly string[] } {
+): GitHubReader & Readonly<{ calls: Readonly<string[]> }> {
   const calls: string[] = [];
   const context = options.current ?? {
     owner: "owner",
@@ -90,7 +91,7 @@ export function fakeReader(
     calls,
     async originRepo() {
       calls.push("originRepo");
-      return options.origin === undefined
+      return matchesUndefined(options.origin)
         ? { owner: "owner", repo: "repo" }
         : options.origin;
     },

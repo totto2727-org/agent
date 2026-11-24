@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+// oxlint-disable-next-line rules/no-node-imports, vitest/no-import-node-test -- Statechart runs these fixtures with Node's test runner as part of the standalone skill.
 import { test } from "node:test";
 import { agrees, skip } from "./tlc.ts";
 
@@ -21,6 +22,7 @@ const late = [
 const lateCfg = (mode: string, rules: string) =>
   `CONSTANT Mode = "${mode}"\nINIT Init\nNEXT Next\nINVARIANTS ${rules}\n`;
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test(
   "a rule that breaks before another rule fails to evaluate breaks in either order",
   { skip },
@@ -35,6 +37,7 @@ test(
   },
 );
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a rule that breaks before a step fails to evaluate breaks", { skip }, () => {
   for (const mode of ["div", "assert"]) {
     const v = agrees("Late", { Late: late }, lateCfg(mode, "Small"));
@@ -57,6 +60,7 @@ const warnPath = (next: string) => [
   "====",
 ];
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a rule that breaks before it fails to evaluate breaks", { skip }, () => {
   const v = agrees(
     "WarnPath",
@@ -67,6 +71,7 @@ test("a rule that breaks before it fails to evaluate breaks", { skip }, () => {
   assert.equal(v.breaks.get("Zero"), 1);
 });
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a rule that fails to evaluate before TLC reaches a break exits 2", { skip }, () => {
   for (const deadlock of ["", "CHECK_DEADLOCK FALSE\n"]) {
     const v = agrees(
@@ -79,6 +84,7 @@ test("a rule that fails to evaluate before TLC reaches a break exits 2", { skip 
   }
 });
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a rule that no verdict run checks stays not checked under a SYMMETRY", { skip }, () => {
   const v = agrees(
     "Hide",
@@ -105,6 +111,7 @@ test("a rule that no verdict run checks stays not checked under a SYMMETRY", { s
   assert.deepEqual(v.unchecked, ["Bad", "Boom", "NoDeadlock"]);
 });
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a deadlock breaks whatever shape the SPECIFICATION has", { skip }, () => {
   const live = agrees(
     "Live",
@@ -149,6 +156,7 @@ test("a deadlock breaks whatever shape the SPECIFICATION has", { skip }, () => {
   }
 });
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a SPECIFICATION from an INSTANCE checks deadlock and finds none", { skip }, () => {
   const v = agrees(
     "Outer",
@@ -174,6 +182,7 @@ test("a SPECIFICATION from an INSTANCE checks deadlock and finds none", { skip }
   assert.deepEqual(v.holds, ["NoDeadlock"]);
 });
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a state at a CONSTRAINT bound is no deadlock", { skip }, () => {
   const v = agrees(
     "Bound",
@@ -195,6 +204,7 @@ test("a state at a CONSTRAINT bound is no deadlock", { skip }, () => {
   assert.doesNotMatch(v.chart, /^ {2}class s\d+ breaks$/m);
 });
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test(
   "a model with no initial state passes as it does in TLC, and the report says why",
   { skip },
@@ -223,6 +233,7 @@ test(
   },
 );
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test(
   "a run after a break stops at the state bound and leaves its rules not checked",
   { skip },

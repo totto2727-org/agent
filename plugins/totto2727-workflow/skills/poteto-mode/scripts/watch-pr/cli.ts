@@ -1,56 +1,52 @@
 import { setTimeout as delay } from "node:timers/promises";
 import { parseArgs as parseOptions } from "node:util";
 import { GhGitHubReader, WatcherQueryError, discoverStack, resolveContext } from "./github.ts";
-import {
-  runQueued,
-  runSimple,
-  statusQueryVerdict,
-  verdictFactory,
-  type WatchClock,
-} from "./policy.ts";
+import { runQueued, runSimple, statusQueryVerdict, verdictFactory } from './policy.ts';
+import type { WatchClock } from './policy.ts';
 import { renderJson, renderPretty } from "./render.ts";
 import type * as T from "./types.ts";
 import { nonEmpty, parsePrNumber } from "./types.ts";
+import { matchesNull, matchesUndefined } from "./native-predicates.ts";
 export interface CliOptions {
   readonly owner: string | null;
   readonly repo: string | null;
   readonly pr: T.PrNumber | null;
   readonly mode: T.WatchMode;
-  readonly stackPrs: readonly T.PrNumber[];
+  readonly stackPrs: Readonly<T.PrNumber[]>;
   readonly statusOnly: boolean;
   readonly pretty: boolean;
   readonly polling: T.PollingOptions;
 }
-function positiveNumber(value: string, option: string): number {
+const positiveNumber = function (value: string, option: string): number {
   const parsed = Number(value);
   if (!Number.isFinite(parsed) || parsed <= 0)
-    throw new Error(`${option}: ${value} must be greater than zero`);
+    {throw new Error(`${option}: ${value} must be greater than zero`);}
   return parsed;
-}
-function nonNegativeNumber(value: string): number {
+};
+const nonNegativeNumber = function (value: string): number {
   const parsed = Number(value);
-  if (!Number.isFinite(parsed) || parsed < 0) throw new Error("must be zero or greater");
+  if (!Number.isFinite(parsed) || parsed < 0) {throw new Error("must be zero or greater");}
   return parsed;
-}
-function positiveInteger(value: string): number {
+};
+const positiveInteger = function (value: string): number {
   const parsed = Number(value);
-  if (!Number.isInteger(parsed) || parsed <= 0) throw new Error("must be a positive integer");
+  if (!Number.isInteger(parsed) || parsed <= 0) {throw new Error("must be a positive integer");}
   return parsed;
-}
-function prNumber(value: string): T.PrNumber {
+};
+const prNumber = function (value: string): T.PrNumber {
   try {
-    return parsePrNumber(Number(value.replace(/^#/, "")));
+    return parsePrNumber(Number(value.replace(/^#/u, "")));
   } catch {
     throw new Error("must be a positive integer");
   }
-}
-function stackPrList(value: string): T.NonEmpty<T.PrNumber> {
+};
+const stackPrList = function (value: string): T.NonEmpty<T.PrNumber> {
   const numbers = value.split(",").map((part) => prNumber(part.trim()));
-  if (new Set(numbers).size !== numbers.length) throw new Error("contains a duplicate PR");
+  if (new Set(numbers).size !== numbers.length) {throw new Error("contains a duplicate PR");}
   const parsed = nonEmpty(numbers);
-  if (parsed === null) throw new Error("cannot be empty");
+  if (matchesNull(parsed)) {throw new Error("cannot be empty");}
   return parsed;
-}
+};
 const usage = [
   "Usage: watch-pr [--owner OWNER] [--repo REPO] [--pr NUMBER]",
   "  [--stack | --queued-stack [--stack-prs N,...]]",
@@ -58,7 +54,7 @@ const usage = [
   "  [--max-query-errors COUNT] [--allow-draft] [--status-only] [--pretty]",
   "JSON (NDJSON while polling) is the default. A timeout of zero disables the deadline.",
 ].join("\n");
-export function parseArgs(argv: readonly string[]): CliOptions {
+export function parseArgs(argv: Readonly<string[]>): CliOptions {
   const { values: raw } = parseOptions({
     args: [...argv],
     strict: true,
@@ -79,15 +75,15 @@ export function parseArgs(argv: readonly string[]): CliOptions {
       pretty: { type: "boolean" },
     },
   });
-  if (raw.stack && raw["queued-stack"]) throw new Error("--stack conflicts with --queued-stack");
-  if (raw["stack-prs"] !== undefined && !raw["queued-stack"])
-    throw new Error("--stack-prs requires --queued-stack");
+  if (raw.stack && raw["queued-stack"]) {throw new Error("--stack conflicts with --queued-stack");}
+  if (!matchesUndefined(raw["stack-prs"]) && !raw["queued-stack"])
+    {throw new Error("--stack-prs requires --queued-stack");}
   return {
     owner: raw.owner ?? null,
     repo: raw.repo ?? null,
-    pr: raw.pr === undefined ? null : prNumber(raw.pr),
+    pr: matchesUndefined(raw.pr) ? null : prNumber(raw.pr),
     mode: raw["queued-stack"] ? "queued-stack" : raw.stack ? "stack" : "single",
-    stackPrs: raw["stack-prs"] === undefined ? [] : stackPrList(raw["stack-prs"]),
+    stackPrs: matchesUndefined(raw["stack-prs"]) ? [] : stackPrList(raw["stack-prs"]),
     statusOnly: raw["status-only"] ?? false,
     pretty: raw.pretty ?? false,
     polling: {
@@ -105,7 +101,7 @@ export interface CliRuntime {
   readonly stdout: (value: string) => void;
   readonly stderr: (value: string) => void;
 }
-function realRuntime(): CliRuntime {
+const realRuntime = function (): CliRuntime {
   return {
     reader: new GhGitHubReader(),
     clock: {
@@ -118,9 +114,9 @@ function realRuntime(): CliRuntime {
     stdout: (value) => process.stdout.write(value),
     stderr: (value) => process.stderr.write(value),
   };
-}
+};
 export async function main(
-  argv: readonly string[],
+  argv: Readonly<string[]>,
   runtime: CliRuntime = realRuntime(),
 ): Promise<number> {
   if (argv.includes("--help") || argv.includes("-h")) {
@@ -148,7 +144,7 @@ export async function main(
       nonEmpty(options.stackPrs.map((number) => ({ ...seed, number }))) ??
       (options.mode === "single" ? [seed] : await discoverStack(runtime.reader, seed));
   } catch (error) {
-    if (!(error instanceof WatcherQueryError)) throw error;
+    if (!(error instanceof WatcherQueryError)) {throw error;}
     const verdict = statusQueryVerdict(
       verdictFactory(runtime.clock, options.mode),
       1,
@@ -172,4 +168,4 @@ export async function main(
   return verdict.exitCode;
 }
 
-if (import.meta.main) process.exitCode = await main(process.argv.slice(2));
+if (import.meta.main) {process.exitCode = await main(process.argv.slice(2));}

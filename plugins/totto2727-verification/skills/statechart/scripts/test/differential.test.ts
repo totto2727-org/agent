@@ -3,6 +3,7 @@ import { spawn } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+// oxlint-disable-next-line rules/no-node-imports, vitest/no-import-node-test -- Statechart runs these fixtures with Node's test runner as part of the standalone skill.
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import fc from "fast-check";
@@ -130,13 +131,13 @@ type Case = {
 
 const configOf = (c: Case) => {
   const cfg = [...c.base];
-  if (c.invariants.length) cfg.push(`INVARIANTS ${c.invariants.join(" ")}`);
-  if (!c.deadlock) cfg.push("CHECK_DEADLOCK FALSE");
-  if (c.property) cfg.push(`PROPERTY ${c.property}`);
+  if (c.invariants.length) {cfg.push(`INVARIANTS ${c.invariants.join(" ")}`);}
+  if (!c.deadlock) {cfg.push("CHECK_DEADLOCK FALSE");}
+  if (c.property) {cfg.push(`PROPERTY ${c.property}`);}
   return `${cfg.join("\n")}\n`;
 };
 
-function caseOf(m: Model): Case {
+const caseOf = function (m: Model): Case {
   let next = 0;
   const name = () => m.names[next++];
   const vars = m.vars.map(name);
@@ -155,11 +156,11 @@ function caseOf(m: Model): Case {
   const actions = m.actions.map((a) => {
     const changed = new Map<number, number[]>();
     for (const s of a.set)
-      if (!changed.has(s.v % vars.length)) changed.set(s.v % vars.length, s.to);
+      {if (!changed.has(s.v % vars.length)) {changed.set(s.v % vars.length, s.to);}}
     const parts = a.guard.map(atom);
-    for (const [k, to] of changed) parts.push(`${vars[k]}' \\in ${set(k, to)}`);
+    for (const [k, to] of changed) {parts.push(`${vars[k]}' \\in ${set(k, to)}`);}
     const kept = vars.filter((_, k) => !changed.has(k));
-    if (kept.length) parts.push(`UNCHANGED <<${kept.join(", ")}>>`);
+    if (kept.length) {parts.push(`UNCHANGED <<${kept.join(", ")}>>`);}
     const action = name();
     defs.push(`${action} == ${parts.join(" /\\ ")}`);
     return action;
@@ -218,7 +219,7 @@ function caseOf(m: Model): Case {
     deadlock: m.deadlock,
     property,
   };
-}
+};
 
 function viewOf(v: NonNullable<Model["view"]>, vars: string[], actions: string[]) {
   const json = JSON.stringify;
@@ -245,7 +246,7 @@ function viewOf(v: NonNullable<Model["view"]>, vars: string[], actions: string[]
       "export const step = (action) => STEPS.get(action);",
     );
   }
-  if (v.title) lines.push(`export const title = ${json(v.title)};`);
+  if (v.title) {lines.push(`export const title = ${json(v.title)};`);}
   if (v.groups) {
     const colors = v.groups.map((g, k) => [g, COLORS[k]]);
     lines.push(
@@ -305,48 +306,48 @@ const plainTlc = (dir: string, c: Case, name: string, lines: string[]) => {
 type Claim = { breaks: boolean; steps?: number };
 
 const claimOf = (r: Run, breaks: number[], traced: boolean): Claim => {
-  if (r.status === 0) return { breaks: false };
+  if (r.status === 0) {return { breaks: false };}
   if (r.status === null || !breaks.includes(r.status))
-    throw new Error(`plain TLC exited ${r.status}:\n${r.stdout}${r.stderr}`);
-  if (!traced) return { breaks: true };
+    {throw new Error(`plain TLC exited ${r.status}:\n${r.stdout}${r.stderr}`);}
+  if (!traced) {return { breaks: true };}
   const states = r.stdout.split("@!@!@STARTMSG 2217:").length - 1;
   return { breaks: true, steps: Math.max(states, 1) - 1 };
 };
 
-async function plainAnswers(dir: string, c: Case) {
+const plainAnswers = async function (dir: string, c: Case) {
   const rules = new Map<string, Promise<Claim>>();
   for (const name of c.invariants)
-    rules.set(
+    {rules.set(
       name,
       plainTlc(dir, c, `inv-${name}`, [`INVARIANT ${name}`, "CHECK_DEADLOCK FALSE"]).then((r) =>
         claimOf(r, [12], true),
       ),
-    );
+    );}
   if (c.deadlock)
-    rules.set(
+    {rules.set(
       "NoDeadlock",
       plainTlc(dir, c, "deadlock", []).then((r) => claimOf(r, [11], true)),
-    );
+    );}
   if (c.property)
-    rules.set(
+    {rules.set(
       c.property,
       plainTlc(dir, c, "property", [`PROPERTY ${c.property}`, "CHECK_DEADLOCK FALSE"]).then((r) =>
         claimOf(r, [12, 13], false),
       ),
-    );
+    );}
   const states = plainTlc(dir, c, "states", ["CHECK_DEADLOCK FALSE"]).then((r) => {
     const found = /([\d,]+) distinct states found/.exec(r.stdout);
     if (r.status !== 0 || !found)
-      throw new Error(`plain TLC exited ${r.status}:\n${r.stdout}${r.stderr}`);
+      {throw new Error(`plain TLC exited ${r.status}:\n${r.stdout}${r.stderr}`);}
     return Number(found[1].replaceAll(",", ""));
   });
   const answers = new Map<string, Claim>();
-  for (const [name, claim] of rules) answers.set(name, await claim);
+  for (const [name, claim] of rules) {answers.set(name, await claim);}
   const broke = [...answers.values()].some((a) => a.breaks);
   return { status: broke ? 1 : 0, states: await states, rules: answers };
-}
+};
 
-function compilerAnswers(r: Run, c: Case) {
+const compilerAnswers = function (r: Run, c: Case) {
   const lines = r.stdout.split("\n");
   const rules = new Map<string, Claim>();
   for (const [i, line] of lines.entries()) {
@@ -361,18 +362,18 @@ function compilerAnswers(r: Run, c: Case) {
       );
     }
     if (line === "## Rules that hold")
-      for (const name of lines[i + 1].split(", ")) rules.set(name, { breaks: false });
+      {for (const name of lines[i + 1].split(", ")) {rules.set(name, { breaks: false });}}
   }
   const states = /^TLC reached (\d+) states/m.exec(r.stdout);
   return { status: r.status, states: states ? Number(states[1]) : r.stderr, rules };
-}
+};
 
-async function answer(c: Case) {
+const answer = async function (c: Case) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "statechart-differential-"));
   try {
     fs.writeFileSync(path.join(dir, `${c.module}.tla`), c.tla);
     fs.writeFileSync(path.join(dir, `${c.module}.cfg`), configOf(c));
-    if (c.view !== undefined) fs.writeFileSync(path.join(dir, "view.mjs"), c.view);
+    if (c.view !== undefined) {fs.writeFileSync(path.join(dir, "view.mjs"), c.view);}
     const compile = (view: string[]) =>
       run(
         process.execPath,
@@ -386,15 +387,16 @@ async function answer(c: Case) {
     const refused =
       c.view !== undefined &&
       viewed.status === 2 &&
-      /^(The view's |The chart draws the step )/.test(viewed.stderr);
+      /^(The view's |The chart draws the step )/u.test(viewed.stderr);
     const compiled = refused ? await compile([]) : viewed;
     assert.deepEqual(compilerAnswers(compiled, c), plain);
     return compiled.stdout;
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
-}
+};
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test(
   "the compiler answers each rule as plain TLC does for generated models",
   { skip },
@@ -559,7 +561,8 @@ for (const [what, c, says] of [
     ["## Rules that hold\nOk\n"],
   ],
 ] satisfies [string, Case, string[]][])
-  test(`${what}, as plain TLC answers`, { skip }, async () => {
+  // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
+  {test(`${what}, as plain TLC answers`, { skip }, async () => {
     const report = await answer(c);
-    for (const said of says) assert.ok(report.includes(said), `${said}\nis not in\n${report}`);
-  });
+    for (const said of says) {assert.ok(report.includes(said), `${said}\nis not in\n${report}`);}
+  });}
