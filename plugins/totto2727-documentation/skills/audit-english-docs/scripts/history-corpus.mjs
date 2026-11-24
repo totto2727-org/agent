@@ -23,16 +23,22 @@ const defaultSpec = resolve(scriptDirectory, "../references/history-corpus.json"
 const defaultRules = resolve(scriptDirectory, "../references/rules.json");
 const choices = new Set(["pass", "fail", "not_applicable", "insufficient_context"]);
 
+/** @typedef {{ outputDir: string, repository: string, rulesPath?: string, specPath?: string, split?: string }} PrepareOptions */
+/** @typedef {{ labelsPath: string, outputPath: string, reportPath: string }} ScoreOptions */
+
+/** @type {(condition: unknown, message: string) => asserts condition} */
 const requireValue = function (condition, message) {
   if (!condition) {
     throw new Error(message);
   }
 };
 
+/** @type {(value: unknown) => boolean} */
 const nonempty = function (value) {
   return matchesString(value) && value.trim().length > 0;
 };
 
+/** @param {unknown} value - The candidate JSON record. */
 const record = function (value) {
   return !matchesNull(value) && hasObjectType(value) && !Array.isArray(value);
 };
@@ -95,6 +101,7 @@ const validateSamples = function (raw) {
   return samples;
 };
 
+/** @param {PrepareOptions} options - The pinned corpus inputs and output directory. */
 export async function prepareCorpus({
   repository,
   outputDir,
@@ -411,6 +418,7 @@ export function scoreReport(report, labels) {
   };
 }
 
+/** @param {ScoreOptions} options - The evaluator output, sealed labels, and score path. */
 export async function scoreCorpus({ reportPath, labelsPath, outputPath }) {
   const report = JSON.parse(await readFile(reportPath, "utf8"));
   const labels = JSON.parse(await readFile(labelsPath, "utf8"));
@@ -419,15 +427,18 @@ export async function scoreCorpus({ reportPath, labelsPath, outputPath }) {
   return result;
 }
 
+/**
+ * @param {string[]} argv - User arguments after the native script path.
+ * @returns {{ command: "prepare" | "score", options: Record<string, string> }} The selected command and its supplied options.
+ */
 export function parseArguments(argv) {
   const [command, ...argumentsList] = argv;
+  requireValue(command === "prepare" || command === "score", "Expected prepare or score command");
   const allowed =
     command === "prepare"
       ? new Set(["repository", "output-dir", "split", "spec", "rules"])
-      : command === "score"
-        ? new Set(["report", "labels", "output"])
-        : null;
-  requireValue(allowed, "Expected prepare or score command");
+      : new Set(["report", "labels", "output"]);
+  /** @type {Record<string, string>} */
   const options = {};
   for (let index = 0; index < argumentsList.length; index += 2) {
     const flags = argumentsList[index];

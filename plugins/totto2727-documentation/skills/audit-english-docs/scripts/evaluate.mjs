@@ -12,12 +12,12 @@ import {
   actionRequest,
   cacheFingerprint,
   endpointFor,
-  isNativeModel,
   payloadFor,
   readCredentials,
   TransportFailure,
 } from "./evaluation-transport.mjs";
-import { EvaluationError, object, text } from "./evaluation-validation.mjs";
+import { EvaluationError } from "./evaluation-validation.mjs";
+import { validateResponse } from "./evaluation-response.mjs";
 
 import { loadManifest, parseArguments } from "./evaluation-manifest.mjs";
 import { buildWork } from "./evaluation-work.mjs";
@@ -40,7 +40,7 @@ export { EvaluationError } from "./evaluation-validation.mjs";
 export { loadManifest, MODELS, parseArguments, validateManifest } from "./evaluation-manifest.mjs";
 export { buildWork, segmentMarkdown } from "./evaluation-work.mjs";
 
-const CHOICES = ["pass", "fail", "not_applicable", "insufficient_context"];
+export { validateResponse } from "./evaluation-response.mjs";
 
 const stateFor = function (item) {
   const state = {
@@ -71,76 +71,6 @@ const stateFor = function (item) {
   }
   return state;
 };
-
-export function validateResponse(response, questions, model) {
-  const envelope = object(response, "Cloudflare response");
-  if (envelope.success !== true) {
-    throw new EvaluationError("Cloudflare response reports an unsuccessful request");
-  }
-  const outer = object(envelope.result, "Cloudflare response result");
-  let result;
-  if (isNativeModel(model)) {
-    result = outer;
-  } else {
-    if (outer.state !== "Completed") {
-      throw new EvaluationError(
-        `Cloudflare job did not complete (state ${outer.state ?? "unknown"})`,
-      );
-    }
-    result = object(outer.result, "Cloudflare job result");
-  }
-  text(result.model, "Cloudflare response model");
-  if (!result.answers || !hasObjectType(result.answers) || Array.isArray(result.answers)) {
-    throw new EvaluationError("Cloudflare response has an invalid answers payload");
-  }
-  const answers = result.answers;
-  const questionIds = Object.keys(questions);
-  const answerIds = Object.keys(answers);
-  if (
-    answerIds.length !== questionIds.length ||
-    answerIds.some((id) => !Object.hasOwn(questions, id))
-  ) {
-    throw new EvaluationError(
-      "Cloudflare response does not answer every submitted question exactly once",
-    );
-  }
-  Object.values(answers).forEach((answer) => {
-    if (
-      !answer ||
-      answer.type !== "choice" ||
-      !CHOICES.includes(answer.choice) ||
-      !Number.isFinite(answer.confidence) ||
-      answer.confidence < 0 ||
-      answer.confidence > 1
-    ) {
-      throw new EvaluationError("Cloudflare response contains an invalid answer");
-    }
-    const probabilities = answer.probabilities;
-    if (
-      !probabilities ||
-      !hasObjectType(probabilities) ||
-      Array.isArray(probabilities) ||
-      Object.keys(probabilities).length !== CHOICES.length ||
-      CHOICES.some(
-        (choice) =>
-          !Number.isFinite(probabilities[choice]) ||
-          probabilities[choice] < 0 ||
-          probabilities[choice] > 1,
-      )
-    ) {
-      throw new EvaluationError("Cloudflare response contains an invalid probability distribution");
-    }
-    const total = CHOICES.reduce((sum, choice) => sum + probabilities[choice], 0);
-    if (Math.abs(total - 1) > 0.0200001) {
-      throw new EvaluationError("Cloudflare response probabilities must sum to 1");
-    }
-  });
-  return {
-    model: result.model,
-    usage: result.usage ?? null,
-    answers: Object.entries(answers).map(([questionId, answer]) => ({ questionId, ...answer })),
-  };
-}
 
 const pooled = async function (items, concurrency, run) {
   const results = Array.from({ length: items.length });

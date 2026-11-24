@@ -273,7 +273,7 @@ const quote = (s: string) => `"${s.replace(/["\\\n\t\r\f]/g, (c) => ESCAPES[c])}
 
 const joined = (items: Value[], sep: string) => {
   let s = "";
-  for (let i = 0; i < items.length; i++) {s += (i ? sep : "") + show(items[i]);}
+  for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {s += (itemIndex ? sep : "") + show(items[itemIndex]);}
   return s;
 };
 
@@ -401,7 +401,7 @@ export const hasRule = (rules: Rule[], rule: Rule) => {
 };
 
 const ascending = (keys: string[]) => {
-  for (let i = 1; i < keys.length; i++) {if (keys[i - 1] > keys[i]) {return false;}}
+  for (let keyIndex = 1; keyIndex < keys.length; keyIndex++) {if (keys[keyIndex - 1] > keys[keyIndex]) {return false;}}
   return true;
 };
 
@@ -435,10 +435,10 @@ const functionKey = ({ keys, values }: { keys: Value[]; values: Value[] }) => {
   const order: number[] = [];
   const keyTexts: string[] = [];
   let ints = 0;
-  for (let i = 0; i < keys.length; i++) {
-    order.push(i);
-    keyTexts.push(key(keys[i]));
-    if (typeof keys[i] === "number") {ints++;}
+  for (let keyIndex = 0; keyIndex < keys.length; keyIndex++) {
+    order.push(keyIndex);
+    keyTexts.push(key(keys[keyIndex]));
+    if (typeof keys[keyIndex] === "number") {ints++;}
   }
   const rank = (i: number) => (typeof keys[i] === "number" ? (keys[i] as number) : Infinity);
   order.sort((a, b) => rank(a) - rank(b) || byText(keyTexts[a], keyTexts[b]) || a - b);
@@ -484,7 +484,7 @@ export const key = (v: Value): string => {
 
 export const stateKey = (values: Value[]) => {
   let k = "";
-  for (let i = 0; i < values.length; i++) {k += (i ? "," : "") + key(values[i]);}
+  for (let valueIndex = 0; valueIndex < values.length; valueIndex++) {k += (valueIndex ? "," : "") + key(values[valueIndex]);}
   return k;
 };
 

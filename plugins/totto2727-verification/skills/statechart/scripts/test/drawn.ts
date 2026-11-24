@@ -10,11 +10,11 @@ export const drawn = (chart: string) => {
     const block = line.match(/^ *state ".*" as (\w+) \{$/);
     if (block) {blocks.push(block[1]);}
     if (/^ *\}$/u.test(line)) {blocks.pop();}
-    const m = line.match(/^ *(s\d+|\[\*\]) --> (s\d+)(?:: (.*))?$/);
+    const regexMatch = line.match(/^ *(s\d+|\[\*\]) --> (s\d+)(?:: (.*))?$/);
     const parent = names.get(blocks.at(-1) ?? "");
-    if (!m || (m[1] === "[*]" && parent === undefined)) {continue;}
-    const from = m[1] === "[*]" ? `${parent} start` : names.get(m[1]);
-    arrows.push(`${from} --> ${names.get(m[2])}${m[3] === undefined ? "" : `: ${shown(m[3])}`}`);
+    if (!regexMatch || (regexMatch[1] === "[*]" && parent === undefined)) {continue;}
+    const from = regexMatch[1] === "[*]" ? `${parent} start` : names.get(regexMatch[1]);
+    arrows.push(`${from} --> ${names.get(regexMatch[2])}${regexMatch[3] === undefined ? "" : `: ${shown(regexMatch[3])}`}`);
   }
   return { states: [...names.values()], arrows };
 };

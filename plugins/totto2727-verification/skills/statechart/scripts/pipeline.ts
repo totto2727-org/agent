@@ -13,11 +13,11 @@ import { drawRegions } from "./passes/regions.ts";
 function* inParts(lines: string[]) {
   let start = 0;
   let size = 0;
-  for (let i = 0; i < lines.length; i++) {
-    size += lines[i].length + 1;
-    if (size > PART || i === lines.length - 1) {
-      yield (start ? "\n" : "") + lines.slice(start, i + 1).join("\n");
-      start = i + 1;
+  for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+    size += lines[lineIndex].length + 1;
+    if (size > PART || lineIndex === lines.length - 1) {
+      yield (start ? "\n" : "") + lines.slice(start, lineIndex + 1).join("\n");
+      start = lineIndex + 1;
       size = 0;
     }
   }

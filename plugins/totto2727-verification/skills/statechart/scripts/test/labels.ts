@@ -527,8 +527,8 @@ const readPele = function (text: string, want: Want, render: Render, problems: s
     /<g class="pele-(?:node|cluster) ([^"]*)" data-id="([^"]*)"[^>]*>([\s\S]*?)<\/g>/g,
   )) {
     if (/state-(start|end)/u.test(m[1])) {continue;}
-    const t = m[3].match(/<text[^>]*>([\s\S]*?)<\/text>/);
-    drawn.set(m[2], t ? fromSvg(t[1]) : "");
+    const regexMatch = m[3].match(/<text[^>]*>([\s\S]*?)<\/text>/);
+    drawn.set(m[2], regexMatch ? fromSvg(regexMatch[1]) : "");
   }
   if (drawn.size !== want.nodes.size)
     {problems.push(`pele-nodes: ${drawn.size} nodes for ${want.nodes.size}`);}
@@ -620,15 +620,15 @@ export async function fuzz({
     if (!result.problems.length) {continue;}
     const first = kind(result.problems[0]);
     let labels = c.labels;
-    for (let j = 0; j < labels.length; j++) {
-      const plain = labels.with(j, `n${j}`);
+    for (let labelIndex = 0; labelIndex < labels.length; labelIndex++) {
+      const plain = labels.with(labelIndex, `n${labelIndex}`);
       const again = await check(c, plain, tools);
       let same = false;
       for (const p of again.problems) {if (kind(p) === first) {same = true;}}
       if (same) {labels = plain;}
     }
     const kept = [];
-    for (let j = 0; j < labels.length; j++) {if (labels[j] !== `n${j}`) {kept.push(labels[j]);}}
+    for (let labelIndex = 0; labelIndex < labels.length; labelIndex++) {if (labels[labelIndex] !== `n${labelIndex}`) {kept.push(labels[labelIndex]);}}
     const last = await check(c, labels, tools);
     const colors = c.colors ? ` and the colors ${JSON.stringify(c.colors)}` : "";
     return {

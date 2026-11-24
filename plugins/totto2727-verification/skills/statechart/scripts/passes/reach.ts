@@ -17,7 +17,7 @@ export function walk(graph: Graph): Walk {
   }
   const names = Array.from(unique).sort(byText);
   const rankOf = new Map<string, number>();
-  for (let i = 0; i < names.length; i++) {rankOf.set(names[i], i);}
+  for (let nameIndex = 0; nameIndex < names.length; nameIndex++) {rankOf.set(names[nameIndex], nameIndex);}
   const n = ids.length;
   const index = new Map<string, number>();
   const nameRank = new Int32Array(n);

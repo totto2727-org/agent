@@ -90,10 +90,10 @@ const tokenizeConfig = function (text: string, cannot: (line: number, words: str
       let depth = 0;
       do {
         marks.lastIndex = i;
-        const m = marks.exec(text);
-        if (!m) {throw cannot(start, "A comment starts here and does not end.");}
-        depth += m[0] === "(*" ? 1 : -1;
-        skip(m.index + 2);
+        const regexMatch = marks.exec(text);
+        if (!regexMatch) {throw cannot(start, "A comment starts here and does not end.");}
+        depth += regexMatch[0] === "(*" ? 1 : -1;
+        skip(regexMatch.index + 2);
       } while (depth);
     } else if (c === '"') {
       let j = i + 1;

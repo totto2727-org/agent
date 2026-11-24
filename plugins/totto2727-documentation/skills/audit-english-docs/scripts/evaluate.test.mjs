@@ -35,6 +35,9 @@ import {
 const execute = promisify(execFile);
 const script = fileURLToPath(new URL("./evaluate.mjs", import.meta.url));
 
+/** @typedef {{ directory: string }} MockDirectory */
+/** @typedef {{ cacheStatus?: string, exitCode?: number, mode?: string, ray?: string, statusSequence?: string }} MockOptions */
+
 const dictionaryFixture = async function ({ complete = false, vocabulary = true } = {}) {
   const paths = await fixture();
   await writeFile(
@@ -260,6 +263,7 @@ setTimeout(() => {
 }, 20);
 `;
 
+/** @type {(directory: string) => Promise<string>} */
 const installCurlMock = async function (directory) {
   const script = resolve(directory, "curl");
   await writeFile(script, MOCK_SOURCE);
@@ -267,6 +271,7 @@ const installCurlMock = async function (directory) {
   return script;
 };
 
+/** @param {string} log - The request trace produced by the mock executable. */
 const readCalls = async function (log) {
   try {
     return (await readFile(log, "utf8"))
@@ -279,6 +284,7 @@ const readCalls = async function (log) {
   }
 };
 
+/** @type {(saved: Record<string, string | undefined>) => void} */
 const restoreEnvironment = function (saved) {
   Object.entries(saved).forEach(([key, value]) => {
     if (value === undefined) {
@@ -289,6 +295,7 @@ const restoreEnvironment = function (saved) {
   });
 };
 
+/** @type {(paths: MockDirectory, options?: MockOptions) => Promise<{ log: string, restore: () => void }>} */
 const prepareMock = async function (paths, options = {}) {
   await installCurlMock(paths.directory);
   const log = resolve(paths.directory, "calls.log");
@@ -329,6 +336,13 @@ const prepareMock = async function (paths, options = {}) {
   return { log, restore: () => restoreEnvironment(saved) };
 };
 
+/**
+ * @template Result
+ * @param {MockDirectory} paths - The fixture directory for the mock and its trace.
+ * @param {MockOptions} options - The simulated response.
+ * @param {() => Result | PromiseLike<Result>} callback - The evaluator or CLI invocation.
+ * @returns {Promise<{ calls: Awaited<ReturnType<typeof readCalls>>, result: Awaited<Result> }>} The invocation result and its recorded requests.
+ */
 const withMock = async function (paths, options, callback) {
   const mock = await prepareMock(paths, options);
   try {

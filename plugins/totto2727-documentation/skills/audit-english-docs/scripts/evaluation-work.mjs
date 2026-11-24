@@ -20,10 +20,15 @@ import {
 import { matchesString } from "./native-predicates.mjs";
 import { validateSteContext, validateSteVocabulary } from "./ste.mjs";
 
+/** @typedef {{ heading: string, level: number, line: number, start: number }} Heading */
+/** @typedef {{ headingPath: string[], id: string, sourceRange: ReturnType<typeof sourceRange>, text: string }} Section */
+
+/** @type {(textValue: string, offset: number) => number} */
 const lineAt = function (textValue, offset) {
   return textValue.slice(0, offset).split("\n").length;
 };
 
+/** @type {(textValue: string, offset: number) => number} */
 const endLineAt = function (textValue, offset) {
   return Math.max(
     1,
@@ -31,9 +36,14 @@ const endLineAt = function (textValue, offset) {
   );
 };
 
-export function segmentMarkdown(markdown) {
+/**
+ * @param {string} markdown - The original Markdown document.
+ * @returns {Section[]} Heading sections and their byte and line coordinates.
+ */
+export const segmentMarkdown = (markdown) => {
   bounded(markdown, "document");
-  const lines = markdown.split(/(?<=\n)/);
+  const lines = markdown.split(/(?<=\n)/u);
+  /** @type {Heading[]} */
   const headings = [];
   const { frontmatter, fences } = inspectMarkdown(markdown);
   let offset = 0;
@@ -43,11 +53,11 @@ export function segmentMarkdown(markdown) {
     const match =
       !inFence &&
       (!frontmatter || offset >= frontmatter.end) &&
-      /^(#{1,6})\s+(.+?)\s*#*\s*(?:\n)?$/.exec(line);
+      /^(?<marks>#{1,6})\s+(?<title>.+?)\s*#*\s*(?:\n)?$/u.exec(line)?.groups;
     if (match) {
       headings.push({
-        level: match[1].length,
-        heading: match[2].replace(/\s*\{#[^}]+\}\s*$/, ""),
+        level: match.marks.length,
+        heading: match.title.replace(/\s*\{#[^}]+\}\s*$/u, ""),
         start: offset,
         line: index + 1,
       });
@@ -60,15 +70,11 @@ export function segmentMarkdown(markdown) {
         id: "document",
         headingPath: [],
         text: markdown,
-        sourceRange: {
-          startLine: 1,
-          endLine: endLineAt(markdown, markdown.length),
-          startByte: 0,
-          endByte: Buffer.byteLength(markdown),
-        },
+        sourceRange: sourceRange(markdown, 0, markdown.length),
       },
     ];
   }
+  /** @type {Section[]} */
   const sections = [];
   const preambleEnd = headings[0].start;
   if (markdown.slice(0, preambleEnd).trim()) {
@@ -76,12 +82,7 @@ export function segmentMarkdown(markdown) {
       id: "preamble",
       headingPath: [],
       text: markdown.slice(0, preambleEnd),
-      sourceRange: {
-        startLine: 1,
-        endLine: endLineAt(markdown, preambleEnd),
-        startByte: 0,
-        endByte: Buffer.byteLength(markdown.slice(0, preambleEnd)),
-      },
+      sourceRange: sourceRange(markdown, 0, preambleEnd),
     });
   }
   for (let index = 0; index < headings.length; index += 1) {
@@ -108,47 +109,51 @@ export function segmentMarkdown(markdown) {
     });
   }
   return sections;
-}
+};
 
+/**
+ * @param {unknown[]} sections - The manifest's section declarations.
+ * @param {string} page - The complete Markdown document.
+ */
 const explicitSections = function (sections, page) {
   if (!sections.length) {
     throw new EvaluationError("documents sections must not be empty");
   }
-  const lines = page.split(/(?<=\n)/);
+  const lines = page.split(/(?<=\n)/u);
   const fences = inspectMarkdown(page).fences.map((fence) =>
     sourceRange(page, fence.start, fence.end),
   );
-  return sections.map((section, index) => {
-    object(section, `sections[${index}]`);
-    if (
-      !Number.isInteger(section.startLine) ||
-      !Number.isInteger(section.endLine) ||
-      section.startLine < 1 ||
-      section.endLine < section.startLine ||
-      section.endLine > lines.length
-    ) {
-      throw new EvaluationError(
-        `sections[${index}] must provide valid startLine and endLine values`,
-      );
+  return sections.map((value, index) => {
+    const section = object(value, `sections[${index}]`);
+    const invalidRange = `sections[${index}] must provide valid startLine and endLine values`;
+    if (!Number.isInteger(section.startLine) || !Number.isInteger(section.endLine)) {
+      throw new EvaluationError(invalidRange);
+    }
+    const startLine = Number(section.startLine);
+    const endLine = Number(section.endLine);
+    if (startLine < 1 || endLine < startLine || endLine > lines.length) {
+      throw new EvaluationError(invalidRange);
     }
     if (
       fences.some(
         (fence) =>
-          (section.startLine > fence.startLine && section.startLine <= fence.endLine) ||
-          (section.endLine >= fence.startLine && section.endLine < fence.endLine),
+          (startLine > fence.startLine && startLine <= fence.endLine) ||
+          (endLine >= fence.startLine && endLine < fence.endLine),
       )
     ) {
       throw new EvaluationError(`sections[${index}] must not split a fenced code block`);
     }
     const content = bounded(
-      text(
-        lines.slice(section.startLine - 1, section.endLine).join(""),
-        `sections[${index}] source range`,
-      ),
+      text(lines.slice(startLine - 1, endLine).join(""), `sections[${index}] source range`),
       `sections[${index}] source range`,
     );
-    const headingPath = section.headingPath ?? [];
-    if (!Array.isArray(headingPath) || headingPath.some((heading) => !matchesString(heading))) {
+    const headings = section.headingPath ?? [];
+    if (!Array.isArray(headings)) {
+      throw new EvaluationError(`sections[${index}].headingPath must be an array of strings`);
+    }
+    /** @type {unknown[]} */
+    const headingPath = headings;
+    if (!headingPath.every((heading) => matchesString(heading))) {
       throw new EvaluationError(`sections[${index}].headingPath must be an array of strings`);
     }
     return {
@@ -157,10 +162,10 @@ const explicitSections = function (sections, page) {
       headingPath,
       text: content,
       sourceRange: {
-        startLine: section.startLine,
-        endLine: section.endLine,
-        startByte: Buffer.byteLength(lines.slice(0, section.startLine - 1).join("")),
-        endByte: Buffer.byteLength(lines.slice(0, section.endLine).join("")),
+        startLine,
+        endLine,
+        startByte: Buffer.byteLength(lines.slice(0, startLine - 1).join("")),
+        endByte: Buffer.byteLength(lines.slice(0, endLine).join("")),
       },
     };
   });
