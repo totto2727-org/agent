@@ -348,7 +348,7 @@ export const defaultState = (vars: Vars): string => {
 
 export const stateText = (vars: Vars): string => {
   const parts: string[] = [];
-  Object.entries(vars).forEach(([k, v]) => {parts.push(`${k} = ${show(v)}`);});
+  Object.entries(vars).forEach(([key, value]) => {parts.push(`${key} = ${show(value)}`);});
   return parts.join(String.raw` /\ `);
 };
 

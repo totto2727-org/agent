@@ -214,14 +214,14 @@ const replay = function (name: string, graph: Graph): void {
   const marks = readMarks(readMessages(fileLines(corpus(name, "ChartRun.out"))), "chart");
   const past = mark(graph, marks, names, rules, find);
   const drawn = !fs.existsSync(corpus(name, "ChartRun.exit"));
-  for (const f of fs.readdirSync(path.join(here, "corpus", name)).sort()) {
-    if (!/^verdict-\d+\.out$/u.test(f)) {continue;}
+  visitItems(fs.readdirSync(path.join(here, "corpus", name)).sort(), (f) => {
+    if (!/^verdict-\d+\.out$/u.test(f)) {return;}
     const messages = [...readMessages(fileLines(corpus(name, f)))];
     const { broke } = readVerdict(messages);
-    if (!broke) {continue;}
+    if (!broke) {return;}
     let rule: Rule | undefined;
     visitItems(rules, (currentRule) => {if (currentRule.kind === broke.kind && (broke.kind === "deadlock" || currentRule.name === broke.name)) {rule = currentRule;}});
-    if (!rule) {continue;}
+    if (!rule) {return;}
     if (rule.kind === "deadlock" && drawn && !hasSection(spec, "CONSTRAINT", "ACTION_CONSTRAINT"))
       {deadEnds(graph, rule);}
     const counterexample = readCounterexample(messages);
@@ -235,7 +235,7 @@ const replay = function (name: string, graph: Graph): void {
         hasSection(spec, "ACTION_CONSTRAINT"),
         find,
       );}
-  }
+  });
 };
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
@@ -273,13 +273,13 @@ test("a chart of only the bug paths words each one with the view, asked once for
   const rules = stateRules(spec);
   const drawn = pathGraph(spec.variables);
   const paths: Bug[] = [];
-  for (const f of fs.readdirSync(path.join(here, "corpus", "FirstRule")).sort()) {
-    if (!/^verdict-\d+\.out$/u.test(f)) {continue;}
+  visitItems(fs.readdirSync(path.join(here, "corpus", "FirstRule")).sort(), (f) => {
+    if (!/^verdict-\d+\.out$/u.test(f)) {return;}
     const messages = [...readMessages(fileLines(corpus("FirstRule", f)))];
     const { broke } = readVerdict(messages);
     visitItems(rules, (rule) => {if (broke?.kind === rule.kind && (broke.kind === "deadlock" || rule.name === broke.name))
         {paths.push(drawn.bug(rule, readCounterexample(messages)));}});
-  }
+  });
   const asked: Record<string, number> = {};
   const count = (question: string): number => (asked[question] = (asked[question] ?? 0) + 1);
   const view: View = {

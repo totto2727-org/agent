@@ -26,11 +26,11 @@ export const liftToParents = function liftToParents(states: ChartState[], steps:
     const groups = new Map<string, ChartStep[]>();
     visitItems(leaving.get(prefix) ?? [], (chartStep) => {if (!removed.has(chartStep)) {append(groups, tupleKey([chartStep.label, chartStep.when, chartStep.to]), chartStep);}});
     const under = must(leaves, prefix);
-    for (const group of groups.values()) {
-      if (under < 2 || group.length < under) {continue;}
+    visitItems(groups.values(), (group) => {
+      if (under < 2 || group.length < under) {return;}
       visitItems(group, (chartStep) => {removed.add(chartStep);});
       lifted.push({ ...group[0], from: unkey(prefix) });
-    }
+    });
   }
   const kept: ChartStep[] = [];
   visitItems(steps, (step) => {if (!removed.has(step)) {kept.push(step);}});

@@ -257,10 +257,10 @@ export const mermaidLines = function mermaidLines(chart: Chart): string[] {
   let body: string[];
   if (chart.regions.length > 1) {
     body = [`  state "At the same time" as all {`];
-    visitItems(chart.regions.entries(), ([i, r]) => {
-      if (i) {body.push("    --");}
-      body.push(`    state "${esc(r.name, true)}" as r${i} {`);
-      visitItems(region(r), (line) => {body.push(`    ${line}`);});
+    visitItems(chart.regions.entries(), ([index, item]) => {
+      if (index) {body.push("    --");}
+      body.push(`    state "${esc(item.name, true)}" as r${index} {`);
+      visitItems(region(item), (line) => {body.push(`    ${line}`);});
       body.push("    }");
     });
     body.push("  }");
@@ -280,9 +280,9 @@ export const mermaidLines = function mermaidLines(chart: Chart): string[] {
   if (chart.regions.length > 1) {lines.push("  direction LR");}
   if (legend.length) {
     lines.push(`  state "Legend" as legend {`);
-    visitItems(legend.entries(), ([i, [text]]) => {lines.push(`    lg${i}: ${esc(text)}`);});
+    visitItems(legend.entries(), ([index, [text]]) => {lines.push(`    lg${index}: ${esc(text)}`);});
     lines.push("  }");
-    visitItems(legend.entries(), ([i, [, cls]]) => {lines.push(`  class lg${i} ${cls}`);});
+    visitItems(legend.entries(), ([index, [, cls]]) => {lines.push(`  class lg${index} ${cls}`);});
   }
   visitItems(body, (line) => {lines.push(line);});
   Object.entries(MARK_STYLES).forEach(([cls, style]) => {if (used.has(cls)) {lines.push(`  classDef ${cls} ${style}`);}});

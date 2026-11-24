@@ -120,7 +120,7 @@ export const report = function report(
         : `The shortest path has ${steps}:`,
     );
     const path = stepsOf(must(stories, bug));
-    visitItems(path.entries(), ([i, p]) => {out.push(`${i}. ${p.step ? `${p.step}: ` : ""}${p.state}`);});
+    visitItems(path.entries(), ([index, item]) => {out.push(`${index}. ${item.step ? `${item.step}: ` : ""}${item.state}`);});
     if (!matchesUndefined(bug.loop)) {out.push(forever(path.slice(bug.loop), bug.stutters));}
   });
   const drawn = new Set<string>();

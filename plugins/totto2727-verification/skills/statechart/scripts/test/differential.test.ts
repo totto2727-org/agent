@@ -356,10 +356,10 @@ const plainAnswers = async function (dir: string, c: Case) {
 const compilerAnswers = function (r: Run, c: Case) {
   const lines = r.stdout.split("\n");
   const rules = new Map<string, Claim>();
-  visitItems(lines.entries(), ([i, line]) => {
+  visitItems(lines.entries(), ([index, line]) => {
     const broken = /^## (\S+) breaks$/.exec(line);
     if (broken) {
-      const shortest = /^The shortest path has (\d+) steps?:$/u.exec(lines[i + 1]);
+      const shortest = /^The shortest path has (\d+) steps?:$/u.exec(lines[index + 1]);
       rules.set(
         broken[1],
         broken[1] === c.property
@@ -368,7 +368,7 @@ const compilerAnswers = function (r: Run, c: Case) {
       );
     }
     if (line === "## Rules that hold")
-      {visitItems(lines[i + 1].split(", "), (name) => {rules.set(name, { breaks: false });});}
+      {visitItems(lines[index + 1].split(", "), (name) => {rules.set(name, { breaks: false });});}
   });
   const states = /^TLC reached (\d+) states/mu.exec(r.stdout);
   return { status: r.status, states: states ? Number(states[1]) : r.stderr, rules };

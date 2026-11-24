@@ -39,7 +39,7 @@ export const walk = function walk(graph: Graph): Walk {
     action[j] = a;
   }
   const actionRank = new Int32Array(actions.size);
-  visitItems([...actions.keys()].sort(byText).entries(), ([i, a]) => {actionRank[must(actions, a)] = i;});
+  visitItems([...actions.keys()].sort(byText).entries(), ([index, item]) => {actionRank[must(actions, item)] = index;});
   const toName = new Int32Array(m);
   for (let j = 0; j < m; j++) {
     action[j] = actionRank[action[j]];

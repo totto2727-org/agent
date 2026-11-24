@@ -223,11 +223,11 @@ const tell = function <Id, B extends Told<Id>>(
   visitItems(found, (bug) => {
     const story: Story = [{ state: shapeAt(bug.start) }];
     let from: Id = bug.start;
-    visitItems(bug.path.entries(), ([k, p]) => {
-      const label = labelAt(bug, k, from);
-      const step = matchesNull(label) ? unlabeled(p.action, vars(from), vars(p.state), bug) : label;
-      story.push({ step, state: shapeAt(p.state) });
-      from = p.state;
+    visitItems(bug.path.entries(), ([index, item]) => {
+      const label = labelAt(bug, index, from);
+      const step = matchesNull(label) ? unlabeled(item.action, vars(from), vars(item.state), bug) : label;
+      story.push({ step, state: shapeAt(item.state) });
+      from = item.state;
     });
     stories.set(bug, story);
   });

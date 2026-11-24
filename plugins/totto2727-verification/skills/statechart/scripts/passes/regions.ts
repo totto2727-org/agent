@@ -52,13 +52,13 @@ export const drawRegions = function drawRegions(
   else {clean.fill(1);}
   const regions: Region[] = [];
   const objects: ChartState[][] = [];
-  for (const [r, name] of names.entries()) {
-    const key = keys[r];
-    const kind = kinds[r];
+  for (const [index, name] of names.entries()) {
+    const key = keys[index];
+    const kind = kinds[index];
     const states = new Map<string, ChartState>();
-    const objectOf = new Array<ChartState>(sizes[r]);
-    const keyOf = new Array<string>(sizes[r]);
-    const position = new Int32Array(sizes[r]);
+    const objectOf = new Array<ChartState>(sizes[index]);
+    const keyOf = new Array<string>(sizes[index]);
+    const position = new Int32Array(sizes[index]);
     visitItems(order, (i) => {
       const currentState = tla[i];
       let stateItem = objectOf[kind[i]];
@@ -106,7 +106,7 @@ export const drawRegions = function drawRegions(
       state.group = groups.size === 1 ? [...groups][0] : undefined;
     });
     const others: number[] = [];
-    for (let o = 0; o < R; o++) {if (o !== r) {others.push(o);}}
+    for (let o = 0; o < R; o++) {if (o !== index) {others.push(o);}}
     const tuple = (i: number): string[] => {
       const t: string[] = [];
       visitItems(others, (o) => {t.push(keys[o][i]);});
@@ -126,7 +126,7 @@ export const drawRegions = function drawRegions(
         : `${names[o]} is ${vs.length > 1 ? "none of" : "not"} ${words(vs)}`;
     const moves: RegionMove[] = [];
     const pairs = new Map<number, RegionMove>();
-    const size = sizes[r];
+    const size = sizes[index];
     visitItems(sorted, (j) => {
       const f = kind[from[j]];
       const t = kind[to[j]];
@@ -146,7 +146,7 @@ export const drawRegions = function drawRegions(
     const seenAt = new Map<number, string[][]>();
     if (R > 1) {visitItems(order, (i) => {append(tuplesAt, kind[i], i);});}
     const arrows: Arrow[] = [];
-    for (const move of moves) {
+    visitItems(moves, (move) => {
       const fromKey = keyOf[move.f];
       const toKey = keyOf[move.t];
       if (R === 1) {
@@ -157,7 +157,7 @@ export const drawRegions = function drawRegions(
           condition: anyRest,
           when: undefined,
         });
-        continue;
+        return;
       }
       const ok = new Set<string>();
       visitItems(move.group, (j) => {ok.add(tupleKey(tuple(from[j])));});
@@ -233,13 +233,13 @@ export const drawRegions = function drawRegions(
           label: text,
           condition: { kind: "tuples", otherTuples: ok },
         });}
-    }
+    });
     const steps: ChartStep[] = [];
-    visitItems(arrows.entries(), ([k, a]) => {steps.push({
-        from: objectOf[moves[k].f].path,
-        to: objectOf[moves[k].t].path,
-        label: a.label,
-        when: a.label.endsWith("]") ? undefined : a.when,
+    visitItems(arrows.entries(), ([itemIndex, item]) => {steps.push({
+        from: objectOf[moves[itemIndex].f].path,
+        to: objectOf[moves[itemIndex].t].path,
+        label: item.label,
+        when: item.label.endsWith("]") ? undefined : item.when,
       });});
     regions.push({ name, states: [...states.values()], steps, arrows });
     objects.push(objectOf);

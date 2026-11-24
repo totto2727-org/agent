@@ -37,7 +37,7 @@ const jsonVars = (vars: Vars) => {
   let j = projectedVars.get(vars);
   if (matchesUndefined(j)) {
     const fields: [string, Json][] = [];
-    Object.entries(vars).forEach(([name, v]) => {fields.push([name, json(v)]);});
+    Object.entries(vars).forEach(([name, value]) => {fields.push([name, json(value)]);});
     j = Object.fromEntries(fields);
     projectedVars.set(vars, j);
   }
