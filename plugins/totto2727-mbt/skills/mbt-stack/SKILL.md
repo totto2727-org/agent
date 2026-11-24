@@ -1,33 +1,15 @@
 ---
 name: mbt-stack
-description: >-
-  Select MoonBit toolchains, build targets, CLI libraries, JSON codecs, or async I/O.
+description: Choose a MoonBit target, CLI parser, JSON codec, or workflow runtime for a workspace project.
 ---
 
-# MoonBit stack decisions
+# MoonBit stack choices
 
-## Toolchain and target
+| Decision        | Workspace choice                                                                                                                                                                                                                                                                                                                          |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Build target    | Follow the [template's target policy](https://github.com/totto2727-org/template-moonbit-simple/blob/main/moon.mod). Leave synchronous backend-neutral libraries unrestricted. For async projects, choose Wasm, then JS, then native among targets that support the required host operations. Test that operation on each promised target. |
+| CLI grammar     | Use [Admiral](https://github.com/totto2727-org/admiral/blob/main/.agents/skills/admiral/SKILL.md) for structured arguments. The library owns the parser guide.                                                                                                                                                                            |
+| JSON contract   | Use standard derivation when the application type already matches the wire. Choose [Model's Serde](https://github.com/totto2727-org/model/blob/main/README.mbt.md) for aliases, defaults, or nested paths. Add Garde only for semantic validation after decoding.                                                                         |
+| Async execution | Use [moonbitlang/async](https://github.com/moonbitlang/async) for independent I/O. Choose [Workgraph](https://github.com/totto2727-org/workgraph) when steps, routing, and state reduction are themselves part of the application. Its sequential executor is not a parallel scheduler.                                                   |
 
-For a new Nix project, start from the [MoonBit template](https://github.com/totto2727-org/template-moonbit-simple): use the locked overlay's compiler in both the development shell and the moon-nix package build.
-Do not copy a builder or attribute path from a project pinned to another overlay revision.
-Follow the [template's target policy](https://github.com/totto2727-org/template-moonbit-simple/blob/main/moon.mod): leave a synchronous, backend-neutral library unrestricted. For async code, prefer Wasm, then JS, then native among targets that support the required host operations and dependencies.
-Test the operation that constrains the choice, such as spawning the provider process, on each promised target.
-For executable README examples, keep `README.mbt.md` canonical and link `README.md` to it, as the template does.
-
-## Command-line input
-
-Use Admiral for new command grammars. Convert parser results into application input before dispatching domain work.
-Prefer the installed [Admiral skill](https://github.com/totto2727-org/admiral/blob/main/.agents/skills/admiral/SKILL.md) for parser choices, or consult the [package guide](https://github.com/totto2727-org/admiral/blob/main/README.mbt.md#defining-options-and-positions).
-
-## JSON contracts
-
-- If the whole value matches the wire format, use [standard derivation](https://docs.moonbitlang.com/en/latest/language/derive.html).
-- If the application owns the whole model but the wire format requires aliases, defaults, or nested paths, use [Model's Serde generator](https://github.com/totto2727-org/model/blob/main/README.mbt.md). Add Garde only when decoded values need semantic validation.
-
-## Async work
-
-Use [moonbitlang/async](https://github.com/moonbitlang/async) for independent I/O. Add [Workgraph](https://github.com/totto2727-org/workgraph) only when the application needs explicit steps, state reduction, and routing.
-Its sequential graph executor does not make independent nodes concurrent; keep concurrency inside a step if reduction order must stay observable.
-
-For compiler and tooling questions, prefer the installed official [moonbit-orientation](https://github.com/moonbitlang/skills/blob/master/skills/moonbit-orientation/SKILL.md), or consult the [MoonBit documentation](https://docs.moonbitlang.com/en/latest/).
-For shared policy, use [share-stack](../share-stack/SKILL.md) ([source](https://github.com/totto2727-org/agent/blob/main/plugins/totto2727-principle/skills/share-stack/SKILL.md)).
+For compiler, package, and backend questions, use [moonbit-orientation](https://github.com/moonbitlang/skills/tree/master/skills/moonbit-orientation) or the [official documentation](https://docs.moonbitlang.com/en/latest/).

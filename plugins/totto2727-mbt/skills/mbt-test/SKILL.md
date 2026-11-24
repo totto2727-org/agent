@@ -1,25 +1,12 @@
 ---
 name: mbt-test
-description: >-
-  Implement or review MoonBit test blocks and executable Markdown tests. Not for manual QA or test reports.
+description: Place MoonBit regression tests and executable examples in workspace packages.
 ---
 
-# MoonBit Test Index
+# MoonBit test placement
 
-Use [`share-test`](../share-test/SKILL.md) for test-quality decisions.
-Load only the reference required by the task; already available principles need not be reloaded.
+Keep tests of one implementation beside it. Use a separate `src/test/` package when the contract crosses packages or a process boundary, as in [Model's integration suite](https://github.com/totto2727-org/model/tree/main/src/test). Test through the consumer's public imports rather than widening production visibility for a fixture.
 
-## References
+When a public usage example is part of the contract, keep it executable in the package's `.mbt.md` documentation instead of copying it into a second test. Verify that the test run actually includes that example. A passing suite with no documentation cases says nothing about the README.
 
-- [`file-layout.md`](references/file-layout.md) — required unit/integration test directories and implementation-aligned file names.
-- [`execution.md`](references/execution.md) — supported Vite+ and `moon test` commands and their boundary.
-- [`assertions.md`](references/assertions.md) — direct-result inspection and expected-error policy.
-- [`names.md`](references/names.md) — test-case naming.
-- [`markdown-tests.md`](references/markdown-tests.md) — executable `.mbt.md` examples and optional explanatory structure.
-
-## Related skills
-
-- [`mbt-coding`](../mbt-coding/SKILL.md) — MoonBit production-code practices.
-- [`share-test-design`](../share-test-design/SKILL.md) — test-design decisions and suitable evidence presentation.
-
-If the linked skills are not installed, read the source: [share-test](https://github.com/totto2727-org/agent/blob/main/plugins/totto2727-principle/skills/share-test/SKILL.md), [share-test-design](https://github.com/totto2727-org/agent/blob/main/plugins/totto2727-principle/skills/share-test-design/SKILL.md).
+For runner options, assertion APIs, or test syntax, use the installed [moonbit-orientation](https://github.com/moonbitlang/skills/tree/master/skills/moonbit-orientation) skill and the [official testing guide](https://docs.moonbitlang.com/en/latest/language/tests.html).

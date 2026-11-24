@@ -113,11 +113,11 @@ TypeScript stack choices for Cloudflare web apps, durable workflows, native macO
 
 MoonBit implementation, stack selection, and tests.
 
-| Skill                                                          | Refers to                                                    |
-| -------------------------------------------------------------- | ------------------------------------------------------------ |
-| [mbt-coding](plugins/totto2727-mbt/skills/mbt-coding/SKILL.md) | `mbt-stack`, `mbt-test`, `share-coding`                      |
-| [mbt-stack](plugins/totto2727-mbt/skills/mbt-stack/SKILL.md)   | `share-stack`                                                |
-| [mbt-test](plugins/totto2727-mbt/skills/mbt-test/SKILL.md)     | `mbt-coding`, `mbt-stack`, `share-test`, `share-test-design` |
+| Skill                                                          | Refers to   |
+| -------------------------------------------------------------- | ----------- |
+| [mbt-coding](plugins/totto2727-mbt/skills/mbt-coding/SKILL.md) | `mbt-stack` |
+| [mbt-stack](plugins/totto2727-mbt/skills/mbt-stack/SKILL.md)   | None        |
+| [mbt-test](plugins/totto2727-mbt/skills/mbt-test/SKILL.md)     | None        |
 
 ### [totto2727-principle](plugins/totto2727-principle/plugin.json)
 

@@ -11,7 +11,7 @@
       "repo": "moonbitlang/skills",
       "pin": "cc5435cb236fb92b144ccd46773adfe5502a42c6",
       "names": ["moonbit-orientation"],
-      "usedBy": ["mbt-stack"],
+      "usedBy": ["mbt-coding", "mbt-stack", "mbt-test"],
       "reason": "Required MoonBit workflow guidance."
     },
     {

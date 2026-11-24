@@ -1,43 +1,12 @@
 ---
 name: mbt-coding
-description: >-
-  Design or review MoonBit types, boundary conversions, error handling, and concurrency.
+description: Choose a public construction or failure boundary for a workspace MoonBit package.
 ---
 
-# MoonBit Coding
+# MoonBit public API decisions
 
-For advanced users who make MoonBit-specific implementation decisions.
-Use [share-coding](../share-coding/SKILL.md) for common principles and [mbt-test](../mbt-test/SKILL.md) for tests.
+When a type has an invariant, expose one validated construction path. The workspace convention for that entry point is `Type::Type`, not a second `new` alias. [Admiral's command definitions](https://github.com/totto2727-org/admiral/blob/main/src/runner.mbt) show the named constructor and labelled arguments in a public API. If every field combination is valid, do not invent validation or a builder.
 
-## Failure representation
+Keep a recoverable domain failure typed when callers must branch on its cause. Return `Result` when the value must be retained or passed on instead of immediately propagating the failure. Do not flatten a typed cause to display text at a library boundary.
 
-Use the `raise` effect for synchronous operations that can fail.
-Declare the narrowest error type that callers can act on.
-Use an open `raise` effect only when the function intentionally forwards heterogeneous failures.
-Use a typed `suberror` when callers need to distinguish failure cases or inspect structured context.
-Use `fail(...)` for a generic failure that has no recoverable domain variants.
-
-Use `Result` when failure must be a value in the API contract, such as storage, deferred inspection, or an API that consumes `Result`.
-Otherwise, prefer the typed `raise` effect so the signature exposes failure without manual success and failure handling.
-
-## Implementation decisions
-
-| Decision                                          | Reference                                                |
-| ------------------------------------------------- | -------------------------------------------------------- |
-| External values and domain construction           | [Boundary conversion](references/boundary-conversion.md) |
-| Enum state and transitions                        | [State modeling](references/state-modeling.md)           |
-| Identifiers, callbacks, and labelled arguments    | [Style](references/style.md)                             |
-| Construction access, readonly fields, and aliases | [Visibility](references/visibility.md)                   |
-| Canonical constructors and factories              | [Constructors](references/constructors.md)               |
-| Values and mutable builders                       | [Updates](references/updates.md)                         |
-| Array and Iter return shapes                      | [Sequences](references/sequences.md)                     |
-| Enum representation and extraction                | [Variants](references/variants.md)                       |
-| Traits and owned wrappers                         | [Traits](references/traits.md)                           |
-| Guards and exhaustiveness                         | [Pattern matching](references/pattern-matching.md)       |
-| Typed failures and raise effects                  | [Errors](references/errors.md)                           |
-| Array construction and alias safety               | [Arrays](references/arrays.md)                           |
-| Structured execution                              | [Concurrency](references/concurrency.md)                 |
-
-Use [mbt-stack](../mbt-stack/SKILL.md) for toolchains, targets, Admiral, codecs, and async libraries. It also routes compiler and tooling questions to the official MoonBit skill.
-
-If the linked skills are not installed, read the source: [share-coding](https://github.com/totto2727-org/agent/blob/main/plugins/totto2727-principle/skills/share-coding/SKILL.md).
+For language syntax, compiler diagnostics, or standard library APIs, use the installed [moonbit-orientation](https://github.com/moonbitlang/skills/tree/master/skills/moonbit-orientation) skill. For dependency and target choices, use [mbt-stack](../mbt-stack/SKILL.md).
