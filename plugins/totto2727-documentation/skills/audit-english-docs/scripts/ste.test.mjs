@@ -10,7 +10,7 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 // oxlint-disable-next-line rules/no-node-imports -- Await the native subprocess and preserve its exit status in these tests.
 import { promisify } from "node:util";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, test } from "vitest";
 
 const execute = promisify(execFile);
 const script = fileURLToPath(new URL("./evaluate.mjs", import.meta.url));
@@ -86,13 +86,15 @@ const cli = async function (
   return { exitCode, report, answers: report.evaluations.flatMap((entry) => entry.answers) };
 };
 
-afterEach(async () => {
+const cleanupFixtures = async () => {
   await Promise.all(
     directories.splice(0).map((directory) => rm(directory, { force: true, recursive: true })),
   );
-});
+};
 
-describe("Issue 9 mechanical checks through the real public CLI", () => {
+describe("mechanical checks for Issue 9 through the real public CLI", () => {
+  afterEach(cleanupFixtures);
+
   const nounRule = {
     id: "noun-count",
     engine: "decision",
@@ -102,7 +104,8 @@ describe("Issue 9 mechanical checks through the real public CLI", () => {
     pass: "Supported role and numeric limit.",
     fail: "Supported role violates its numeric limit.",
   };
-  it("defers missing noun-group evidence with zero requests even outside mechanical-only mode", async () => {
+
+  test("defers missing noun-group evidence with zero requests even outside mechanical-only mode", async () => {
     const result = await cli("Check the status panel.", {
       rules: [nounRule],
       mechanicalOnly: false,
@@ -117,7 +120,7 @@ describe("Issue 9 mechanical checks through the real public CLI", () => {
     expect(result.report.evaluations[0].reason).toContain("Required noun-group counts");
   });
 
-  it.each([
+  test.each([
     ["upper status panel", 3, [1, 1, 1]],
     ["upper control status panel", 4, [1, 1, 1, 1]],
     ["upper-status control panel", 3, [2, 1, 1]],
@@ -154,7 +157,7 @@ describe("Issue 9 mechanical checks through the real public CLI", () => {
     },
   );
 
-  it("never collapses an official multiword noun into one arbitrary sentence-level title token", async () => {
+  test("never collapses an official multiword noun into one arbitrary sentence-level title token", async () => {
     const text = "Upper Control Status Panel";
     const result = await cli(`Inspect the ${text}.`, {
       rules: [nounRule],
@@ -173,7 +176,7 @@ describe("Issue 9 mechanical checks through the real public CLI", () => {
     });
   });
 
-  it("defers unsupported declared noun syntax without a model request", async () => {
+  test("defers unsupported declared noun syntax without a model request", async () => {
     const text = "panel (upper) assembly";
     const result = await cli(`Check the ${text}.`, {
       rules: [nounRule],
@@ -192,7 +195,7 @@ describe("Issue 9 mechanical checks through the real public CLI", () => {
     expect(result.report.evaluations[0].status).toBe("deferred");
   });
 
-  it("rejects caller-supplied noun count totals as invalid executable evidence", async () => {
+  test("rejects caller-supplied noun count totals as invalid executable evidence", async () => {
     const result = await cli("Check the upper status panel.", {
       ste: {
         nounGroups: [
@@ -209,25 +212,28 @@ describe("Issue 9 mechanical checks through the real public CLI", () => {
     expect(result.stderr).toContain("never submitted counts");
   });
 
-  it.each([
-    ["procedural", 20, "pass"],
-    ["procedural", 21, "fail"],
-    ["descriptive", 25, "pass"],
-    ["descriptive", 26, "fail"],
-  ])("enforces the source %s boundary at %i words", async (writingMode, count, choice) => {
-    const result = await cli(sentence(count), {
-      check: checkFor(writingMode),
-      ste: { writingMode },
-    });
-    expect(result.answers[0]).toMatchObject({
-      choice,
-      reviewRequired: false,
-      counts: [{ wordCount: count, limit: writingMode === "procedural" ? 20 : 25 }],
-    });
-    expect(result.exitCode).toBe(choice === "pass" ? 0 : 1);
-  });
+  test.each([
+    ["procedural", 20, 20, "pass", 0],
+    ["procedural", 21, 20, "fail", 1],
+    ["descriptive", 25, 25, "pass", 0],
+    ["descriptive", 26, 25, "fail", 1],
+  ])(
+    "enforces the source %s boundary at %i words",
+    async (writingMode, count, limit, exitCodeChoice, exitCode) => {
+      const result = await cli(sentence(count), {
+        check: checkFor(writingMode),
+        ste: { writingMode },
+      });
+      expect(result.answers[0]).toMatchObject({
+        choice: exitCodeChoice,
+        reviewRequired: false,
+        counts: [{ wordCount: count, limit }],
+      });
+      expect(result.exitCode).toBe(exitCode);
+    },
+  );
 
-  it("requires declared mode and never infers it from prose or a heading", async () => {
+  test("requires declared mode and never infers it from prose or a heading", async () => {
     const missing = await cli("# Procedure\n\nCheck the panel.\n", { ste: {} });
     expect(missing.answers[0]).toMatchObject({
       choice: "insufficient_context",
@@ -236,12 +242,12 @@ describe("Issue 9 mechanical checks through the real public CLI", () => {
     });
   });
 
-  it("does not apply procedural limits to a declared descriptive target", async () => {
+  test("does not apply procedural limits to a declared descriptive target", async () => {
     const result = await cli(sentence(24), { ste: { writingMode: "descriptive" } });
     expect(result.answers[0].choice).toBe("not_applicable");
   });
 
-  it.each([
+  test.each([
     [6, "pass"],
     [7, "fail"],
   ])("counts %i actual sentences in a descriptive paragraph", async (count, choice) => {
@@ -257,21 +263,21 @@ describe("Issue 9 mechanical checks through the real public CLI", () => {
     });
   });
 
-  it("counts hyphens, decimal measurement groups, quotes, and parenthetical identifiers without naive whitespace counts", async () => {
+  test("counts hyphens, decimal measurement groups, quotes, and parenthetical identifiers without naive whitespace counts", async () => {
     const result = await cli(
       'Check the quick-release panel (42) at 12.5 kg with the "Maintenance setup" label.',
     );
     expect(result.answers[0]).toMatchObject({ choice: "pass", counts: [{ wordCount: 11 }] });
   });
 
-  it("checks parenthetical prose as a separate word-count unit as well as one outer word", async () => {
+  test("checks parenthetical prose as a separate word-count unit as well as one outer word", async () => {
     const result = await cli(`Check the panel (${sentence(21).toLowerCase().slice(0, -1)}).`);
     expect(result.answers[0]).toMatchObject({ choice: "fail", reviewRequired: false });
-    expect(result.answers[0].counts.map((entry) => entry.wordCount)).toEqual([4, 21]);
+    expect(result.answers[0].counts.map((entry) => entry.wordCount)).toStrictEqual([4, 21]);
     expect(result.answers[0].findings[0].parenthetical).toBe(true);
   });
 
-  it("does not claim parenthetical prose paragraph boundaries from the word-count rule", async () => {
+  test("does not claim parenthetical prose paragraph boundaries from the word-count rule", async () => {
     const result = await cli("The panel is closed (the latch is locked).", {
       check: { kind: "ste-paragraph-length" },
       ste: { writingMode: "descriptive" },
@@ -283,15 +289,15 @@ describe("Issue 9 mechanical checks through the real public CLI", () => {
     });
   });
 
-  it("uses colon and each simple vertical-list item as separate word-count units", async () => {
+  test("uses colon and each simple vertical-list item as separate word-count units", async () => {
     const result = await cli(
       "Inspect these areas:\n- the upper panel\n- the lower quick-release panel.\n",
     );
     expect(result.answers[0]).toMatchObject({ choice: "pass", reviewRequired: false });
-    expect(result.answers[0].counts.map((entry) => entry.wordCount)).toEqual([3, 3, 4]);
+    expect(result.answers[0].counts.map((entry) => entry.wordCount)).toStrictEqual([3, 3, 4]);
   });
 
-  it("does not mistake vertical-list fragments for paragraph sentences", async () => {
+  test("does not mistake vertical-list fragments for paragraph sentences", async () => {
     const result = await cli("The assembly has these parts:\n- the panel\n- the latch.\n", {
       check: { kind: "ste-paragraph-length" },
       ste: { writingMode: "descriptive" },
@@ -303,13 +309,13 @@ describe("Issue 9 mechanical checks through the real public CLI", () => {
     });
   });
 
-  it("excludes numbered work-step markers from the word count", async () => {
+  test("excludes numbered work-step markers from the word count", async () => {
     const result = await cli("1. Check the panel.\n2. Close the latch.\n");
     expect(result.answers[0]).toMatchObject({ choice: "pass", reviewRequired: false });
-    expect(result.answers[0].counts.map((entry) => entry.wordCount)).toEqual([3, 3]);
+    expect(result.answers[0].counts.map((entry) => entry.wordCount)).toStrictEqual([3, 3]);
   });
 
-  it("accepts explicit section 8 semantic groups and additional literal measurement units", async () => {
+  test("accepts explicit section 8 semantic groups and additional literal measurement units", async () => {
     const result = await cli("Send the panel to North River Works at 4 furlongs.", {
       ste: {
         writingMode: "procedural",
@@ -322,12 +328,12 @@ describe("Issue 9 mechanical checks through the real public CLI", () => {
       counts: [{ wordCount: 7 }],
       reviewRequired: false,
     });
-    expect(result.answers[0].coverage.declaredWordGroups).toEqual([
+    expect(result.answers[0].coverage.declaredWordGroups).toStrictEqual([
       { category: "proper-noun", text: "North River Works" },
     ]);
   });
 
-  it("handles source-illustrated composite identifiers and time abbreviations as one word", async () => {
+  test("handles source-illustrated composite identifiers and time abbreviations as one word", async () => {
     const result = await cli("Check the No. 2 panel at 11 a.m. today.");
     expect(result.answers[0]).toMatchObject({
       choice: "pass",
@@ -336,7 +342,7 @@ describe("Issue 9 mechanical checks through the real public CLI", () => {
     });
   });
 
-  it.each([
+  test.each([
     "Check North River Works.",
     "CHECK THE PANEL.",
     "Check e.g. the panel.",
@@ -361,7 +367,7 @@ describe("Issue 9 mechanical checks through the real public CLI", () => {
     expect(result.answers[0].coverage.parserWarnings.length).toBeGreaterThan(0);
   });
 
-  it("keeps prose semicolons distinct from excluded code and unchangeable quotations", async () => {
+  test("keeps prose semicolons distinct from excluded code and unchangeable quotations", async () => {
     const result = await cli(
       'Check the panel; close it. Read "Stop; wait".\n\n```js\nrun();\n```\n',
       { check: { kind: "ste-punctuation" } },
@@ -376,15 +382,15 @@ describe("Issue 9 mechanical checks through the real public CLI", () => {
     });
   });
 
-  it("never substitutes another section for the local counting target", async () => {
+  test("never substitutes another section for the local counting target", async () => {
     const result = await cli(`# First\n\n${sentence(20)}\n\n# Second\n\n${sentence(21)}\n`, {
       scope: "section",
     });
-    expect(result.answers.map((entry) => entry.choice)).toEqual(["pass", "fail"]);
+    expect(result.answers.map((entry) => entry.choice)).toStrictEqual(["pass", "fail"]);
     expect(result.answers[1].findings[0].sourceRange.startLine).toBe(7);
   });
 
-  it("propagates explicit section mode to paragraph targets without leaking across sections", async () => {
+  test("propagates explicit section mode to paragraph targets without leaking across sections", async () => {
     const result = await cli(`${sentence(21)}\n\n${sentence(21)}\n`, {
       scope: "paragraph",
       sections: [
@@ -392,10 +398,10 @@ describe("Issue 9 mechanical checks through the real public CLI", () => {
         { startLine: 3, endLine: 3 },
       ],
     });
-    expect(result.answers.map((entry) => entry.choice)).toEqual(["not_applicable", "fail"]);
+    expect(result.answers.map((entry) => entry.choice)).toStrictEqual(["not_applicable", "fail"]);
   });
 
-  it("abstains on page-level mixed writing modes rather than applying a global limit", async () => {
+  test("abstains on page-level mixed writing modes rather than applying a global limit", async () => {
     const result = await cli(`${sentence(21)}\n\n${sentence(21)}\n`, {
       sections: [
         { startLine: 1, endLine: 1, ste: { writingMode: "descriptive" } },
@@ -408,7 +414,7 @@ describe("Issue 9 mechanical checks through the real public CLI", () => {
     });
   });
 
-  it("does not count a partial paragraph selected by an explicit section", async () => {
+  test("does not count a partial paragraph selected by an explicit section", async () => {
     const result = await cli("Check the panel\nand close the latch.\n", {
       scope: "section",
       sections: [{ startLine: 1, endLine: 1 }],
@@ -420,7 +426,7 @@ describe("Issue 9 mechanical checks through the real public CLI", () => {
     });
   });
 
-  it("keeps missing dictionary evidence unavailable", async () => {
+  test("keeps missing dictionary evidence unavailable", async () => {
     const result = await cli("Check the panel.", { check: { kind: "ste-dictionary-membership" } });
     expect(result.answers[0]).toMatchObject({
       choice: "insufficient_context",
@@ -430,7 +436,7 @@ describe("Issue 9 mechanical checks through the real public CLI", () => {
     });
   });
 
-  it("performs literal local vocabulary and inflection lookup without a false contextual compliance decision", async () => {
+  test("performs literal local vocabulary and inflection lookup without a false contextual compliance decision", async () => {
     const vocabulary = {
       issue: 9,
       source: "Original synthetic test vocabulary, not the STE dictionary.",
@@ -464,7 +470,7 @@ describe("Issue 9 mechanical checks through the real public CLI", () => {
     });
     expect(
       result.answers[0].lexicalCandidates.map((entry) => [entry.term, entry.membership]),
-    ).toEqual([
+    ).toStrictEqual([
       ["Checked", "approved-form"],
       ["panels", "not-approved-entry"],
       ["remain", "unlisted"],
@@ -472,7 +478,7 @@ describe("Issue 9 mechanical checks through the real public CLI", () => {
     ]);
   });
 
-  it("supports exact multiword entries and their declared forms without generating inflections", async () => {
+  test("supports exact multiword entries and their declared forms without generating inflections", async () => {
     const vocabulary = {
       issue: 9,
       source: "Original synthetic phrase records for schema testing.",
@@ -508,7 +514,7 @@ describe("Issue 9 mechanical checks through the real public CLI", () => {
     expect(candidates.find((entry) => entry.term === "Put-on").membership).toBe("unlisted");
   });
 
-  it("does not treat ordinary descriptive mentions of warnings as a safety instruction", async () => {
+  test("does not treat ordinary descriptive mentions of warnings as a safety instruction", async () => {
     const result = await cli("The warning shows the state.", {
       check: checkFor("descriptive"),
       ste: { writingMode: "descriptive" },
@@ -520,7 +526,7 @@ describe("Issue 9 mechanical checks through the real public CLI", () => {
     });
   });
 
-  it("excludes explicit safety labels from a declared procedural count", async () => {
+  test("excludes explicit safety labels from a declared procedural count", async () => {
     const result = await cli(`CAUTION: ${sentence(21)}`);
     expect(result.answers[0]).toMatchObject({
       choice: "fail",
@@ -529,7 +535,7 @@ describe("Issue 9 mechanical checks through the real public CLI", () => {
     });
   });
 
-  it("applies descriptive 25 to an explicitly classified note without counting its label", async () => {
+  test("applies descriptive 25 to an explicitly classified note without counting its label", async () => {
     const result = await cli(`NOTE: ${sentence(25)}`, {
       check: checkFor("descriptive"),
       ste: { writingMode: "descriptive" },
@@ -541,7 +547,7 @@ describe("Issue 9 mechanical checks through the real public CLI", () => {
     });
   });
 
-  it("excludes parenthetical work-step numbering and keeps terminal time abbreviation boundaries", async () => {
+  test("excludes parenthetical work-step numbering and keeps terminal time abbreviation boundaries", async () => {
     const numbered = await cli("(3) Check the panel.");
     expect(numbered.answers[0]).toMatchObject({
       choice: "pass",
@@ -556,7 +562,7 @@ describe("Issue 9 mechanical checks through the real public CLI", () => {
     });
   });
 
-  it("retains declared technical noun records as candidates rather than dictionary violations", async () => {
+  test("retains declared technical noun records as candidates rather than dictionary violations", async () => {
     const vocabulary = {
       issue: 9,
       source: "Original source declarations for tests.",
@@ -587,7 +593,7 @@ describe("Issue 9 mechanical checks through the real public CLI", () => {
     });
   });
 
-  it("treats an unavailable private vocabulary path as missing evidence, not a pass", async () => {
+  test("treats an unavailable private vocabulary path as missing evidence, not a pass", async () => {
     const result = await cli("Check the panel.", {
       check: { kind: "ste-dictionary-membership" },
       ste: { vocabularyFile: "missing-private.json" },
@@ -599,7 +605,7 @@ describe("Issue 9 mechanical checks through the real public CLI", () => {
     });
   });
 
-  it("defers incorrectly classified safety labels rather than applying descriptive 25", async () => {
+  test("defers incorrectly classified safety labels rather than applying descriptive 25", async () => {
     const result = await cli("CAUTION: Keep the panel closed.", {
       check: checkFor("descriptive"),
       ste: { writingMode: "descriptive" },
@@ -611,7 +617,7 @@ describe("Issue 9 mechanical checks through the real public CLI", () => {
     });
   });
 
-  it("defers procedural notes instead of treating them as procedural 20", async () => {
+  test("defers procedural notes instead of treating them as procedural 20", async () => {
     const result = await cli("NOTE: The panel is closed.");
     expect(result.answers[0]).toMatchObject({
       choice: "insufficient_context",
@@ -620,7 +626,7 @@ describe("Issue 9 mechanical checks through the real public CLI", () => {
     });
   });
 
-  it("does not flag HTML entity terminators as prose semicolons", async () => {
+  test("does not flag HTML entity terminators as prose semicolons", async () => {
     const result = await cli("Check the panel &amp; latch.", {
       check: { kind: "ste-punctuation" },
     });
@@ -631,7 +637,7 @@ describe("Issue 9 mechanical checks through the real public CLI", () => {
     });
   });
 
-  it.each([
+  test.each([
     { writingMode: "safety" },
     { writingMode: "procedural", wordGroups: [{ text: "a", category: "regex" }] },
     { measurementUnits: ["(a+)+"] },

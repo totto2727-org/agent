@@ -2,7 +2,7 @@
 import { readFile } from "node:fs/promises";
 // oxlint-disable-next-line rules/no-node-imports -- Find the packaged catalog fixture relative to this test module.
 import { fileURLToPath } from "node:url";
-import { describe, expect, it } from "vitest";
+import { describe, expect, test } from "vitest";
 
 import { buildWork, validateManifest } from "./evaluate.mjs";
 
@@ -13,20 +13,22 @@ const numberedRules = sectionCounts.flatMap((count, section) =>
   Array.from({ length: count }, (_, index) => `${section + 1}.${index + 1}`),
 );
 const loadCatalog = async () => JSON.parse(await readFile(catalogPath, "utf8"));
+const mappedNumbers = (rules) =>
+  rules
+    .flatMap((rule) => [rule.source?.rule, ...(rule.source?.requiredRules ?? [])])
+    .filter((rule) => typeof rule === "string" && /^\d+\.\d+$/u.test(rule));
+const bySourceNumber = (rules, number) => rules.filter((rule) => rule.source?.rule === number);
 
 // This inventory protects the maintained map. Source interpretation requires
 // Independent reading of the actual standard, not merely this inventory test.
-describe("Issue 9 executable rule catalog", () => {
-  it("maps all 53 numbered rules, including explicit counting dependencies", async () => {
+describe("executable rule catalog for Issue 9", () => {
+  test("maps all 53 numbered rules, including explicit counting dependencies", async () => {
     const rules = await loadCatalog();
-    const mapped = rules
-      .flatMap((rule) => [rule.source?.rule, ...(rule.source?.requiredRules ?? [])])
-      .filter((rule) => typeof rule === "string" && /^\d+\.\d+$/u.test(rule));
-    expect([...new Set(mapped)].sort()).toEqual([...numberedRules].sort());
+    expect([...new Set(mappedNumbers(rules))].sort()).toStrictEqual([...numberedRules].sort());
     expect(numberedRules).toHaveLength(53);
   });
 
-  it("keeps rule identities unique and all executable scopes local", async () => {
+  test("keeps rule identities unique and all executable scopes local", async () => {
     const rules = await loadCatalog();
     expect(new Set(rules.map((rule) => rule.id)).size).toBe(rules.length);
     for (const rule of rules) {
@@ -37,57 +39,47 @@ describe("Issue 9 executable rule catalog", () => {
     expect(rules.some((rule) => rule.id.startsWith("ste-faq-"))).toBe(false);
   });
 
-  it("does not delegate exact counting methods to a Decision Model", async () => {
-    const rules = await loadCatalog();
-    for (const number of ["5.1", "6.3", "6.6", "8.1"]) {
-      const checks = rules.filter((rule) => rule.source?.rule === number);
-      expect(checks.length, number).toBeGreaterThan(0);
-      expect(
-        checks.every((rule) => rule.engine === "mechanical"),
-        number,
-      ).toBe(true);
-      if (["5.1", "6.3"].includes(number)) {
-        expect(
-          checks.every((rule) => rule.scope === "paragraph"),
-          number,
-        ).toBe(true);
+  test.each(["5.1", "6.3", "6.6", "8.1"])("keeps source rule %s mechanical", async (number) => {
+    const checks = bySourceNumber(await loadCatalog(), number);
+    expect(checks.length).toBeGreaterThan(0);
+    expect(checks.every((rule) => rule.engine === "mechanical")).toBe(true);
+  });
+
+  test.each(["5.1", "6.3"])(
+    "uses paragraph evidence and the counting dependencies for rule %s",
+    async (number) => {
+      const checks = bySourceNumber(await loadCatalog(), number);
+      expect(checks.length).toBeGreaterThan(0);
+      for (const rule of checks) {
+        expect(rule.scope).toBe("paragraph");
+        expect(rule.source.requiredRules).toStrictEqual(
+          expect.arrayContaining(["8.4", "8.5", "8.6", "8.7"]),
+        );
       }
-    }
-    const counting = rules.filter((rule) => ["5.1", "6.3"].includes(rule.source?.rule));
-    for (const rule of counting) {
-      expect(rule.source.requiredRules).toEqual(
-        expect.arrayContaining(["8.4", "8.5", "8.6", "8.7"]),
+    },
+  );
+
+  test.each(["1.1", "1.2", "1.3", "1.4", "3.1", "9.2", "9.3"])(
+    "requires local dictionary evidence for decisions under rule %s",
+    async (number) => {
+      const checks = bySourceNumber(await loadCatalog(), number).filter(
+        (rule) => rule.engine === "decision",
       );
-    }
-  });
+      expect(checks.length).toBeGreaterThan(0);
+      expect(checks.every((rule) => rule.requiresDictionaryEntries === true)).toBe(true);
+    },
+  );
 
-  it("requires local dictionary evidence for dictionary-dependent judgments", async () => {
-    const rules = await loadCatalog();
-    for (const number of ["1.1", "1.2", "1.3", "1.4", "3.1", "9.2", "9.3"]) {
-      const checks = rules.filter(
-        (rule) => rule.source?.rule === number && rule.engine === "decision",
-      );
-      expect(checks.length, number).toBeGreaterThan(0);
-      expect(
-        checks.every((rule) => rule.requiresDictionaryEntries === true),
-        number,
-      ).toBe(true);
-    }
-  });
+  test.each(["1.9", "2.1", "2.2"])(
+    "requires computed local noun counts for rule %s",
+    async (number) => {
+      const checks = bySourceNumber(await loadCatalog(), number);
+      expect(checks.length).toBeGreaterThan(0);
+      expect(checks.every((rule) => rule.requiresNounGroupCounts === true)).toBe(true);
+    },
+  );
 
-  it("requires computed local noun counts instead of model arithmetic", async () => {
-    const rules = await loadCatalog();
-    for (const number of ["1.9", "2.1", "2.2"]) {
-      const checks = rules.filter((rule) => rule.source?.rule === number);
-      expect(checks.length, number).toBeGreaterThan(0);
-      expect(
-        checks.every((rule) => rule.requiresNounGroupCounts === true),
-        number,
-      ).toBe(true);
-    }
-  });
-
-  it("builds every executable rule against the shipped audit guide", async () => {
+  test("builds every executable rule against the shipped audit guide", async () => {
     const rules = await loadCatalog();
     const manifest = validateManifest({
       model: "clef-flash",
@@ -108,7 +100,7 @@ describe("Issue 9 executable rule catalog", () => {
     const planned = work.flatMap((item) =>
       Object.values(item.questions).map((question) => question.ruleId),
     );
-    expect([...new Set(planned)].sort()).toEqual(rules.map((rule) => rule.id).sort());
+    expect([...new Set(planned)].sort()).toStrictEqual(rules.map((rule) => rule.id).sort());
     expect(work.every((item) => item.path === sourcePath)).toBe(true);
     // Planning real input verifies integration, not semantic acceptance.
   });

@@ -10,7 +10,7 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 // oxlint-disable-next-line rules/no-node-imports -- Await the native subprocess and preserve its exit status in these tests.
 import { promisify } from "node:util";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, test } from "vitest";
 
 import { evaluate } from "./evaluate.mjs";
 import { parseArguments, prepareCorpus, scoreCorpus, scoreReport } from "./history-corpus.mjs";
@@ -125,32 +125,37 @@ const repositoryFixture = async function () {
   };
 };
 
-afterEach(async () => {
+const cleanupFixtures = async () => {
   await Promise.all(
     directories.splice(0).map((directory) => rm(directory, { force: true, recursive: true })),
   );
-});
+};
 
 describe("historical document preparation", () => {
-  it("extracts pinned full pages, hides labels, preserves ranges, and feeds the evaluator", async () => {
+  afterEach(cleanupFixtures);
+
+  test("extracts pinned full pages, hides labels, preserves ranges, and feeds the evaluator", async () => {
     const fixture = await repositoryFixture();
     const { manifest, labels } = await prepareCorpus({ ...fixture, split: "calibration" });
-    expect(manifest).toMatchObject({
+    const { documents, model, rulesFile, threshold } = manifest;
+    expect({ documents, model, rulesFile, threshold }).toStrictEqual({
+      documents: [
+        {
+          id: "sample-0001",
+          path: "sample-0001.md",
+          purpose: fixture.samples[0].purpose,
+          audience: fixture.samples[0].audience,
+          ruleIds: ["direct"],
+          sections: [{ id: "target", startLine: 3, endLine: 4, headingPath: [] }],
+        },
+      ],
       model: "typesafe/jev",
-      threshold: 0.8,
       rulesFile: fixture.rulesPath,
+      threshold: 0.8,
     });
-    expect(manifest.documents).toEqual([
-      {
-        id: "sample-0001",
-        path: "sample-0001.md",
-        purpose: fixture.samples[0].purpose,
-        audience: fixture.samples[0].audience,
-        ruleIds: ["direct"],
-        sections: [{ id: "target", startLine: 3, endLine: 4, headingPath: [] }],
-      },
-    ]);
-    expect(await readFile(resolve(fixture.outputDir, "sample-0001.md"), "utf8")).toBe(fixture.page);
+    await expect(readFile(resolve(fixture.outputDir, "sample-0001.md"), "utf8")).resolves.toBe(
+      fixture.page,
+    );
     expect(labels.samples[0]).toMatchObject({
       id: "historical-negative",
       documentId: "sample-0001",
@@ -163,30 +168,43 @@ describe("historical document preparation", () => {
       dryRun: true,
       environment: {},
     });
-    expect(report.evaluations).toHaveLength(1);
-    expect(report.evaluations[0].section).toMatchObject({
-      id: "target",
-      sourceRange: { endLine: 4, startLine: 3 },
+    const [evaluation] = report.evaluations;
+    const serialized = JSON.stringify(evaluation.state);
+    expect({
+      evaluationCount: report.evaluations.length,
+      leakedLabels: ["historical-negative", fixture.samples[0].revision].filter((label) =>
+        serialized.includes(label),
+      ),
+      markdown: evaluation.state.evidence.page.markdown,
+      section: evaluation.section,
+    }).toMatchObject({
+      evaluationCount: 1,
+      leakedLabels: [],
+      markdown: fixture.page,
+      section: { id: "target", sourceRange: { endLine: 4, startLine: 3 } },
     });
-    expect(report.evaluations[0].state.evidence.page.markdown).toBe(fixture.page);
-    expect(JSON.stringify(report.evaluations[0].state)).not.toContain("historical-negative");
-    expect(JSON.stringify(report.evaluations[0].state)).not.toContain(fixture.samples[0].revision);
     const dryScore = scoreReport(report, labels);
-    expect(dryScore.coverage).toMatchObject({ exact: true, expected: 1, matched: 1 });
-    expect(dryScore.totals.infrastructureError).toBe(1);
-    expect(dryScore.rows[0].reason).toBe("not_evaluated");
+    expect({
+      coverage: dryScore.coverage,
+      infrastructureErrors: dryScore.totals.infrastructureError,
+      reason: dryScore.rows[0].reason,
+    }).toMatchObject({
+      coverage: { exact: true, expected: 1, matched: 1 },
+      infrastructureErrors: 1,
+      reason: "not_evaluated",
+    });
   });
 
-  it("keeps neutral IDs stable across split selection and refuses to overwrite outputs", async () => {
+  test("keeps neutral IDs stable across split selection and refuses to overwrite outputs", async () => {
     const fixture = await repositoryFixture();
     const result = await prepareCorpus({ ...fixture, split: "holdout" });
-    expect(result.manifest.documents.map((document) => document.id)).toEqual(["sample-0002"]);
+    expect(result.manifest.documents.map((document) => document.id)).toStrictEqual(["sample-0002"]);
     await expect(prepareCorpus({ ...fixture, split: "holdout" })).rejects.toMatchObject({
       code: "EEXIST",
     });
   });
 
-  it.each([
+  test.each([
     ["unpinned revision", { revision: "HEAD" }, "full Git object ID"],
     ["out-of-range excerpt", { endLine: 500 }, "Source range exceeds page"],
     ["unknown rule", { ruleIds: ["missing"], expected: {} }, "Unknown rule"],
@@ -200,7 +218,7 @@ describe("historical document preparation", () => {
     });
   });
 
-  it("rejects family leakage even when preparing only calibration", async () => {
+  test("rejects family leakage even when preparing only calibration", async () => {
     const fixture = await repositoryFixture();
     fixture.samples[1].family = fixture.samples[0].family;
     await writeFile(fixture.specPath, JSON.stringify(fixture.samples));
@@ -209,7 +227,7 @@ describe("historical document preparation", () => {
     );
   });
 
-  it("runs the prepare CLI with explicit spec and rule paths", async () => {
+  test("runs the prepare CLI with explicit spec and rule paths", async () => {
     const fixture = await repositoryFixture();
     await execute(process.execPath, [
       script,
@@ -233,7 +251,9 @@ describe("historical document preparation", () => {
 });
 
 describe("historical judgment scoring", () => {
-  it.each([
+  afterEach(cleanupFixtures);
+
+  test.each([
     ["fail", "fail", "truePositive"],
     ["pass", "pass", "trueNegative"],
     ["fail", "pass", "falseAcceptance"],
@@ -269,7 +289,7 @@ describe("historical judgment scoring", () => {
     },
   );
 
-  it.each([
+  test.each([
     ["not_applicable", 0.99],
     ["insufficient_context", 0.99],
     ["pass", 0.79],
@@ -288,13 +308,13 @@ describe("historical judgment scoring", () => {
     });
   });
 
-  it("reports every missing label rather than dropping absent evaluations", () => {
+  test("reports every missing label rather than dropping absent evaluations", () => {
     const result = score([]);
     expect(result.coverage).toMatchObject({ exact: false, expected: 1, matched: 0, missing: 1 });
     expect(result.totals).toMatchObject({ infrastructureError: 1, missing: 1, total: 1 });
   });
 
-  it.each([
+  test.each([
     ["error", evaluation({ status: "error", answers: [] }), "evaluation_error"],
     ["dry run", evaluation({ status: "dry_run", answers: [] }), "not_evaluated"],
     ["missing answer", evaluation({ answers: [] }), "missing"],
@@ -315,7 +335,7 @@ describe("historical judgment scoring", () => {
     expect(result.totals.falseAcceptance).toBe(0);
   });
 
-  it("detects duplicate evaluations, duplicate answers, and unexpected questions", () => {
+  test("detects duplicate evaluations, duplicate answers, and unexpected questions", () => {
     const duplicate = score([evaluation(), evaluation()]);
     expect(duplicate.coverage).toMatchObject({ duplicates: 1, exact: false });
     expect(duplicate.totals.infrastructureError).toBe(1);
@@ -329,7 +349,7 @@ describe("historical judgment scoring", () => {
     expect(score([evaluation({ scope: "page", section: null })]).coverage.exact).toBe(false);
   });
 
-  it("rejects ambiguous question identities and mismatched source ranges", () => {
+  test("rejects ambiguous question identities and mismatched source ranges", () => {
     const duplicateIds = evaluation({
       questions: [
         { id: "q-1", rule: { id: "direct" } },
@@ -352,7 +372,7 @@ describe("historical judgment scoring", () => {
     });
   });
 
-  it("does not include exploratory judgments in the gold confusion matrix", () => {
+  test("does not include exploratory judgments in the gold confusion matrix", () => {
     const item = sample({
       ruleIds: ["direct", "flow"],
       ruleScopes: { direct: "section", flow: "page" },
@@ -381,7 +401,7 @@ describe("historical judgment scoring", () => {
     });
   });
 
-  it("writes incomplete coverage from the public CLI and exits nonzero", async () => {
+  test("writes incomplete coverage from the public CLI and exits nonzero", async () => {
     const directory = await temporaryDirectory();
     const reportPath = resolve(directory, "report.json");
     const labelsPath = resolve(directory, "labels.json");
@@ -409,7 +429,7 @@ describe("historical judgment scoring", () => {
     });
   });
 
-  it("rejects unknown, duplicate, and incomplete command arguments", () => {
+  test("rejects unknown, duplicate, and incomplete command arguments", () => {
     expect(() => parseArguments([])).toThrow("prepare or score");
     expect(() => parseArguments(["score", "--output"])).toThrow("Missing value");
     expect(() => parseArguments(["prepare", "--random", "x"])).toThrow("Unknown argument");

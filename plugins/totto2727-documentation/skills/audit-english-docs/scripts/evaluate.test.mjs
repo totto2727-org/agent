@@ -10,7 +10,7 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 // oxlint-disable-next-line rules/no-node-imports -- Await the native subprocess and preserve its exit status in these tests.
 import { promisify } from "node:util";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, test } from "vitest";
 
 import {
   MODELS,
@@ -209,7 +209,7 @@ const evaluationOf = function (report, documentId, scope, sectionId = null) {
 const assertAnswerIdentities = function (report) {
   for (const entry of report.evaluations) {
     const ids = new Set(entry.questions.map((question) => question.id));
-    expect(entry.answers.length).toBe(entry.questions.length);
+    expect(entry.answers).toHaveLength(entry.questions.length);
     for (const answer of entry.answers) {
       expect(ids.has(answer.questionId)).toBe(true);
     }
@@ -339,16 +339,18 @@ const withMock = async function (paths, options, callback) {
   }
 };
 
-afterEach(async () => {
+const cleanupFixtures = async () => {
   await Promise.all(
     temporaryDirectories
       .splice(0)
       .map((directory) => rm(directory, { force: true, recursive: true })),
   );
-});
+};
 
 describe("private dictionary evidence boundaries", () => {
-  it("guards a provider pass when matched noun evidence contains an unsupported local group", async () => {
+  afterEach(cleanupFixtures);
+
+  test("guards a provider pass when matched noun evidence contains an unsupported local group", async () => {
     const paths = await dictionaryFixture({ vocabulary: false });
     await writeFile(
       resolve(paths.directory, "guide.md"),
@@ -377,11 +379,11 @@ describe("private dictionary evidence boundaries", () => {
         entry.status,
         entry.wordCount,
       ]),
-    ).toEqual([
+    ).toStrictEqual([
       ["counted", 3],
       ["insufficient_context", null],
     ]);
-    expect(report.evaluations[0].nounGroupCounts).toEqual(
+    expect(report.evaluations[0].nounGroupCounts).toStrictEqual(
       calls[0].payload.state.evidence.local.nounGroupCounts,
     );
     expect(report.evaluations[0].answers[0]).toMatchObject({
@@ -394,7 +396,7 @@ describe("private dictionary evidence boundaries", () => {
     expect(report.evaluations[0].answers[0].reason).toContain("machine counts");
   });
 
-  it("allows source-declared technical terms to supply local contextual evidence without ordinary dictionary membership", async () => {
+  test("allows source-declared technical terms to supply local contextual evidence without ordinary dictionary membership", async () => {
     const paths = await dictionaryFixture({ complete: true });
     await writeFile(resolve(paths.directory, "guide.md"), "Check the status panel.\n");
     paths.data.technicalTerms = [
@@ -428,7 +430,7 @@ describe("private dictionary evidence boundaries", () => {
     });
   });
 
-  it("defers oversized selected dictionary evidence before credentials or billing", async () => {
+  test("defers oversized selected dictionary evidence before credentials or billing", async () => {
     const paths = await dictionaryFixture({ complete: true });
     paths.data.entries[0].meaning = "x".repeat(50_000);
     await writeFile(
@@ -443,7 +445,7 @@ describe("private dictionary evidence boundaries", () => {
     });
   });
 
-  it("defers dictionary-dependent judgments without matched entries and without credentials or requests", async () => {
+  test("defers dictionary-dependent judgments without matched entries and without credentials or requests", async () => {
     const paths = await dictionaryFixture({ vocabulary: false });
     const report = await evaluate({ ...paths, environment: {} });
     expect(report).toMatchObject({ incomplete: true, requestCount: 0, reviewRequired: true });
@@ -454,7 +456,7 @@ describe("private dictionary evidence boundaries", () => {
     expect(report.evaluations[0].reason).toContain("Required dictionary entries");
   });
 
-  it("sends only target-matched records, no private path or unrelated records, and rejects an unsupported model pass", async () => {
+  test("sends only target-matched records, no private path or unrelated records, and rejects an unsupported model pass", async () => {
     const paths = await dictionaryFixture();
     const { result: report, calls } = await withMock(paths, {}, () =>
       evaluate({ ...paths, environment: CREDENTIALS }),
@@ -462,23 +464,35 @@ describe("private dictionary evidence boundaries", () => {
     expect(calls).toHaveLength(1);
     const payload = calls[0].payload;
     const selected = payload.state.evidence.local.dictionaryCandidates;
-    expect(selected).toMatchObject({ issue: 9, source: paths.data.source });
-    expect(selected.candidates[0]).toMatchObject({
-      membership: "approved-form",
-      records: [
-        {
-          approved: true,
-          listedForms: ["check"],
-          meaning: "Selected local meaning.",
-          partOfSpeech: "synthetic",
-          word: "check",
-        },
-      ],
-      sourceRange: { endByte: 5, endLine: 1, startByte: 0, startLine: 1 },
-      term: "Check",
+    expect({
+      candidate: selected.candidates[0],
+      issue: selected.issue,
+      source: selected.source,
+    }).toMatchObject({
+      candidate: {
+        membership: "approved-form",
+        records: [
+          {
+            approved: true,
+            listedForms: ["check"],
+            meaning: "Selected local meaning.",
+            partOfSpeech: "synthetic",
+            word: "check",
+          },
+        ],
+        sourceRange: { endByte: 5, endLine: 1, startByte: 0, startLine: 1 },
+        term: "Check",
+      },
+      issue: 9,
+      source: paths.data.source,
     });
-    expect(JSON.stringify(selected)).not.toContain("UNMATCHED-PRIVATE-MEANING");
-    expect(JSON.stringify(payload)).not.toContain("private-vocabulary.json");
+    expect({
+      leakedPath: JSON.stringify(payload).includes("private-vocabulary.json"),
+      leakedRecord: JSON.stringify(selected).includes("UNMATCHED-PRIVATE-MEANING"),
+    }).toStrictEqual({
+      leakedPath: false,
+      leakedRecord: false,
+    });
     expect(Object.values(payload.questions)[0].instructions).toContain("never model memory");
     expect(report.evaluations[0].answers[0]).toMatchObject({
       choice: "insufficient_context",
@@ -489,12 +503,12 @@ describe("private dictionary evidence boundaries", () => {
         confidence: 0.94,
         probabilities: { fail: 0.03, insufficient_context: 0.01, not_applicable: 0, pass: 0.96 },
       },
+      reason: expect.stringContaining("model pass"),
       reviewRequired: true,
     });
-    expect(report.evaluations[0].answers[0].reason).toContain("model pass");
   });
 
-  it("retains a calibrated contextual model result when every local token has declared evidence", async () => {
+  test("retains a calibrated contextual model result when every local token has declared evidence", async () => {
     const paths = await dictionaryFixture({ complete: true });
     const { result: report } = await withMock(paths, {}, () =>
       evaluate({ ...paths, environment: CREDENTIALS }),
@@ -506,7 +520,7 @@ describe("private dictionary evidence boundaries", () => {
     });
   });
 
-  it("includes selected meanings in the cache key but excludes unmatched private entry changes", async () => {
+  test("includes selected meanings in the cache key but excludes unmatched private entry changes", async () => {
     const paths = await dictionaryFixture({ complete: true });
     const { result: keys, calls } = await withMock(paths, {}, async () => {
       const first = await evaluate({ ...paths, environment: CREDENTIALS });
@@ -531,7 +545,9 @@ describe("private dictionary evidence boundaries", () => {
 });
 
 describe("documentation quality evaluator public pipeline", () => {
-  it("segments heading units without splitting fenced code and retains hierarchy", () => {
+  afterEach(cleanupFixtures);
+
+  test("segments heading units without splitting fenced code and retains hierarchy", () => {
     const sections = segmentMarkdown(
       "# Parent\n\n## Child\n\n````md\n~~~\n# Example only\n```\n~~~\n````\n\nText.\n",
     );
@@ -541,23 +557,25 @@ describe("documentation quality evaluator public pipeline", () => {
     expect(sections[0].sourceRange.endLine).toBe(2);
   });
 
-  it("routes every allowed model to its documented endpoint and body shape", () => {
-    expect(MODELS).toEqual(["clef-flash", "clef", "typesafe/jev"]);
+  test("routes every allowed model to its documented endpoint and body shape", () => {
+    expect(MODELS).toStrictEqual(["clef-flash", "clef", "typesafe/jev"]);
     const base = `https://api.cloudflare.com/client/v4/accounts/${ACCOUNT_ID}/ai/run`;
-    expect(endpointFor("clef-flash", ACCOUNT_ID)).toBe(`${base}/@cf/cloudflare/clef-flash`);
-    expect(endpointFor("clef", ACCOUNT_ID)).toBe(`${base}/@cf/cloudflare/clef`);
-    expect(endpointFor("typesafe/jev", ACCOUNT_ID)).toBe(base);
+    expect(MODELS.map((model) => endpointFor(model, ACCOUNT_ID))).toStrictEqual([
+      `${base}/@cf/cloudflare/clef-flash`,
+      `${base}/@cf/cloudflare/clef`,
+      base,
+    ]);
     const state = { evidence: {} };
     const questions = { q: { type: "choice" } };
-    expect(payloadFor("clef", state, questions)).toEqual({ model: "clef", state, questions });
-    expect(payloadFor("typesafe/jev", state, questions)).toEqual({
+    expect(payloadFor("clef", state, questions)).toStrictEqual({ model: "clef", state, questions });
+    expect(payloadFor("typesafe/jev", state, questions)).toStrictEqual({
       model: "typesafe/jev",
       input: { state, questions },
     });
   });
 
-  it("accepts the documented credential shape and rejects unsafe values", () => {
-    expect(readCredentials(CREDENTIALS)).toEqual({
+  test("accepts the documented credential shape and rejects unsafe values", () => {
+    expect(readCredentials(CREDENTIALS)).toStrictEqual({
       accountId: ACCOUNT_ID,
       apiKey: API_KEY,
       gatewayId: GATEWAY_ID,
@@ -573,7 +591,7 @@ describe("documentation quality evaluator public pipeline", () => {
     );
   });
 
-  it("unwraps the native and universal response shapes and rejects failed jobs", () => {
+  test("unwraps the native and universal response shapes and rejects failed jobs", () => {
     const questions = { "q-000001": { type: "choice" } };
     const answer = {
       type: "choice",
@@ -598,13 +616,10 @@ describe("documentation quality evaluator public pipeline", () => {
         ...overrides,
       },
     });
-    expect(validateResponse(native(), questions, "clef-flash")).toMatchObject({
-      model: "clef-flash",
-      usage: { inputTokens: 5 },
-    });
-    expect(validateResponse(universal(), questions, "typesafe/jev")).toMatchObject({
-      model: "jev-1.13.0",
-    });
+    expect([
+      validateResponse(native(), questions, "clef-flash"),
+      validateResponse(universal(), questions, "typesafe/jev"),
+    ]).toMatchObject([{ model: "clef-flash", usage: { inputTokens: 5 } }, { model: "jev-1.13.0" }]);
     expect(() =>
       validateResponse(universal({ state: "Failed" }), questions, "typesafe/jev"),
     ).toThrow("did not complete");
@@ -623,7 +638,7 @@ describe("documentation quality evaluator public pipeline", () => {
     );
   });
 
-  it("accepts two-decimal probability rounding without accepting invalid distributions", () => {
+  test("accepts two-decimal probability rounding without accepting invalid distributions", () => {
     const questions = { "q-000001": { type: "choice" } };
     const response = (probabilities) => ({
       success: true,
@@ -658,7 +673,7 @@ describe("documentation quality evaluator public pipeline", () => {
     ).toThrow("probabilities must sum to 1");
   });
 
-  it("rejects non-finite confidence, probabilities, and thresholds", () => {
+  test("rejects non-finite confidence, probabilities, and thresholds", () => {
     const questions = { q: { type: "choice" } };
     const valid = {
       type: "choice",
@@ -670,16 +685,11 @@ describe("documentation quality evaluator public pipeline", () => {
       success: true,
       result: { model: "clef-flash", usage: null, answers: { q: answer } },
     });
-    expect(() =>
-      validateResponse(envelope({ ...valid, confidence: Number.NaN }), questions, "clef-flash"),
-    ).toThrow("invalid answer");
-    expect(() =>
-      validateResponse(
-        envelope({ ...valid, confidence: Number.POSITIVE_INFINITY }),
-        questions,
-        "clef-flash",
-      ),
-    ).toThrow("invalid answer");
+    for (const confidence of [Number.NaN, Number.POSITIVE_INFINITY]) {
+      expect(() =>
+        validateResponse(envelope({ ...valid, confidence }), questions, "clef-flash"),
+      ).toThrow("invalid answer");
+    }
     expect(() =>
       validateResponse(
         envelope({ ...valid, probabilities: { ...valid.probabilities, fail: Number.NaN } }),
@@ -703,7 +713,7 @@ describe("documentation quality evaluator public pipeline", () => {
     expect(() => validateManifest({ model: "clef-flash", rules, documents })).not.toThrow();
   });
 
-  it("posts the native shape to the clef endpoint without leaking labels", async () => {
+  test("posts the native shape to the clef endpoint without leaking labels", async () => {
     const paths = await fixture();
     const { result: report, calls } = await withMock(paths, {}, () =>
       evaluate({
@@ -713,45 +723,66 @@ describe("documentation quality evaluator public pipeline", () => {
         environment: CREDENTIALS,
       }),
     );
-    expect(report.reviewRequired).toBe(false);
-    expect(report.requestCount).toBe(3);
-    expect(report.evaluations).toHaveLength(3);
+    expect(report).toMatchObject({ requestCount: 3, reviewRequired: false });
     expect(report.evaluations.at(-1)).toMatchObject({ model: "clef-flash", scope: "page" });
-    expect(calls).toHaveLength(3);
-    for (const call of calls) {
-      expect(call.url).toBe(
-        `https://api.cloudflare.com/client/v4/accounts/${ACCOUNT_ID}/ai/run/@cf/cloudflare/clef-flash`,
-      );
-      expect(call.headers).toEqual([
+
+    const expectedRequest = {
+      hasQuestions: true,
+      headers: [
         `Authorization: Bearer ${API_KEY}`,
         `cf-aig-gateway-id: ${GATEWAY_ID}`,
         "Content-Type: application/json",
-        expect.stringMatching(/^cf-aig-cache-key: decision-v1-[0-9a-f]{64}$/),
+        expect.stringMatching(/^cf-aig-cache-key: decision-v1-[0-9a-f]{64}$/u),
         "cf-aig-cache-ttl: 2592000",
         "cf-aig-skip-cache: false",
-      ]);
-      expect(hasRetryOverride(call)).toBe(false);
-      expect(Object.keys(call.payload)).toEqual(["model", "state", "questions"]);
-      expect(call.payload.model).toBe("clef-flash");
-      expect(call.payload.input).toBeUndefined();
-      expect(Object.keys(call.payload.questions).length).toBeGreaterThan(0);
-      expect(JSON.stringify(call.payload)).not.toContain("expected");
-      expect(JSON.stringify(call.payload.questions)).not.toContain("ruleId");
-      expect(call.argv.join(" ")).not.toContain(API_KEY);
-      expect(JSON.stringify(call.payload)).not.toContain(API_KEY);
-    }
-    expect(JSON.stringify(report)).not.toContain(API_KEY);
-    for (const entry of report.evaluations) {
-      expect(entry.cache).toMatchObject({
-        key: expect.stringMatching(/^decision-v1-[0-9a-f]{64}$/),
-      });
-      expect(entry.cache.status).toBe("MISS");
-      expect(entry.cache.ray).toBe("mock-ray-0001");
-      expect(entry.cache.reused).toBe(false);
-    }
+      ],
+      input: undefined,
+      leakedApiKey: false,
+      leakedExpectedLabel: false,
+      leakedRuleId: false,
+      model: "clef-flash",
+      payloadKeys: ["model", "state", "questions"],
+      retryOverride: false,
+      url: `https://api.cloudflare.com/client/v4/accounts/${ACCOUNT_ID}/ai/run/@cf/cloudflare/clef-flash`,
+    };
+    const requests = calls.map((call) => {
+      const serialized = JSON.stringify(call.payload);
+      return {
+        hasQuestions: Object.keys(call.payload.questions).length > 0,
+        headers: call.headers,
+        input: call.payload.input,
+        leakedApiKey: [call.argv.join(" "), serialized].some((text) => text.includes(API_KEY)),
+        leakedExpectedLabel: serialized.includes("expected"),
+        leakedRuleId: JSON.stringify(call.payload.questions).includes("ruleId"),
+        model: call.payload.model,
+        payloadKeys: Object.keys(call.payload),
+        retryOverride: hasRetryOverride(call),
+        url: call.url,
+      };
+    });
+    expect(requests).toStrictEqual([expectedRequest, expectedRequest, expectedRequest]);
+
+    const cache = {
+      key: expect.stringMatching(/^decision-v1-[0-9a-f]{64}$/u),
+      ray: "mock-ray-0001",
+      reused: false,
+      status: "MISS",
+    };
+    expect({
+      caches: report.evaluations.map((entry) => entry.cache),
+      leakedApiKey: JSON.stringify(report).includes(API_KEY),
+    }).toMatchObject({ caches: [cache, cache, cache], leakedApiKey: false });
+
     const configLines = calls[0].config.split("\n");
-    expect(configLines).toEqual(
-      expect.arrayContaining([
+    expect({
+      cacheKeys: configLines.filter((line) => line.startsWith('header = "cf-aig-cache-key: '))
+        .length,
+      lines: configLines,
+      readsBodyFile: configLines.some((line) => line.startsWith('data-binary = "@')),
+      retryOverride: configLines.some((line) => line.startsWith('header = "cf-aig-max-attempts:')),
+    }).toStrictEqual({
+      cacheKeys: 1,
+      lines: expect.arrayContaining([
         'request = "POST"',
         "fail-with-body",
         "connect-timeout = 10",
@@ -763,17 +794,12 @@ describe("documentation quality evaluator public pipeline", () => {
         'header = "cf-aig-skip-cache: false"',
         'write-out = "\\n%{http_code}"',
       ]),
-    );
-    expect(configLines.some((line) => line.startsWith('header = "cf-aig-max-attempts:'))).toBe(
-      false,
-    );
-    expect(
-      configLines.filter((line) => line.startsWith('header = "cf-aig-cache-key: ')).length,
-    ).toBe(1);
-    expect(configLines.some((line) => line.startsWith('data-binary = "@'))).toBe(true);
+      readsBodyFile: true,
+      retryOverride: false,
+    });
   });
 
-  it("posts the universal Jev shape to the shared run endpoint", async () => {
+  test("posts the universal Jev shape to the shared run endpoint", async () => {
     const paths = await fixture({ model: "typesafe/jev" });
     const { result: report, calls } = await withMock(paths, {}, () =>
       evaluate({
@@ -785,24 +811,32 @@ describe("documentation quality evaluator public pipeline", () => {
     );
     expect(report.reviewRequired).toBe(false);
     expect(report.evaluations.every((entry) => entry.model === "jev-1.13.0")).toBe(true);
-    expect(calls).toHaveLength(3);
-    for (const call of calls) {
-      expect(call.url).toBe(`https://api.cloudflare.com/client/v4/accounts/${ACCOUNT_ID}/ai/run`);
-      expect(Object.keys(call.payload)).toEqual(["model", "input"]);
-      expect(call.payload.model).toBe("typesafe/jev");
-      expect(Object.keys(call.payload.input)).toEqual(["state", "questions"]);
-      expect(call.headers).toContain(`Authorization: Bearer ${API_KEY}`);
-      expect(call.headers).toContain(`cf-aig-gateway-id: ${GATEWAY_ID}`);
-      expect(call.headers).toContain("cf-aig-cache-ttl: 2592000");
-      expect(call.headers).toContain("cf-aig-skip-cache: false");
-      expect(hasRetryOverride(call)).toBe(false);
-      expect(
-        call.headers.some((header) => /^cf-aig-cache-key: decision-v1-[0-9a-f]{64}$/u.test(header)),
-      ).toBe(true);
-    }
+    const expectedRequest = {
+      headers: expect.arrayContaining([
+        `Authorization: Bearer ${API_KEY}`,
+        `cf-aig-gateway-id: ${GATEWAY_ID}`,
+        "cf-aig-cache-ttl: 2592000",
+        "cf-aig-skip-cache: false",
+        expect.stringMatching(/^cf-aig-cache-key: decision-v1-[0-9a-f]{64}$/u),
+      ]),
+      inputKeys: ["state", "questions"],
+      model: "typesafe/jev",
+      payloadKeys: ["model", "input"],
+      retryOverride: false,
+      url: `https://api.cloudflare.com/client/v4/accounts/${ACCOUNT_ID}/ai/run`,
+    };
+    const requests = calls.map((call) => ({
+      headers: call.headers,
+      inputKeys: Object.keys(call.payload.input),
+      model: call.payload.model,
+      payloadKeys: Object.keys(call.payload),
+      retryOverride: hasRetryOverride(call),
+      url: call.url,
+    }));
+    expect(requests).toStrictEqual([expectedRequest, expectedRequest, expectedRequest]);
   });
 
-  it.each(MODELS)("adds cache headers to every model request (%s)", async (model) => {
+  test.each(MODELS)("adds cache headers to every model request (%s)", async (model) => {
     const paths = await fixture({ model });
     const { result: report, calls } = await withMock(paths, {}, () =>
       evaluate({
@@ -824,7 +858,7 @@ describe("documentation quality evaluator public pipeline", () => {
     expect(report.requestCount).toBe(calls.length);
   });
 
-  it("does not retry transient failures and makes one client attempt per logical request", async () => {
+  test("does not retry transient failures and makes one client attempt per logical request", async () => {
     const paths = await fixture();
     const { result: report, calls } = await withMock(paths, { statusSequence: "503,200" }, () =>
       evaluate({
@@ -834,21 +868,25 @@ describe("documentation quality evaluator public pipeline", () => {
         environment: CREDENTIALS,
       }),
     );
-    expect(report.requestCount).toBe(3);
-    expect(calls).toHaveLength(3);
-    expect(new Set(calls.map((call) => call.url)).size).toBe(1);
+    expect(report).toMatchObject({ attentionRequired: true, requestCount: 3 });
     // The evaluator makes no client-side retry and sends no retry override, so
     // The Gateway's configured retry policy is untouched rather than proven.
-    expect(calls.filter(hasRetryOverride)).toHaveLength(0);
+    expect({
+      attempts: calls.length,
+      distinctUrls: new Set(calls.map((call) => call.url)).size,
+      retryOverrides: calls.filter(hasRetryOverride).length,
+    }).toStrictEqual({ attempts: 3, distinctUrls: 1, retryOverrides: 0 });
     // The first logical request observes the mocked 503 once and is reported as
     // An error; the later distinct requests observe the mocked 200.
-    expect(report.evaluations[0]).toMatchObject({ answers: [], status: "error" });
-    expect(report.evaluations[0].error).toContain("HTTP 503");
+    expect(report.evaluations[0]).toMatchObject({
+      answers: [],
+      error: expect.stringContaining("HTTP 503"),
+      status: "error",
+    });
     expect(report.evaluations.slice(1).every((entry) => entry.status === "complete")).toBe(true);
-    expect(report.attentionRequired).toBe(true);
   });
 
-  it.each([429, 500, 502, 503, 504])(
+  test.each([429, 500, 502, 503, 504])(
     "reports HTTP %i once without an automatic retry",
     async (status) => {
       const paths = await fixture();
@@ -871,7 +909,7 @@ describe("documentation quality evaluator public pipeline", () => {
     },
   );
 
-  it("does not retry a curl transport timeout", async () => {
+  test("does not retry a curl transport timeout", async () => {
     const paths = await fixture();
     const { result: report, calls } = await withMock(
       paths,
@@ -888,11 +926,13 @@ describe("documentation quality evaluator public pipeline", () => {
     expect(calls).toHaveLength(3);
     expect(calls.filter(hasRetryOverride)).toHaveLength(0);
     expect(report.evaluations.every((entry) => entry.status === "error")).toBe(true);
-    expect(report.evaluations[0].error).toContain("transport failed");
-    expect(report.evaluations[0].error).toContain("28");
+    const error = report.evaluations[0].error;
+    expect(
+      ["transport failed", "28"].filter((fragment) => !error.includes(fragment)),
+    ).toStrictEqual([]);
   });
 
-  it.each([401, 402, 403])(
+  test.each([401, 402, 403])(
     "stops queued work without retrying or switching models on HTTP %i",
     async (status) => {
       const paths = await fixture();
@@ -907,26 +947,31 @@ describe("documentation quality evaluator public pipeline", () => {
             environment: CREDENTIALS,
           }),
       );
-      expect(report.requestCount).toBe(1);
-      expect(calls).toHaveLength(1);
-      expect(calls[0].url).toContain("@cf/cloudflare/clef-flash");
-      expect(hasRetryOverride(calls[0])).toBe(false);
-      expect(report.reviewRequired).toBe(true);
-      expect(report.attentionRequired).toBe(true);
-      expect(report.evaluations[0]).toMatchObject({ answers: [], status: "error" });
-      expect(report.evaluations[0].error).toContain(`HTTP ${status}`);
-      expect(report.evaluations.slice(1)).toHaveLength(2);
-      expect(report.evaluations.slice(1).every((entry) => entry.status === "skipped")).toBe(true);
+      expect(report).toMatchObject({
+        attentionRequired: true,
+        requestCount: 1,
+        reviewRequired: true,
+      });
       expect(
-        report.evaluations.slice(1).every((entry) => entry.error.includes(`HTTP ${status}`)),
-      ).toBe(true);
+        calls.map((call) => ({ retryOverride: hasRetryOverride(call), url: call.url })),
+      ).toStrictEqual([
+        { retryOverride: false, url: expect.stringContaining("@cf/cloudflare/clef-flash") },
+      ]);
+      const error = expect.stringContaining(`HTTP ${status}`);
+      expect(report.evaluations).toMatchObject([
+        { answers: [], error, status: "error" },
+        { error, status: "skipped" },
+        { error, status: "skipped" },
+      ]);
       const written = JSON.parse(await readFile(paths.outputPath, "utf8"));
-      expect(written.evaluations).toHaveLength(3);
-      expect(written.reviewRequired).toBe(true);
+      expect({
+        evaluationCount: written.evaluations.length,
+        reviewRequired: written.reviewRequired,
+      }).toStrictEqual({ evaluationCount: 3, reviewRequired: true });
     },
   );
 
-  it("rejects a nonzero curl exit even when stdout carries a valid 200 response", async () => {
+  test("rejects a nonzero curl exit even when stdout carries a valid 200 response", async () => {
     const paths = await fixture();
     const { result: report, calls } = await withMock(paths, { exitCode: 28 }, () =>
       evaluate({
@@ -936,15 +981,16 @@ describe("documentation quality evaluator public pipeline", () => {
         environment: CREDENTIALS,
       }),
     );
-    expect(report.requestCount).toBe(3);
+    expect(report).toMatchObject({ attentionRequired: true, requestCount: 3 });
     expect(calls).toHaveLength(3);
     expect(report.evaluations.every((entry) => entry.status === "error")).toBe(true);
-    expect(report.evaluations[0].error).toContain("transport failed");
-    expect(report.evaluations[0].error).toContain("28");
-    expect(report.attentionRequired).toBe(true);
+    const error = report.evaluations[0].error;
+    expect(
+      ["transport failed", "28"].filter((fragment) => !error.includes(fragment)),
+    ).toStrictEqual([]);
   });
 
-  it("exits 1 through the public CLI for live evaluation failures", async () => {
+  test("exits 1 through the public CLI for live evaluation failures", async () => {
     const paths = await fixture();
     const mock = await prepareMock(paths, { statusSequence: "402" });
     try {
@@ -977,7 +1023,7 @@ describe("documentation quality evaluator public pipeline", () => {
     expect(report.evaluations[1].status).toBe("skipped");
   });
 
-  it("records a non-retryable bad status as an evaluation error", async () => {
+  test("records a non-retryable bad status as an evaluation error", async () => {
     const paths = await fixture();
     const { result: report, calls } = await withMock(paths, { statusSequence: "400" }, () =>
       evaluate({
@@ -994,7 +1040,7 @@ describe("documentation quality evaluator public pipeline", () => {
     expect(report.evaluations[0].error).toContain("HTTP 400");
   });
 
-  it("writes a review-required report when the response answers are malformed", async () => {
+  test("writes a review-required report when the response answers are malformed", async () => {
     const paths = await fixture();
     const { result: report } = await withMock(paths, { mode: "malformed" }, () =>
       evaluate({
@@ -1008,7 +1054,7 @@ describe("documentation quality evaluator public pipeline", () => {
     expect(JSON.parse(await readFile(paths.outputPath, "utf8")).evaluations).toHaveLength(3);
   });
 
-  it("rejects an unsuccessful request and an incomplete Jev job", async () => {
+  test("rejects an unsuccessful request and an incomplete Jev job", async () => {
     const nativePaths = await fixture();
     const { result: nativeReport } = await withMock(nativePaths, { mode: "native-failed" }, () =>
       evaluate({
@@ -1032,7 +1078,7 @@ describe("documentation quality evaluator public pipeline", () => {
     expect(jevReport.evaluations[0].error).toContain("did not complete");
   });
 
-  it("rejects unknown manifest models", async () => {
+  test("rejects unknown manifest models", async () => {
     const paths = await fixture({ model: "gpt-oss" });
     await expect(
       evaluate({
@@ -1044,7 +1090,7 @@ describe("documentation quality evaluator public pipeline", () => {
     ).rejects.toThrow("manifest.model must be one of");
   });
 
-  it("rejects unsafe credentials before any network call", async () => {
+  test("rejects unsafe credentials before any network call", async () => {
     const paths = await fixture();
     const cases = [
       [{ ...CREDENTIALS, CLOUDFLARE_ACCOUNT_ID: "not-hex" }, "32 hexadecimal"],
@@ -1063,7 +1109,7 @@ describe("documentation quality evaluator public pipeline", () => {
     }
   });
 
-  it("performs zero network calls in dry-run mode", async () => {
+  test("performs zero network calls in dry-run mode", async () => {
     const paths = await fixture();
     const report = await evaluate({
       manifestPath: paths.manifestPath,
@@ -1075,7 +1121,7 @@ describe("documentation quality evaluator public pipeline", () => {
     expect(report.evaluations.every((entry) => entry.status === "dry_run")).toBe(true);
   });
 
-  it("resolves an exclusive rulesFile relative to the manifest", async () => {
+  test("resolves an exclusive rulesFile relative to the manifest", async () => {
     const paths = await fixture();
     const manifest = JSON.parse(await readFile(paths.manifestPath, "utf8"));
     await writeFile(resolve(paths.directory, "rules.json"), JSON.stringify(manifest.rules));
@@ -1091,7 +1137,7 @@ describe("documentation quality evaluator public pipeline", () => {
     expect(report.evaluations).toHaveLength(3);
   });
 
-  it("derives explicit sections from source ranges and rejects an empty list", async () => {
+  test("derives explicit sections from source ranges and rejects an empty list", async () => {
     const paths = await fixture();
     const manifest = JSON.parse(await readFile(paths.manifestPath, "utf8"));
     manifest.documents[0].sections = [
@@ -1120,10 +1166,12 @@ describe("documentation quality evaluator public pipeline", () => {
     ).rejects.toThrow("sections must not be empty");
   });
 
-  it("derives a deterministic decision cache key that is sensitive to its inputs", () => {
-    expect(canonicalJson({ 10: "a", 2: "b" })).toBe('{"10":"a","2":"b"}');
-    expect(canonicalJson({ b: 1, a: [{ d: 1, c: 2 }] })).toBe('{"a":[{"c":2,"d":1}],"b":1}');
-    expect(canonicalJson({ list: [2, 1] })).toBe('{"list":[2,1]}');
+  test("derives a deterministic decision cache key that is sensitive to its inputs", () => {
+    expect([
+      canonicalJson({ 10: "a", 2: "b" }),
+      canonicalJson({ b: 1, a: [{ d: 1, c: 2 }] }),
+      canonicalJson({ list: [2, 1] }),
+    ]).toStrictEqual(['{"10":"a","2":"b"}', '{"a":[{"c":2,"d":1}],"b":1}', '{"list":[2,1]}']);
 
     const url = `https://api.cloudflare.com/client/v4/accounts/${ACCOUNT_ID}/ai/run/@cf/cloudflare/clef-flash`;
     const body = {
@@ -1136,8 +1184,10 @@ describe("documentation quality evaluator public pipeline", () => {
     };
     const base = { url, gatewayId: GATEWAY_ID, apiKey: API_KEY, body };
     const key = cacheFingerprint(base);
-    expect(key).toMatch(/^decision-v1-[0-9a-f]{64}$/);
-    expect(key).not.toContain(API_KEY);
+    expect({ key, leakedApiKey: key.includes(API_KEY) }).toStrictEqual({
+      key: expect.stringMatching(/^decision-v1-[0-9a-f]{64}$/u),
+      leakedApiKey: false,
+    });
     // Canonical key ordering makes equivalent bodies fingerprint identically.
     expect(
       cacheFingerprint({
@@ -1153,13 +1203,10 @@ describe("documentation quality evaluator public pipeline", () => {
       }),
     ).toBe(key);
     // Account route, gateway, token, model, state, criteria, and array order all matter.
-    expect(cacheFingerprint({ ...base, url: "https://example.test/run" })).not.toBe(key);
-    expect(cacheFingerprint({ ...base, gatewayId: "other-gateway" })).not.toBe(key);
-    expect(cacheFingerprint({ ...base, apiKey: "other-key" })).not.toBe(key);
-    expect(cacheFingerprint({ ...base, body: { ...body, model: "clef" } })).not.toBe(key);
-    expect(cacheFingerprint({ ...base, body: { ...body, state: { a: 2, b: 3 } } })).not.toBe(key);
-    expect(
-      cacheFingerprint({
+    const changedInputs = {
+      accountUrl: { ...base, url: "https://example.test/run" },
+      apiKey: { ...base, apiKey: "other-key" },
+      criteria: {
         ...base,
         body: {
           ...body,
@@ -1168,8 +1215,15 @@ describe("documentation quality evaluator public pipeline", () => {
             "q-000001": { criteria: { pass: "different", fail: "f" } },
           },
         },
-      }),
-    ).not.toBe(key);
+      },
+      gateway: { ...base, gatewayId: "other-gateway" },
+      model: { ...base, body: { ...body, model: "clef" } },
+      state: { ...base, body: { ...body, state: { a: 2, b: 3 } } },
+    };
+    const unchangedInputs = Object.entries(changedInputs)
+      .filter(([, input]) => cacheFingerprint(input) === key)
+      .map(([name]) => name);
+    expect(unchangedInputs).toStrictEqual([]);
     expect(
       cacheFingerprint({ ...base, body: { ...body, state: { a: 2, b: 1, list: [1, 2] } } }),
     ).not.toBe(
@@ -1177,7 +1231,7 @@ describe("documentation quality evaluator public pipeline", () => {
     );
   });
 
-  it("parses the cf-aig-cache-status header without inventing a value", () => {
+  test("parses the cf-aig-cache-status header without inventing a value", () => {
     expect(parseCacheStatus("HTTP/1.1 200 OK\r\ncf-aig-cache-status: HIT\r\n\r\n")).toBe("HIT");
     expect(parseCacheStatus("HTTP/1.1 200 OK\r\ncf-aig-cache-status: miss\r\n\r\n")).toBe("MISS");
     expect(
@@ -1185,7 +1239,7 @@ describe("documentation quality evaluator public pipeline", () => {
     ).toBeNull();
   });
 
-  it("shares one request across concurrent equivalent evaluations and maps distinct report IDs", async () => {
+  test("shares one request across concurrent equivalent evaluations and maps distinct report IDs", async () => {
     const paths = await duplicateFixture();
     const { result: report, calls } = await withMock(paths, {}, () =>
       evaluate({
@@ -1196,26 +1250,36 @@ describe("documentation quality evaluator public pipeline", () => {
       }),
     );
     // Two identical documents each contribute two section units and one page unit.
-    expect(report.evaluations).toHaveLength(6);
-    expect(report.requestCount).toBe(3);
-    expect(calls).toHaveLength(3);
-    expect(report.evaluations.every((entry) => entry.status === "complete")).toBe(true);
-    expect(report.evaluations.filter((entry) => entry.cache.reused)).toHaveLength(3);
     // Mocked headers are recorded verbatim; this does not prove a real Gateway hit.
-    expect(report.evaluations.every((entry) => entry.cache.status === "MISS")).toBe(true);
+    expect({
+      allComplete: report.evaluations.every((entry) => entry.status === "complete"),
+      allMisses: report.evaluations.every((entry) => entry.cache.status === "MISS"),
+      attempts: calls.length,
+      evaluationCount: report.evaluations.length,
+      requestCount: report.requestCount,
+      reused: report.evaluations.filter((entry) => entry.cache.reused).length,
+    }).toStrictEqual({
+      allComplete: true,
+      allMisses: true,
+      attempts: 3,
+      evaluationCount: 6,
+      requestCount: 3,
+      reused: 3,
+    });
     assertAnswerIdentities(report);
 
     const sectionA = evaluationOf(report, "guide-a", "section", "section-1");
     const sectionB = evaluationOf(report, "guide-b", "section", "section-1");
     expect(sectionA.cache.key).toBe(sectionB.cache.key);
-    expect(sectionA.cache.reused).toBe(false);
-    expect(sectionB.cache.reused).toBe(true);
-    expect(sectionA.answers[0].questionId).toBe(sectionA.questions[0].id);
-    expect(sectionB.answers[0].questionId).toBe(sectionB.questions[0].id);
+    expect([sectionA.cache.reused, sectionB.cache.reused]).toStrictEqual([false, true]);
+    expect([sectionA.answers[0].questionId, sectionB.answers[0].questionId]).toStrictEqual([
+      sectionA.questions[0].id,
+      sectionB.questions[0].id,
+    ]);
     expect(sectionA.questions[0].id).not.toBe(sectionB.questions[0].id);
   });
 
-  it("reuses resolved promises for sequential duplicates without another request", async () => {
+  test("reuses resolved promises for sequential duplicates without another request", async () => {
     const paths = await duplicateFixture();
     const { result: report, calls } = await withMock(paths, {}, () =>
       evaluate({
@@ -1235,7 +1299,7 @@ describe("documentation quality evaluator public pipeline", () => {
     expect(new Set(report.evaluations.map((entry) => entry.cache.key)).size).toBe(3);
   });
 
-  it("shares failed outcomes for duplicates without a second attempt", async () => {
+  test("shares failed outcomes for duplicates without a second attempt", async () => {
     const paths = await duplicateFixture();
     const { result: report, calls } = await withMock(paths, { statusSequence: "503" }, () =>
       evaluate({
@@ -1245,15 +1309,13 @@ describe("documentation quality evaluator public pipeline", () => {
         environment: CREDENTIALS,
       }),
     );
-    expect(report.requestCount).toBe(3);
-    expect(calls).toHaveLength(3);
-    expect(report.evaluations).toHaveLength(6);
+    expect([report.requestCount, calls.length, report.evaluations.length]).toStrictEqual([3, 3, 6]);
     expect(report.evaluations.every((entry) => entry.status === "error")).toBe(true);
     expect(report.evaluations.every((entry) => entry.error.includes("HTTP 503"))).toBe(true);
     expect(report.evaluations.every((entry) => entry.answers.length === 0)).toBe(true);
   });
 
-  it("shares a cached malformed response once and preserves its cache evidence", async () => {
+  test("shares a cached malformed response once and preserves its cache evidence", async () => {
     const paths = await duplicateFixture();
     const { result: report, calls } = await withMock(
       paths,
@@ -1266,18 +1328,17 @@ describe("documentation quality evaluator public pipeline", () => {
           environment: CREDENTIALS,
         }),
     );
-    expect(report.requestCount).toBe(3);
-    expect(calls).toHaveLength(3);
-    expect(report.evaluations).toHaveLength(6);
+    expect([report.requestCount, calls.length, report.evaluations.length]).toStrictEqual([3, 3, 6]);
     expect(report.evaluations.every((entry) => entry.status === "error")).toBe(true);
     expect(new Set(report.evaluations.map((entry) => entry.error)).size).toBe(1);
     expect(report.evaluations.filter((entry) => entry.cache.reused)).toHaveLength(3);
     // Validation failures keep the cache evidence from the actual response headers.
-    expect(report.evaluations.every((entry) => entry.cache.status === "MISS")).toBe(true);
-    expect(report.evaluations.every((entry) => entry.cache.ray === "mock-ray-4242")).toBe(true);
+    expect(
+      report.evaluations.map(({ cache }) => ({ ray: cache.ray, status: cache.status })),
+    ).toStrictEqual(Array.from({ length: 6 }, () => ({ ray: "mock-ray-4242", status: "MISS" })));
   });
 
-  it("keeps decision cache keys stable across runs independent of run-wide report IDs", async () => {
+  test("keeps decision cache keys stable across runs independent of run-wide report IDs", async () => {
     const paths = await fixture();
     const manifest = JSON.parse(await readFile(paths.manifestPath, "utf8"));
     await writeFile(
@@ -1318,22 +1379,24 @@ describe("documentation quality evaluator public pipeline", () => {
       }),
     );
 
-    expect(callsA).toHaveLength(3);
     const runBCalls = callsB.slice(callsA.length);
-    expect(runBCalls).toHaveLength(6);
+    expect([callsA.length, runBCalls.length]).toStrictEqual([3, 6]);
     const guideA = evaluationOf(runA, "guide", "section", "section-1");
     const guideB = evaluationOf(runB, "guide", "section", "section-1");
     expect(guideA.cache.key).toBe(guideB.cache.key);
     // Report identities differ because the leading document shifts the run-wide counter.
-    expect(guideA.questions[0].id).toBe("q-000001");
-    expect(guideB.questions[0].id).toBe("q-000004");
-    expect(guideA.questions[0].id).not.toBe(guideB.questions[0].id);
+    expect([guideA.questions[0].id, guideB.questions[0].id]).toStrictEqual([
+      "q-000001",
+      "q-000004",
+    ]);
     // Request-local numbering keeps the transmitted payload identical.
-    expect(Object.keys(callsA[0].payload.questions)).toEqual(["q-000001"]);
-    expect(Object.keys(runBCalls[3].payload.questions)).toEqual(["q-000001"]);
+    expect([
+      Object.keys(callsA[0].payload.questions),
+      Object.keys(runBCalls[3].payload.questions),
+    ]).toStrictEqual([["q-000001"], ["q-000001"]]);
   });
 
-  it("does not share cache entries for meaningful evidence or criteria changes", async () => {
+  test("does not share cache entries for meaningful evidence changes", async () => {
     const evidencePaths = await duplicateFixture({ secondAudience: "An experienced operator." });
     const { result: evidenceReport, calls: evidenceCalls } = await withMock(evidencePaths, {}, () =>
       evaluate({
@@ -1349,7 +1412,9 @@ describe("documentation quality evaluator public pipeline", () => {
     expect(evaluationOf(evidenceReport, "guide-a", "section", "section-1").cache.key).not.toBe(
       evaluationOf(evidenceReport, "guide-b", "section", "section-1").cache.key,
     );
+  });
 
+  test("does not share cache entries for distinct section criteria", async () => {
     const criteriaPaths = await duplicateFixture({ secondRuleIds: ["strict", "flow"] });
     const { result: criteriaReport, calls: criteriaCalls } = await withMock(criteriaPaths, {}, () =>
       evaluate({
@@ -1362,19 +1427,17 @@ describe("documentation quality evaluator public pipeline", () => {
     // Each document has two distinct section units plus one page unit. The
     // Section criteria differ between documents, so only the page request is
     // Shared: four section requests plus one page request.
-    expect(criteriaCalls).toHaveLength(5);
-    expect(criteriaReport.requestCount).toBe(5);
+    expect([criteriaCalls.length, criteriaReport.requestCount]).toStrictEqual([5, 5]);
     const sectionA = evaluationOf(criteriaReport, "guide-a", "section", "section-1");
     const sectionB = evaluationOf(criteriaReport, "guide-b", "section", "section-1");
     const pageA = evaluationOf(criteriaReport, "guide-a", "page");
     const pageB = evaluationOf(criteriaReport, "guide-b", "page");
     expect(sectionA.cache.key).not.toBe(sectionB.cache.key);
     expect(pageA.cache.key).toBe(pageB.cache.key);
-    expect(pageA.cache.reused).toBe(false);
-    expect(pageB.cache.reused).toBe(true);
+    expect([pageA.cache.reused, pageB.cache.reused]).toStrictEqual([false, true]);
   });
 
-  it("records the mocked cache status header without claiming a real hit", async () => {
+  test("records the mocked cache status header without claiming a real hit", async () => {
     const paths = await fixture();
     const { result: report } = await withMock(paths, { cacheStatus: "HIT" }, () =>
       evaluate({
@@ -1423,7 +1486,9 @@ const localFixture = async function ({
 };
 
 describe("local mechanical and semantic engine boundaries", () => {
-  it.each([
+  afterEach(cleanupFixtures);
+
+  test.each([
     {
       markdown:
         "- Example:\n\n    ```\n    const value=1;\n    ```\n\n```js\nconst valid=2;\n```\n",
@@ -1444,6 +1509,7 @@ describe("local mechanical and semantic engine boundaries", () => {
   ])(
     "reports ambiguous indented list continuation through the public CLI instead of a false pass: %j",
     async ({ markdown, rule }) => {
+      expect.hasAssertions();
       const paths = await localFixture({ markdown, rules: [rule] });
       const { result: report, calls } = await withMock(paths, {}, async () => {
         const environment = { ...process.env };
@@ -1466,7 +1532,7 @@ describe("local mechanical and semantic engine boundaries", () => {
         ).rejects.toMatchObject({ code: 1 });
         return JSON.parse(await readFile(paths.outputPath, "utf8"));
       });
-      expect(calls).toEqual([]);
+      expect(calls).toStrictEqual([]);
       expect(report).toMatchObject({
         attentionRequired: true,
         failed: false,
@@ -1487,7 +1553,7 @@ describe("local mechanical and semantic engine boundaries", () => {
     },
   );
 
-  it("keeps list uncertainty local and evaluates independent later top-level sections normally", async () => {
+  test("keeps list uncertainty local and evaluates independent later top-level sections normally", async () => {
     const markdown =
       "# Ambiguous\n\n- Example:\n\n    ```\n    forbidden();\n    ```\n\n# Independent\n\nClean prose.\n\n```js\nvalid();\n```\n";
     const paths = await localFixture({
@@ -1502,14 +1568,14 @@ describe("local mechanical and semantic engine boundaries", () => {
       ],
     });
     const report = await evaluate({ ...paths, environment: {} });
-    expect(report.evaluations.map((entry) => entry.answers.map((answer) => answer.choice))).toEqual(
-      [
-        ["insufficient_context", "insufficient_context"],
-        ["pass", "pass"],
-      ],
-    );
+    expect(
+      report.evaluations.map((entry) => entry.answers.map((answer) => answer.choice)),
+    ).toStrictEqual([
+      ["insufficient_context", "insufficient_context"],
+      ["pass", "pass"],
+    ]);
     for (const answer of report.evaluations[1].answers) {
-      expect(answer.coverage.parserWarnings).toEqual([]);
+      expect(answer.coverage.parserWarnings).toStrictEqual([]);
     }
     expect(report.evaluations[0].answers[0].coverage.parserWarnings[0].sourceRange).toMatchObject({
       endLine: 5,
@@ -1517,7 +1583,7 @@ describe("local mechanical and semantic engine boundaries", () => {
     });
   });
 
-  it.each([
+  test.each([
     { startLine: 5, endLine: 5 },
     { startLine: 6, endLine: 6 },
   ])(
@@ -1560,12 +1626,12 @@ describe("local mechanical and semantic engine boundaries", () => {
       expect(error).toMatchObject({ code: 2 });
       expect(error.stderr).toContain("Section partial selects only part of a paragraph");
       expect(error.stderr).toContain("paragraph lines 5-6");
-      expect(calls).toEqual([]);
+      expect(calls).toStrictEqual([]);
       await expect(readFile(paths.outputPath, "utf8")).rejects.toMatchObject({ code: "ENOENT" });
     },
   );
 
-  it("preserves explicit partial prose ranges when only section checks are selected", async () => {
+  test("preserves explicit partial prose ranges when only section checks are selected", async () => {
     const paths = await localFixture({
       markdown: "# Guide\n\nComplete paragraph.\n\nforbidden\nSecond part.\n",
       rules: [
@@ -1589,11 +1655,14 @@ describe("local mechanical and semantic engine boundaries", () => {
       ],
     });
     const report = await evaluate({ ...paths, environment: {} });
-    expect(report.evaluations.map((entry) => entry.answers[0].choice)).toEqual(["pass", "fail"]);
+    expect(report.evaluations.map((entry) => entry.answers[0].choice)).toStrictEqual([
+      "pass",
+      "fail",
+    ]);
     expect(report.requestCount).toBe(0);
   });
 
-  it("rejects legacy context through the public CLI before any request with a migration error", async () => {
+  test("rejects legacy context through the public CLI before any request with a migration error", async () => {
     const paths = await localFixture({
       documents: [
         {
@@ -1618,12 +1687,13 @@ describe("local mechanical and semantic engine boundaries", () => {
     expect(error).toMatchObject({ code: 2 });
     expect(error.stderr).toContain("context is no longer supported");
     expect(error.stderr).toContain("purpose, audience, and templateConstraints");
-    expect(calls).toEqual([]);
+    expect(calls).toStrictEqual([]);
   });
 
-  it.each(["```js\ncode();\n", "~~~txt\ntext\n", "````js\ncode();\n```\n"])(
+  test.each(["```js\ncode();\n", "~~~txt\ntext\n", "````js\ncode();\n```\n"])(
     "fails the public CLI for an unclosed labeled fence with zero API calls: %j",
     async (markdown) => {
+      expect.hasAssertions();
       const paths = await localFixture({ markdown });
       const { result: report, calls } = await withMock(paths, {}, async () => {
         const environment = { ...process.env };
@@ -1646,7 +1716,7 @@ describe("local mechanical and semantic engine boundaries", () => {
         ).rejects.toMatchObject({ code: 1 });
         return JSON.parse(await readFile(paths.outputPath, "utf8"));
       });
-      expect(calls).toEqual([]);
+      expect(calls).toStrictEqual([]);
       expect(report).toMatchObject({
         attentionRequired: true,
         failed: true,
@@ -1665,9 +1735,12 @@ describe("local mechanical and semantic engine boundaries", () => {
     },
   );
 
-  it.each([false, true])(
+  test.each([
+    [false, []],
+    [true, ["--mechanical-only"]],
+  ])(
     "runs the public CLI without credentials or curl for mechanical work (mechanical-only=%s)",
-    async (mechanicalOnly) => {
+    async (_mechanicalOnly, cliFlags) => {
       const paths = await localFixture();
       const { result: report, calls } = await withMock(paths, {}, async () => {
         const environment = { ...process.env };
@@ -1676,19 +1749,12 @@ describe("local mechanical and semantic engine boundaries", () => {
         });
         await execute(
           process.execPath,
-          [
-            script,
-            "--manifest",
-            paths.manifestPath,
-            "--output",
-            paths.outputPath,
-            ...(mechanicalOnly ? ["--mechanical-only"] : []),
-          ],
+          [script, "--manifest", paths.manifestPath, "--output", paths.outputPath, ...cliFlags],
           { env: environment },
         );
         return JSON.parse(await readFile(paths.outputPath, "utf8"));
       });
-      expect(calls).toEqual([]);
+      expect(calls).toStrictEqual([]);
       expect(report).toMatchObject({
         attentionRequired: false,
         failed: false,
@@ -1701,11 +1767,12 @@ describe("local mechanical and semantic engine boundaries", () => {
         engine: "mechanical",
         status: "complete",
       });
-      expect(report.evaluations[0].questions[0].rule.source).toEqual(fenceRule.source);
+      expect(report.evaluations[0].questions[0].rule.source).toStrictEqual(fenceRule.source);
     },
   );
 
-  it("keeps selected semantic work deferred and review-required through the mechanical-only CLI", async () => {
+  test("keeps selected semantic work deferred and review-required through the mechanical-only CLI", async () => {
+    expect.hasAssertions();
     const paths = await localFixture({
       rules: [
         fenceRule,
@@ -1739,7 +1806,7 @@ describe("local mechanical and semantic engine boundaries", () => {
       ).rejects.toMatchObject({ code: 1 });
       return JSON.parse(await readFile(paths.outputPath, "utf8"));
     });
-    expect(calls).toEqual([]);
+    expect(calls).toStrictEqual([]);
     expect(report).toMatchObject({
       attentionRequired: true,
       failed: false,
@@ -1754,7 +1821,7 @@ describe("local mechanical and semantic engine boundaries", () => {
     });
   });
 
-  it("distinguishes mechanical failures from no applicable content, and preserves exact source ranges", async () => {
+  test("distinguishes mechanical failures from no applicable content, and preserves exact source ranges", async () => {
     const paths = await localFixture({
       markdown: "# Setup\n\n```\nbad();\n```\n",
       rules: [
@@ -1765,7 +1832,7 @@ describe("local mechanical and semantic engine boundaries", () => {
     const { result: report, calls } = await withMock(paths, {}, () =>
       evaluate({ ...paths, mechanicalOnly: true, environment: {} }),
     );
-    expect(calls).toEqual([]);
+    expect(calls).toStrictEqual([]);
     expect(report.failed).toBe(true);
     const [fence, lexical] = report.evaluations[0].answers;
     expect(fence).toMatchObject({
@@ -1779,12 +1846,19 @@ describe("local mechanical and semantic engine boundaries", () => {
       excludedOnly,
       sourceRange(excludedOnly, 0, excludedOnly.length),
     );
-    expect(answer.choice).toBe("not_applicable");
-    expect(answer.coverage.claim).toContain("not STE dictionary or full STE compliance");
-    expect(answer.coverage.excluded.length).toBeGreaterThan(0);
+    expect({
+      choice: answer.choice,
+      claim: answer.coverage.claim,
+      excludesContent: answer.coverage.excluded.length > 0,
+    }).toStrictEqual({
+      choice: "not_applicable",
+      claim: expect.stringContaining("not STE dictionary or full STE compliance"),
+      excludesContent: true,
+    });
   });
 
-  it("sends only semantic criteria, retains template constraints, and isolates pages", async () => {
+  test("sends only semantic criteria, retains template constraints, and isolates pages", async () => {
+    expect.hasAssertions();
     const semantic = {
       id: "semantic",
       scope: "paragraph",
@@ -1812,33 +1886,56 @@ describe("local mechanical and semantic engine boundaries", () => {
     const { result: report, calls } = await withMock(paths, {}, () =>
       evaluate({ ...paths, environment: CREDENTIALS }),
     );
-    expect(calls).toHaveLength(3);
     expect(report.evaluations.some((entry) => entry.engine === "mechanical")).toBe(true);
-    for (const call of calls) {
-      const { state, questions } = call.payload.input;
-      expect(state.evidence.document).not.toHaveProperty("context");
-      expect(JSON.stringify(questions)).not.toContain("fenced-code-language");
-      expect(JSON.stringify(questions)).not.toContain("prohibited-terms");
-      expect(Object.keys(state.evidence)).toEqual(["document", "page", "local"]);
-      Object.values(questions).forEach((question) => {
-        expect(question.instructions).toContain("for this paragraph question");
-        expect(question.instructions).toContain("unseen link destinations");
-        expect(question.instructions).toContain("Do not require rewriting");
-      });
-      if (state.evidence.page.markdown.includes("# Setup")) {
-        expect(JSON.stringify(state)).not.toContain("Other-page-secret");
-        expect(state.evidence.document.templateConstraints).toEqual([
-          "Keep the headings in template order.",
-          "Keep the summary table.",
-        ]);
-      } else {
-        expect(state.evidence.page.markdown).not.toContain("run();");
-      }
-    }
+    const inputs = calls.map((call) => call.payload.input);
+    const expectedRequest = {
+      documentHasContext: false,
+      evidenceKeys: ["document", "page", "local"],
+      leakedMechanicalRules: [],
+      missingInstructions: [],
+    };
+    expect(
+      inputs.map(({ questions, state }) => {
+        const serializedQuestions = JSON.stringify(questions);
+        return {
+          documentHasContext: "context" in state.evidence.document,
+          evidenceKeys: Object.keys(state.evidence),
+          leakedMechanicalRules: ["fenced-code-language", "prohibited-terms"].filter((rule) =>
+            serializedQuestions.includes(rule),
+          ),
+          missingInstructions: Object.values(questions).flatMap(({ instructions }) =>
+            [
+              "for this paragraph question",
+              "unseen link destinations",
+              "Do not require rewriting",
+            ].filter((phrase) => !instructions.includes(phrase)),
+          ),
+        };
+      }),
+    ).toStrictEqual([expectedRequest, expectedRequest, expectedRequest]);
+
+    const states = inputs.map(({ state }) => state);
+    const isSetup = (state) => state.evidence.page.markdown.includes("# Setup");
+    const setupStates = states.filter(isSetup);
+    const setupEvidence = {
+      leakedOtherPage: false,
+      templateConstraints: ["Keep the headings in template order.", "Keep the summary table."],
+    };
+    expect(
+      setupStates.map((state) => ({
+        leakedOtherPage: JSON.stringify(state).includes("Other-page-secret"),
+        templateConstraints: state.evidence.document.templateConstraints,
+      })),
+    ).toStrictEqual(setupStates.map(() => setupEvidence));
+    expect(
+      states
+        .filter((state) => !isSetup(state))
+        .map((state) => state.evidence.page.markdown.includes("run();")),
+    ).not.toContain(true);
     assertAnswerIdentities(report);
   });
 
-  it("marks semantic passes without a supplied threshold as uncalibrated review, not an approval", async () => {
+  test("marks semantic passes without a supplied threshold as uncalibrated review, not an approval", async () => {
     const paths = await localFixture({
       rules: [
         {
@@ -1866,7 +1963,7 @@ describe("local mechanical and semantic engine boundaries", () => {
     });
   });
 
-  it("keeps semantic abstention distinct from transport errors and deterministic violations", async () => {
+  test("keeps semantic abstention distinct from transport errors and deterministic violations", async () => {
     const paths = await localFixture({
       markdown: "# Setup\n\n```\ncode();\n```\n",
       model: "clef",
@@ -1896,18 +1993,21 @@ describe("local mechanical and semantic engine boundaries", () => {
     });
   });
 
-  it("never substitutes another section's violations for its local target", async () => {
+  test("never substitutes another section's violations for its local target", async () => {
     const paths = await localFixture({
       markdown: "# First\n\nClean.\n\n# Second\n\nBad.\n",
       rules: [{ ...lexicalRule, scope: "section" }],
     });
     const report = await evaluate({ ...paths, environment: {} });
     expect(report.requestCount).toBe(0);
-    expect(report.evaluations.map((entry) => entry.answers[0].choice)).toEqual(["pass", "fail"]);
+    expect(report.evaluations.map((entry) => entry.answers[0].choice)).toStrictEqual([
+      "pass",
+      "fail",
+    ]);
     expect(report.evaluations[1].answers[0].findings[0].sourceRange.startLine).toBe(7);
   });
 
-  it.each(["~~~\ncode\n~~~\n", "````\n```\ncode\n````\n", "```   \ncode\n"])(
+  test.each(["~~~\ncode\n~~~\n", "````\n```\ncode\n````\n", "```   \ncode\n"])(
     "recognizes unlabeled fences without splitting nested or unclosed delimiters: %j",
     (markdown) => {
       const answer = runMechanical(
@@ -1920,7 +2020,7 @@ describe("local mechanical and semantic engine boundaries", () => {
     },
   );
 
-  it("excludes explicitly marked translations without reading them or needing a model", async () => {
+  test("excludes explicitly marked translations without reading them or needing a model", async () => {
     const paths = await localFixture({
       englishOnly: true,
       documents: [
@@ -1954,7 +2054,7 @@ describe("local mechanical and semantic engine boundaries", () => {
     });
     const report = await evaluate({ ...paths, environment: {} });
     expect(report.requestCount).toBe(0);
-    expect(report.evaluations.map((entry) => entry.documentId)).toEqual(["en"]);
+    expect(report.evaluations.map((entry) => entry.documentId)).toStrictEqual(["en"]);
     expect(report.excludedDocuments).toMatchObject([{ documentId: "ja", sourceLanguage: "ja" }]);
     expect(() =>
       validateManifest({
@@ -1964,7 +2064,7 @@ describe("local mechanical and semantic engine boundaries", () => {
     ).toThrow("sourceLanguage is required");
   });
 
-  it.each(["document-set", "cross-page", "site"])("rejects nonlocal rule scope %s", (scope) => {
+  test.each(["document-set", "cross-page", "site"])("rejects nonlocal rule scope %s", (scope) => {
     expect(() =>
       validateManifest({
         rules: [{ ...fenceRule, scope }],
@@ -1973,26 +2073,32 @@ describe("local mechanical and semantic engine boundaries", () => {
     ).toThrow("scope must be section, page, or paragraph");
   });
 
-  it.each([
-    { kind: "shell", command: "echo bad" },
-    { kind: "constructor" },
-    { kind: "sentence-limit", limit: 20 },
-    { kind: "fenced-code-language", terms: ["bad"] },
-    { kind: "prohibited-terms", terms: ["(a+)+"], regex: true },
-    { kind: "prohibited-terms", terms: [] },
-    { kind: "prohibited-terms", terms: ["bad"], caseSensitive: "false" },
-    { kind: "prohibited-terms", terms: ["bad"], protectedTerms: ["two words"] },
-  ])("rejects undeclared kinds and invalid exact check parameters: %j", (check) => {
-    expect(() => validateMechanicalCheck(check, "check")).toThrow();
+  test.each([
+    [{ kind: "shell", command: "echo bad" }, "unsupported mechanical kind"],
+    [{ kind: "constructor" }, "unsupported mechanical kind"],
+    [{ kind: "sentence-limit", limit: 20 }, "unsupported mechanical kind"],
+    [{ kind: "fenced-code-language", terms: ["bad"] }, "unexpected parameter"],
+    [{ kind: "prohibited-terms", terms: ["(a+)+"], regex: true }, "unexpected parameter"],
+    [{ kind: "prohibited-terms", terms: [] }, "terms must contain"],
+    [
+      { kind: "prohibited-terms", terms: ["bad"], caseSensitive: "false" },
+      "caseSensitive must be boolean",
+    ],
+    [
+      { kind: "prohibited-terms", terms: ["bad"], protectedTerms: ["two words"] },
+      "protectedTerms must be",
+    ],
+  ])("rejects undeclared kinds and invalid exact check parameters: %j", (check, message) => {
+    expect(() => validateMechanicalCheck(check, "check")).toThrow(message);
     expect(() =>
       validateManifest({
         rules: [{ ...fenceRule, check }],
         documents: [{ id: "d", path: "d.md", purpose: "p", audience: "a" }],
       }),
-    ).toThrow();
+    ).toThrow(message);
   });
 
-  it("bounds provenance and prevents mechanical criteria from entering the decision engine", () => {
+  test("bounds provenance and prevents mechanical criteria from entering the decision engine", () => {
     const base = {
       rules: [fenceRule],
       documents: [{ id: "d", path: "d.md", purpose: "p", audience: "a" }],
@@ -2017,17 +2123,17 @@ describe("local mechanical and semantic engine boundaries", () => {
     );
   });
 
-  it("retains paragraph-local UTF-8 ranges, heading paths and intact code blocks", () => {
+  test("retains paragraph-local UTF-8 ranges, heading paths and intact code blocks", () => {
     const markdown =
       "---\n# Metadata only\n---\n# Setup {#setup}\n\nCafé bad.\nSecond line.\n\n````js\n# Not a heading\n```\n\ncode();\n````\n\n## Next {#next}\n\nFinal.\n";
     const sections = segmentMarkdown(markdown);
-    expect(sections.map((section) => section.headingPath)).toEqual([
+    expect(sections.map((section) => section.headingPath)).toStrictEqual([
       [],
       ["Setup"],
       ["Setup", "Next"],
     ]);
     const units = paragraphUnits(markdown, sections);
-    expect(units.map((unit) => unit.text)).toEqual([
+    expect(units.map((unit) => unit.text)).toStrictEqual([
       "Café bad.\nSecond line.\n",
       "````js\n# Not a heading\n```\n\ncode();\n````\n",
       "Final.\n",
@@ -2052,7 +2158,7 @@ describe("local mechanical and semantic engine boundaries", () => {
     ).toBe("bad");
   });
 
-  it("uses only explicit whole-token project restrictions, honoring protected terms and excluded syntax", () => {
+  test("uses only explicit whole-token project restrictions, honoring protected terms and excluded syntax", () => {
     const markdown =
       "---\nbad: bad\n---\n# Safe {#bad}\n\nBad badly widget `bad` ``bad ` bad`` [safe](https://example.com/bad) https://bad.example/path\n\n```txt\nbad\n```\n\n<span>bad</span>\n\n<!-- bad -->\n\n<script>\nbad\n</script>\n\n<div>\nbad\n\n    bad\n";
     const answer = runMechanical(
@@ -2060,7 +2166,7 @@ describe("local mechanical and semantic engine boundaries", () => {
       markdown,
       sourceRange(markdown, 0, markdown.length),
     );
-    expect(answer.findings.map((finding) => finding.term)).toEqual(["Bad"]);
+    expect(answer.findings.map((finding) => finding.term)).toStrictEqual(["Bad"]);
     expect(answer.findings[0].basis).toBe("exact-project-restriction");
     const kinds = new Set(answer.coverage.excluded.map((entry) => entry.kind));
     for (const kind of [
@@ -2080,10 +2186,10 @@ describe("local mechanical and semantic engine boundaries", () => {
         "Bad widget badly",
         sourceRange("Bad widget badly", 0, 16),
       ).findings,
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 
-  it("reports semantic checks without paragraph targets as deferred rather than losing them", async () => {
+  test("reports semantic checks without paragraph targets as deferred rather than losing them", async () => {
     const paths = await localFixture({
       markdown: "# Empty\n",
       rules: [
@@ -2104,7 +2210,7 @@ describe("local mechanical and semantic engine boundaries", () => {
     });
   });
 
-  it.each(["> ```\n> bad\n> ```\n", "- ```\n  bad\n  ```\n"])(
+  test.each(["> ```\n> bad\n> ```\n", "- ```\n  bad\n  ```\n"])(
     "abstains conservatively on container fence syntax without lexical or language compliance claims: %j",
     (container) => {
       const markdown = `Safe prose.\n\n\`\`\`js\ncode();\n\`\`\`\n\n${container}`;
@@ -2120,7 +2226,7 @@ describe("local mechanical and semantic engine boundaries", () => {
     },
   );
 
-  it("does not turn a missing paragraph into a pass over its heading", async () => {
+  test("does not turn a missing paragraph into a pass over its heading", async () => {
     const paths = await localFixture({ markdown: "# Empty\n", rules: [lexicalRule] });
     const report = await evaluate({ ...paths, environment: {} });
     expect(report).toMatchObject({
