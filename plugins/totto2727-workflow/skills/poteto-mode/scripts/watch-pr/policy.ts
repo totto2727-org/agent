@@ -268,12 +268,12 @@ export const queryBackoffSeconds = (
   interval: number,
   failures: number
 ): number => Math.min(Math.max(interval, 60) * 2 ** (failures - 1), 300);
-interface Envelope<M extends T.WatchMode> {
-  readonly schemaVersion: 1;
-  readonly sequence: number;
-  readonly observedAt: string;
-  readonly mode: M;
-}
+type Envelope<M extends T.WatchMode> = Readonly<{
+  schemaVersion: 1;
+  sequence: number;
+  observedAt: string;
+  mode: M;
+}>;
 type Payload<V> = V extends unknown
   ? Omit<V, keyof Envelope<T.WatchMode>>
   : never;

@@ -69,13 +69,13 @@ export interface ReviewThread {
   readonly isBugbot: boolean;
   readonly bugbotReviewPasses: number;
 }
-interface CheckDetails {
-  readonly name: string;
-  readonly reportedState: string;
-  readonly description: string;
-  readonly link: string;
-  readonly workflow: string;
-}
+type CheckDetails = Readonly<{
+  name: string;
+  reportedState: string;
+  description: string;
+  link: string;
+  workflow: string;
+}>;
 export type Check =
   | (CheckDetails & Readonly<{ kind: "passed" }>)
   | (CheckDetails & Readonly<{ kind: "skipped" }>)
@@ -114,11 +114,11 @@ export type GitHubMergeAllowed =
       headRollupState: Exclude<RollupState, "ERROR" | "FAILURE">;
     }>;
 export type GitHubMergeAssessment = GitHubMergeAllowed | GitHubMergeRefusal;
-interface CiBase {
-  readonly source: CheckRead["source"];
-  readonly all: NonEmpty<Check>;
-  readonly hadPreviousPassingCi: boolean;
-}
+type CiBase = Readonly<{
+  source: CheckRead["source"];
+  all: NonEmpty<Check>;
+  hadPreviousPassingCi: boolean;
+}>;
 export type CiFailing = CiBase & Readonly<{
   kind: "ci-failing";
   failed: NonEmpty<FailedCheck>;
@@ -256,13 +256,13 @@ export type StackDecision =
   | WaitingDecision
   | Readonly<{ kind: "clear"; prs: NonEmpty<ReadyPr | MergedPr> }>;
 export type WatchMode = "single" | "stack" | "queued-stack";
-interface EventBase<K extends string, M extends WatchMode = WatchMode> {
-  readonly schemaVersion: 1;
-  readonly sequence: number;
-  readonly observedAt: string;
-  readonly mode: M;
-  readonly kind: K;
-}
+type EventBase<K extends string, M extends WatchMode = WatchMode> = Readonly<{
+  schemaVersion: 1;
+  sequence: number;
+  observedAt: string;
+  mode: M;
+  kind: K;
+}>;
 interface Progress<K extends string, M extends WatchMode = WatchMode>
   extends EventBase<K, M> {
   readonly terminal: false;

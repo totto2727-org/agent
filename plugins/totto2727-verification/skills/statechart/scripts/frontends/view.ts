@@ -61,7 +61,7 @@ const VIEW_EXPORTS = ["state", "step", "group", "colors", "title"];
 type Inspect = (value: unknown, options: { breakLength: number }) => string;
 
 export function checkView(
-  view: { readonly [name: string]: unknown },
+  view: Readonly<{ [name: string]: unknown }>,
   inspect: Inspect,
 ): CheckedView {
   const literal = (v: unknown) =>

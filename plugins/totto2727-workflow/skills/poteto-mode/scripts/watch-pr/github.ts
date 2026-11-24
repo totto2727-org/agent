@@ -9,11 +9,11 @@ export const PR_COMMIT_STATUS_QUERY =
 export const PR_CHECK_ROLLUP_QUERY =
   "\nquery PrCheckRollup($owner: String!, $repo: String!, $pr: Int!, $after: String) {\n  repository(owner: $owner, name: $repo) {\n    pullRequest(number: $pr) {\n      commits(last: 1) {\n        nodes {\n          commit {\n            statusCheckRollup {\n              contexts(first: 100, after: $after) {\n                pageInfo {\n                  hasNextPage\n                  endCursor\n                }\n                nodes {\n                  __typename\n                  ... on CheckRun {\n                    name\n                    status\n                    conclusion\n                    detailsUrl\n                  }\n                  ... on StatusContext {\n                    context\n                    state\n                    targetUrl\n                  }\n                }\n              }\n            }\n          }\n        }\n      }\n    }\n  }\n}\n";
 
-interface CommandResult {
-  readonly code: number;
-  readonly stdout: string;
-  readonly stderr: string;
-}
+type CommandResult = Readonly<{
+  code: number;
+  stdout: string;
+  stderr: string;
+}>;
 export class WatcherQueryError extends Error {
   public readonly failure: T.QueryFailure;
   public constructor(failure: T.QueryFailure) {
