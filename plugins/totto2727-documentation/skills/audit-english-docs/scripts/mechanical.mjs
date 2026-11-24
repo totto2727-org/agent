@@ -47,9 +47,9 @@ const literalTerms = (value, allowEmpty) => {
 /** @typedef {"ste-dictionary-membership" | "ste-paragraph-length" | "ste-punctuation"} StaticSteKind */
 /** @typedef {{ kind: StaticSteKind } | { kind: "ste-sentence-length", writingMode: "procedural" | "descriptive" }} SteCheck */
 /** @typedef {SteCheck | { kind: "fenced-code-language" } | { caseSensitive?: boolean, kind: "prohibited-terms", protectedTerms?: string[], terms: string[] }} MechanicalCheck */
-/** @typedef {{ approved: boolean, forms?: string[], meaning: string, partOfSpeech: string, word: string }} VocabularyEntry */
-/** @typedef {{ category: number, kind: "noun" | "verb", source: string, text: string }} TechnicalTerm */
-/** @typedef {{ entries: VocabularyEntry[], technicalTerms?: Array<string | TechnicalTerm> }} Vocabulary */
+/** @typedef {import("./ste.mjs").VocabularyEntry} VocabularyEntry */
+/** @typedef {import("./ste.mjs").TechnicalTerm} TechnicalTerm */
+/** @typedef {Pick<import("./ste.mjs").Vocabulary, "entries" | "technicalTerms">} Vocabulary */
 /** @typedef {import("./ste.mjs").ProseContext & { vocabulary?: Vocabulary }} MechanicalContext */
 /** @typedef {"fail" | "insufficient_context" | "not_applicable" | "pass"} Choice */
 /** @typedef {{ reason: string, sourceRange: SourceRange }} ParserWarning */

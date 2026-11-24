@@ -17,3 +17,10 @@ export const matchesUndefined = (value) => value === undefined;
 /** @param {unknown} value - The input to check. */
 // oxlint-disable-next-line rules/force-predicate, jsdoc/require-returns -- Infer the native type guard without repository dependencies.
 export const hasObjectType = (value) => typeof value === "object";
+
+/**
+ * @param {unknown} value - The input to check.
+ * @returns {value is Record<string, unknown>} Whether named properties can be read as unknown values.
+ */
+export const isRecord = (value) =>
+  hasObjectType(value) && !matchesNull(value) && !Array.isArray(value);

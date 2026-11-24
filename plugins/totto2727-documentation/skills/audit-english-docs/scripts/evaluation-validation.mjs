@@ -1,4 +1,4 @@
-import { hasObjectType, matchesNull, matchesString } from "./native-predicates.mjs";
+import { isRecord, matchesString } from "./native-predicates.mjs";
 
 const kibibyte = 1024;
 const maxEvidenceKibibytes = 48;
@@ -9,10 +9,10 @@ export class EvaluationError extends Error {}
 
 /** @type {(value: unknown, label: string, message?: string) => Record<string, unknown>} */
 export const object = (value, label, message = `${label} must be an object`) => {
-  if (!hasObjectType(value) || matchesNull(value) || Array.isArray(value)) {
+  if (!isRecord(value)) {
     throw new EvaluationError(message);
   }
-  return /** @type {Record<string, unknown>} */ (value);
+  return value;
 };
 
 /** @type {(value: unknown, label: string) => string} */

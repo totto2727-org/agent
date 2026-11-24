@@ -1,9 +1,4 @@
-import {
-  hasObjectType,
-  matchesBoolean,
-  matchesString,
-  matchesUndefined,
-} from "./native-predicates.mjs";
+import { isRecord, matchesBoolean, matchesString, matchesUndefined } from "./native-predicates.mjs";
 
 // Source: ASD-STE100 Issue 9, rules 5.1, 6.3, 6.6 and section 8.
 // This is a bounded prose parser, not a grammar, typography or dictionary oracle.
@@ -27,88 +22,116 @@ const maximumInflectedForms = 100;
 const maximumNounCategory = 22;
 const maximumVerbCategory = 4;
 
-export function validateSteContext(value, label, ErrorType = Error) {
+/** @typedef {{ kind: "new-technical" | "multi-word" | "official", source: string, text: string }} DeclaredNounGroup */
+/** @typedef {Omit<ProseContext, "fragment"> & { nounGroups?: DeclaredNounGroup[], vocabularyFile?: string }} SteContext */
+/** @typedef {new (message: string) => Error} ErrorConstructor */
+
+const emptyLength = 0;
+const textStart = 0;
+const unitPattern = /^[\p{L}°µμΩ%/]+(?: [\p{L}°µμΩ%/]+)*$/u;
+const contextKeys = [
+  "writingMode",
+  "wordGroups",
+  "measurementUnits",
+  "vocabularyFile",
+  "nounGroups",
+];
+const nounKinds = ["new-technical", "multi-word", "official"];
+
+/** @type {(value: unknown) => boolean} */
+const isContextLiteral = (value) =>
+  matchesString(value) &&
+  value.trim() === value &&
+  value.length > emptyLength &&
+  value.length <= maximumLiteralLength &&
+  !Array.from(value).some(
+    (character) => character.codePointAt(textStart) < firstPrintableCodePoint,
+  );
+
+/** @type {(value: unknown) => boolean} */
+const validWordGroup = (value) => {
+  if (
+    !isRecord(value) ||
+    Object.keys(value).some((key) => !["text", "category"].includes(key)) ||
+    !isContextLiteral(value.text)
+  ) {
+    return false;
+  }
+  const { category } = value;
+  return matchesString(category) && GROUP_CATEGORIES.includes(category);
+};
+
+/** @type {(value: unknown) => boolean} */
+const validMeasurementUnit = (value) =>
+  matchesString(value) && isContextLiteral(value) && unitPattern.test(value);
+
+/** @type {(value: unknown) => boolean} */
+const validNounGroup = (value) => {
+  if (
+    !isRecord(value) ||
+    Object.keys(value).some((key) => !["text", "kind", "source"].includes(key)) ||
+    !isContextLiteral(value.text)
+  ) {
+    return false;
+  }
+  const { kind } = value;
+  return matchesString(kind) && nounKinds.includes(kind) && isContextLiteral(value.source);
+};
+
+/** @type {(value: unknown, valid: (entry: unknown) => boolean) => boolean} */
+const validContextEntries = (value, valid) =>
+  Array.isArray(value) && value.length <= maximumContextEntries && value.every(valid);
+
+/** @type {(label: string, ErrorType: ErrorConstructor) => (message: string) => never} */
+const rejectWith = (label, ErrorType) => (message) => {
+  throw new ErrorType(`${label}: ${message}`);
+};
+
+/**
+ * @param {unknown} value - The manifest's language declarations.
+ * @param {string} label - Their location in the manifest.
+ * @param {ErrorConstructor} [ErrorType] - The caller's validation error constructor.
+ * @returns {SteContext | undefined} The validated optional context.
+ */
+export const validateSteContext = (value, label, ErrorType = Error) => {
   if (matchesUndefined(value)) {
     return undefined;
   }
-  const reject = (message) => {
-    throw new ErrorType(`${label}: ${message}`);
-  };
-  if (!value || !hasObjectType(value) || Array.isArray(value)) {
+  /** @type {(message: string) => never} */
+  const reject = rejectWith(label, ErrorType);
+  if (!isRecord(value)) {
     reject("must be an object");
   }
-  if (
-    Object.keys(value).some(
-      (key) =>
-        !["writingMode", "wordGroups", "measurementUnits", "vocabularyFile", "nounGroups"].includes(
-          key,
-        ),
-    )
-  ) {
+  if (Object.keys(value).some((key) => !contextKeys.includes(key))) {
     reject("unexpected parameter");
   }
+  const { measurementUnits, nounGroups, vocabularyFile, wordGroups, writingMode } = value;
   if (
-    !matchesUndefined(value.writingMode) &&
-    !["procedural", "descriptive"].includes(value.writingMode)
+    !matchesUndefined(writingMode) &&
+    writingMode !== "procedural" &&
+    writingMode !== "descriptive"
   ) {
     reject("writingMode must be procedural or descriptive");
   }
-  const literal = (text) =>
-    matchesString(text) &&
-    text.trim() === text &&
-    text.length > 0 &&
-    text.length <= maximumLiteralLength &&
-    ![...text].some((character) => character.codePointAt(0) < firstPrintableCodePoint);
-  if (
-    !matchesUndefined(value.wordGroups) &&
-    (!Array.isArray(value.wordGroups) ||
-      value.wordGroups.length > maximumContextEntries ||
-      value.wordGroups.some(
-        (group) =>
-          !group ||
-          !hasObjectType(group) ||
-          Array.isArray(group) ||
-          Object.keys(group).some((key) => !["text", "category"].includes(key)) ||
-          !literal(group.text) ||
-          !GROUP_CATEGORIES.includes(group.category),
-      ))
-  ) {
+  if (!matchesUndefined(wordGroups) && !validContextEntries(wordGroups, validWordGroup)) {
     reject("wordGroups must contain at most 1000 literal text/category records");
   }
   if (
-    !matchesUndefined(value.measurementUnits) &&
-    (!Array.isArray(value.measurementUnits) ||
-      value.measurementUnits.length > maximumContextEntries ||
-      value.measurementUnits.some(
-        (unit) => !literal(unit) || !/^[\p{L}°µμΩ%/]+(?: [\p{L}°µμΩ%/]+)*$/u.test(unit),
-      ))
+    !matchesUndefined(measurementUnits) &&
+    !validContextEntries(measurementUnits, validMeasurementUnit)
   ) {
     reject("measurementUnits must contain at most 1000 literal units");
   }
-  if (!matchesUndefined(value.vocabularyFile) && !literal(value.vocabularyFile)) {
+  if (!matchesUndefined(vocabularyFile) && !isContextLiteral(vocabularyFile)) {
     reject("vocabularyFile must be a non-empty local path");
   }
-  if (
-    !matchesUndefined(value.nounGroups) &&
-    (!Array.isArray(value.nounGroups) ||
-      value.nounGroups.length > maximumContextEntries ||
-      value.nounGroups.some(
-        (group) =>
-          !group ||
-          !hasObjectType(group) ||
-          Array.isArray(group) ||
-          Object.keys(group).some((key) => !["text", "kind", "source"].includes(key)) ||
-          !literal(group.text) ||
-          !["new-technical", "multi-word", "official"].includes(group.kind) ||
-          !literal(group.source),
-      ))
-  ) {
+  if (!matchesUndefined(nounGroups) && !validContextEntries(nounGroups, validNounGroup)) {
     reject(
       "nounGroups must contain at most 1000 literal text/kind/source records, never submitted counts",
     );
   }
   return { ...value };
-}
+};
 
 // Section 2.2 counts hyphenated noun tokens as one word while limiting newly
 // Made hyphen groups to three components. This does not identify noun roles.
@@ -127,92 +150,119 @@ export function countDeclaredNounGroup(text) {
   };
 }
 
-export function validateSteVocabulary(value, label, ErrorType = Error) {
-  const reject = (message) => {
-    throw new ErrorType(`${label}: ${message}`);
-  };
+/** @typedef {{ approved: boolean, forms?: string[], meaning: string, partOfSpeech: string, word: string }} VocabularyEntry */
+/** @typedef {{ category: number, kind: "noun" | "verb", source: string, text: string }} TechnicalTerm */
+/** @typedef {{ entries: VocabularyEntry[], issue: number, source: string, technicalTerms?: Array<string | TechnicalTerm> }} Vocabulary */
+
+const minimumTermCategory = 1;
+const vocabularyKeys = ["issue", "source", "entries", "technicalTerms"];
+const entryKeys = ["word", "forms", "approved", "partOfSpeech", "meaning"];
+const technicalTermKeys = ["text", "kind", "category", "source"];
+const tokenPattern = /^[\p{L}\p{N}]+(?:[-' ][\p{L}\p{N}]+)*$/u;
+
+/** @type {(value: unknown) => boolean} */
+const validToken = (value) =>
+  matchesString(value) && value.length <= maximumTokenLength && tokenPattern.test(value);
+
+/** @type {(value: unknown) => boolean} */
+const hasMeaningfulText = (value) => matchesString(value) && value.trim().length > emptyLength;
+
+/** @type {(value: unknown) => boolean} */
+const validForms = (value) =>
+  matchesUndefined(value) ||
+  (Array.isArray(value) && value.length <= maximumInflectedForms && value.every(validToken));
+
+/** @type {(value: unknown) => boolean} */
+const validDictionaryEntry = (value) => {
+  if (!isRecord(value) || Object.keys(value).some((key) => !entryKeys.includes(key))) {
+    return false;
+  }
+  return (
+    validToken(value.word) &&
+    matchesBoolean(value.approved) &&
+    hasMeaningfulText(value.partOfSpeech) &&
+    hasMeaningfulText(value.meaning) &&
+    validForms(value.forms)
+  );
+};
+
+/** @type {(value: unknown) => boolean} */
+const technicalLiteral = (value) =>
+  matchesString(value) &&
+  value.length > emptyLength &&
+  value.length <= maximumLiteralLength &&
+  value.trim() === value &&
+  tokenPattern.test(value);
+
+/** @type {(value: unknown) => boolean} */
+const validStructuredTerm = (value) => {
   if (
-    !value ||
-    !hasObjectType(value) ||
-    Array.isArray(value) ||
-    Object.keys(value).some(
-      (key) => !["issue", "source", "entries", "technicalTerms"].includes(key),
-    )
+    !isRecord(value) ||
+    Object.keys(value).some((key) => !technicalTermKeys.includes(key)) ||
+    !technicalLiteral(value.text)
   ) {
+    return false;
+  }
+  const { kind, category, source } = value;
+  if (kind !== "noun" && kind !== "verb") {
+    return false;
+  }
+  const maxCategory = kind === "noun" ? maximumNounCategory : maximumVerbCategory;
+  return (
+    typeof category === "number" &&
+    Number.isInteger(category) &&
+    category >= minimumTermCategory &&
+    category <= maxCategory &&
+    matchesString(source) &&
+    source.trim().length > emptyLength &&
+    source.length <= maximumLiteralLength
+  );
+};
+
+/**
+ * @param {unknown} value - The contents of the private vocabulary file.
+ * @param {string} label - Its location in the manifest.
+ * @param {ErrorConstructor} [ErrorType] - The caller's validation error constructor.
+ * @returns {Vocabulary} The vocabulary records and their declared source.
+ */
+export const validateSteVocabulary = (value, label, ErrorType = Error) => {
+  /** @type {(message: string) => never} */
+  const reject = rejectWith(label, ErrorType);
+  if (!isRecord(value) || Object.keys(value).some((key) => !vocabularyKeys.includes(key))) {
     reject("must contain issue, source, entries and optional technicalTerms");
   }
-  if (value.issue !== supportedIssue || !matchesString(value.source) || !value.source.trim()) {
+  if (value.issue !== supportedIssue || !hasMeaningfulText(value.source)) {
     reject("requires issue 9 and declared source provenance");
   }
+  const { entries } = value;
   if (
-    !Array.isArray(value.entries) ||
-    !value.entries.length ||
-    value.entries.length > maximumVocabularyEntries
+    !Array.isArray(entries) ||
+    entries.length === emptyLength ||
+    entries.length > maximumVocabularyEntries
   ) {
     reject("entries must contain 1 through 20000 records");
   }
-  const token = (text) =>
-    matchesString(text) &&
-    text.length <= maximumTokenLength &&
-    /^[\p{L}\p{N}]+(?:[-' ][\p{L}\p{N}]+)*$/u.test(text);
-  Iterator.from(value.entries).forEach((entry) => {
-    if (
-      !entry ||
-      !hasObjectType(entry) ||
-      Array.isArray(entry) ||
-      Object.keys(entry).some(
-        (key) => !["word", "forms", "approved", "partOfSpeech", "meaning"].includes(key),
-      ) ||
-      !token(entry.word) ||
-      !matchesBoolean(entry.approved) ||
-      !matchesString(entry.partOfSpeech) ||
-      !entry.partOfSpeech.trim() ||
-      !matchesString(entry.meaning) ||
-      !entry.meaning.trim() ||
-      (!matchesUndefined(entry.forms) &&
-        (!Array.isArray(entry.forms) ||
-          entry.forms.length > maximumInflectedForms ||
-          entry.forms.some((form) => !token(form))))
-    ) {
+  /** @type {unknown[]} */
+  const vocabularyEntries = entries;
+  Iterator.from(vocabularyEntries).forEach((entry) => {
+    if (!validDictionaryEntry(entry)) {
       reject(
         "invalid dictionary record: declare word, approved, partOfSpeech, meaning and optional exact forms",
       );
     }
   });
-  const technicalLiteral = (term) =>
-    matchesString(term) &&
-    term.length > 0 &&
-    term.length <= maximumLiteralLength &&
-    term.trim() === term &&
-    /^[\p{L}\p{N}]+(?:[-' ][\p{L}\p{N}]+)*$/u.test(term);
+  const { technicalTerms } = value;
   if (
-    !matchesUndefined(value.technicalTerms) &&
-    (!Array.isArray(value.technicalTerms) ||
-      value.technicalTerms.length > maximumContextEntries ||
-      value.technicalTerms.some((term) => {
-        if (matchesString(term)) {
-          return !technicalLiteral(term);
-        }
-        return (
-          !term ||
-          !hasObjectType(term) ||
-          Array.isArray(term) ||
-          Object.keys(term).some((key) => !["text", "kind", "category", "source"].includes(key)) ||
-          !technicalLiteral(term.text) ||
-          !["noun", "verb"].includes(term.kind) ||
-          !Number.isInteger(term.category) ||
-          term.category < 1 ||
-          term.category > (term.kind === "noun" ? maximumNounCategory : maximumVerbCategory) ||
-          !matchesString(term.source) ||
-          !term.source.trim() ||
-          term.source.length > maximumLiteralLength
-        );
-      }))
+    !matchesUndefined(technicalTerms) &&
+    !validContextEntries(technicalTerms, (term) =>
+      matchesString(term) ? technicalLiteral(term) : validStructuredTerm(term),
+    )
   ) {
     reject("invalid technicalTerms: use candidate literals or text/kind/category/source records");
   }
-  return value;
-}
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- All vocabulary fields and records are validated above without replacing the input object.
+  return /** @type {Vocabulary} */ (value);
+};
 
 /** @typedef {{ end: number, parenthetical?: boolean, start: number, wordCount: number }} CountedSentence */
 /** @typedef {{ end: number, reason: string, start: number }} ProseWarning */
