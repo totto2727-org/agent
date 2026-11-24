@@ -1,7 +1,7 @@
 // oxlint-disable-next-line rules/no-node-imports -- The installed skill reads its manifest-selected local evidence with Node.
 import { readFile } from "node:fs/promises";
 // oxlint-disable-next-line rules/no-node-imports -- Resolve the manifest paths using the host filesystem conventions.
-import { dirname, isAbsolute, resolve } from "node:path";
+import nodePath from "node:path";
 
 import {
   bounded,
@@ -20,7 +20,7 @@ import {
 import { matchesString, matchesUndefined } from "./native-predicates.mjs";
 import { validateSteContext, validateSteVocabulary } from "./ste.mjs";
 
-/** @typedef {{ heading: string, level: number, line: number, start: number }} Heading */
+/** @typedef {{ heading: string, level: number, start: number }} Heading */
 /** @typedef {import("./ste.mjs").SteContext} SteContext */
 /** @typedef {import("./ste.mjs").Vocabulary} Vocabulary */
 /** @typedef {import("./evaluation-manifest.mjs").Document} Document */
@@ -33,18 +33,57 @@ import { validateSteContext, validateSteVocabulary } from "./ste.mjs";
 /** @typedef {{ question: DecisionQuestion, ruleId: string }} RuleQuestion */
 /** @typedef {{ document: Document, page: string, path: string, scope: RuleScope, section: Section | null, ste: LocalSteContext }} EvaluationTarget */
 
-/** @type {(textValue: string, offset: number) => number} */
-const lineAt = function (textValue, offset) {
-  return textValue.slice(0, offset).split("\n").length;
+const { dirname, isAbsolute, resolve } = nodePath;
+const textStart = 0;
+const lineNumberBase = 1;
+const nextIndex = 1;
+const missingHeadings = 0;
+const header = /^(?<marks>#{1,6})\s+(?<title>.+?)\s*#*\s*(?:\n)?$/u;
+
+/** @type {(markdown: string) => Heading[]} */
+const collectHeadings = (markdown) => {
+  const lines = markdown.split(/(?<=\n)/u);
+  const { frontmatter, fences } = inspectMarkdown(markdown);
+  /** @type {Heading[]} */
+  const headings = [];
+  // oxlint-disable-next-line rules/no-let -- The offset advances through the original Markdown while retaining its source positions.
+  let offset = textStart;
+  lines.forEach((line) => {
+    const start = offset;
+    offset += line.length;
+    if (
+      fences.some((fence) => start >= fence.start && start < fence.end) ||
+      (frontmatter && start < frontmatter.end)
+    ) {
+      return;
+    }
+    const match = header.exec(line)?.groups;
+    if (matchesUndefined(match)) {
+      return;
+    }
+    headings.push({
+      heading: match.title.replace(/\s*\{#[^}]+\}\s*$/u, ""),
+      level: match.marks.length,
+      start,
+    });
+  });
+  return headings;
 };
 
-/** @type {(textValue: string, offset: number) => number} */
-const endLineAt = function (textValue, offset) {
-  return Math.max(
-    1,
-    lineAt(textValue, offset) - (offset > 0 && textValue[offset - 1] === "\n" ? 1 : 0),
-  );
-};
+/** @type {(headings: Heading[], index: number) => string[]} */
+const headingPathFor = (headings, index) =>
+  headings
+    .slice(textStart, index + nextIndex)
+    .filter(
+      (heading, childIndex, all) =>
+        !all.slice(childIndex + nextIndex).some((other) => other.level <= heading.level),
+    )
+    .map((heading) => heading.heading);
+
+/** @type {(section: Pick<Section, "id" | "headingPath" | "sourceRange" | "text">) => Section} */
+const segment = ({ headingPath, id, sourceRange: range, text: body }) =>
+  // oxlint-disable-next-line eslint/sort-keys -- Preserve the field order in serialized Markdown sections.
+  ({ id, headingPath, text: body, sourceRange: range });
 
 /**
  * @param {string} markdown - The original Markdown document.
@@ -52,71 +91,37 @@ const endLineAt = function (textValue, offset) {
  */
 export const segmentMarkdown = (markdown) => {
   bounded(markdown, "document");
-  const lines = markdown.split(/(?<=\n)/u);
-  /** @type {Heading[]} */
-  const headings = [];
-  const { frontmatter, fences } = inspectMarkdown(markdown);
-  let offset = 0;
-  for (let index = 0; index < lines.length; index += 1) {
-    const line = lines[index];
-    const inFence = fences.some((fence) => offset >= fence.start && offset < fence.end);
-    const match =
-      !inFence &&
-      (!frontmatter || offset >= frontmatter.end) &&
-      /^(?<marks>#{1,6})\s+(?<title>.+?)\s*#*\s*(?:\n)?$/u.exec(line)?.groups;
-    if (match) {
-      headings.push({
-        level: match.marks.length,
-        heading: match.title.replace(/\s*\{#[^}]+\}\s*$/u, ""),
-        start: offset,
-        line: index + 1,
-      });
-    }
-    offset += line.length;
-  }
-  if (!headings.length) {
+  const headings = collectHeadings(markdown);
+  if (headings.length === missingHeadings) {
     return [
-      {
-        id: "document",
+      segment({
         headingPath: [],
+        id: "document",
+        sourceRange: sourceRange(markdown, textStart, markdown.length),
         text: markdown,
-        sourceRange: sourceRange(markdown, 0, markdown.length),
-      },
+      }),
     ];
   }
-  /** @type {Section[]} */
-  const sections = [];
-  const preambleEnd = headings[0].start;
-  if (markdown.slice(0, preambleEnd).trim()) {
-    sections.push({
-      id: "preamble",
-      headingPath: [],
-      text: markdown.slice(0, preambleEnd),
-      sourceRange: sourceRange(markdown, 0, preambleEnd),
+  const preambleEnd = headings[textStart].start;
+  const preamble = markdown.slice(textStart, preambleEnd);
+  const sections = headings.map((heading, index) => {
+    const end = headings[index + nextIndex]?.start ?? markdown.length;
+    return segment({
+      headingPath: headingPathFor(headings, index),
+      id: `section-${index + lineNumberBase}`,
+      sourceRange: sourceRange(markdown, heading.start, end),
+      text: bounded(markdown.slice(heading.start, end), `section ${heading.heading}`),
     });
-  }
-  for (let index = 0; index < headings.length; index += 1) {
-    const current = headings[index];
-    const end = index + 1 < headings.length ? headings[index + 1].start : markdown.length;
-    const hierarchy = headings
-      .slice(0, index + 1)
-      .filter(
-        (heading, childIndex, all) =>
-          !all.slice(childIndex + 1).some((other) => other.level <= heading.level),
-      )
-      .map((heading) => heading.heading);
-    const body = markdown.slice(current.start, end);
-    sections.push({
-      id: `section-${index + 1}`,
-      headingPath: hierarchy,
-      text: bounded(body, `section ${current.heading}`),
-      sourceRange: {
-        startLine: current.line,
-        endLine: endLineAt(markdown, end),
-        startByte: Buffer.byteLength(markdown.slice(0, current.start)),
-        endByte: Buffer.byteLength(markdown.slice(0, end)),
-      },
-    });
+  });
+  if (preamble.trim().length > missingHeadings) {
+    sections.unshift(
+      segment({
+        headingPath: [],
+        id: "preamble",
+        sourceRange: sourceRange(markdown, textStart, preambleEnd),
+        text: preamble,
+      }),
+    );
   }
   return sections;
 };
