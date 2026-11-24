@@ -119,51 +119,71 @@ const esc = (text: string, quoted = false): string => {
 
 const or = (names: Iterable<string>) => [...names].sort(byText).join(" or ");
 
-type Edge = { from: string[]; start: boolean; to: string[]; label: string | undefined };
-
-const within = (parent: string[], path: string[]) =>
-  path.length >= parent.length && parent.every((p, i) => path[i] === p);
-const wayIn = (e: Edge) => tupleKey([e.start, e.from]);
-
-export function drawnEdges(r: Region): Edge[] {
-  let out: Edge[] = [];
-  for (const s of r.states)
-    {if (s.start) {out.push({ from: [], start: true, to: s.path, label: undefined });}}
-  for (const s of r.steps)
-    {out.push({
-      from: s.from,
-      start: false,
-      to: s.to,
-      label: s.label + (s.when ? ` [${s.when}]` : ""),
-    });}
-  const parents = new Map<string, string[]>();
-  for (const s of r.states)
-    {for (let i = 1; i < s.path.length; i++) {
-      const prefix = s.path.slice(0, i);
-      parents.set(tupleKey(prefix), prefix);
-    }}
-  for (const parent of [...parents.values()].sort((a, b) => a.length - b.length)) {
-    const into = out.filter(
-      (e) => e.to.length > parent.length && within(parent, e.to) && !within(parent, e.from),
-    );
-    if (!into.length || into.some((e) => wayIn(e) !== wayIn(into[0]))) {continue;}
-    const one = into.length === 1;
-    const at = out.indexOf(into[0]);
-    out = out.filter((e) => !into.includes(e));
-    out.splice(
-      at,
-      0,
-      { ...into[0], to: parent, label: one ? into[0].label : undefined },
-      ...into.map((e) => ({
-        from: parent,
-        start: true,
-        to: e.to,
-        label: one ? undefined : e.label,
-      })),
-    );
-  }
-  return out;
+interface Edge {
+  from: string[];
+  label: string | undefined;
+  start: boolean;
+  to: string[];
 }
+
+const within = (parent: string[], path: string[]): boolean =>
+  path.length >= parent.length && parent.every((segment, index) => path[index] === segment);
+
+const wayIn = (edge: Edge): string => tupleKey([edge.start, edge.from]);
+
+const connection = (
+  from: string[],
+  to: string[],
+  { label, start }: { label?: string | undefined; start: boolean },
+): Edge => {
+  // oxlint-disable-next-line eslint/sort-keys -- Keep the renderer's established shape for returned edges.
+  return { from, start, to, label };
+};
+
+const parentPaths = (states: ChartState[]): string[][] => {
+  const parents = new Map<string, string[]>();
+  states.forEach(({ path }) => {
+    const prefixes = Array.from({ length: path.length - 1 }, (_unused, index) => path.slice(0, index + 1));
+    prefixes.forEach((prefix) => { parents.set(tupleKey(prefix), prefix); });
+  });
+  // oxlint-disable-next-line unicorn/no-array-sort -- This fresh array can be sorted in place.
+  return [...parents.values()].sort((left, right) => left.length - right.length);
+};
+
+const groupParentEntry = (edges: Edge[], parent: string[]): Edge[] => {
+  const incoming = edges.filter(
+    (edge) => edge.to.length > parent.length && within(parent, edge.to) && !within(parent, edge.from),
+  );
+  const [first] = incoming;
+  if (matchesUndefined(first) || !incoming.every((edge) => wayIn(edge) === wayIn(first))) {
+    return edges;
+  }
+  const singleEntry = incoming.length === 1;
+  const remaining = edges.filter((edge) => !incoming.includes(edge));
+  remaining.splice(
+    edges.indexOf(first),
+    0,
+    connection(first.from, parent, { label: singleEntry ? first.label : undefined, start: first.start }),
+    ...incoming.map((edge) =>
+      connection(parent, edge.to, { label: singleEntry ? undefined : edge.label, start: true }),
+    ),
+  );
+  return remaining;
+};
+
+export const drawnEdges = (region: Region): Edge[] => {
+  const starts = region.states
+    .filter((state) => state.start)
+    .map((state) => connection([], state.path, { start: true }));
+  const transitions = region.steps.map((step) =>
+    connection(step.from, step.to, {
+      label: step.label + (step.when ? ` [${step.when}]` : ""),
+      start: false,
+    }),
+  );
+  // oxlint-disable-next-line unicorn/no-array-reduce -- Each parent receives the edges produced by the preceding parents in order.
+  return parentPaths(region.states).reduce((edges, parent) => groupParentEntry(edges, parent), [...starts, ...transitions]);
+};
 
 const MARK_STYLES = {
   breaks: "fill:#ffecee,stroke:#e72e3b,stroke-width:2.5px,color:#cd2834",

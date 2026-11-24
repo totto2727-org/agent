@@ -290,9 +290,9 @@ const signalWhile = async function <T extends { dir: string; reached: (parent: s
   signal: NodeJS.Signals,
   setup: (fakes: string) => T & { java?: string },
 ) {
-  const fakes = fs.mkdtempSync(path.join(os.tmpdir(), "statechart-fakes-"));
-  const parent = fs.mkdtempSync(path.join(os.tmpdir(), "statechart-parent-"));
-  const tmpdir = fs.mkdtempSync(path.join(os.tmpdir(), "statechart-tmpdir-"));
+  const fakes = await fs.promises.mkdtemp(path.join(os.tmpdir(), "statechart-fakes-"));
+  const parent = await fs.promises.mkdtemp(path.join(os.tmpdir(), "statechart-parent-"));
+  const tmpdir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "statechart-tmpdir-"));
   const phase = setup(fakes);
   const child = startCommand(phase.dir, parent, { java: phase.java, tmpdir });
   let stderr = "";
@@ -375,9 +375,9 @@ test(
   "a SIGKILL of the command stops TLC, removes the temporary folder, and writes nothing",
   { timeout: 30_000 },
   async () => {
-    const fakes = fs.mkdtempSync(path.join(os.tmpdir(), "statechart-fakes-"));
-    const parent = fs.mkdtempSync(path.join(os.tmpdir(), "statechart-parent-"));
-    const tmpdir = fs.mkdtempSync(path.join(os.tmpdir(), "statechart-tmpdir-"));
+    const fakes = await fs.promises.mkdtemp(path.join(os.tmpdir(), "statechart-fakes-"));
+    const parent = await fs.promises.mkdtemp(path.join(os.tmpdir(), "statechart-parent-"));
+    const tmpdir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "statechart-tmpdir-"));
     const { java, pidFile } = sleepyJava(fakes);
     const child = startCommand(path.join(corpus, "DieHard"), parent, { java, tmpdir });
     const exited = once(child, "exit");
@@ -395,9 +395,9 @@ test(
   "a SIGKILL of the command while the view draws the chart leaves no folder behind",
   { timeout: 30_000 },
   async () => {
-    const fakes = fs.mkdtempSync(path.join(os.tmpdir(), "statechart-fakes-"));
-    const parent = fs.mkdtempSync(path.join(os.tmpdir(), "statechart-parent-"));
-    const tmpdir = fs.mkdtempSync(path.join(os.tmpdir(), "statechart-tmpdir-"));
+    const fakes = await fs.promises.mkdtemp(path.join(os.tmpdir(), "statechart-fakes-"));
+    const parent = await fs.promises.mkdtemp(path.join(os.tmpdir(), "statechart-parent-"));
+    const tmpdir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "statechart-tmpdir-"));
     const drawing = path.join(fakes, "drawing");
     const release = path.join(fakes, "release");
     const dir = copyCase("Login", (d) =>
@@ -418,7 +418,7 @@ test(
     while (!fs.existsSync(drawing) || !read(drawing)) {await sleep(20);}
     child.kill("SIGKILL");
     await exited;
-    fs.writeFileSync(release, "");
+    await fs.promises.writeFile(release, "");
     await assertGone(-Number(read(drawing)));
     await assertEmpty(parent);
     await assertEmpty(tmpdir);
@@ -430,8 +430,8 @@ test(
   "a check killed by a signal stops the command with exit 2, and it writes nothing",
   { timeout: 30_000 },
   async () => {
-    const fakes = fs.mkdtempSync(path.join(os.tmpdir(), "statechart-fakes-"));
-    const parent = fs.mkdtempSync(path.join(os.tmpdir(), "statechart-parent-"));
+    const fakes = await fs.promises.mkdtemp(path.join(os.tmpdir(), "statechart-fakes-"));
+    const parent = await fs.promises.mkdtemp(path.join(os.tmpdir(), "statechart-parent-"));
     const { java, pidFile } = sleepyJava(fakes);
     const child = startCommand(path.join(corpus, "DieHard"), parent, { java });
     let stderr = "";
