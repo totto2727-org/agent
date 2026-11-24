@@ -25,6 +25,7 @@ import {
   validateManifest,
   validateResponse,
 } from "./evaluate.mjs";
+import { object, text } from "./evaluation-validation.mjs";
 import {
   paragraphUnits,
   runMechanical,
@@ -37,6 +38,7 @@ const script = fileURLToPath(new URL("./evaluate.mjs", import.meta.url));
 
 /** @typedef {{ directory: string }} MockDirectory */
 /** @typedef {{ cacheStatus?: string, exitCode?: number, mode?: string, ray?: string, statusSequence?: string }} MockOptions */
+/** @typedef {{ argv: string[], config: string, headers: string[], payload: Record<string, unknown>, url: string }} MockCall */
 
 const dictionaryFixture = async function ({ complete = false, vocabulary = true } = {}) {
   const paths = await fixture();
@@ -96,6 +98,7 @@ const temporaryDirectories = [];
 
 // The evaluator must not send a request-level retry override, so the Gateway's
 // Own configured retry policy stays in effect.
+/** @type {(call: MockCall) => boolean} */
 const hasRetryOverride = (call) =>
   call.headers.some((header) => header.startsWith("cf-aig-max-attempts:"));
 
@@ -271,17 +274,40 @@ const installCurlMock = async function (directory) {
   return script;
 };
 
-/** @param {string} log - The request trace produced by the mock executable. */
-const readCalls = async function (log) {
-  try {
-    return (await readFile(log, "utf8"))
-      .trim()
-      .split("\n")
-      .filter(Boolean)
-      .map((line) => JSON.parse(line));
-  } catch {
-    return [];
+/** @type {(value: unknown, label: string) => string[]} */
+const traceStrings = (value, label) => {
+  if (!Array.isArray(value)) {
+    throw new TypeError(`${label} must be an array`);
   }
+  return value.map((entry) => text(entry, label));
+};
+
+/** @type {(line: string) => MockCall} */
+const decodeMockCall = (line) => {
+  const call = object(JSON.parse(line), "curl transcript");
+  return {
+    argv: traceStrings(call.argv, "curl argument"),
+    config: text(call.config, "curl configuration"),
+    headers: traceStrings(call.headers, "curl header"),
+    payload: object(call.payload, "curl payload"),
+    url: text(call.url, "curl URL"),
+  };
+};
+
+/**
+ * @param {string} log - The request trace produced by the mock executable.
+ * @returns {Promise<MockCall[]>} Every request made by the test subprocess.
+ */
+const readCalls = async function (log) {
+  const content = await readFile(log, "utf8").catch(() => "");
+  return content.trim().split("\n").filter((line) => line.length > 0).map((line) => decodeMockCall(line));
+};
+
+/** @type {(call: MockCall) => Record<string, unknown>} */
+const localEvidence = (call) => {
+  const state = object(call.payload.state, "native request state");
+  const evidence = object(state.evidence, "native request evidence");
+  return object(evidence.local, "local request evidence");
 };
 
 /** @type {(saved: Record<string, string | undefined>) => void} */
@@ -388,18 +414,19 @@ describe("private dictionary evidence boundaries", () => {
       evaluate({ ...paths, environment: CREDENTIALS }),
     );
     expect(calls).toHaveLength(1);
-    expect(
-      calls[0].payload.state.evidence.local.nounGroupCounts.map((entry) => [
-        entry.status,
-        entry.wordCount,
-      ]),
-    ).toStrictEqual([
+    const counts = localEvidence(calls[0]).nounGroupCounts;
+    if (!Array.isArray(counts)) {
+      throw new TypeError("The request must contain noun group counts");
+    }
+    const projected = counts.map((entry) => {
+      const { status, wordCount } = object(entry, "noun group count");
+      return [status, wordCount];
+    });
+    expect(projected).toStrictEqual([
       ["counted", 3],
       ["insufficient_context", null],
     ]);
-    expect(report.evaluations[0].nounGroupCounts).toStrictEqual(
-      calls[0].payload.state.evidence.local.nounGroupCounts,
-    );
+    expect(report.evaluations[0].nounGroupCounts).toStrictEqual(counts);
     expect(report.evaluations[0].answers[0]).toMatchObject({
       choice: "insufficient_context",
       confidence: 0,
@@ -429,9 +456,11 @@ describe("private dictionary evidence boundaries", () => {
       evaluate({ ...paths, environment: CREDENTIALS }),
     );
     expect(calls).toHaveLength(1);
-    const candidate = calls[0].payload.state.evidence.local.dictionaryCandidates.candidates.find(
-      (entry) => entry.term === "status panel",
-    );
+    const { candidates } = object(localEvidence(calls[0]).dictionaryCandidates, "dictionary evidence");
+    if (!Array.isArray(candidates)) {
+      throw new TypeError("The request must contain dictionary candidates");
+    }
+    const candidate = candidates.find((entry) => object(entry, "dictionary candidate").term === "status panel");
     expect(candidate).toMatchObject({
       membership: "unlisted",
       records: [],
@@ -477,7 +506,10 @@ describe("private dictionary evidence boundaries", () => {
     );
     expect(calls).toHaveLength(1);
     const payload = calls[0].payload;
-    const selected = payload.state.evidence.local.dictionaryCandidates;
+    const selected = object(localEvidence(calls[0]).dictionaryCandidates, "dictionary evidence");
+    if (!Array.isArray(selected.candidates)) {
+      throw new TypeError("The request must contain dictionary candidates");
+    }
     expect({
       candidate: selected.candidates[0],
       issue: selected.issue,
@@ -762,7 +794,7 @@ describe("documentation quality evaluator public pipeline", () => {
     const requests = calls.map((call) => {
       const serialized = JSON.stringify(call.payload);
       return {
-        hasQuestions: Object.keys(call.payload.questions).length > 0,
+        hasQuestions: Object.keys(object(call.payload.questions, "native request questions")).length > 0,
         headers: call.headers,
         input: call.payload.input,
         leakedApiKey: [call.argv.join(" "), serialized].some((text) => text.includes(API_KEY)),
@@ -841,7 +873,7 @@ describe("documentation quality evaluator public pipeline", () => {
     };
     const requests = calls.map((call) => ({
       headers: call.headers,
-      inputKeys: Object.keys(call.payload.input),
+      inputKeys: Object.keys(object(call.payload.input, "Jev request input")),
       model: call.payload.model,
       payloadKeys: Object.keys(call.payload),
       retryOverride: hasRetryOverride(call),
@@ -1405,7 +1437,7 @@ describe("documentation quality evaluator public pipeline", () => {
     ]);
     // Request-local numbering keeps the transmitted payload identical.
     expect([
-      Object.keys(callsA[0].payload.questions),
+      Object.keys(object(callsA[0].payload.questions, "native request questions")),
       Object.keys(runBCalls[3].payload.questions),
     ]).toStrictEqual([["q-000001"], ["q-000001"]]);
   });
@@ -1901,7 +1933,20 @@ describe("local mechanical and semantic engine boundaries", () => {
       evaluate({ ...paths, environment: CREDENTIALS }),
     );
     expect(report.evaluations.some((entry) => entry.engine === "mechanical")).toBe(true);
-    const inputs = calls.map((call) => call.payload.input);
+    const inputs = calls.map((call) => {
+      const input = object(call.payload.input, "Jev request input");
+      const state = object(input.state, "Jev request state");
+      const evidence = object(state.evidence, "Jev request evidence");
+      const page = object(evidence.page, "Jev page evidence");
+      const questions = object(input.questions, "Jev request questions");
+      return {
+        document: object(evidence.document, "Jev document evidence"),
+        evidence,
+        markdown: text(page.markdown, "Jev page input"),
+        questions,
+        state,
+      };
+    });
     const expectedRequest = {
       documentHasContext: false,
       evidenceKeys: ["document", "page", "local"],
@@ -1909,42 +1954,43 @@ describe("local mechanical and semantic engine boundaries", () => {
       missingInstructions: [],
     };
     expect(
-      inputs.map(({ questions, state }) => {
+      inputs.map(({ document, evidence, questions }) => {
         const serializedQuestions = JSON.stringify(questions);
         return {
-          documentHasContext: "context" in state.evidence.document,
-          evidenceKeys: Object.keys(state.evidence),
+          documentHasContext: "context" in document,
+          evidenceKeys: Object.keys(evidence),
           leakedMechanicalRules: ["fenced-code-language", "prohibited-terms"].filter((rule) =>
             serializedQuestions.includes(rule),
           ),
-          missingInstructions: Object.values(questions).flatMap(({ instructions }) =>
-            [
+          missingInstructions: Object.values(questions).flatMap((entry) => {
+            const instructions = text(object(entry, "Jev question").instructions, "Jev instructions");
+            return [
               "for this paragraph question",
               "unseen link destinations",
               "Do not require rewriting",
-            ].filter((phrase) => !instructions.includes(phrase)),
-          ),
+            ].filter((phrase) => !instructions.includes(phrase));
+          }),
         };
       }),
     ).toStrictEqual([expectedRequest, expectedRequest, expectedRequest]);
 
-    const states = inputs.map(({ state }) => state);
-    const isSetup = (state) => state.evidence.page.markdown.includes("# Setup");
-    const setupStates = states.filter(isSetup);
+    /** @type {(call: (typeof inputs)[number]) => boolean} */
+    const isSetup = (call) => call.markdown.includes("# Setup");
+    const setupStates = inputs.filter(isSetup);
     const setupEvidence = {
       leakedOtherPage: false,
       templateConstraints: ["Keep the headings in template order.", "Keep the summary table."],
     };
     expect(
-      setupStates.map((state) => ({
+      setupStates.map(({ document, state }) => ({
         leakedOtherPage: JSON.stringify(state).includes("Other-page-secret"),
-        templateConstraints: state.evidence.document.templateConstraints,
+        templateConstraints: document.templateConstraints,
       })),
     ).toStrictEqual(setupStates.map(() => setupEvidence));
     expect(
-      states
+      inputs
         .filter((state) => !isSetup(state))
-        .map((state) => state.evidence.page.markdown.includes("run();")),
+        .map(({ markdown }) => markdown.includes("run();")),
     ).not.toContain(true);
     assertAnswerIdentities(report);
   });
