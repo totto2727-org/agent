@@ -218,8 +218,8 @@ export function mermaidLines(chart: Chart) {
       `${indent}${e.start ? "[*]" : idOf(e.from)} --> ${idOf(e.to)}${matchesUndefined(e.label) ? "" : `: ${esc(e.label)}`}`;
     const tree = (prefix: string[], indent: string, below: ChartState[]) => {
       const heads = new Map<string, ChartState[]>();
-      for (const s of below) {append(heads, s.path[prefix.length], s);}
-      for (const [head, under] of heads) {
+      Iterator.from(below).forEach((s) => {append(heads, s.path[prefix.length], s);});
+      Iterator.from(heads).forEach(([head, under]) => {
         const path = [...prefix, head];
         let leaf: ChartState | undefined;
         const inner: ChartState[] = [];
@@ -248,32 +248,31 @@ export function mermaidLines(chart: Chart) {
               marks.push(`  class ${sid} ${cls}`);
             }}
         }
-      }
+      });
     };
     tree([], "  ", r.states);
-    for (const e of drawn) {if (!e.start || !e.from.length) {out.push(line(e, "  "));}}
+    Iterator.from(drawn).forEach((e) => {if (!e.start || !e.from.length) {out.push(line(e, "  "));}});
     return out;
   };
   let body: string[];
   if (chart.regions.length > 1) {
     body = [`  state "At the same time" as all {`];
-    for (const [i, r] of chart.regions.entries()) {
+    Iterator.from(chart.regions.entries()).forEach(([i, r]) => {
       if (i) {body.push("    --");}
       body.push(`    state "${esc(r.name, true)}" as r${i} {`);
       for (const line of region(r)) {body.push(`    ${line}`);}
       body.push("    }");
-    }
+    });
     body.push("  }");
   } else {body = region(chart.regions[0]);}
   const legend: string[][] = [];
-  for (const entry of [
+  Iterator.from([
     ...Object.entries(chart.colors),
     [`Breaks ${or(rules.breaks)}`, "breaks"],
     [`Breaks ${or(rules.mayBreak)} in some cases`, "mayBreak"],
     [`Path to the ${or(chart.paths)} bug`, "bugPath"],
     [`Repeats forever, so ${or(chart.loops)} breaks`, "repeats"],
-  ])
-    {if (used.has(entry[1])) {legend.push(entry);}}
+  ]).forEach((entry) => {if (used.has(entry[1])) {legend.push(entry);}});
   const lines: string[] = [];
   const title = chart.title && code(chart.title, (n) => `ﬂ°°${n}¶ß`).replaceAll("<", "ﬂ°°60¶ß");
   if (title) {lines.push("---", `title: ${JSON.stringify(title)}`, "---");}
@@ -281,13 +280,13 @@ export function mermaidLines(chart: Chart) {
   if (chart.regions.length > 1) {lines.push("  direction LR");}
   if (legend.length) {
     lines.push(`  state "Legend" as legend {`);
-    for (const [i, [text]] of legend.entries()) {lines.push(`    lg${i}: ${esc(text)}`);}
+    Iterator.from(legend.entries()).forEach(([i, [text]]) => {lines.push(`    lg${i}: ${esc(text)}`);});
     lines.push("  }");
-    for (const [i, [, cls]] of legend.entries()) {lines.push(`  class lg${i} ${cls}`);}
+    Iterator.from(legend.entries()).forEach(([i, [, cls]]) => {lines.push(`  class lg${i} ${cls}`);});
   }
-  for (const line of body) {lines.push(line);}
+  Iterator.from(body).forEach((line) => {lines.push(line);});
   Object.entries(MARK_STYLES).forEach(([cls, style]) => {if (used.has(cls)) {lines.push(`  classDef ${cls} ${style}`);}});
-  for (const line of marks) {lines.push(line);}
+  Iterator.from(marks).forEach((line) => {lines.push(line);});
   return lines;
 }
 

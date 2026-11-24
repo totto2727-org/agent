@@ -11,8 +11,7 @@ export function readChecks({ configFile, config }: { configFile: string; config:
   if (!config.spec && !config.init)
     {throw refuse("The configuration file did not specify the initial state predicate.");}
   const written: ConfigSection[] = [];
-  for (const s of config.sections)
-    {if (!["INVARIANT", "PROPERTY", "CHECK_DEADLOCK"].includes(s.key)) {written.push(s);}}
+  Iterator.from(config.sections).forEach((s) => {if (!["INVARIANT", "PROPERTY", "CHECK_DEADLOCK"].includes(s.key)) {written.push(s);}});
   return {
     invariants: config.invariants,
     properties: config.properties,
@@ -35,9 +34,9 @@ const decode = (text: string) =>
 const parseXml = function (xml: string) {
   const document: XmlNode = { tag: "", text: "", children: [] };
   const open = [document];
-  for (const [, close, tag, empty, text] of xml.matchAll(
+  Iterator.from(xml.matchAll(
     /<(\/?)([^\s/>?!]+)[^>]*?(\/?)>|<[?!][^>]*>|([^<]+)/g,
-  )) {
+  )).forEach(([, close, tag, empty, text]) => {
     const parent = open[open.length - 1];
     if (!matchesUndefined(text)) {parent.text += decode(text);}
     else if (close) {open.pop();}
@@ -46,7 +45,7 @@ const parseXml = function (xml: string) {
       parent.children.push(node);
       if (!empty) {open.push(node);}
     }
-  }
+  });
   return document;
 };
 
@@ -63,12 +62,10 @@ const VARIABLE_KIND = "3";
 export function readSany(xml: string): Sany {
   const modules = child(parseXml(xml), "modules");
   const symbols = new Map<string, XmlNode>();
-  for (const entry of child(modules, "context")?.children ?? [])
-    {symbols.set(textOf(entry, "UID"), entry.children[1]);}
+  Iterator.from(child(modules, "context")?.children ?? []).forEach((entry) => {symbols.set(textOf(entry, "UID"), entry.children[1]);});
   const root = textOf(modules, "RootModule");
   let module: XmlNode | undefined;
-  for (const node of symbols.values())
-    {if (node.tag === "ModuleNode" && textOf(node, "uniquename") === root) {module = node;}}
+  Iterator.from(symbols.values()).forEach((node) => {if (node.tag === "ModuleNode" && textOf(node, "uniquename") === root) {module = node;}});
   const definitions = new Map<string, XmlNode>();
   const variables: { uid: number; name: string }[] = [];
   for (const ref of module?.children ?? []) {
@@ -101,15 +98,14 @@ const STATE_LEVEL = 1;
 
 export function initialOnlyProperties({ definitions }: Sany, { written, properties }: Spec) {
   const replaced = new Map<string, string>();
-  for (const s of written)
-    {if (s.key === "CONSTANT")
+  Iterator.from(written).forEach((s) => {if (s.key === "CONSTANT")
       {for (let i = 1; i + 1 < s.tokens.length; i++)
         {if (s.tokens[i] === "<-" && NAME.test(s.tokens[i + 1]))
-          replaced.set(s.tokens[i - 1], s.tokens[i + 1]);}}}
+          replaced.set(s.tokens[i - 1], s.tokens[i + 1]);}}});
   const names = new Set<string>();
-  for (const name of properties) {
+  Iterator.from(properties).forEach((name) => {
     const definition = definitions.get(replaced.get(name) ?? name);
     if (definition && Number(textOf(definition, "level")) <= STATE_LEVEL) {names.add(name);}
-  }
+  });
   return names;
 }

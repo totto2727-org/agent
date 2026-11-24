@@ -15,11 +15,10 @@ import { fuzz } from './labels.ts';
 import type { Html, Mermaid, Render } from './labels.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const charts = [];
-for (const f of fs.readdirSync(path.join(here, "charts")))
-  {charts.push(path.join(here, "charts", f));}
-for (const d of fs.readdirSync(path.join(here, "corpus")))
-  {charts.push(path.join(here, "corpus", d, "chart.mmd"));}
+const charts = [
+  ...fs.readdirSync(path.join(here, "charts")).map((file) => path.join(here, "charts", file)),
+  ...fs.readdirSync(path.join(here, "corpus")).map((folder) => path.join(here, "corpus", folder, "chart.mmd")),
+];
 const guide = fs.readFileSync(path.join(here, "../../references/render.md"), "utf8");
 const css = guide.match(/```css\n([\s\S]*?)```/);
 assert.ok(css, "references/render.md has no css block");
@@ -57,7 +56,7 @@ before(async () => {
 });
 
 const classes = new Set<string>();
-for (const chart of charts) {
+Iterator.from(charts).forEach((chart) => {
   const name = path.relative(here, chart);
   const text = fs.readFileSync(chart, "utf8");
   const marks = [...text.matchAll(/^ {2}class (\w+) (\w+)$/gmu)];
@@ -75,7 +74,7 @@ for (const chart of charts) {
   test(`${name} parses in mermaid.js, which chat views use`, async () => {
     await mermaid.parse(text);
   });
-}
+});
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("random labels and colors keep their text and the chart's shape in Mermaid and Pele", async () => {
@@ -87,7 +86,7 @@ test("random labels and colors keep their text and the chart's shape in Mermaid 
 const pathPoints = (d: string) => {
   const points: number[][] = [];
   let [ax, ay] = [0, 0];
-  for (const [, cmd, args] of d.matchAll(/([MLC])([^MLC]*)/g)) {
+  Iterator.from(d.matchAll(/([MLC])([^MLC]*)/g)).forEach(([, cmd, args]) => {
     const n = args.split(/[ ,]/u).filter(Boolean).map(Number);
     const [x, y] = n.slice(-2);
     if (cmd !== "M")
@@ -103,26 +102,24 @@ const pathPoints = (d: string) => {
         );
       }}
     [ax, ay] = [x, y];
-  }
+  });
   return points;
 };
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("an arrow into a parent from its only way in stays out of the parent's title bar in Pele 1.9.0", () => {
   const graph: Graph = { states: new Map(), steps: [] };
-  for (const [id, at] of [
+  Iterator.from([
     ["ask", "Asking your view for labels"],
     ["flat", "Laying out the chart/Flat"],
     ["parents", "Laying out the chart/Parent states"],
     ["regions", "Laying out the chart/Regions"],
-  ])
-    {graph.states.set(id, { vars: { at }, start: id === "ask", breaks: [] });}
-  for (const [to, action] of [
+  ]).forEach(([id, at]) => {graph.states.set(id, { vars: { at }, start: id === "ask", breaks: [] });});
+  Iterator.from([
     ["flat", "String"],
     ["parents", "Array"],
     ["regions", "Object"],
-  ])
-    {graph.steps.push({ from: "ask", to, action });}
+  ]).forEach(([to, action]) => {graph.steps.push({ from: "ask", to, action });});
   const { chart } = project(graph, walk(graph), { state: (v) => String(v.at).split("/") }, []);
   const { svg } = render(chartText(chart));
   const bars = [
@@ -132,21 +129,20 @@ test("an arrow into a parent from its only way in stays out of the parent's titl
   ].map(([, id, x, y, w, rule]) => ({ id, left: +x, right: +x + +w, top: +y, bottom: +rule }));
   assert.equal(bars.length, 1);
   const crossings: string[] = [];
-  for (const [, id, d] of svg.matchAll(
+  Iterator.from(svg.matchAll(
     /<g class="pele-edge pele-transition" data-id="([^"]*)"><path d="([^"]*)"/g,
-  ))
-    {for (const bar of bars)
+  )).forEach(([, id, d]) => {for (const bar of bars)
       {if (
         pathPoints(d).some(
           ([x, y]) => x > bar.left && x < bar.right && y > bar.top && y < bar.bottom,
         )
       )
-        {crossings.push(`${id} crosses the title bar of ${bar.id}`);}}}
+        {crossings.push(`${id} crosses the title bar of ${bar.id}`);}}});
   assert.deepEqual(crossings, []);
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("the theme in references/render.md colors each class that the charts use", () => {
   assert.ok(classes.size > 0);
-  for (const name of classes) {assert.match(theme, new RegExp(`\\.pele \\.${name} rect \\{`), name);}
+  Iterator.from(classes).forEach((name) => {assert.match(theme, new RegExp(`\\.pele \\.${name} rect \\{`), name);});
 });

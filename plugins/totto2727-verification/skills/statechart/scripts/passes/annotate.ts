@@ -5,9 +5,11 @@ export const finder = (graph: Graph, names: string[]) => {
   let ids: Map<string, string> | undefined;
   const find = (values: Value[]) => {
     if (!ids) {
-      ids = new Map();
-      for (const [id, s] of graph.states)
-        {if (!s.excluded) {ids.set(stateKey(valuesOf(s.vars, names)), id);}}
+      const index = new Map<string, string>();
+      ids = index;
+      Iterator.from(graph.states).forEach(([id, state]) => {
+        if (!state.excluded) {index.set(stateKey(valuesOf(state.vars, names)), id);}
+      });
     }
     return ids.get(stateKey(values));
   };
@@ -23,9 +25,9 @@ export function mark(
   find = finder(graph, names),
 ) {
   const byName = new Map<string, Rule>();
-  for (const rule of rules) {byName.set(rule.name, rule);}
+  Iterator.from(rules).forEach((rule) => {byName.set(rule.name, rule);});
   const past: Past = new Map();
-  for (const { values, broken } of marks) {
+  Iterator.from(marks).forEach(({ values, broken }) => {
     const id = find(values);
     const state = matchesUndefined(id) ? undefined : graph.states.get(id);
     for (const name of broken) {
@@ -33,14 +35,14 @@ export function mark(
       if (state) {state.breaks.push(rule);}
       else {past.set(stateKey(values), (past.get(stateKey(values)) ?? new Set()).add(rule));}
     }
-  }
+  });
   return past;
 }
 
 export function deadEnds(graph: Graph, rule: Rule) {
   const from = new Set<string>();
-  for (const t of graph.steps) {from.add(t.from);}
-  for (const [id, s] of graph.states) {if (!s.past && !from.has(id)) {s.breaks.push(rule);}}
+  Iterator.from(graph.steps).forEach((t) => {from.add(t.from);});
+  Iterator.from(graph.states).forEach(([id, s]) => {if (!s.past && !from.has(id)) {s.breaks.push(rule);}});
 }
 
 export function addPast(
@@ -88,8 +90,8 @@ export function lasso(
   const start = seq[0]?.id;
   if (matchesUndefined(start)) {return undefined;}
   const out = new Map<string | undefined, Step[]>();
-  for (const s of seq) {out.set(s.id, []);}
-  for (const t of graph.steps) {out.get(t.from)?.push(t);}
+  Iterator.from(seq).forEach((s) => {out.set(s.id, []);});
+  Iterator.from(graph.steps).forEach((t) => {out.get(t.from)?.push(t);});
   const route: PathStep[] = [];
   for (let i = 1; i < seq.length; i++) {
     let step: Step | undefined;

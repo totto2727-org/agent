@@ -31,11 +31,11 @@ describe("executable rule catalog for Issue 9", () => {
   test("keeps rule identities unique and all executable scopes local", async () => {
     const rules = await loadCatalog();
     expect(new Set(rules.map((rule) => rule.id)).size).toBe(rules.length);
-    for (const rule of rules) {
+    Iterator.from(rules).forEach((rule) => {
       expect(["page", "section", "paragraph"]).toContain(rule.scope);
       expect(["mechanical", "decision"]).toContain(rule.engine);
       expect(rule.source).toBeDefined();
-    }
+    });
     expect(rules.some((rule) => rule.id.startsWith("ste-faq-"))).toBe(false);
   });
 
@@ -50,12 +50,12 @@ describe("executable rule catalog for Issue 9", () => {
     async (number) => {
       const checks = bySourceNumber(await loadCatalog(), number);
       expect(checks.length).toBeGreaterThan(0);
-      for (const rule of checks) {
+      Iterator.from(checks).forEach((rule) => {
         expect(rule.scope).toBe("paragraph");
         expect(rule.source.requiredRules).toStrictEqual(
           expect.arrayContaining(["8.4", "8.5", "8.6", "8.7"]),
         );
-      }
+      });
     },
   );
 

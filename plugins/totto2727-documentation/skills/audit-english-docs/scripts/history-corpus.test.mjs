@@ -96,9 +96,9 @@ const repositoryFixture = async function () {
       expected: { direct: "pass" },
     }),
   ];
-  for (const item of samples) {
+  Iterator.from(samples).forEach((item) => {
     delete item.documentId;
-  }
+  });
   const specPath = resolve(repository, "corpus.json");
   const rulesPath = resolve(repository, "rules.json");
   await writeFile(specPath, JSON.stringify(samples));

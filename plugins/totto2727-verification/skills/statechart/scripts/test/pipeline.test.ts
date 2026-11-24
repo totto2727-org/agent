@@ -72,10 +72,9 @@ test("each pass imports only ir.ts", () => {
   );
   const found = loads("passes");
   assert.ok(found.length > 0);
-  for (const [from, to] of found) {assert.equal(to, "ir.ts", `${from} imports ${to}`);}
-  for (const file of files)
-    {for (const to of typeImports(file))
-      {assert.equal(to, "ir.ts", `${file} imports types from ${to}`);}}
+  Iterator.from(found).forEach(([from, to]) => {assert.equal(to, "ir.ts", `${from} imports ${to}`);});
+  Iterator.from(files).forEach((file) => {for (const to of typeImports(file))
+      {assert.equal(to, "ir.ts", `${file} imports types from ${to}`);}});
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
@@ -84,8 +83,7 @@ test("pipeline.ts reaches no node: module", () => {
     loads("pipeline.ts").filter(([, to]) => to.startsWith("node:")),
     [],
   );
-  for (const to of typeImports("pipeline.ts"))
-    {assert.equal(to, "ir.ts", `pipeline.ts imports types from ${to}`);}
+  Iterator.from(typeImports("pipeline.ts")).forEach((to) => {assert.equal(to, "ir.ts", `pipeline.ts imports types from ${to}`);});
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
@@ -97,12 +95,12 @@ test("ir.ts, the passes, pipeline.ts, the frontends, the backends, and every fil
     files.filter((file) => !file.endsWith(".ts")),
     [],
   );
-  for (const file of files) {assert.deepEqual(codeOf(file).match(RUNTIME), null, file);}
+  Iterator.from(files).forEach((file) => {assert.deepEqual(codeOf(file).match(RUNTIME), null, file);});
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("no frontend or backend loads a node: module when imported, even through another file", () => {
-  for (const folder of ["frontends", "backends"]) {
+  Iterator.from(["frontends", "backends"]).forEach((folder) => {
     const files = fs
       .readdirSync(path.join(scripts, folder), { encoding: "utf8", recursive: true })
       .filter((f) => f.endsWith(".ts"));
@@ -110,7 +108,7 @@ test("no frontend or backend loads a node: module when imported, even through an
     for (const f of files)
       {for (const [, to] of loads(path.join(folder, f)))
         {assert.ok(!to.startsWith("node:"), `${folder}/${f} reaches ${to}`);}}
-  }
+  });
 });
 
 const small: Rule = { kind: "invariant", name: "Small" };
@@ -119,8 +117,7 @@ const noView = checkView({}, inspect);
 
 const holding = (spec: Spec) => {
   const verdicts: Verdict[] = [];
-  for (const rule of stateRules(spec))
-    {verdicts.push({ rule, outcome: "holds", messages: undefined });}
+  Iterator.from(stateRules(spec)).forEach((rule) => {verdicts.push({ rule, outcome: "holds", messages: undefined });});
   return verdicts;
 };
 
@@ -167,8 +164,7 @@ const twoStates = (breaks: Rule[], property = "Settles"): CheckResult => ({
 
 const body = (files: Map<string, Iterable<string | Uint8Array>>, name: string) => {
   let text = "";
-  for (const part of files.get(name) ?? [])
-    {text += typeof part === "string" ? part : new TextDecoder().decode(part);}
+  Iterator.from(files.get(name) ?? []).forEach((part) => {text += typeof part === "string" ? part : new TextDecoder().decode(part);});
   return text;
 };
 
@@ -267,8 +263,8 @@ test("a rule named NoDeadlock leaves the deadlock rule a name of its own", () =>
 test("a run that does not check for deadlock never names CHECK_DEADLOCK", () => {
   const invariant = twoStates([]);
   invariant.spec.invariants = ["Small", "NoDeadlock"];
-  for (const result of [invariant, twoStates([], "NoDeadlock")]) {
+  Iterator.from([invariant, twoStates([], "NoDeadlock")]).forEach((result) => {
     result.rules = holding(result.spec);
     assert.doesNotMatch(compile(result, noView).report, /CHECK_DEADLOCK/u);
-  }
+  });
 });

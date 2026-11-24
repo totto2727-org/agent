@@ -22,11 +22,11 @@ const stepsIn = (text: string) =>
 const properties = function (cfg: string) {
   const names: string[] = [];
   let section = "";
-  for (const line of cfg.split("\n")) {
+  Iterator.from(cfg.split("\n")).forEach((line) => {
     section = line.match(/^[A-Z_]+/u)?.[0] ?? section;
     if (/^PROPERT(?:Y|IES)$/u.test(section))
       {for (const word of line.trim().split(/\s+/u)) {if (word && word !== section) {names.push(word);}}}
-  }
+  });
   return names;
 };
 
@@ -66,10 +66,10 @@ const tlc = function (dir: string, module: string, cfg: string) {
 const alone = function (cfg: string, rule: string) {
   const lines: string[] = [];
   let section = "";
-  for (const line of cfg.split("\n")) {
+  Iterator.from(cfg.split("\n")).forEach((line) => {
     section = line.match(/^[A-Z_]+/u)?.[0] ?? section;
     if (!RULES.test(section)) {lines.push(line);}
-  }
+  });
   if (rule !== "NoDeadlock")
     {lines.push(
       `${properties(cfg).includes(rule) ? "PROPERTY" : "INVARIANT"} ${rule}`,
@@ -141,15 +141,15 @@ export function agrees(module: string, files: { [name: string]: string[] }, cfg:
     const chartFile = path.join(out, "chart.mmd");
     const chart = fs.existsSync(chartFile) ? fs.readFileSync(chartFile, "utf8") : "";
     if (plain.broke) {assert.equal(breaks.get(plain.broke), plain.steps, shown);}
-    for (const rule of holds) {
+    Iterator.from(holds).forEach((rule) => {
       const r = tlc(dir, module, alone(cfg, rule));
       assert.equal(r.status, 0, `${rule} holds in the report, but TLC says:\n${r.out}`);
-    }
-    for (const [rule, steps] of breaks) {
+    });
+    Iterator.from(breaks).forEach(([rule, steps]) => {
       const r = tlc(dir, module, alone(cfg, rule));
       assert.equal(r.broke, rule, `${rule} breaks in the report, but TLC says:\n${r.out}`);
       if (!bounded.has(rule)) {assert.equal(steps, r.steps, rule);}
-    }
+    });
     return { status: cli.status, breaks, holds, unchecked, chart, report };
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });

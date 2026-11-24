@@ -39,12 +39,12 @@ test(
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a rule that breaks before a step fails to evaluate breaks", { skip }, () => {
-  for (const mode of ["div", "assert"]) {
+  Iterator.from(["div", "assert"]).forEach((mode) => {
     const v = agrees("Late", { Late: late }, lateCfg(mode, "Small"));
     assert.equal(v.status, 1);
     assert.deepEqual(v.breaks, new Map([["Small", 1]]));
     assert.deepEqual(v.unchecked, ["NoDeadlock"]);
-  }
+  });
 });
 
 const warnPath = (next: string) => [
@@ -73,7 +73,7 @@ test("a rule that breaks before it fails to evaluate breaks", { skip }, () => {
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a rule that fails to evaluate before TLC reaches a break exits 2", { skip }, () => {
-  for (const deadlock of ["", "CHECK_DEADLOCK FALSE\n"]) {
+  Iterator.from(["", "CHECK_DEADLOCK FALSE\n"]).forEach((deadlock) => {
     const v = agrees(
       "WarnPath",
       { WarnPath: warnPath("Two \\/ One") },
@@ -81,7 +81,7 @@ test("a rule that fails to evaluate before TLC reaches a break exits 2", { skip 
     );
     assert.equal(v.status, 2);
     assert.deepEqual(v.holds, []);
-  }
+  });
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
@@ -132,7 +132,7 @@ test("a deadlock breaks whatever shape the SPECIFICATION has", { skip }, () => {
   );
   assert.deepEqual(live.breaks, new Map([["NoDeadlock", 2]]));
   assert.deepEqual(live.holds, ["TypeOK"]);
-  for (const next of ["[][Next \\/ Tick]_vars", "[][\\E i \\in 1..2 : Step(i)]_vars"]) {
+  Iterator.from(["[][Next \\/ Tick]_vars", "[][\\E i \\in 1..2 : Step(i)]_vars"]).forEach((next) => {
     const v = agrees(
       "Shape",
       {
@@ -153,7 +153,7 @@ test("a deadlock breaks whatever shape the SPECIFICATION has", { skip }, () => {
     );
     assert.equal(v.status, 1);
     assert.ok(v.breaks.has("NoDeadlock"));
-  }
+  });
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.

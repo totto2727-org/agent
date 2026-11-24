@@ -296,7 +296,7 @@ export async function buildWork(manifest, manifestPath) {
       const requestQuestions = {};
       const questionMap = {};
       let localNumber = 0;
-      for (const { ruleId, question } of group) {
+      Iterator.from(group).forEach(({ ruleId, question }) => {
         // Report identities keep the run-wide numbering that existing consumers
         // Rely on. Requests use deterministic, request-local numbering so that
         // Equivalent work from duplicate documents/rules fingerprints identically.
@@ -305,7 +305,7 @@ export async function buildWork(manifest, manifestPath) {
         questions[originalId] = { ...question, ruleId };
         requestQuestions[requestId] = question;
         questionMap[requestId] = originalId;
-      }
+      });
       work.push({
         document,
         path,

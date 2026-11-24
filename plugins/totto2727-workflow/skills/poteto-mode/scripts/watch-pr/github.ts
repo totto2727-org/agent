@@ -103,11 +103,11 @@ const list = function (value: unknown, path: string): Readonly<unknown[]> {
 };
 const at = function (value: unknown, path: Readonly<string[]>): unknown {
   let current = value;
-  for (const key of path) {
+  Iterator.from(path).forEach((key) => {
     const object = record(current, path.join("."));
     if (!(key in object)) {missing(path.join("."));}
     current = object[key];
-  }
+  });
   return current;
 };
 const string = function (value: unknown, path: string): string {
@@ -361,7 +361,7 @@ export function parseReviewThreadPage(value: unknown): T.ReviewThreadPage {
   );
   const nodes = list(reviewThreads.nodes, "reviewThreads.nodes");
   const threads: T.RawReviewThread[] = [];
-  for (const node of nodes) {
+  Iterator.from(nodes).forEach((node) => {
     const thread = record(node, "review thread");
     if (typeof thread.isResolved !== "boolean")
       {missing("review thread.isResolved", thread.isResolved);}
@@ -374,7 +374,7 @@ export function parseReviewThreadPage(value: unknown): T.ReviewThreadPage {
       firstComment: comments.length === 0 ? null : parseComment(comments[0]),
       resolved: thread.isResolved,
     });
-  }
+  });
   const page = record(reviewThreads.pageInfo, "reviewThreads.pageInfo");
   if (typeof page.hasNextPage !== "boolean")
     {missing("reviewThreads.pageInfo.hasNextPage", page.hasNextPage);}
@@ -685,8 +685,7 @@ export function orderStack(
     if (pr.isCrossRepository) {continue;}
     children.set(pr.baseRefName, [...(children.get(pr.baseRefName) ?? []), pr]);
   }
-  for (const values of children.values())
-    {values.sort((a, b) => a.number - b.number);}
+  Iterator.from(children.values()).forEach((values) => {values.sort((a, b) => a.number - b.number);});
   const start = byNumber.get(context.number);
   if (matchesUndefined(start)) {return [context];}
   const down: T.OpenPullRequest[] = [];

@@ -155,7 +155,7 @@ export function validateSteVocabulary(value, label, ErrorType = Error) {
     matchesString(text) &&
     text.length <= maximumTokenLength &&
     /^[\p{L}\p{N}]+(?:[-' ][\p{L}\p{N}]+)*$/u.test(text);
-  for (const entry of value.entries) {
+  Iterator.from(value.entries).forEach((entry) => {
     if (
       !entry ||
       !hasObjectType(entry) ||
@@ -178,7 +178,7 @@ export function validateSteVocabulary(value, label, ErrorType = Error) {
         "invalid dictionary record: declare word, approved, partOfSpeech, meaning and optional exact forms",
       );
     }
-  }
+  });
   const technicalLiteral = (term) =>
     matchesString(term) &&
     term.length > 0 &&
@@ -258,18 +258,18 @@ export function analyzeSteProse(text, context = {}, { paragraph = false } = {}) 
   }
   // Section 8.6 excludes document/work-step numbering, not ordinary identifiers.
   if (context.writingMode === "procedural") {
-    for (const match of text.matchAll(/^(?:\(\d+\)|[A-Z][.)])\s+/gm)) {
+    Iterator.from(text.matchAll(/^(?:\(\d+\)|[A-Z][.)])\s+/gm)).forEach((match) => {
       for (let index = match.index; index < match.index + match[0].length; index += 1) {
         if (!/[\r\n]/u.test(characters[index])) {
           characters[index] = " ";
         }
       }
-    }
+    });
   }
   /** @type {CountedSentence[]} */
   const extraSentences = [];
   const groups = [...(context.wordGroups ?? [])].sort((a, b) => b.text.length - a.text.length);
-  for (const group of groups) {
+  Iterator.from(groups).forEach((group) => {
     let at = 0;
     while ((at = characters.join("").indexOf(group.text, at)) !== -1) {
       if (boundary(text, at - 1) && boundary(text, at + group.text.length)) {
@@ -277,11 +277,11 @@ export function analyzeSteProse(text, context = {}, { paragraph = false } = {}) 
       }
       at += group.text.length;
     }
-  }
+  });
   // Quoted text, including its punctuation, is one word, not new sentences.
-  for (const match of characters.join("").matchAll(/"[^"\n]*"|“[^”\n]*”|‘[^’\n]*’/g)) {
+  Iterator.from(characters.join("").matchAll(/"[^"\n]*"|“[^”\n]*”|‘[^’\n]*’/g)).forEach((match) => {
     collapse(characters, match.index, match.index + match[0].length);
-  }
+  });
   if (/["“”‘’]/.test(characters.join(""))) {
     warn("Unbalanced quotation marks require contextual parsing.");
   }
@@ -333,14 +333,14 @@ export function analyzeSteProse(text, context = {}, { paragraph = false } = {}) 
     warn("Unbalanced or nested parentheses require contextual parsing.");
   }
   // These abbreviations and compounds are explicitly illustrated in section 8.6.
-  for (const match of current.matchAll(
-    /\b(?:No\.\s+\d[\w-]*|\d+(?:\.\d+)?\s+(?:a\.m\.|p\.m\.))(?=\s|[,.!?]|$)/g,
-  )) {
+  Iterator.from(
+    current.matchAll(/\b(?:No\.\s+\d[\w-]*|\d+(?:\.\d+)?\s+(?:a\.m\.|p\.m\.))(?=\s|[,.!?]|$)/g),
+  ).forEach((match) => {
     collapse(characters, match.index, match.index + match[0].length);
     if (match[0].endsWith(".") && !current.slice(match.index + match[0].length).trim()) {
       characters[match.index + match[0].length - 1] = ".";
     }
-  }
+  });
   const units = [
     ...new Set([
       "mm",
@@ -432,9 +432,9 @@ export function analyzeSteProse(text, context = {}, { paragraph = false } = {}) 
     }
     start = end;
   };
-  for (const match of current.matchAll(/[.!?]/g)) {
+  Iterator.from(current.matchAll(/[.!?]/g)).forEach((match) => {
     flush(match.index + 1);
-  }
+  });
   if (current.slice(start).trim()) {
     const unfinishedStart = start;
     flush(current.length);

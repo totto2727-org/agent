@@ -24,7 +24,7 @@ const isListField = (field: Section["field"]): field is ListField =>
   field === "actionConstraints";
 
 const SECTIONS = new Map<string, Section>();
-for (const section of [
+Iterator.from([
   { key: "CONSTANT", plural: "CONSTANTS" },
   { key: CHECK_DEADLOCK, field: "checkDeadlock" },
   { key: "INIT", field: "init", undefinedNoun: "initial predicate" },
@@ -43,10 +43,10 @@ for (const section of [
     field: "actionConstraints",
     undefinedNoun: "action constraint",
   },
-] satisfies Section[]) {
+] satisfies Section[]).forEach((section) => {
   SECTIONS.set(section.key, section);
   if (section.plural) {SECTIONS.set(section.plural, section);}
-}
+});
 export const NAME = /^\w*[A-Za-z]\w*$/u;
 const WORD = /\w+/y;
 const CONFIG_HOLDS =

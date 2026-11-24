@@ -46,7 +46,7 @@ export function project(graph: Graph, walked: Walk, view: View, found: Bug[]) {
 export function compile(result: CheckResult, view: CheckedView) {
   const walked = walk(result.graph);
   const found = [...(result.paths ?? bugs(result.graph, walked))].sort(shortestFirst);
-  for (const p of result.properties) {if (p.bug) {found.push({ rule: p.rule, ...p.bug });}}
+  Iterator.from(result.properties).forEach((p) => {if (p.bug) {found.push({ rule: p.rule, ...p.bug });}});
   const { chart, stories } =
     found.length || !result.paths
       ? project(result.graph, walked, view, found)
@@ -57,9 +57,8 @@ export function compile(result: CheckResult, view: CheckedView) {
   files.set("report.md", [text]);
   files.set("tlc.out", plainText(result.messages));
   const drawn = new Set<string>();
-  for (const b of found) {if (b.rule.kind !== "property") {drawn.add(ruleKey(b.rule));}}
-  for (const { rule, outcome, messages } of [...result.rules, ...result.properties])
-    {if (outcome === "broken" && messages && !drawn.has(ruleKey(rule)))
-      {files.set(`tlc-${rule.name}.out`, plainText(messages));}}
+  Iterator.from(found).forEach((b) => {if (b.rule.kind !== "property") {drawn.add(ruleKey(b.rule));}});
+  Iterator.from([...result.rules, ...result.properties]).forEach(({ rule, outcome, messages }) => {if (outcome === "broken" && messages && !drawn.has(ruleKey(rule)))
+      {files.set(`tlc-${rule.name}.out`, plainText(messages));}});
   return { report: text, files, exit: result.exit };
 }

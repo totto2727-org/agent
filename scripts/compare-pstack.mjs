@@ -37,9 +37,9 @@ for (const pkg of readdirSync(join(root, "plugins"))) {
   }
 }
 let identical = 0;
-for (const skill of retiredSkills) {
+Iterator.from(retiredSkills).forEach((skill) => {
   if (owners.has(skill)) throw new Error(`Retired upstream skill still shipped: ${skill}`);
-}
+});
 let changed = 0;
 const missing = [];
 const retired = new Set(
@@ -77,9 +77,9 @@ for (const row of git("ls-tree", "-rz", base, "--", "skills").split("\0").filter
   }
 }
 const license = git("show", `${base}:LICENSE`);
-for (const original of retiredSkills) {
+Iterator.from(retiredSkills).forEach((original) => {
   if (!skills.has(original)) throw new Error(`Unknown retired upstream skill: ${original}`);
-}
+});
 for (const skill of skills) {
   if (retiredSkills.has(skill)) {
     continue;
@@ -90,9 +90,9 @@ for (const skill of skills) {
     missing.push(`MIT notice: ${skill}`);
   }
 }
-for (const path of missing) {
+Iterator.from(missing).forEach((path) => {
   console.error(`Missing: ${path}`);
-}
+});
 if (retired.size) {
   throw new Error(`Unknown retired paths: ${[...retired].join(", ")}`);
 }

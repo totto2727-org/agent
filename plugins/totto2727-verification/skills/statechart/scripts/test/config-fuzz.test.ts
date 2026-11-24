@@ -128,8 +128,7 @@ const generate = function (random: () => number) {
       }}
     return out;
   };
-  const tokens = [];
-  for (const key of pick([["SPECIFICATION"], ["INIT", "NEXT"]])) {tokens.push(...section(key));}
+  const tokens = pick([["SPECIFICATION"], ["INIT", "NEXT"]]).flatMap((key) => section(key));
   for (let n = int(4); n--;) {tokens.splice(pick([0, tokens.length]), 0, ...section(pick(KEYWORDS)));}
   for (let n = int(3); n--;)
     {tokens.splice(int(tokens.length + 1), 0, { gap: pick(GAPS), text: pick(COMMENTS) });}
@@ -153,7 +152,7 @@ const generate = function (random: () => number) {
     else if (kind === "section") {tokens.splice(at, 0, ...section(pick(KEYWORDS)));}
   }
   let text = "";
-  for (const t of tokens) {text += t.gap + t.text;}
+  Iterator.from(tokens).forEach((t) => {text += t.gap + t.text;});
   return { text: `${text}\n`, mutated: mutations > 0 };
 };
 
@@ -192,7 +191,7 @@ const model = function (reading: Reading | undefined) {
   const { overrides, modConstants, modOverrides } = reading;
   const table = tableOf(reading);
   const out: Reading = { overrides, modConstants, modOverrides };
-  for (const key of MODEL) {out[key] = table[key];}
+  Iterator.from(MODEL).forEach((key) => {out[key] = table[key];});
   return out;
 };
 

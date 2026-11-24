@@ -27,11 +27,10 @@ and 2 when TLC stops with an error, a signal kills the check, or the command can
 
 let stop: NodeJS.Signals | undefined;
 const stopped = new Promise<void>((resolve) => {
-  for (const name of ["SIGINT", "SIGTERM"] as const)
-    {process.on(name, () => {
+  Iterator.from(["SIGINT", "SIGTERM"] as const).forEach((name) => {process.on(name, () => {
       stop ??= name;
       resolve();
-    });}
+    });});
 });
 
 let flags;

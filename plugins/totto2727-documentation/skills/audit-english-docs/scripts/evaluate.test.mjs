@@ -213,13 +213,13 @@ const evaluationOf = function (report, documentId, scope, sectionId = null) {
 };
 
 const assertAnswerIdentities = function (report) {
-  for (const entry of report.evaluations) {
+  Iterator.from(report.evaluations).forEach((entry) => {
     const ids = new Set(entry.questions.map((question) => question.id));
     expect(entry.answers).toHaveLength(entry.questions.length);
     for (const answer of entry.answers) {
       expect(ids.has(answer.questionId)).toBe(true);
     }
-  }
+  });
 };
 
 const MOCK_SOURCE = `#!/usr/bin/env node
@@ -300,7 +300,11 @@ const decodeMockCall = (line) => {
  */
 const readCalls = async function (log) {
   const content = await readFile(log, "utf8").catch(() => "");
-  return content.trim().split("\n").filter((line) => line.length > 0).map((line) => decodeMockCall(line));
+  return content
+    .trim()
+    .split("\n")
+    .filter((line) => line.length > 0)
+    .map((line) => decodeMockCall(line));
 };
 
 /** @type {(call: MockCall) => Record<string, unknown>} */
@@ -456,11 +460,16 @@ describe("private dictionary evidence boundaries", () => {
       evaluate({ ...paths, environment: CREDENTIALS }),
     );
     expect(calls).toHaveLength(1);
-    const { candidates } = object(localEvidence(calls[0]).dictionaryCandidates, "dictionary evidence");
+    const { candidates } = object(
+      localEvidence(calls[0]).dictionaryCandidates,
+      "dictionary evidence",
+    );
     if (!Array.isArray(candidates)) {
       throw new TypeError("The request must contain dictionary candidates");
     }
-    const candidate = candidates.find((entry) => object(entry, "dictionary candidate").term === "status panel");
+    const candidate = candidates.find(
+      (entry) => object(entry, "dictionary candidate").term === "status panel",
+    );
     expect(candidate).toMatchObject({
       membership: "unlisted",
       records: [],
@@ -731,11 +740,11 @@ describe("documentation quality evaluator public pipeline", () => {
       success: true,
       result: { model: "clef-flash", usage: null, answers: { q: answer } },
     });
-    for (const confidence of [Number.NaN, Number.POSITIVE_INFINITY]) {
+    Iterator.from([Number.NaN, Number.POSITIVE_INFINITY]).forEach((confidence) => {
       expect(() =>
         validateResponse(envelope({ ...valid, confidence }), questions, "clef-flash"),
       ).toThrow("invalid answer");
-    }
+    });
     expect(() =>
       validateResponse(
         envelope({ ...valid, probabilities: { ...valid.probabilities, fail: Number.NaN } }),
@@ -794,7 +803,8 @@ describe("documentation quality evaluator public pipeline", () => {
     const requests = calls.map((call) => {
       const serialized = JSON.stringify(call.payload);
       return {
-        hasQuestions: Object.keys(object(call.payload.questions, "native request questions")).length > 0,
+        hasQuestions:
+          Object.keys(object(call.payload.questions, "native request questions")).length > 0,
         headers: call.headers,
         input: call.payload.input,
         leakedApiKey: [call.argv.join(" "), serialized].some((text) => text.includes(API_KEY)),
@@ -893,14 +903,14 @@ describe("documentation quality evaluator public pipeline", () => {
       }),
     );
     expect(calls.length).toBeGreaterThan(0);
-    for (const call of calls) {
+    Iterator.from(calls).forEach((call) => {
       expect(call.headers).toContain("cf-aig-cache-ttl: 2592000");
       expect(call.headers).toContain("cf-aig-skip-cache: false");
       expect(hasRetryOverride(call)).toBe(false);
       expect(
         call.headers.some((header) => /^cf-aig-cache-key: decision-v1-[0-9a-f]{64}$/u.test(header)),
       ).toBe(true);
-    }
+    });
     expect(report.requestCount).toBe(calls.length);
   });
 
@@ -1620,9 +1630,9 @@ describe("local mechanical and semantic engine boundaries", () => {
       ["insufficient_context", "insufficient_context"],
       ["pass", "pass"],
     ]);
-    for (const answer of report.evaluations[1].answers) {
+    Iterator.from(report.evaluations[1].answers).forEach((answer) => {
       expect(answer.coverage.parserWarnings).toStrictEqual([]);
-    }
+    });
     expect(report.evaluations[0].answers[0].coverage.parserWarnings[0].sourceRange).toMatchObject({
       endLine: 5,
       startLine: 5,
@@ -1963,7 +1973,10 @@ describe("local mechanical and semantic engine boundaries", () => {
             serializedQuestions.includes(rule),
           ),
           missingInstructions: Object.values(questions).flatMap((entry) => {
-            const instructions = text(object(entry, "Jev question").instructions, "Jev instructions");
+            const instructions = text(
+              object(entry, "Jev question").instructions,
+              "Jev instructions",
+            );
             return [
               "for this paragraph question",
               "unseen link destinations",
@@ -1988,9 +2001,7 @@ describe("local mechanical and semantic engine boundaries", () => {
       })),
     ).toStrictEqual(setupStates.map(() => setupEvidence));
     expect(
-      inputs
-        .filter((state) => !isSetup(state))
-        .map(({ markdown }) => markdown.includes("run();")),
+      inputs.filter((state) => !isSetup(state)).map(({ markdown }) => markdown.includes("run();")),
     ).not.toContain(true);
     assertAnswerIdentities(report);
   });
@@ -2198,14 +2209,14 @@ describe("local mechanical and semantic engine boundaries", () => {
       "````js\n# Not a heading\n```\n\ncode();\n````\n",
       "Final.\n",
     ]);
-    for (const unit of units) {
+    Iterator.from(units).forEach((unit) => {
       expect(
         Buffer.from(markdown)
           .subarray(unit.sourceRange.startByte, unit.sourceRange.endByte)
           .toString(),
       ).toBe(unit.text);
       expect(unit.sourceRange.endLine).toBeGreaterThanOrEqual(unit.sourceRange.startLine);
-    }
+    });
     const answer = runMechanical(lexicalRule.check, markdown, units[0].sourceRange);
     expect(answer.findings).toMatchObject([
       { sourceRange: { endLine: 6, startLine: 6 }, term: "bad" },
@@ -2229,7 +2240,7 @@ describe("local mechanical and semantic engine boundaries", () => {
     expect(answer.findings.map((finding) => finding.term)).toStrictEqual(["Bad"]);
     expect(answer.findings[0].basis).toBe("exact-project-restriction");
     const kinds = new Set(answer.coverage.excluded.map((entry) => entry.kind));
-    for (const kind of [
+    Iterator.from([
       "frontmatter",
       "fenced-code",
       "inline-code",
@@ -2237,9 +2248,9 @@ describe("local mechanical and semantic engine boundaries", () => {
       "html-block",
       "url-or-markup",
       "indented-code",
-    ]) {
+    ]).forEach((kind) => {
       expect(kinds.has(kind)).toBe(true);
-    }
+    });
     expect(
       runMechanical(
         { ...lexicalRule.check, caseSensitive: true },
@@ -2274,7 +2285,7 @@ describe("local mechanical and semantic engine boundaries", () => {
     "abstains conservatively on container fence syntax without lexical or language compliance claims: %j",
     (container) => {
       const markdown = `Safe prose.\n\n\`\`\`js\ncode();\n\`\`\`\n\n${container}`;
-      for (const check of [lexicalRule.check, fenceRule.check]) {
+      Iterator.from([lexicalRule.check, fenceRule.check]).forEach((check) => {
         const answer = runMechanical(check, markdown, sourceRange(markdown, 0, markdown.length));
         expect(answer).toMatchObject({
           choice: "insufficient_context",
@@ -2282,7 +2293,7 @@ describe("local mechanical and semantic engine boundaries", () => {
           reviewRequired: true,
         });
         expect(answer.coverage.parserWarnings).toHaveLength(1);
-      }
+      });
     },
   );
 

@@ -14,14 +14,15 @@ test("a retired skill stays absent while every distributed skill keeps its notic
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const upstream = join(root, "upstream");
   const local = join(root, "plugins/example/skills/kept");
-  for (const path of [
+  Iterator.from([
     join(upstream, "skills/retired"),
     join(upstream, "skills/kept"),
     local,
     join(root, "scripts"),
     join(root, "docs"),
-  ])
+  ]).forEach((path) => {
     mkdirSync(path, { recursive: true });
+  });
   const cli = join(root, "scripts/compare-pstack.mjs");
   copyFileSync(new URL("../scripts/compare-pstack.mjs", import.meta.url), cli);
   writeFileSync(join(upstream, "LICENSE"), "test notice\n");

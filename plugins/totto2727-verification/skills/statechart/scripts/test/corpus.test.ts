@@ -13,7 +13,7 @@ const corpus = path.join(here, "corpus");
 const skip = !process.env.TLA2TOOLS && "set TLA2TOOLS to the path of tla2tools.jar to run TLC";
 const read = (file: string) => fs.readFileSync(file, "utf8");
 
-for (const name of fs.readdirSync(corpus)) {
+Iterator.from(fs.readdirSync(corpus)).forEach((name) => {
   // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
   test(`${name} gives the committed chart and report when TLC runs`, { skip }, () => {
     const dir = path.join(corpus, name);
@@ -56,7 +56,7 @@ for (const name of fs.readdirSync(corpus)) {
     assert.equal(report, read(path.join(dir, "report.md")));
     assert.equal(read(path.join(out, "chart.mmd")), read(path.join(dir, "chart.mmd")));
   });
-}
+});
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a spec in a folder whose name is not ASCII checks under the POSIX locale", { skip }, () => {
@@ -154,7 +154,7 @@ const counter = (name: string, before: string[], variables: string[]) => [
   "====",
 ];
 
-for (const [input, name, tla] of [
+Iterator.from([
   [
     "a `(*` inside a `\\*` comment",
     "Paren",
@@ -199,7 +199,7 @@ for (const [input, name, tla] of [
     "Pre",
     counter("Pre", ["Notes before the header: VARIABLES fake"], ["VARIABLE x"]),
   ],
-] as const) {
+] as const).forEach(([input, name, tla]) => {
   // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
   test(`a spec with ${input} gives plain TLC's exit and path`, { skip }, () => {
     const base = writeSpec(name, [...tla], "SPECIFICATION Spec\nINVARIANT Low\n");
@@ -225,7 +225,7 @@ for (const [input, name, tla] of [
       tlc.path,
     );
   });
-}
+});
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a property that breaks on a loop draws the loop and reports it", { skip }, () => {

@@ -326,7 +326,7 @@ export const append = <K, V>(groups: Map<K, V[]>, key: K, item: V) => {
 
 export const seqOf = (bug: Bug, index: ReadonlyMap<string, number>) => {
   const seq = [must(index, bug.start)];
-  for (const p of bug.path) {seq.push(must(index, p.state));}
+  Iterator.from(bug.path).forEach((p) => {seq.push(must(index, p.state));});
   return seq;
 };
 
@@ -337,7 +337,7 @@ export const defaultState = (vars: Vars) => {
   const entries = Object.entries(vars);
   if (entries.length === 1) {return show(entries[0][1]);}
   const parts: string[] = [];
-  for (const [k, v] of entries) {parts.push(`${k}=${show(v)}`);}
+  Iterator.from(entries).forEach(([k, v]) => {parts.push(`${k}=${show(v)}`);});
   return parts.join(" ");
 };
 
@@ -410,9 +410,8 @@ const span = (lo: number, hi: number) => (hi > lo ? `${lo}..${hi}` : String(lo))
 const setKey = (members: Value[]) => {
   const ints: number[] = [];
   let others: string[] = [];
-  for (const m of members)
-    {if (typeof m === "number") {ints.push(m);}
-    else {others.push(key(m));}}
+  Iterator.from(members).forEach((m) => {if (typeof m === "number") {ints.push(m);}
+    else {others.push(key(m));}});
   for (let i = 1; i < ints.length; i++)
     {if (ints[i - 1] >= ints[i]) {
       ints.sort((a, b) => a - b);
@@ -502,7 +501,7 @@ export const memo = <K, V>(make: (k: K) => V, limit = 1 << 16) => {
 
 export const valuesOf = (vars: Vars, names: string[]) => {
   const values: Value[] = [];
-  for (const n of names) {values.push(vars[n]);}
+  Iterator.from(names).forEach((n) => {values.push(vars[n]);});
   return values;
 };
 
@@ -513,10 +512,10 @@ export const findTrace = <Id>(
   find: Find<Id>,
 ) => {
   const trace: (TraceState & { values: Value[]; id: Id | undefined })[] = [];
-  for (const { action, vars } of counterexample) {
+  Iterator.from(counterexample).forEach(({ action, vars }) => {
     const values = valuesOf(vars, names);
     trace.push({ action, vars, values, id: find(values) });
-  }
+  });
   const end = trace.length - 1;
   if (end < 0) {throw new Error(`TLC's trace for ${rule.name} has no states.`);}
   for (let i = 0; i < end; i++)
@@ -529,8 +528,7 @@ export const findTrace = <Id>(
 
 export const findLoop = <Id>({ seq, loop }: Trace, names: string[], find: Find<Id>) => {
   const found: { action: string; id: Id | undefined }[] = [];
-  for (const { action, vars } of seq)
-    {found.push({ action, id: vars && find(valuesOf(vars, names)) });}
+  Iterator.from(seq).forEach(({ action, vars }) => {found.push({ action, id: vars && find(valuesOf(vars, names)) });});
   return { seq: found, loop };
 };
 
@@ -541,7 +539,7 @@ export const pastState = (
   excluded: boolean,
 ): PastState => {
   const breaks: Rule[] = [];
-  for (const r of marked) {if (!hasRule(breaks, r)) {breaks.push(r);}}
+  Iterator.from(marked).forEach((r) => {if (!hasRule(breaks, r)) {breaks.push(r);}});
   return { vars, start, breaks, ends: [], past: true, excluded };
 };
 
@@ -562,7 +560,7 @@ export const hasSection = ({ written }: Spec, ...keys: string[]) => {
 
 export const stateRules = (spec: Spec) => {
   const rules: Rule[] = [];
-  for (const name of spec.invariants) {rules.push({ kind: "invariant", name });}
+  Iterator.from(spec.invariants).forEach((name) => {rules.push({ kind: "invariant", name });});
   if (spec.deadlock) {rules.push(deadlockRule(spec));}
   return rules;
 };

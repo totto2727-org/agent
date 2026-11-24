@@ -16,7 +16,7 @@ export const json = (v: Value): Json => {
       j = members;
     } else if (v.kind === "set") {
       const members: Json[] = [];
-      for (const m of v.members) {members.push(json(m));}
+      Iterator.from(v.members).forEach((m) => {members.push(json(m));});
       j = members;
     } else {
       const fields: [string, Json][] = [];

@@ -4,12 +4,11 @@ import type { Chart, ChartState, ChartStep, Region } from '../ir.ts';
 export function liftToParents(states: ChartState[], steps: ChartStep[]) {
   const depths = new Map<string, number>();
   const leaves = new Map<string, number>();
-  for (const s of states.values())
-    {for (let i = 1; i < s.path.length; i++) {
+  Iterator.from(states.values()).forEach((s) => {for (let i = 1; i < s.path.length; i++) {
       const prefix = tupleKey(s.path.slice(0, i));
       depths.set(prefix, i);
       leaves.set(prefix, (leaves.get(prefix) ?? 0) + 1);
-    }}
+    }});
   if (!depths.size) {return steps;}
   const leaving = new Map<string, ChartStep[]>();
   for (const s of steps) {
@@ -25,24 +24,23 @@ export function liftToParents(states: ChartState[], steps: ChartStep[]) {
   const lifted: ChartStep[] = [];
   for (const [prefix] of [...depths].sort((a, b) => a[1] - b[1])) {
     const groups = new Map<string, ChartStep[]>();
-    for (const s of leaving.get(prefix) ?? [])
-      {if (!removed.has(s)) {append(groups, tupleKey([s.label, s.when, s.to]), s);}}
+    Iterator.from(leaving.get(prefix) ?? []).forEach((s) => {if (!removed.has(s)) {append(groups, tupleKey([s.label, s.when, s.to]), s);}});
     const under = must(leaves, prefix);
     for (const group of groups.values()) {
       if (under < 2 || group.length < under) {continue;}
-      for (const s of group) {removed.add(s);}
+      Iterator.from(group).forEach((s) => {removed.add(s);});
       lifted.push({ ...group[0], from: unkey(prefix) });
     }
   }
   const kept: ChartStep[] = [];
-  for (const s of steps) {if (!removed.has(s)) {kept.push(s);}}
-  for (const s of lifted) {kept.push(s);}
+  Iterator.from(steps).forEach((s) => {if (!removed.has(s)) {kept.push(s);}});
+  Iterator.from(lifted).forEach((s) => {kept.push(s);});
   return kept;
 }
 
 export function lift(chart: Chart): Chart {
   const regions: Region[] = [];
-  for (const r of chart.regions) {
+  Iterator.from(chart.regions).forEach((r) => {
     const known = new Map<string[], number>();
     for (const s of r.states) {known.set(s.path, known.size);}
     let numbers: Map<string, number> | undefined;
@@ -72,6 +70,6 @@ export function lift(chart: Chart): Chart {
       else {merged.set(k, { ...s });}
     }
     regions.push({ ...r, steps: [...merged.values()] });
-  }
+  });
   return { ...chart, regions };
 }

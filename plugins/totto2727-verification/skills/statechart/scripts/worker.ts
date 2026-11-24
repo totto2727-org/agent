@@ -18,7 +18,7 @@ try {
   const { files, exit } = compile(await check(specFile, configFile), view);
   const draft = path.join(stage, "draft");
   fs.mkdirSync(draft);
-  for (const [name, parts] of files) {
+  Iterator.from(files).forEach(([name, parts]) => {
     const fd = fs.openSync(path.join(draft, name), "wx");
     try {
       for (const part of parts)
@@ -27,7 +27,7 @@ try {
     } finally {
       fs.closeSync(fd);
     }
-  }
+  });
   fs.renameSync(draft, path.join(stage, "done"));
   process.exit(exit);
 } catch (error) {

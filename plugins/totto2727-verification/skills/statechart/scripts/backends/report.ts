@@ -3,17 +3,17 @@ import type { Bug, Chart, Graph, Property, Spec, Stop, Story, Verdict } from '..
 
 const stepsOf = (story: Story) => {
   const path: { step?: string; state: string }[] = [];
-  for (const { step, state } of story) {
+  Iterator.from(story).forEach(({ step, state }) => {
     const parts: string[] = [];
     Object.entries(state).forEach(([name, names]) => {parts.push((name ? `${name} ` : "") + names.join(" / "));});
     path.push({ step, state: parts.join(", ") });
-  }
+  });
   return path;
 };
 
 const forever = (loop: { state: string }[], stutters: boolean | undefined) => {
   const quoted = new Set<string>();
-  for (const p of loop) {quoted.add(`"${p.state}"`);}
+  Iterator.from(loop).forEach((p) => {quoted.add(`"${p.state}"`);});
   const runs = [...quoted];
   if (stutters) {return `The run stops in ${runs[0]} forever.`;}
   return runs.length === 1
@@ -49,18 +49,18 @@ export function report(
 ) {
   let size = 0;
   let arrows = 0;
-  for (const r of chart?.regions ?? []) {
+  Iterator.from(chart?.regions ?? []).forEach((r) => {
     size += r.states.length;
     arrows += r.steps.length;
-  }
+  });
   let past = 0;
   let pastSteps = 0;
   let excluded = 0;
-  for (const s of graph.states.values()) {
+  Iterator.from(graph.states.values()).forEach((s) => {
     if (s.excluded) {excluded++;}
     else if (s.past) {past++;}
-  }
-  for (const t of graph.steps) {if (must(graph.states, t.to).past) {pastSteps++;}}
+  });
+  Iterator.from(graph.steps).forEach((t) => {if (must(graph.states, t.to).past) {pastSteps++;}});
   const includes = (n: number) =>
     chart ? `, and the chart includes ${n === 1 ? "it" : "them"}` : "";
   const out = [
@@ -92,8 +92,7 @@ export function report(
     {out.push(`The chart does not draw ${chart.inside} steps that stay in one chart state.`);}
   if (chart?.quiet)
     {out.push(`The view hides ${chart.quiet} steps, so the chart does not draw them.`);}
-  for (const { rule, outcome } of rules)
-    {if (
+  Iterator.from(rules).forEach(({ rule, outcome }) => {if (
       !paths &&
       rule.kind === "deadlock" &&
       outcome === "broken" &&
@@ -103,16 +102,16 @@ export function report(
         drawing
           ? "The chart marks only the deadlock that TLC reports, because the drawing run stopped before it reached every state."
           : "The chart marks only the deadlock that TLC reports. Under a CONSTRAINT or an ACTION_CONSTRAINT, a state with no step in the chart can still have steps that the constraints leave out, and TLC does not count it as a deadlock.",
-      );}}
+      );}});
   if (chart?.lie) {out.push(`${chart.lie} So the chart draws parent states in place of regions.`);}
   out.push(...(chart?.notes ?? []));
   const merged: string[] = [];
-  for (const k of ["VIEW", "SYMMETRY"]) {if (hasSection(spec, k)) {merged.push(k);}}
+  Iterator.from(["VIEW", "SYMMETRY"]).forEach((k) => {if (hasSection(spec, k)) {merged.push(k);}});
   if (chart && merged.length)
     {out.push(
       `With ${list(merged)}, TLC keeps one representative for each group of states that it counts as the same. An arrow can lead to the representative rather than to the state that the step reaches.`,
     );}
-  for (const bug of found) {
+  Iterator.from(found).forEach((bug) => {
     const steps = `${bug.path.length} step${bug.path.length === 1 ? "" : "s"}`;
     out.push("", `## ${bug.rule.name} breaks`);
     out.push(
@@ -123,12 +122,12 @@ export function report(
     const path = stepsOf(must(stories, bug));
     for (const [i, p] of path.entries()) {out.push(`${i}. ${p.step ? `${p.step}: ` : ""}${p.state}`);}
     if (!matchesUndefined(bug.loop)) {out.push(forever(path.slice(bug.loop), bug.stutters));}
-  }
+  });
   const drawn = new Set<string>();
-  for (const b of found) {drawn.add(ruleKey(b.rule));}
+  Iterator.from(found).forEach((b) => {drawn.add(ruleKey(b.rule));});
   const holds: string[] = [];
   const unchecked: string[] = [];
-  for (const { rule, outcome, messages } of [...rules, ...properties]) {
+  Iterator.from([...rules, ...properties]).forEach(({ rule, outcome, messages }) => {
     if (outcome === "holds") {holds.push(rule.name);}
     else if (outcome === "not checked") {unchecked.push(rule.name);}
     else if (messages && !drawn.has(ruleKey(rule)))
@@ -137,7 +136,7 @@ export function report(
         `## ${rule.name} breaks`,
         `TLC found a counterexample. It is in tlc-${rule.name}.out.`,
       );}
-  }
+  });
   if (holds.length) {out.push("", "## Rules that hold", holds.join(", "));}
   if (unchecked.length) {out.push("", "## Rules not checked", unchecked.join(", "));}
   if (unchecked.length && states.cut)
@@ -153,10 +152,9 @@ export function report(
         : ["", "## TLC stopped", `TLC stopped with exit ${stop.status}:`]),
       fenced(stop.message),
     );}
-  for (const p of properties)
-    {if (p.outcome === "holds" && p.initialOnly)
+  Iterator.from(properties).forEach((p) => {if (p.outcome === "holds" && p.initialOnly)
       {out.push(
         `TLC checked ${p.rule.name} only in the initial states, because it has no [], <>, or ~>. List it as an INVARIANT to check every state.`,
-      );}}
+      );}});
   return out.join("\n");
 }

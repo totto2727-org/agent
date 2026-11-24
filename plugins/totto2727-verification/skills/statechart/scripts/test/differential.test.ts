@@ -191,10 +191,9 @@ const caseOf = function (m: Model): Case {
   defs.push(`Init == ${vars.map((x, k) => `${x} \\in ${set(k, m.vars[k].init)}`).join(" /\\ ")}`);
   const actions = m.actions.map((a) => {
     const changed = new Map<number, number[]>();
-    for (const s of a.set)
-      {if (!changed.has(s.v % vars.length)) {changed.set(s.v % vars.length, s.to);}}
+    Iterator.from(a.set).forEach((s) => {if (!changed.has(s.v % vars.length)) {changed.set(s.v % vars.length, s.to);}});
     const parts = a.guard.map(atom);
-    for (const [k, to] of changed) {parts.push(`${vars[k]}' \\in ${set(k, to)}`);}
+    Iterator.from(changed).forEach(([k, to]) => {parts.push(`${vars[k]}' \\in ${set(k, to)}`);});
     const kept = vars.filter((_, k) => !changed.has(k));
     if (kept.length) {parts.push(`UNCHANGED <<${kept.join(", ")}>>`);}
     const action = name();
@@ -316,13 +315,12 @@ const claimOf = (r: Run, breaks: number[], traced: boolean): Claim => {
 
 const plainAnswers = async function (dir: string, c: Case) {
   const rules = new Map<string, Promise<Claim>>();
-  for (const name of c.invariants)
-    {rules.set(
+  Iterator.from(c.invariants).forEach((name) => {rules.set(
       name,
       plainTlc(dir, c, `inv-${name}`, [`INVARIANT ${name}`, "CHECK_DEADLOCK FALSE"]).then((r) =>
         claimOf(r, [12], true),
       ),
-    );}
+    );});
   if (c.deadlock)
     {rules.set(
       "NoDeadlock",
@@ -350,7 +348,7 @@ const plainAnswers = async function (dir: string, c: Case) {
 const compilerAnswers = function (r: Run, c: Case) {
   const lines = r.stdout.split("\n");
   const rules = new Map<string, Claim>();
-  for (const [i, line] of lines.entries()) {
+  Iterator.from(lines.entries()).forEach(([i, line]) => {
     const broken = /^## (\S+) breaks$/.exec(line);
     if (broken) {
       const shortest = /^The shortest path has (\d+) steps?:$/u.exec(lines[i + 1]);
@@ -363,7 +361,7 @@ const compilerAnswers = function (r: Run, c: Case) {
     }
     if (line === "## Rules that hold")
       {for (const name of lines[i + 1].split(", ")) {rules.set(name, { breaks: false });}}
-  }
+  });
   const states = /^TLC reached (\d+) states/mu.exec(r.stdout);
   return { status: r.status, states: states ? Number(states[1]) : r.stderr, rules };
 };
@@ -564,5 +562,5 @@ for (const [what, c, says] of [
   // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
   {test(`${what}, as plain TLC answers`, { skip }, async () => {
     const report = await answer(c);
-    for (const said of says) {assert.ok(report.includes(said), `${said}\nis not in\n${report}`);}
+    Iterator.from(says).forEach((said) => {assert.ok(report.includes(said), `${said}\nis not in\n${report}`);});
   });}

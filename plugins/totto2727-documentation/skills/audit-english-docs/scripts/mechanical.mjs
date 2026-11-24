@@ -139,7 +139,7 @@ export function nounGroupCounts(markdown, targetRange, groups = []) {
   const { visible, uncertainties } = inspectMarkdown(markdown);
   /** @type {Array<Group & NounGroupEvidence>} */
   const selected = [];
-  for (const group of groups) {
+  Iterator.from(groups).forEach((group) => {
     let at = 0;
     while ((at = visible.indexOf(group.text, at)) !== -1) {
       const end = at + group.text.length;
@@ -162,7 +162,7 @@ export function nounGroupCounts(markdown, targetRange, groups = []) {
       }
       at = end;
     }
-  }
+  });
   return selected;
 }
 
@@ -282,13 +282,13 @@ export function inspectMarkdown(markdown) {
   }
   const mask = () => {
     const characters = markdown.split("");
-    for (const { start, end } of exclusions) {
+    Iterator.from(exclusions).forEach(({ start, end }) => {
       for (let index = start; index < end; index += 1) {
         if (characters[index] !== "\n" && characters[index] !== "\r") {
           characters[index] = " ";
         }
       }
-    }
+    });
     return characters.join("");
   };
   let visible = mask();
@@ -305,34 +305,40 @@ export function inspectMarkdown(markdown) {
     }
   }
   visible = mask();
-  for (const match of visible.matchAll(
-    /<(script|pre|style|textarea)\b[^>]*>[\s\S]*?(?:<\/\1\s*>|$)/gi,
-  )) {
+  Iterator.from(
+    visible.matchAll(/<(script|pre|style|textarea)\b[^>]*>[\s\S]*?(?:<\/\1\s*>|$)/gi),
+  ).forEach((match) => {
     exclude(match.index, match.index + match[0].length, "html-block");
-  }
+  });
   visible = mask();
-  for (const match of visible.matchAll(
-    /^ {0,3}<\/?(?:address|article|aside|blockquote|details|div|dl|fieldset|figure|footer|form|h[1-6]|header|hr|li|main|nav|ol|p|section|table|ul)\b[^\n]*[\s\S]*?(?=\n[ \t]*\r?\n|(?![\s\S]))/gim,
-  )) {
+  Iterator.from(
+    visible.matchAll(
+      /^ {0,3}<\/?(?:address|article|aside|blockquote|details|div|dl|fieldset|figure|footer|form|h[1-6]|header|hr|li|main|nav|ol|p|section|table|ul)\b[^\n]*[\s\S]*?(?=\n[ \t]*\r?\n|(?![\s\S]))/gim,
+    ),
+  ).forEach((match) => {
     exclude(match.index, match.index + match[0].length, "html-block");
-  }
+  });
   visible = mask();
   // HTML comments and paired HTML elements are excluded in full, not just tags.
-  for (const match of visible.matchAll(
-    /<!--[\s\S]*?(?:-->|$)|<([A-Za-z][\w:-]*)\b[^>]*>[\s\S]*?<\/\1\s*>|<[^>\n]+>/g,
-  )) {
+  Iterator.from(
+    visible.matchAll(
+      /<!--[\s\S]*?(?:-->|$)|<([A-Za-z][\w:-]*)\b[^>]*>[\s\S]*?<\/\1\s*>|<[^>\n]+>/g,
+    ),
+  ).forEach((match) => {
     exclude(match.index, match.index + match[0].length, "html");
-  }
+  });
   visible = mask();
-  for (const match of visible.matchAll(
-    /(?:[A-Za-z][A-Za-z0-9+.-]*:\/\/|mailto:|www\.)[^\s<>]+|\]\([^\n]*?\)|^ {0,3}\[[^\]\n]+\]:[^\n]*|\{#[^}\n]+\}\s*$/gm,
-  )) {
+  Iterator.from(
+    visible.matchAll(
+      /(?:[A-Za-z][A-Za-z0-9+.-]*:\/\/|mailto:|www\.)[^\s<>]+|\]\([^\n]*?\)|^ {0,3}\[[^\]\n]+\]:[^\n]*|\{#[^}\n]+\}\s*$/gm,
+    ),
+  ).forEach((match) => {
     exclude(match.index, match.index + match[0].length, "url-or-markup");
-  }
+  });
   visible = mask();
-  for (const match of visible.matchAll(/^ {4}[^\n]+|^\t[^\n]+/gm)) {
+  Iterator.from(visible.matchAll(/^ {4}[^\n]+|^\t[^\n]+/gm)).forEach((match) => {
     exclude(match.index, match.index + match[0].length, "indented-code");
-  }
+  });
   return { visible: mask(), exclusions, fences, frontmatter, uncertainties };
 }
 
@@ -424,12 +430,12 @@ function runSteMechanical(check, markdown, targetRange, context) {
     range.startByte >= targetRange.startByte && range.endByte <= targetRange.endByte;
   const warning = (reason, range = targetRange) =>
     parserWarnings.push({ reason, sourceRange: range });
-  for (const entry of inspection.uncertainties) {
+  Iterator.from(inspection.uncertainties).forEach((entry) => {
     const range = sourceRange(markdown, entry.start, entry.end);
     if (overlaps(range)) {
       warning(entry.reason, range);
     }
-  }
+  });
   const result = (choice) => ({
     type: "choice",
     choice,
@@ -522,14 +528,14 @@ function runSteMechanical(check, markdown, targetRange, context) {
           unit.sourceRange,
         );
       }
-      for (const match of prose.matchAll(/;/gu)) {
+      Iterator.from(prose.matchAll(/;/gu)).forEach((match) => {
         findings.push({
           defect: "semicolon",
           basis: "ASD-STE100 Issue 9 rule 8.1",
           message: "STE prose does not permit a semicolon.",
           sourceRange: sourceRange(markdown, start + match.index, start + match.index + 1),
         });
-      }
+      });
       continue;
     }
     if (check.kind === "ste-dictionary-membership") {
@@ -541,12 +547,12 @@ function runSteMechanical(check, markdown, targetRange, context) {
         continue;
       }
       const entries = new Map();
-      for (const entry of context.vocabulary.entries) {
+      Iterator.from(context.vocabulary.entries).forEach((entry) => {
         for (const form of [entry.word, ...(entry.forms ?? [])]) {
           const key = form.toLowerCase();
           entries.set(key, [...(entries.get(key) ?? []), entry]);
         }
-      }
+      });
       const technical = context.vocabulary.technicalTerms ?? [];
       const forms = [
         ...new Set([
@@ -619,7 +625,10 @@ function runSteMechanical(check, markdown, targetRange, context) {
     if (structural) {
       localWarnings.push({ reason: "Unsupported prose structure.", start: 0, end: text.length });
     }
-    if (context.writingMode === "descriptive" && /^\s*(?:WARNING|CAUTION|DANGER)\s*:/mu.test(text)) {
+    if (
+      context.writingMode === "descriptive" &&
+      /^\s*(?:WARNING|CAUTION|DANGER)\s*:/mu.test(text)
+    ) {
       localWarnings.push({
         reason:
           "Safety instructions obey the procedural 20-word limit even in descriptive material. Supply a procedural local target.",
@@ -708,9 +717,9 @@ function runSteMechanical(check, markdown, targetRange, context) {
           end: entry.end + part.offset,
         })),
       ];
-      for (const entry of warnings) {
+      Iterator.from(warnings).forEach((entry) => {
         warning(entry.reason, sourceRange(markdown, start + entry.start, start + entry.end));
-      }
+      });
       if (warnings.length) {
         continue;
       }
@@ -730,7 +739,7 @@ function runSteMechanical(check, markdown, targetRange, context) {
           });
         }
       } else {
-        for (const sentence of analysis.sentences) {
+        Iterator.from(analysis.sentences).forEach((sentence) => {
           const limit = context.writingMode === "procedural" ? 20 : 25;
           const counted = {
             wordCount: sentence.wordCount,
@@ -750,13 +759,13 @@ function runSteMechanical(check, markdown, targetRange, context) {
               message: `The ${context.writingMode} word-count unit has more than ${limit} words (section 8 counting).`,
             });
           }
-        }
+        });
       }
     }
     if (!analyses.length) {
-      for (const entry of localWarnings) {
+      Iterator.from(localWarnings).forEach((entry) => {
         warning(entry.reason, unit.sourceRange);
-      }
+      });
     }
   }
   return result(

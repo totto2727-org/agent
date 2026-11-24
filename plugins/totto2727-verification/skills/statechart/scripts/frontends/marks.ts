@@ -13,7 +13,7 @@ const markTexts = (chunk: string, top: number[], inner: number[]) => {
     {return undefined;}
   if (!chunk.startsWith(">>", end)) {return undefined;}
   const cuts = [open + 1];
-  for (const k of inner) {if (k > open && k < close) {cuts.push(k);}}
+  Iterator.from(inner).forEach((k) => {if (k > open && k < close) {cuts.push(k);}});
   cuts.push(close);
   const texts: string[] = [];
   for (let k = 1; k < cuts.length; k++) {texts.push(chunk.slice(cuts[k - 1] + 1, cuts[k]));}
@@ -65,7 +65,7 @@ export function* readMarks(messages: Iterable<Part>, tag: string): Generator<Mar
     if (depth > 0) {continue;}
     const texts = markTexts(chunk, top, inner);
     const values: Value[] = [];
-    if (texts) {for (const v of texts.values) {values.push(read(v));}}
+    if (texts) {Iterator.from(texts.values).forEach((v) => {values.push(read(v));});}
     const broken = texts && ruleNames(read(texts.rules));
     if (!broken)
       {throw new Error(`TLC printed a mark that the command cannot read:\n${chunk.slice(0, 2000)}`);}

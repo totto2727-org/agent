@@ -23,17 +23,17 @@ export function drawRegions(
   const R = names.length;
   const lead = new Uint8Array(n);
   const looped = new Uint8Array(n);
-  for (const b of found) {
+  Iterator.from(found).forEach((b) => {
     for (const i of seqOf(b, index).slice(0, b.loop)) {lead[i] = 1;}
     for (const i of loopOf(b, index)) {looped[i] = 1;}
-  }
+  });
   const loop = (j: number) => R === 1 && pathSteps[j] === 1;
   const stays = (j: number) => {
     for (let r = 0; r < R; r++) {if (kinds[r][from[j]] !== kinds[r][to[j]]) {return false;}}
     return true;
   };
   let inside = 0;
-  for (const j of sorted) {if (stays(j) && !loop(j)) {inside++;}}
+  Iterator.from(sorted).forEach((j) => {if (stays(j) && !loop(j)) {inside++;}});
   const comboOf =
     R === 1
       ? (i: number) => kinds[0][i]
@@ -43,11 +43,10 @@ export function drawRegions(
           return c;
         };
   const dirty = new Map<number | string, number>();
-  for (const i of order)
-    {if (tla[i].breaks.length) {
+  Iterator.from(order).forEach((i) => {if (tla[i].breaks.length) {
       const c = comboOf(i);
       if (!dirty.has(c)) {dirty.set(c, i);}
-    }}
+    }});
   const clean = new Uint8Array(n);
   if (dirty.size) {for (let i = 0; i < n; i++) {clean[i] = dirty.has(comboOf(i)) ? 0 : 1;}}
   else {clean.fill(1);}
@@ -60,7 +59,7 @@ export function drawRegions(
     const objectOf = new Array<ChartState>(sizes[r]);
     const keyOf = new Array<string>(sizes[r]);
     const position = new Int32Array(sizes[r]);
-    for (const i of order) {
+    Iterator.from(order).forEach((i) => {
       const s = tla[i];
       let o = objectOf[kind[i]];
       if (!o) {
@@ -84,11 +83,10 @@ export function drawRegions(
       o.lead ||= lead[i] === 1;
       o.repeats ||= looped[i] === 1;
       o.members.push(i);
-    }
+    });
     const parents = new Set<string>();
-    for (const s of states.values())
-      {for (let i = 1; i < s.path.length; i++) {parents.add(tupleKey(s.path.slice(0, i)));}}
-    for (const s of states.values()) {
+    Iterator.from(states.values()).forEach((s) => {for (let i = 1; i < s.path.length; i++) {parents.add(tupleKey(s.path.slice(0, i)));}});
+    Iterator.from(states.values()).forEach((s) => {
       if (parents.size && parents.has(tupleKey(s.path)))
         {throw new Error(
           `The view's state() returned ${s.path.join(" / ")} both as a state and as a parent state${name ? ` in ${name}` : ""}. Give that state a child name of its own.`,
@@ -106,18 +104,18 @@ export function drawRegions(
       const groups = new Set<unknown>();
       for (const i of s.members) {groups.add(group(i));}
       s.group = groups.size === 1 ? [...groups][0] : undefined;
-    }
+    });
     const others: number[] = [];
     for (let o = 0; o < R; o++) {if (o !== r) {others.push(o);}}
     const tuple = (i: number) => {
       const t: string[] = [];
-      for (const o of others) {t.push(keys[o][i]);}
+      Iterator.from(others).forEach((o) => {t.push(keys[o][i]);});
       return t;
     };
     const two = others.length === 1;
     const words = (vs: Iterable<string>) => {
       const texts: string[] = [];
-      for (const v of vs) {texts.push(unkey(v).join(" / "));}
+      Iterator.from(vs).forEach((v) => {texts.push(unkey(v).join(" / "));});
       return texts.sort(byText).join(two ? " or " : ", ");
     };
     const is = (o: number, vs: Set<string>) =>
@@ -146,7 +144,7 @@ export function drawRegions(
     }
     const tuplesAt = new Map<number, number[]>();
     const seenAt = new Map<number, string[][]>();
-    if (R > 1) {for (const i of order) {append(tuplesAt, kind[i], i);}}
+    if (R > 1) {Iterator.from(order).forEach((i) => {append(tuplesAt, kind[i], i);});}
     const arrows: Arrow[] = [];
     for (const move of moves) {
       const fromKey = keyOf[move.f];
@@ -162,7 +160,7 @@ export function drawRegions(
         continue;
       }
       const ok = new Set<string>();
-      for (const j of move.group) {ok.add(tupleKey(tuple(from[j])));}
+      Iterator.from(move.group).forEach((j) => {ok.add(tupleKey(tuple(from[j])));});
       const takes = (t: string[]) => ok.has(tupleKey(t));
       let seen = seenAt.get(move.f);
       if (!seen) {
@@ -184,13 +182,13 @@ export function drawRegions(
         const values = new Set<string>();
         const taken = new Set<string>();
         const untaken = new Set<string>();
-        for (const t of seen) {
+        Iterator.from(seen).forEach((t) => {
           values.add(t[j]);
           if (takes(t)) {taken.add(t[j]);}
           else {untaken.add(t[j]);}
-        }
+        });
         const only = new Set<string>();
-        for (const v of values) {if (!untaken.has(v)) {only.add(v);}}
+        Iterator.from(values).forEach((v) => {if (!untaken.has(v)) {only.add(v);}});
         all.push(values);
         and.push(taken);
         or.push(only);
@@ -206,7 +204,7 @@ export function drawRegions(
         const parts: string[] = [];
         for (let j = 0; j < others.length; j++) {
           const no: string[] = [];
-          for (const v of all[j]) {if (!and[j].has(v)) {no.push(v);}}
+          Iterator.from(all[j]).forEach((v) => {if (!and[j].has(v)) {no.push(v);}});
           if (no.length)
             {parts.push(and[j].size <= no.length ? is(others[j], and[j]) : isNot(others[j], no));}
         }
@@ -236,31 +234,30 @@ export function drawRegions(
         });}
     }
     const steps: ChartStep[] = [];
-    for (const [k, a] of arrows.entries())
-      {steps.push({
+    Iterator.from(arrows.entries()).forEach(([k, a]) => {steps.push({
         from: objectOf[moves[k].f].path,
         to: objectOf[moves[k].t].path,
         label: a.label,
         when: a.label.endsWith("]") ? undefined : a.when,
-      });}
+      });});
     regions.push({ name, states: [...states.values()], steps, arrows });
     objects.push(objectOf);
   }
   const hidden: ChartState[][] = [];
-  for (const i of dirty.values()) {
+  Iterator.from(dirty.values()).forEach((i) => {
     const ps: ChartState[] = [];
     for (let r = 0; r < R; r++) {ps.push(objects[r][kinds[r][i]]);}
     let works = true;
     for (const s of ps) {works &&= s.works;}
     if (works) {hidden.push(ps);}
-  }
-  for (const ps of hidden) {for (const s of ps) {s.works = false;}}
+  });
+  Iterator.from(hidden).forEach((ps) => {for (const s of ps) {s.works = false;}});
   const paths: string[] = [];
   const loops: string[] = [];
-  for (const b of found) {
+  Iterator.from(found).forEach((b) => {
     if (b.loop !== 0) {paths.push(b.rule.name);}
     if (!matchesUndefined(b.loop)) {loops.push(b.rule.name);}
-  }
+  });
   return {
     title: view.title,
     regions,

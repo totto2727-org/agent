@@ -2,8 +2,8 @@ import type { Value } from "../ir.ts";
 import { matchesUndefined } from "../ir.ts";
 
 export const BRACKET = new Int8Array(128);
-for (const c of "<{[(") {BRACKET[c.charCodeAt(0)] = 1;}
-for (const c of ">}])") {BRACKET[c.charCodeAt(0)] = -1;}
+Iterator.from("<{[(").forEach((c) => {BRACKET[c.charCodeAt(0)] = 1;});
+Iterator.from(">}])").forEach((c) => {BRACKET[c.charCodeAt(0)] = -1;});
 const PUNCT = new Map([
   [60, "<<"],
   [62, ">>"],

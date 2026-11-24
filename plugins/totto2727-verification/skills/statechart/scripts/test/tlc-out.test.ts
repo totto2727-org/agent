@@ -66,7 +66,7 @@ test(
           assert.equal(stderr, "");
           const runs = fs.readdirSync(twin).filter((f) => f.endsWith(".out"));
           assert.ok(runs.includes("ChartRun.out"), "the drawing run has a plain twin");
-          for (const run of runs) {
+          Iterator.from(runs).forEach((run) => {
             const exit = run.replace(/\.out$/u, ".exit");
             assert.equal(maybe(path.join(tool, exit)), maybe(path.join(twin, exit)), exit);
             assert.equal(
@@ -74,17 +74,15 @@ test(
               steady(read(path.join(twin, run))),
               run,
             );
-          }
+          });
           assert.equal(
             steady(read(path.join(out, "tlc.out"))),
             steady(`${read(path.join(twin, "verdict-1.out"))}\n`),
           );
           const verdicts = new Set<string>();
-          for (const run of runs)
-            {if (run.startsWith("verdict-")) {verdicts.add(steady(`${read(path.join(twin, run))}\n`));}}
-          for (const f of fs.readdirSync(out))
-            {if (/^tlc-\w+\.out$/u.test(f))
-              {assert.ok(verdicts.has(steady(read(path.join(out, f)))), f);}}
+          Iterator.from(runs).forEach((run) => {if (run.startsWith("verdict-")) {verdicts.add(steady(`${read(path.join(twin, run))}\n`));}});
+          Iterator.from(fs.readdirSync(out)).forEach((f) => {if (/^tlc-\w+\.out$/u.test(f))
+              {assert.ok(verdicts.has(steady(read(path.join(out, f)))), f);}});
         }),
       ),
     );

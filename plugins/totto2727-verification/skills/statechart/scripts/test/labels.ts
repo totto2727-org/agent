@@ -302,8 +302,7 @@ const build = function (c: Case, labels: string[]) {
   for (let i = 0; i < c.n; i++)
     {states.set(String(i), { vars: { k: i }, start: i === 0, breaks: [] });}
   const steps: Step[] = [];
-  for (const [from, to, a] of c.steps)
-    {steps.push({ from: String(from), to: String(to), action: `A${a}` });}
+  Iterator.from(c.steps).forEach(([from, to, a]) => {steps.push({ from: String(from), to: String(to), action: `A${a}` });});
   const view: RawView = {
     state: ({ k }) => {
       if (c.mode === "regions") {
@@ -401,11 +400,11 @@ const expected = function (chart: Chart): Want {
     const drawn = drawnEdges(region);
     const tree = (prefix: string[], parent: string | null, below: ChartState[]) => {
       const heads = new Map<string, ChartState[]>();
-      for (const s of below) {
+      Iterator.from(below).forEach((s) => {
         const head = s.path[prefix.length];
         heads.set(head, [...(heads.get(head) ?? []), s]);
-      }
-      for (const [head, under] of heads) {
+      });
+      Iterator.from(heads).forEach(([head, under]) => {
         const path = [...prefix, head];
         const inner: ChartState[] = [];
         let leaf: ChartState | undefined;
@@ -421,16 +420,15 @@ const expected = function (chart: Chart): Want {
             {if (e.start && JSON.stringify(e.from) === key)
               {edges.push([`${node}_start`, id(region.name, e.to), e.label ?? ""]);}}
         } else if (leaf?.group !== undefined) {used.add(chart.colors[String(leaf.group)]);}
-      }
+      });
     };
     tree([], wrap, region.states);
-    for (const e of drawn)
-      {if (!e.start || !e.from.length)
+    Iterator.from(drawn).forEach((e) => {if (!e.start || !e.from.length)
         {edges.push([
           e.start ? `${wrap ?? "root"}_start` : id(region.name, e.from),
           id(region.name, e.to),
           e.label ?? "",
-        ]);}}
+        ]);}});
   }
   let legend = 0;
   Object.entries(chart.colors).forEach(([text, cls]) => {if (used.has(cls)) {nodes.set(`lg${legend++}`, { text, parent: "legend", group: false });}});
@@ -440,8 +438,7 @@ const expected = function (chart: Chart): Want {
 
 const edgeKeys = (edges: string[][], withLabels: boolean) => {
   const keys: string[] = [];
-  for (const [from, to, text] of edges)
-    {keys.push(withLabels ? `${from} ${to} ${visible(text)}` : `${from} ${to}`);}
+  Iterator.from(edges).forEach(([from, to, text]) => {keys.push(withLabels ? `${from} ${to} ${visible(text)}` : `${from} ${to}`);});
   return keys.sort().join("\n");
 };
 
@@ -455,7 +452,7 @@ const readMermaid = async function (text: string, want: Want, { mermaid, html }:
     return;
   }
   const byId = new Map<string | undefined, MermaidNode>();
-  for (const n of data.nodes) {byId.set(n.id, n);}
+  Iterator.from(data.nodes).forEach((n) => {byId.set(n.id, n);});
   let count = 0;
   for (const n of data.nodes) {
     if (n.shape === "divider" || n.shape === "stateStart" || n.shape === "stateEnd") {continue;}
@@ -498,19 +495,18 @@ const readMermaid = async function (text: string, want: Want, { mermaid, html }:
     );}
   const got: string[][] = [];
   const shown: string[][] = [];
-  for (const e of data.edges) {
+  Iterator.from(data.edges).forEach((e) => {
     got.push([e.start, e.end, fromMermaid(e.label ?? "")]);
     shown.push([e.start, e.end, html(decoded(e.label ?? ""))]);
-  }
+  });
   if (edgeKeys(got, false) !== edgeKeys(want.edges, false))
     {problems.push("mermaid-edges: the arrows join other states");}
   else if (edgeKeys(shown, true) !== edgeKeys(want.edges, true))
     {problems.push("mermaid-text: an arrow shows other text");}
-  for (const [from, to, text] of got)
-    {if (rewritten(text))
+  Iterator.from(got).forEach(([from, to, text]) => {if (rewritten(text))
       {problems.push(
         `mermaid-text: Mermaid's SVG cleanup rewrites the arrow from ${from} to ${to}'s ${JSON.stringify(text)}`,
-      );}}
+      );}});
 };
 
 const readPele = function (text: string, want: Want, render: Render, problems: string[]) {
@@ -532,28 +528,28 @@ const readPele = function (text: string, want: Want, render: Render, problems: s
   }
   if (drawn.size !== want.nodes.size)
     {problems.push(`pele-nodes: ${drawn.size} nodes for ${want.nodes.size}`);}
-  for (const [node, w] of want.nodes) {
+  Iterator.from(want.nodes).forEach(([node, w]) => {
     const shown = drawn.get(node);
     if (shown === undefined) {problems.push(`pele-nodes: Pele draws no ${node}`);}
     else if (wrapped(shown) !== wrapped(w.text))
       {problems.push(
         `pele-text: ${node} shows ${JSON.stringify(shown)} for ${JSON.stringify(w.text)}`,
       );}
-  }
+  });
   let arrows = 0;
-  for (const _ of svg.matchAll(/<g class="pele-edge pele-transition"/gu)) {arrows++;}
+  Iterator.from(svg.matchAll(/<g class="pele-edge pele-transition"/gu)).forEach((_) => {arrows++;});
   if (arrows !== want.edges.length)
     {problems.push(`pele-edges: ${arrows} arrows for ${want.edges.length}`);}
-  for (const m of svg.matchAll(
+  Iterator.from(svg.matchAll(
     /<g class="pele-edge-label" data-id="edge(\d+)"[^>]*>[\s\S]*?<text[^>]*>([\s\S]*?)<\/text>/g,
-  )) {
+  )).forEach((m) => {
     const w = want.edges[Number(m[1])];
     if (!w) {problems.push(`pele-edges: Pele labels edge${m[1]}, which the chart does not have`);}
     else if (wrapped(fromSvg(m[2])) !== wrapped(w[2]))
       {problems.push(
         `pele-text: edge${m[1]} shows ${JSON.stringify(fromSvg(m[2]))} for ${JSON.stringify(w[2])}`,
       );}
-  }
+  });
   const title = svg.match(/<text class="pele-title"[^>]*>([\s\S]*?)<\/text>/);
   if (Boolean(title) !== titled(want))
     {problems.push(`pele-title: Pele draws a title for ${JSON.stringify(want.title)}`);}
@@ -624,7 +620,7 @@ export async function fuzz({
       const plain = labels.with(labelIndex, `n${labelIndex}`);
       const again = await check(c, plain, tools);
       let same = false;
-      for (const p of again.problems) {if (kind(p) === first) {same = true;}}
+      Iterator.from(again.problems).forEach((p) => {if (kind(p) === first) {same = true;}});
       if (same) {labels = plain;}
     }
     const kept = [];

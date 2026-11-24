@@ -62,11 +62,11 @@ describe("readiness truth table", () => {
       ["UNKNOWN", null, "allowed"],
       ["CLEAN", "SUCCESS", "allowed"],
     ];
-    for (const [mergeStateStatus, headRollupState, expected] of cases) {
+    Iterator.from(cases).forEach(([mergeStateStatus, headRollupState, expected]) => {
       expect(
         assessGitHubMerge({ mergeStateStatus, headRollupState }).kind
       ).toBe(expected);
-    }
+    });
   });
 
   it("turns a clean visible list plus GitHub refusal into an explicit CI blocker", async () => {
@@ -422,7 +422,7 @@ it("uses the specified retry floor and cap", () => {
 
 
 describe("polling deadline sleeps", () => {
-  for (const mode of ["single", "queued-stack", "query-retry"] as const) {
+  Iterator.from(["single", "queued-stack", "query-retry"] as const).forEach((mode) => {
     it(`caps ${mode} sleeps at the configured deadline`, async () => {
       let now = 0;
       const sleeps: number[] = [];
@@ -449,7 +449,7 @@ describe("polling deadline sleeps", () => {
       expect(sleeps).toEqual([5]);
       expect(now).toBe(5);
     });
-  }
+  });
   it("preserves the polling interval when the deadline is disabled", async () => {
     let now = 0;
     let reads = 0;

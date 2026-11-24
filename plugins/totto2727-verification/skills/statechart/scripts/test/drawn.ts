@@ -2,8 +2,7 @@ const shown = (text: string) => text.replace(/#(\d+);/gu, (_, n) => String.fromC
 
 export const drawn = (chart: string) => {
   const names = new Map<string, string>();
-  for (const m of chart.matchAll(/^ *(?:state "(.*)" as (s\d+) \{|(s\d+): (.*))$/gm))
-    {names.set(m[2] ?? m[3], shown(m[1] ?? m[4]));}
+  Iterator.from(chart.matchAll(/^ *(?:state "(.*)" as (s\d+) \{|(s\d+): (.*))$/gm)).forEach((m) => {names.set(m[2] ?? m[3], shown(m[1] ?? m[4]));});
   const arrows: string[] = [];
   const blocks: string[] = [];
   for (const line of chart.split("\n")) {

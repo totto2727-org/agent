@@ -12,16 +12,16 @@ const shapeOf = (shape: unknown, vars: Vars): Shape => {
   };
   const path = (p: unknown) => {
     const labels: string[] = [];
-    for (const l of [p].flat()) {
+    Iterator.from([p].flat()).forEach((l) => {
       if (!isLabel(l)) {fail();}
       labels.push(l);
-    }
+    });
     if (!labels.length) {fail();}
     return labels;
   };
   const regions: [string, unknown][] = isRecord(shape) ? Object.entries(shape) : [["", shape]];
   const pairs: [string, string[]][] = [];
-  for (const [k, v] of regions) {pairs.push([k, path(v)]);}
+  Iterator.from(regions).forEach(([k, v]) => {pairs.push([k, path(v)]);});
   return pairs.length ? Object.fromEntries(pairs) : fail();
 };
 
@@ -83,7 +83,7 @@ export function asParents(
   const parents = new Array<Shape>(shapes.length);
   for (let i = 0; i < shapes.length; i++) {
     const path: string[] = [];
-    for (const n of names) {for (const p of shapes[i][n]) {path.push(`${n} ${p}`);}}
+    Iterator.from(names).forEach((n) => {for (const p of shapes[i][n]) {path.push(`${n} ${p}`);}});
     parents[i] = shapeOf(path, tla[i].vars);
   }
   return { names: [""], shapes: parents, labels, group };
@@ -100,7 +100,7 @@ export function labelGraph(
   const n = shapes.length;
   const m = stepLabels.length;
   const onPath = new Set<Step>();
-  for (const b of found) {for (const p of b.path) {onPath.add(p.step);}}
+  Iterator.from(found).forEach((b) => {for (const p of b.path) {onPath.add(p.step);}});
   const pathStepIndex = new Map<Step, number>();
   if (onPath.size)
     {for (let j = 0; j < m; j++)
@@ -109,7 +109,7 @@ export function labelGraph(
   const keys: string[][] = [];
   const kinds: Int32Array[] = [];
   const sizes: number[] = [];
-  for (const name of names) {
+  Iterator.from(names).forEach((name) => {
     const key = new Array<string>(n);
     const kind = new Int32Array(n);
     const tops = new Map<string, number>();
@@ -131,7 +131,7 @@ export function labelGraph(
     keys.push(key);
     kinds.push(kind);
     sizes.push(keyOf.length);
-  }
+  });
   for (const b of found) {
     let t: Step | undefined;
     for (const p of b.path)
@@ -166,10 +166,10 @@ export function labelGraph(
   }
   const sorted = sortBy(Int32Array.from(drawn), [fromRank, toRank, action]);
   const pathSteps = new Uint8Array(m);
-  for (const j of pathStepIndex.values()) {pathSteps[j] = 1;}
+  Iterator.from(pathStepIndex.values()).forEach((j) => {pathSteps[j] = 1;});
   const byLabel = new Map<string, { changed: Uint8Array; sets: Set<string> }>();
   if (R > 1)
-    {for (const j of sorted) {
+    {Iterator.from(sorted).forEach((j) => {
       let entry = byLabel.get(drawnLabels[j]);
       if (!entry)
         {byLabel.set(drawnLabels[j], (entry = { changed: new Uint8Array(R), sets: new Set() }));}
@@ -180,9 +180,9 @@ export function labelGraph(
           entry.changed[r] = 1;
         }}
       if (changed.length > 1) {entry.sets.add(list(changed));}
-    }}
+    });}
   const together = new Set<string>();
-  for (const [text, { sets }] of byLabel) {if (sets.size) {together.add(text);}}
+  Iterator.from(byLabel).forEach(([text, { sets }]) => {if (sets.size) {together.add(text);}});
   const notes: string[] = [];
   for (const [text, entry] of byLabel) {
     const changed: string[] = [];
@@ -221,7 +221,7 @@ const tell = function <Id, B extends Told<Id>>(
 ) {
   const vars = (id: Id) => must(states, id).vars;
   const stories = new Map<B, Story>();
-  for (const bug of found) {
+  Iterator.from(found).forEach((bug) => {
     const story: Story = [{ state: shapeAt(bug.start) }];
     let from: Id = bug.start;
     for (const [k, p] of bug.path.entries()) {
@@ -231,7 +231,7 @@ const tell = function <Id, B extends Told<Id>>(
       from = p.state;
     }
     stories.set(bug, story);
-  }
+  });
   return stories;
 };
 

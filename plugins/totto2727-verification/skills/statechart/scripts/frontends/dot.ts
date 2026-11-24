@@ -22,7 +22,7 @@ const unescapeDot = (s: string) => {
 
 export const parseState = (label: string, parsed = new Map<string, [string, Value]>()): Vars => {
   const pairs: [string, Value][] = [];
-  for (const part of (label.startsWith("/\\ ") ? label.slice(3) : label).split("\n/\\ ")) {
+  Iterator.from((label.startsWith("/\\ ") ? label.slice(3) : label).split("\n/\\ ")).forEach((part) => {
     let pair = parsed.get(part);
     if (!pair) {
       const [, name, value] = /^(\w+)\s*=\s*([\s\S]*)$/.exec(part) ?? [];
@@ -30,7 +30,7 @@ export const parseState = (label: string, parsed = new Map<string, [string, Valu
       parsed.set(part, (pair = [name, parseValue(value)]));
     }
     pairs.push(pair);
-  }
+  });
   return Object.fromEntries(pairs);
 };
 
@@ -69,10 +69,9 @@ export function parseDot(input: Lines): Graph {
         breaks: [],
       });}
   }
-  for (const loose of steps.values())
-    {if (!states.has(loose.from) || !states.has(loose.to))
+  Iterator.from(steps.values()).forEach((loose) => {if (!states.has(loose.from) || !states.has(loose.to))
       {throw new Error(
         `The TLC graph dump has a step ${loose.action} to or from a state that it does not list.`,
-      );}}
+      );}});
   return { states, steps: [...steps.values()] };
 }

@@ -44,10 +44,11 @@ const record = function (value) {
 };
 
 /** @type {(value: unknown) => Record<string, unknown> | undefined} */
-const asRecord = (value) => record(value) ? /** @type {Record<string, unknown>} */ (value) : undefined;
+const asRecord = (value) =>
+  record(value) ? /** @type {Record<string, unknown>} */ (value) : undefined;
 
 /** @type {(value: unknown) => unknown[] | undefined} */
-const asArray = (value) => Array.isArray(value) ? value : undefined;
+const asArray = (value) => (Array.isArray(value) ? value : undefined);
 
 /** @type {(fields: Record<string, unknown>, key: string) => string} */
 const readField = (fields, key) => {
@@ -75,7 +76,10 @@ const readIdentity = (sample, { ids, families }) => {
   ids.add(id);
   const { split } = sample;
   requireValue(split === "calibration" || split === "holdout", "Invalid sample split");
-  requireValue(!families.has(family) || families.get(family) === split, `Family crosses calibration and holdout: ${family}`);
+  requireValue(
+    !families.has(family) || families.get(family) === split,
+    `Family crosses calibration and holdout: ${family}`,
+  );
   families.set(family, split);
   return { audience, family, id, path, purpose, split };
 };
@@ -88,7 +92,9 @@ const readSource = (value, path) => {
     "Each revision must be a full Git object ID",
   );
   requireValue(
-    !isAbsolute(path) && !path.includes("\0") && !path.split("/").some((part) => part === ".." || part === ""),
+    !isAbsolute(path) &&
+      !path.includes("\0") &&
+      !path.split("/").some((part) => part === ".." || part === ""),
     "Sample path must be repository-relative without traversal",
   );
   const startLine = Number.isInteger(value.startLine) ? Number(value.startLine) : Number.NaN;
@@ -104,21 +110,27 @@ const readSource = (value, path) => {
 const readLabels = (sample) => {
   const ruleIds = asArray(sample.ruleIds);
   requireValue(
-    !matchesUndefined(ruleIds) && ruleIds.length > 0 && ruleIds.every(nonempty) &&
+    !matchesUndefined(ruleIds) &&
+      ruleIds.length > 0 &&
+      ruleIds.every(nonempty) &&
       new Set(ruleIds).size === ruleIds.length,
     "Sample ruleIds must be unique non-empty strings",
   );
   const expected = asRecord(sample.expected);
   requireValue(
-    !matchesUndefined(expected) && Object.entries(expected).every(
-      ([ruleId, label]) => ruleIds.includes(ruleId) && (label === "pass" || label === "fail"),
-    ),
+    !matchesUndefined(expected) &&
+      Object.entries(expected).every(
+        ([ruleId, label]) => ruleIds.includes(ruleId) && (label === "pass" || label === "fail"),
+      ),
     "Expected labels must map selected rules to pass or fail",
   );
   const rawHeading = sample.headingPath;
   const headingPath = asArray(rawHeading);
   if (!matchesUndefined(rawHeading)) {
-    requireValue(!matchesUndefined(headingPath) && headingPath.every(nonempty), "headingPath must be an array of non-empty strings");
+    requireValue(
+      !matchesUndefined(headingPath) && headingPath.every(nonempty),
+      "headingPath must be an array of non-empty strings",
+    );
     return { expected, headingPath, ruleIds };
   }
   return { expected, headingPath: undefined, ruleIds };
@@ -294,7 +306,7 @@ export function scoreReport(report, labels) {
   const expected = new Map();
   const documents = new Set();
   const key = (documentId, ruleId) => JSON.stringify([documentId, ruleId]);
-  for (const sample of samples) {
+  Iterator.from(samples).forEach((sample) => {
     const { documentId, ruleScopes } = sample.original;
     requireValue(
       nonempty(documentId) && !documents.has(documentId),
@@ -302,11 +314,12 @@ export function scoreReport(report, labels) {
     );
     documents.add(documentId);
     for (const ruleId of sample.ruleIds) {
-      const scope = (/** @type {Record<string, unknown> | undefined} */ (ruleScopes))?.[ruleId] ?? "section";
+      const scope =
+        /** @type {Record<string, unknown> | undefined} */ (ruleScopes)?.[ruleId] ?? "section";
       requireValue(scope === "section" || scope === "page", "Invalid label rule scope");
       expected.set(key(documentId, ruleId), { documentId, sample, ruleId, scope, matches: [] });
     }
-  }
+  });
   const issues = [];
   for (const evaluation of report.evaluations) {
     if (!record(evaluation) || !Array.isArray(evaluation.questions)) {
@@ -325,7 +338,7 @@ export function scoreReport(report, labels) {
         )
         .map((question) => question?.id),
     );
-    for (const answer of answers) {
+    Iterator.from(answers).forEach((answer) => {
       if (!questionIds.has(answer?.questionId)) {
         issues.push({
           kind: "unexpected_answer",
@@ -333,7 +346,7 @@ export function scoreReport(report, labels) {
           questionId: answer?.questionId,
         });
       }
-    }
+    });
     for (const question of evaluation.questions) {
       if (!nonempty(question?.id) || ambiguousIds.has(question.id)) {
         issues.push({
@@ -369,7 +382,7 @@ export function scoreReport(report, labels) {
   const rows = [];
   let missing = 0;
   let duplicates = 0;
-  for (const { documentId, sample, ruleId, matches } of expected.values()) {
+  Iterator.from(expected.values()).forEach(({ documentId, sample, ruleId, matches }) => {
     const row = {
       documentId,
       sampleId: sample.id,
@@ -425,11 +438,11 @@ export function scoreReport(report, labels) {
       }
     }
     rows.push(row);
-  }
+  });
   const totals = counters();
   const perRule = new Map();
   const perFamily = new Map();
-  for (const row of rows) {
+  Iterator.from(rows).forEach((row) => {
     if (!perRule.has(row.ruleId)) {
       perRule.set(row.ruleId, counters());
     }
@@ -439,7 +452,7 @@ export function scoreReport(report, labels) {
     for (const count of [totals, perRule.get(row.ruleId), perFamily.get(row.family)]) {
       addCount(count, row);
     }
-  }
+  });
   return {
     version: 1,
     positiveClass: "fail",
@@ -493,11 +506,11 @@ export function parseArguments(argv) {
     requireValue(matchesUndefined(options[flag.slice(2)]), `Duplicate argument: ${flag}`);
     options[flag.slice(2)] = value;
   }
-  for (const required of command === "prepare"
-    ? ["repository", "output-dir"]
-    : ["report", "labels", "output"]) {
+  Iterator.from(
+    command === "prepare" ? ["repository", "output-dir"] : ["report", "labels", "output"],
+  ).forEach((required) => {
     requireValue(options[required], `--${required} is required`);
-  }
+  });
   return { command, options };
 }
 

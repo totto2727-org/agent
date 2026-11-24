@@ -96,7 +96,7 @@ describe("rollup node mapping", () => {
       ["COMPLETED", "TIMED_OUT", "failed", "FAILURE"],
       ["COMPLETED", "FUTURE_VALUE", "failed", "FAILURE"],
     ] as const;
-    for (const [status, conclusion, kind, reportedState] of cases) {
+    Iterator.from(cases).forEach(([status, conclusion, kind, reportedState]) => {
       expect(
         mapRollupNode({
           __typename: "CheckRun",
@@ -105,7 +105,7 @@ describe("rollup node mapping", () => {
           conclusion,
         })
       ).toMatchObject({ kind, reportedState });
-    }
+    });
   });
 
   it("classifies an in-progress Code Review Gate from the rollup as the gate", () => {

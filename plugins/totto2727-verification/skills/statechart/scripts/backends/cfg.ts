@@ -3,7 +3,7 @@ import type { ConfigSection, Spec } from '../ir.ts';
 
 export function configText(sections: ConfigSection[], extra: string[]) {
   const lines: string[] = [];
-  for (const s of sections) {lines.push(`${s.key} ${s.tokens.join(" ")}`);}
+  Iterator.from(sections).forEach((s) => {lines.push(`${s.key} ${s.tokens.join(" ")}`);});
   lines.push(...extra);
   return lines.join("\n");
 }
@@ -20,7 +20,7 @@ export const boundRun = (module: string) =>
 
 export function chartRun({ module, variables, invariants }: Spec, tag: string) {
   const every: string[] = [];
-  for (const name of invariants) {every.push(`(IF ~${name} THEN {"${name}"} ELSE {}) \\cup `);}
+  Iterator.from(invariants).forEach((name) => {every.push(`(IF ~${name} THEN {"${name}"} ELSE {}) \\cup `);});
   return [
     `---- MODULE ChartRun ----`,
     `EXTENDS ${module}`,

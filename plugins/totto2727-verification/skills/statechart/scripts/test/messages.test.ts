@@ -211,13 +211,12 @@ test("output that ends where TLC died prints as plain TLC's output cut at the sa
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("text outside TLC's messages, such as SANY's output, passes through unchanged", () => {
-  for (const text of ["", "\n", "a\n\nb\n", "Semantic errors:\n\n  line 1\n"])
-    {assert.equal(plain(text), text);}
+  Iterator.from(["", "\n", "a\n\nb\n", "Semantic errors:\n\n  line 1\n"]).forEach((text) => {assert.equal(plain(text), text);});
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("TLC's run time prints as plain TLC prints it, with each field wrapping", () => {
-  for (const [ms, printed] of [
+  Iterator.from([
     [0, "00s"],
     [394, "00s"],
     [59_999, "59s"],
@@ -230,6 +229,5 @@ test("TLC's run time prints as plain TLC prints it, with each field wrapping", (
     [86_400_001, "1d 00h"],
     [90_000_000, "1d 01h"],
     [366 * 86_400_000, "1d 00h"],
-  ] satisfies [number, string][])
-    {assert.equal(runtime(ms), printed, String(ms));}
+  ] satisfies [number, string][]).forEach(([ms, printed]) => {assert.equal(runtime(ms), printed, String(ms));});
 });

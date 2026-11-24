@@ -85,11 +85,11 @@ export const messageOf = (error: unknown) =>
 const joined = (files: string[]): Output => {
   const fds: number[] = [];
   const sizes: number[] = [];
-  for (const f of files) {
+  Iterator.from(files).forEach((f) => {
     const fd = fs.openSync(f, "r");
     fds.push(fd);
     sizes.push(fs.fstatSync(fd).size);
-  }
+  });
   return {
     *[Symbol.iterator]() {
       for (let f = 0; f < fds.length; f++)
@@ -140,12 +140,12 @@ const runToFiles = (
   new Promise<FileResult>((resolve) => {
     const files = [`${out}.stdout`, `${out}.stderr`];
     const fds: number[] = [];
-    for (const f of files) {fds.push(fs.openSync(f, "w"));}
+    Iterator.from(files).forEach((f) => {fds.push(fs.openSync(f, "w"));});
     let child: ChildProcess;
     try {
       child = spawn(file, args, { ...options, stdio: ["ignore", ...fds], windowsHide: true });
     } finally {
-      for (const fd of fds) {fs.closeSync(fd);}
+      Iterator.from(fds).forEach((fd) => {fs.closeSync(fd);});
     }
     let error: Error | undefined;
     const settle = (code: number | null) =>
@@ -193,11 +193,11 @@ const tail = (r: FileResult) => {
   if (r.error) {return r.error.message;}
   const kept: string[] = [];
   let size = 0;
-  for (const chunk of plainText(messagesOf(r.output))) {
+  Iterator.from(plainText(messagesOf(r.output))).forEach((chunk) => {
     kept.push(chunk);
     size += chunk.length;
     while (size - kept[0].length >= 1 << 28) {size -= kept.shift()!.length;}
-  }
+  });
   return kept.join("").trim().split("\n").slice(-30).join("\n");
 };
 
@@ -209,14 +209,13 @@ const firstLines = (text: string) => {
 
 const stopOf = (r: FileResult): Stop => {
   const errors: Part[] = [];
-  for (const m of r.error ? [] : messagesOf(r.output))
-    {if (
+  Iterator.from(r.error ? [] : messagesOf(r.output)).forEach((m) => {if (
       !isString(m) &&
       (m.level === LEVEL.ERROR ||
         m.level === LEVEL.TLCBUG ||
         (errors.length && m.level === LEVEL.STATE))
     )
-      {errors.push(m);}}
+      {errors.push(m);}});
   if (!errors.length) {return { status: r.status, message: tail(r) };}
   return { status: r.status, message: firstLines([...plainText(errors)].join("")) };
 };
@@ -230,7 +229,7 @@ const sanyErrors = (r: FileResult) => {
 
 const names = (rules: Rule[], kind: Rule["kind"]) => {
   const found: string[] = [];
-  for (const rule of rules) {if (rule.kind === kind) {found.push(rule.name);}}
+  Iterator.from(rules).forEach((rule) => {if (rule.kind === kind) {found.push(rule.name);}});
   return found;
 };
 
@@ -247,7 +246,7 @@ const brokenRule = (rules: Rule[], broke: Break) => {
 function* only(marks: Iterable<Mark>, rules: Set<string>) {
   for (const { values, broken } of marks) {
     const kept: string[] = [];
-    for (const name of broken) {if (rules.has(name)) {kept.push(name);}}
+    Iterator.from(broken).forEach((name) => {if (rules.has(name)) {kept.push(name);}});
     if (kept.length) {yield { values, broken: kept };}
   }
 }
@@ -312,7 +311,7 @@ export async function check(specFile: string, configFile: string): Promise<Check
     const spec = { ...readSpec({ module, sany, checks }), folder };
     const rules = stateRules(spec);
     const all = [...rules];
-    for (const name of spec.properties) {all.push({ kind: "property", name });}
+    Iterator.from(spec.properties).forEach((name) => {all.push({ kind: "property", name });});
     const verdicts = new Map<string, Verdict>();
     const decide = (rule: Rule, outcome: Outcome, r?: FileResult) =>
       verdicts.set(ruleKey(rule), { rule, outcome, messages: r && messagesOf(r.output) });
@@ -323,7 +322,7 @@ export async function check(specFile: string, configFile: string): Promise<Check
       const states = { distinct: 0, initial: 0, complete: false, cut: false };
       for (let k = 1; groups.length;) {
         const group: Rule[] = [];
-        for (const rule of groups[0]) {if (!verdicts.has(ruleKey(rule))) {group.push(rule);}}
+        Iterator.from(groups[0]).forEach((rule) => {if (!verdicts.has(ruleKey(rule))) {group.push(rule);}});
         if (first && !group.length) {
           groups.shift();
           continue;
@@ -355,20 +354,19 @@ export async function check(specFile: string, configFile: string): Promise<Check
         } else if (rule) {decide(rule, "broken", r);}
         else if (cut && (r.status === 0 || broke?.kind === "temporal")) {
           states.cut = true;
-          for (const rule of group) {decide(rule, "not checked");}
+          Iterator.from(group).forEach((rule) => {decide(rule, "not checked");});
         } else if (r.status === 0) {
           states.complete = true;
-          for (const rule of group) {decide(rule, "holds");}
+          Iterator.from(group).forEach((rule) => {decide(rule, "holds");});
         } else if (broke && properties.length) {
           if (broke.kind === "temporal") {
             states.complete = true;
-            for (const rule of group) {if (rule.kind !== "property") {decide(rule, "holds");}}
+            Iterator.from(group).forEach((rule) => {if (rule.kind !== "property") {decide(rule, "holds");}});
           }
           const pending: Rule[][] = [];
           const rest: Rule[] = [];
-          for (const rule of group)
-            {if (rule.kind === "property") {pending.push([rule]);}
-            else if (!verdicts.has(ruleKey(rule))) {rest.push(rule);}}
+          Iterator.from(group).forEach((rule) => {if (rule.kind === "property") {pending.push([rule]);}
+            else if (!verdicts.has(ruleKey(rule))) {rest.push(rule);}});
           if (pending.length === 1) {decide(pending[0][0], "broken", r);}
           else {groups.splice(0, 1, rest, ...pending);}
         } else
@@ -376,7 +374,7 @@ export async function check(specFile: string, configFile: string): Promise<Check
             `TLC exited ${r.status} on ${specFile}, but its output names no rule that broke:\n${tail(r)}`,
           );}
       }
-      for (const rule of all) {if (!verdicts.has(ruleKey(rule))) {decide(rule, "not checked");}}
+      Iterator.from(all).forEach((rule) => {if (!verdicts.has(ruleKey(rule))) {decide(rule, "not checked");}});
       return { first: first!, stop, states };
     };
     fs.writeFileSync(path.join(dir, "ChartBound.tla"), boundRun(spec.module));
@@ -400,7 +398,7 @@ export async function check(specFile: string, configFile: string): Promise<Check
     };
     if (exit === 2) {throw failed(judged.first);}
     const checked: Verdict[] = [];
-    for (const rule of rules) {checked.push(must(verdicts, ruleKey(rule)));}
+    Iterator.from(rules).forEach((rule) => {checked.push(must(verdicts, ruleKey(rule)));});
     const common = {
       spec,
       exit,
@@ -429,8 +427,7 @@ export async function check(specFile: string, configFile: string): Promise<Check
         const find = finder(graph, spec.variables);
         const drawing = drawn.status === 0 ? undefined : { status: drawn.status };
         const broken = new Set<string>();
-        for (const { rule, outcome } of verdicts.values())
-          {if (rule.kind === "invariant" && outcome === "broken") {broken.add(rule.name);}}
+        Iterator.from(verdicts.values()).forEach(({ rule, outcome }) => {if (rule.kind === "invariant" && outcome === "broken") {broken.add(rule.name);}});
         const marks = only(readMarks(readMessages(fileLines(drawn.stdout)), tag), broken);
         const past = mark(graph, marks, spec.variables, rules, find);
         const excludes = hasSection(spec, "ACTION_CONSTRAINT");
@@ -463,11 +460,11 @@ export async function check(specFile: string, configFile: string): Promise<Check
     }
     const drawn = pathGraph(spec.variables);
     const paths: Bug[] = [];
-    for (const rule of rules) {
+    Iterator.from(rules).forEach((rule) => {
       const { outcome, messages } = must(verdicts, ruleKey(rule));
       if (outcome === "broken" && messages)
         {paths.push(drawn.bug(rule, readCounterexample(messages)));}
-    }
+    });
     return {
       ...common,
       graph: drawn.graph,
