@@ -33,7 +33,7 @@ const requireValue = function (condition, message) {
   }
 };
 
-/** @type {(value: unknown) => boolean} */
+/** @type {(value: unknown) => value is string} */
 const nonempty = function (value) {
   return matchesString(value) && value.trim().length > 0;
 };
@@ -43,62 +43,101 @@ const record = function (value) {
   return !matchesNull(value) && hasObjectType(value) && !Array.isArray(value);
 };
 
-const validateSamples = function (raw) {
-  const samples = Array.isArray(raw) ? raw : raw?.samples;
-  requireValue(Array.isArray(samples) && samples.length > 0, "Corpus must contain samples");
-  const ids = new Set();
-  const families = new Map();
-  for (const sample of samples) {
-    requireValue(record(sample), "Each sample must be an object");
-    for (const field of ["id", "family", "purpose", "audience", "path"]) {
-      requireValue(nonempty(sample[field]), `Sample ${field} must be non-empty`);
-    }
-    requireValue(!ids.has(sample.id), `Duplicate sample id: ${sample.id}`);
-    ids.add(sample.id);
-    requireValue(["calibration", "holdout"].includes(sample.split), "Invalid sample split");
-    requireValue(
-      !families.has(sample.family) || families.get(sample.family) === sample.split,
-      `Family crosses calibration and holdout: ${sample.family}`,
-    );
-    families.set(sample.family, sample.split);
-    requireValue(
-      matchesString(sample.revision) && /^(?:[a-f\d]{40}|[a-f\d]{64})$/i.test(sample.revision),
-      "Each revision must be a full Git object ID",
-    );
-    requireValue(
-      !isAbsolute(sample.path) &&
-        !sample.path.includes("\0") &&
-        !sample.path.split("/").some((part) => part === ".." || part === ""),
-      "Sample path must be repository-relative without traversal",
-    );
-    requireValue(
-      Number.isInteger(sample.startLine) &&
-        Number.isInteger(sample.endLine) &&
-        sample.startLine > 0 &&
-        sample.endLine >= sample.startLine,
-      "Invalid source line range",
-    );
-    requireValue(
-      Array.isArray(sample.ruleIds) &&
-        sample.ruleIds.length > 0 &&
-        sample.ruleIds.every(nonempty) &&
-        new Set(sample.ruleIds).size === sample.ruleIds.length,
-      "Sample ruleIds must be unique non-empty strings",
-    );
-    requireValue(
-      record(sample.expected) &&
-        Object.entries(sample.expected).every(
-          ([id, value]) => sample.ruleIds.includes(id) && ["pass", "fail"].includes(value),
-        ),
-      "Expected labels must map selected rules to pass or fail",
-    );
-    requireValue(
-      matchesUndefined(sample.headingPath) ||
-        (Array.isArray(sample.headingPath) && sample.headingPath.every(nonempty)),
-      "headingPath must be an array of non-empty strings",
-    );
+/** @type {(value: unknown) => Record<string, unknown> | undefined} */
+const asRecord = (value) => record(value) ? /** @type {Record<string, unknown>} */ (value) : undefined;
+
+/** @type {(value: unknown) => unknown[] | undefined} */
+const asArray = (value) => Array.isArray(value) ? value : undefined;
+
+/** @type {(fields: Record<string, unknown>, key: string) => string} */
+const readField = (fields, key) => {
+  const value = fields[key];
+  requireValue(nonempty(value), `Sample ${key} must be non-empty`);
+  return value;
+};
+
+/** @typedef {"calibration" | "holdout"} CorpusSplit */
+/** @typedef {"section" | "page"} RuleScope */
+/** @typedef {{ ids: Set<string>, families: Map<string, CorpusSplit> }} CorpusGroups */
+
+/**
+ * @param {Record<string, unknown>} sample - One corpus entry.
+ * @param {CorpusGroups} groups - IDs and families from preceding entries.
+ * @returns {{ audience: string, family: string, id: string, path: string, purpose: string, split: CorpusSplit }} The validated sample identity.
+ */
+const readIdentity = (sample, { ids, families }) => {
+  const id = readField(sample, "id");
+  const family = readField(sample, "family");
+  const purpose = readField(sample, "purpose");
+  const audience = readField(sample, "audience");
+  const path = readField(sample, "path");
+  requireValue(!ids.has(id), `Duplicate sample id: ${id}`);
+  ids.add(id);
+  const { split } = sample;
+  requireValue(split === "calibration" || split === "holdout", "Invalid sample split");
+  requireValue(!families.has(family) || families.get(family) === split, `Family crosses calibration and holdout: ${family}`);
+  families.set(family, split);
+  return { audience, family, id, path, purpose, split };
+};
+
+/** @type {(value: Record<string, unknown>, path: string) => { endLine: number, revision: string, startLine: number }} */
+const readSource = (value, path) => {
+  const { revision } = value;
+  requireValue(
+    matchesString(revision) && /^(?:[a-f\d]{40}|[a-f\d]{64})$/i.test(revision),
+    "Each revision must be a full Git object ID",
+  );
+  requireValue(
+    !isAbsolute(path) && !path.includes("\0") && !path.split("/").some((part) => part === ".." || part === ""),
+    "Sample path must be repository-relative without traversal",
+  );
+  const startLine = Number.isInteger(value.startLine) ? Number(value.startLine) : Number.NaN;
+  const endLine = Number.isInteger(value.endLine) ? Number(value.endLine) : Number.NaN;
+  requireValue(startLine > 0 && endLine >= startLine, "Invalid source line range");
+  return { endLine, revision, startLine };
+};
+
+/**
+ * @param {Record<string, unknown>} sample - A corpus identity and source range.
+ * @returns {{ expected: Record<string, unknown>, headingPath: string[] | undefined, ruleIds: string[] }} The validated label selection.
+ */
+const readLabels = (sample) => {
+  const ruleIds = asArray(sample.ruleIds);
+  requireValue(
+    !matchesUndefined(ruleIds) && ruleIds.length > 0 && ruleIds.every(nonempty) &&
+      new Set(ruleIds).size === ruleIds.length,
+    "Sample ruleIds must be unique non-empty strings",
+  );
+  const expected = asRecord(sample.expected);
+  requireValue(
+    !matchesUndefined(expected) && Object.entries(expected).every(
+      ([ruleId, label]) => ruleIds.includes(ruleId) && (label === "pass" || label === "fail"),
+    ),
+    "Expected labels must map selected rules to pass or fail",
+  );
+  const rawHeading = sample.headingPath;
+  const headingPath = asArray(rawHeading);
+  if (!matchesUndefined(rawHeading)) {
+    requireValue(!matchesUndefined(headingPath) && headingPath.every(nonempty), "headingPath must be an array of non-empty strings");
+    return { expected, headingPath, ruleIds };
   }
-  return samples;
+  return { expected, headingPath: undefined, ruleIds };
+};
+
+/** @typedef {{ original: Record<string, unknown> } & ReturnType<typeof readIdentity> & ReturnType<typeof readSource> & ReturnType<typeof readLabels>} CorpusSample */
+/** @type {(raw: unknown) => CorpusSample[]} */
+const validateSamples = (raw) => {
+  const samples = asArray(raw) ?? asArray(asRecord(raw)?.samples);
+  requireValue(!matchesUndefined(samples) && samples.length > 0, "Corpus must contain samples");
+  /** @type {CorpusGroups} */
+  const groups = { families: new Map(), ids: new Set() };
+  return samples.map((rawSample) => {
+    const sample = asRecord(rawSample);
+    requireValue(!matchesUndefined(sample), "Each sample must be an object");
+    const identity = readIdentity(sample, groups);
+    const source = readSource(sample, identity.path);
+    return { ...identity, ...source, ...readLabels(sample), original: sample };
+  });
 };
 
 /** @param {PrepareOptions} options - The pinned corpus inputs and output directory. */
@@ -115,14 +154,18 @@ export async function prepareCorpus({
   );
   requireValue(["calibration", "holdout", "all"].includes(split), "Invalid split");
   const samples = validateSamples(JSON.parse(await readFile(specPath, "utf8")));
-  const rules = JSON.parse(await readFile(rulesPath, "utf8"));
-  requireValue(Array.isArray(rules), "Rules must be an array");
+  const rules = asArray(JSON.parse(await readFile(rulesPath, "utf8")));
+  requireValue(!matchesUndefined(rules), "Rules must be an array");
+  /** @type {Map<string, RuleScope>} */
   const scopes = new Map();
-  for (const rule of rules) {
-    requireValue(nonempty(rule?.id) && !scopes.has(rule.id), "Rules must have unique IDs");
-    requireValue(["section", "page"].includes(rule.scope ?? "section"), "Invalid rule scope");
-    scopes.set(rule.id, rule.scope ?? "section");
-  }
+  rules.forEach((rawRule) => {
+    const rule = asRecord(rawRule);
+    const id = rule?.id;
+    requireValue(nonempty(id) && !scopes.has(id), "Rules must have unique IDs");
+    const scope = rule?.scope ?? "section";
+    requireValue(scope === "section" || scope === "page", "Invalid rule scope");
+    scopes.set(id, scope);
+  });
   const selected = samples
     .map((sample, index) => ({
       sample,
@@ -172,7 +215,7 @@ export async function prepareCorpus({
       ruleIds: sample.ruleIds,
     });
     labels.push({
-      ...sample,
+      ...sample.original,
       documentId,
       ruleScopes: Object.fromEntries(sample.ruleIds.map((id) => [id, scopes.get(id)])),
     });
@@ -252,15 +295,16 @@ export function scoreReport(report, labels) {
   const documents = new Set();
   const key = (documentId, ruleId) => JSON.stringify([documentId, ruleId]);
   for (const sample of samples) {
+    const { documentId, ruleScopes } = sample.original;
     requireValue(
-      nonempty(sample.documentId) && !documents.has(sample.documentId),
+      nonempty(documentId) && !documents.has(documentId),
       "Labels need unique documentIds",
     );
-    documents.add(sample.documentId);
+    documents.add(documentId);
     for (const ruleId of sample.ruleIds) {
-      const scope = sample.ruleScopes?.[ruleId] ?? "section";
-      requireValue(["section", "page"].includes(scope), "Invalid label rule scope");
-      expected.set(key(sample.documentId, ruleId), { sample, ruleId, scope, matches: [] });
+      const scope = (/** @type {Record<string, unknown> | undefined} */ (ruleScopes))?.[ruleId] ?? "section";
+      requireValue(scope === "section" || scope === "page", "Invalid label rule scope");
+      expected.set(key(documentId, ruleId), { documentId, sample, ruleId, scope, matches: [] });
     }
   }
   const issues = [];
@@ -325,9 +369,9 @@ export function scoreReport(report, labels) {
   const rows = [];
   let missing = 0;
   let duplicates = 0;
-  for (const { sample, ruleId, matches } of expected.values()) {
+  for (const { documentId, sample, ruleId, matches } of expected.values()) {
     const row = {
-      documentId: sample.documentId,
+      documentId,
       sampleId: sample.id,
       family: sample.family,
       split: sample.split,
