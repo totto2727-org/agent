@@ -372,7 +372,7 @@ export function inspectMarkdown(markdown) {
 /**
  * @template Context
  * @param {string} markdown - The complete Markdown document.
- * @param {Array<{ headingPath: string[], id?: string, sourceRange: SourceRange, ste?: Context }>} sections - Sections eligible for paragraph checks.
+ * @param {Array<{ headingPath: string[], id?: unknown, sourceRange: SourceRange, ste?: Context }>} sections - Sections eligible for paragraph checks.
  * @returns {Paragraph<Context>[]} Whole paragraphs contained in those sections.
  */
 export function paragraphUnits(markdown, sections) {
