@@ -30,6 +30,24 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const corpus = path.join(here, "corpus");
 const read = (file: string): string => fs.readFileSync(file, "utf8");
 
+// The public exit values are independent of the implementation under test.
+const CHECK_PASSED = 0;
+const RULE_BROKEN = 1;
+const COMMAND_ERROR = 2;
+const NO_COMPATIBLE_RUNTIME = 127;
+const SIGNAL_STATUS_OFFSET = 128;
+
+// The native exit values recorded by the TLC 1.7.4 fixtures.
+const TLC_PASSED = 0;
+const TLC_DEADLOCK = 11;
+const TLC_SAFETY_VIOLATION = 12;
+const TLC_LIVENESS_VIOLATION = 13;
+const TLC_VIOLATIONS = new Set<number>([TLC_DEADLOCK, TLC_SAFETY_VIOLATION, TLC_LIVENESS_VIOLATION]);
+const replayStatus = (tlcExit: number): number => {
+  if (tlcExit === TLC_PASSED) {return CHECK_PASSED;}
+  return TLC_VIOLATIONS.has(tlcExit) ? RULE_BROKEN : COMMAND_ERROR;
+};
+
 interface ReplayResult extends Awaited<ReturnType<typeof runChild>> {
   configs: Record<string, string>;
   files: string[];
@@ -120,8 +138,8 @@ visitItems(fs.readdirSync(corpus), (name) => {
     const result = await run(dir);
     assert.equal(result.stderr, "");
     const first = path.join(dir, "verdict-1.exit");
-    const plain = (await fixtureExists(first)) ? Number(await readFile(first, "utf8")) : 0;
-    assert.equal(result.status, plain === 0 ? 0 : ([11, 12, 13].includes(plain) ? 1 : 2));
+    const plain = (await fixtureExists(first)) ? Number(await readFile(first, "utf8")) : TLC_PASSED;
+    assert.equal(result.status, replayStatus(plain));
     assert.equal(result.report, read(path.join(dir, "report.md")));
     assert.equal(read(path.join(result.out, "chart.mmd")), read(path.join(dir, "chart.mmd")));
     assert.deepEqual(result.files, ["chart.mmd", "report.md", "tlc.out", ...named(result.report)].sort());
@@ -157,8 +175,8 @@ visitItems(fs.readdirSync(corpus), (name) => {
     const result = await run(dir);
     assert.equal(result.stderr, "");
     const first = path.join(dir, "verdict-1.exit");
-    const plain = (await fixtureExists(first)) ? Number(await readFile(first, "utf8")) : 0;
-    assert.equal(result.status, plain === 0 ? 0 : ([11, 12, 13].includes(plain) ? 1 : 2));
+    const plain = (await fixtureExists(first)) ? Number(await readFile(first, "utf8")) : TLC_PASSED;
+    assert.equal(result.status, replayStatus(plain));
     assert.equal(result.report, read(path.join(corpus, name, "report.md")));
     assert.equal(read(path.join(result.out, "chart.mmd")), read(path.join(corpus, name, "chart.mmd")));
     visitItems(result.files, (currentFile) => {assert.doesNotMatch(read(path.join(result.out, currentFile)), /\r|@!@!@/u, currentFile);});
@@ -200,7 +218,7 @@ visitItems([
       env: { PATH: `${path.dirname(process.execPath)}${path.delimiter}${tools}` },
     });
     assert.equal(result.stderr, "");
-    assert.equal(result.status, 1);
+    assert.equal(result.status, RULE_BROKEN);
     assert.equal(read(path.join(result.out, "chart.mmd")), read(path.join(dir, "chart.mmd")));
   });
 });
@@ -232,7 +250,7 @@ test("the launcher runs statechart.ts on Bun 1.1.5 when PATH has no Node", async
     env: { PATH: await fakeBun("1.1.5")() },
   });
   assert.equal(result.stderr, "");
-  assert.equal(result.status, 0);
+  assert.equal(result.status, CHECK_PASSED);
   assert.equal(result.stdout, `${path.join(here, "../statechart.ts")}\n`);
 });
 
@@ -244,7 +262,7 @@ visitItems([
   // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
   test(`the launcher stops with exit 127 and names only the runtimes when PATH ${what}`, async () => {
     const result = await run(path.join(corpus, "Login"), { command: [launcher], env: { PATH: await bin() } });
-    assert.equal(result.status, 127);
+    assert.equal(result.status, NO_COMPATIBLE_RUNTIME);
     assert.equal(
       result.stderr,
       "statechart needs Node 22.18 to 22.x, Node 23.6 or later, Bun 1.1.5 or later, or Deno 2.0 or later.\n",
@@ -337,7 +355,7 @@ const signalWhile = async function <T extends { dir: string; reached: (parent: s
   child.kill(signal);
   const [status] = await closed;
   assert.equal(stderr, `${signal} stopped the check, so the command wrote nothing.\n`);
-  assert.equal(status, 128 + os.constants.signals[signal]);
+  assert.equal(status, SIGNAL_STATUS_OFFSET + os.constants.signals[signal]);
   assert.deepEqual(await fs.promises.readdir(parent), []);
   assert.deepEqual(await fs.promises.readdir(tmpdir), []);
   return phase;
@@ -474,7 +492,7 @@ test(
     process.kill(Number(ps.stdout), "SIGKILL");
     const [status] = await closed;
     assert.equal(stderr, "SIGKILL killed the check, so the command wrote nothing.\n");
-    assert.equal(status, 2);
+    assert.equal(status, COMMAND_ERROR);
     assert.deepEqual(await fs.promises.readdir(parent), []);
   },
 );
@@ -572,7 +590,7 @@ spawn(process.execPath, ["-e", ${JSON.stringify(sendWhileRead)}, dot, command, $
     );
     const result = await run(path.join(corpus, "Login"), { java, env: { TMPDIR: tmpdir } });
     assert.equal(result.stderr, `${signal} stopped the check, so the command wrote nothing.\n`);
-    assert.equal(result.status, 128 + os.constants.signals[signal]);
+    assert.equal(result.status, SIGNAL_STATUS_OFFSET + os.constants.signals[signal]);
     assert.deepEqual(await fs.promises.readdir(tmpdir), []);
     assert.equal(await fixtureExists(result.out), false);
   });
@@ -582,7 +600,7 @@ spawn(process.execPath, ["-e", ${JSON.stringify(sendWhileRead)}, dot, command, $
 test("a broken property is named in the report, and its TLC trace is in tlc-NAME.out", async () => {
   const dir = path.join(corpus, "MediaPlayerProps");
   const result = await run(dir);
-  assert.equal(result.status, 1);
+  assert.equal(result.status, RULE_BROKEN);
   visitItems(["EventuallyPlays", "QuietWhenStopped"], (p) => {
     assert.match(result.report, new RegExp(`^## ${p} breaks\n.*tlc-${p}\\.out`, "m"));
     const out = read(path.join(result.out, `tlc-${p}.out`));
@@ -606,7 +624,7 @@ test("TLC checks the rules and draws the chart with VIEW and SYMMETRY, and the r
     { await fs.promises.appendFile(path.join(d, "MediaPlayer.cfg"), "\nVIEW vars\nSYMMETRY Perms\n"); },
   );
   const result = await run(dir);
-  assert.equal(result.status, 1);
+  assert.equal(result.status, RULE_BROKEN);
   const verdict = result.configs["verdict-1"];
   assert.match(verdict, /^PROPERTY EventuallyStops$/mu);
   visitItems([verdict, result.configs.ChartRun], (config) => {
@@ -635,7 +653,7 @@ test("a check above the chart budget skips the drawing run and draws only the bu
     });
   });
   const result = await run(dir);
-  assert.equal(result.status, 1);
+  assert.equal(result.status, RULE_BROKEN);
   assert.equal(result.configs.ChartRun, undefined);
   assert.ok(result.files.includes("chart.mmd"));
   assert.match(
@@ -649,7 +667,7 @@ test("a check above the chart budget skips the drawing run and draws only the bu
 test("a passing check above the chart budget writes no chart.mmd and gives the state count", async () => {
   const dir = await copyCase("Login", async (d) => { await overBudget(path.join(d, "verdict-1.out")); });
   const result = await run(dir);
-  assert.equal(result.status, 0);
+  assert.equal(result.status, CHECK_PASSED);
   assert.equal(result.configs.ChartRun, undefined);
   assert.deepEqual(result.files, ["report.md", "tlc.out"]);
   assert.match(
@@ -663,7 +681,7 @@ test("a passing check above the chart budget writes no chart.mmd and gives the s
 test("a property that INSTANCE actions break above the chart budget draws their qualified names and the loop", async () => {
   const dir = await copyCase("CounterInstance", async (d) => { await overBudget(path.join(d, "verdict-1.out")); });
   const result = await run(dir);
-  assert.equal(result.status, 1);
+  assert.equal(result.status, RULE_BROKEN);
   assert.equal(result.configs.ChartRun, undefined);
   assert.match(
     result.report,
@@ -676,7 +694,7 @@ test("a property that INSTANCE actions break above the chart budget draws their 
 test("a drawing run that counts more states than the chart budget gives only the bug paths", async () => {
   const dir = await copyCase("FirstRule", async (d) => { await overBudget(path.join(d, "ChartRun.out")); });
   const result = await run(dir);
-  assert.equal(result.status, 1);
+  assert.equal(result.status, RULE_BROKEN);
   assert.match(result.configs.ChartRun, /^CONSTRAINT ChartBudget$/mu);
   assert.match(
     result.report,
@@ -687,7 +705,7 @@ test("a drawing run that counts more states than the chart budget gives only the
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a property with no temporal operator says TLC checked it only in the initial states", async () => {
   const result = await run(path.join(corpus, "Counter"));
-  assert.equal(result.status, 0);
+  assert.equal(result.status, CHECK_PASSED);
   assert.match(result.report, /^## Rules that hold\nLow, StaysSmall\n/mu);
   assert.match(
     result.report,
@@ -705,14 +723,14 @@ test("a property that the config replaces with a state predicate gets the initia
     ); },
   );
   const result = await run(dir);
-  assert.equal(result.status, 0);
+  assert.equal(result.status, CHECK_PASSED);
   assert.match(result.report, /^TLC checked StaysSmall only in the initial states, /mu);
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a property that an extended module also defines as LOCAL takes the root definition's level", async () => {
   const result = await run(path.join(corpus, "Shadow"));
-  assert.equal(result.status, 0);
+  assert.equal(result.status, CHECK_PASSED);
   assert.doesNotMatch(result.report, /TLC checked Shadow/u);
   assert.match(result.report, /^TLC checked Shade only in the initial states, /mu);
   assert.match(result.report, /^TLC checked Hold only in the initial states, /mu);
@@ -733,7 +751,7 @@ test("a property from an extended module gets the initial-states note too", asyn
 test("a spec that SANY cannot read stops the command with exit 2", async () => {
   const dir = await copyCase("MediaPlayer", async (d) => { await fs.promises.writeFile(path.join(d, "sany.exit"), "150\n"); });
   const result = await run(dir);
-  assert.equal(result.status, 2);
+  assert.equal(result.status, COMMAND_ERROR);
   assert.match(result.stderr, /SANY could not read .*MediaPlayer\.tla \(exit 150\)/);
   assert.deepEqual(result.files, []);
 });
@@ -742,7 +760,7 @@ test("a spec that SANY cannot read stops the command with exit 2", async () => {
 test("a first verdict run that TLC cannot finish stops the command with exit 2", async () => {
   const dir = await copyCase("Login", async (d) => { await fs.promises.writeFile(path.join(d, "verdict-1.exit"), "150\n"); });
   const result = await run(dir);
-  assert.equal(result.status, 2);
+  assert.equal(result.status, COMMAND_ERROR);
   assert.match(result.stderr, /TLC could not check .*Login\.tla \(exit 150\)/);
   assert.deepEqual(result.files, []);
 });
@@ -753,7 +771,7 @@ test("a later verdict run that TLC cannot finish keeps the exit and leaves its r
     { await fs.promises.writeFile(path.join(d, "verdict-2.exit"), "150\n"); },
   );
   const result = await run(dir);
-  assert.equal(result.status, 1);
+  assert.equal(result.status, RULE_BROKEN);
   assert.match(result.report, /^## NotThree breaks$/mu);
   assert.match(
     result.report,
@@ -768,7 +786,7 @@ test("a drawing run that TLC cannot finish stops the command with exit 2", async
     await fs.promises.writeFile(path.join(d, "ChartRun.exit"), "150\n");
   });
   const result = await run(dir);
-  assert.equal(result.status, 2);
+  assert.equal(result.status, COMMAND_ERROR);
   assert.match(result.stderr, /TLC could not check .*Login\.tla \(exit 150\)/);
 });
 
@@ -802,7 +820,7 @@ syncBuiltinESMExports();
     ],
   });
   assert.equal(result.stderr, `SANY could not read ${spec} (exit null):\nspawn ${java} ENOENT\n`);
-  assert.equal(result.status, 2);
+  assert.equal(result.status, COMMAND_ERROR);
   assert.equal(await fixtureExists(result.out), false);
 });
 
@@ -819,7 +837,7 @@ test("a step hidden by the view is not drawn, and the report counts it", async (
       `export const step = (action, from, to) => action === "ACallComesIn" ? null : words(action, from, to);\n`,
   );
   const result = await run(dir, { view });
-  assert.equal(result.status, 1);
+  assert.equal(result.status, RULE_BROKEN);
   assert.match(
     result.report,
     new RegExp(`^The view hides ${hidden} steps, so the chart does not draw them\\.$`, "m"),
@@ -838,7 +856,7 @@ test("a view that hides a step of a bug path stops the command with exit 2", asy
       `export const step = (action) => (action === "YouTurnItUp" ? null : action);\n`,
   );
   const result = await run(dir, { view });
-  assert.equal(result.status, 2);
+  assert.equal(result.status, COMMAND_ERROR);
   assert.match(result.stderr, /LoudWhenStopped/u);
   assert.deepEqual(result.files, []);
 });
@@ -858,7 +876,7 @@ visitItems([
     const view = path.join(await fs.promises.mkdtemp(path.join(os.tmpdir(), "statechart-view-")), "view.mjs");
     await fs.promises.writeFile(view, body);
     const result = await run(path.join(corpus, "Login"), { view });
-    assert.equal(result.status, 2);
+    assert.equal(result.status, COMMAND_ERROR);
     assert.match(result.stderr, words);
   });
 });
@@ -903,7 +921,7 @@ visitItems([
   // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
   test(`a view that ${what} stops the command with exit 2 before TLC runs`, async () => {
     const result = await run(path.join(corpus, "Login"), { view: await writeView(body) });
-    assert.equal(result.status, 2);
+    assert.equal(result.status, COMMAND_ERROR);
     assert.match(result.stderr, words);
     assert.deepEqual(result.files, []);
     assert.deepEqual(result.configs, {});
@@ -913,7 +931,7 @@ visitItems([
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a view module that throws null stops the command with exit 2 and no stack trace", async () => {
   const result = await run(path.join(corpus, "Login"), { view: await writeView("throw null;\n") });
-  assert.equal(result.status, 2);
+  assert.equal(result.status, COMMAND_ERROR);
   assert.equal(result.stderr, "null\n");
   assert.deepEqual(result.files, []);
   assert.deepEqual(result.configs, {});
@@ -924,7 +942,7 @@ test("a view module that throws an object with no prototype stops the command wi
   const result = await run(path.join(corpus, "Login"), {
     view: await writeView("throw Object.create(null);\n"),
   });
-  assert.equal(result.status, 2);
+  assert.equal(result.status, COMMAND_ERROR);
   assert.equal(result.stderr, "[Object: null prototype] {}\n");
   assert.deepEqual(result.files, []);
   assert.deepEqual(result.configs, {});
@@ -935,7 +953,7 @@ test("a view module that throws a plain object with a message prints the message
   const result = await run(path.join(corpus, "Login"), {
     view: await writeView('throw { message: "The view has no states." };\n'),
   });
-  assert.equal(result.status, 2);
+  assert.equal(result.status, COMMAND_ERROR);
   assert.equal(result.stderr, "The view has no states.\n");
   assert.deepEqual(result.files, []);
   assert.deepEqual(result.configs, {});
@@ -952,7 +970,7 @@ test("a view that ends the check while TLC runs stops TLC, and the command exits
         "export const state = (v) => JSON.stringify(v);\n",
     ),
   });
-  assert.equal(result.status, 2);
+  assert.equal(result.status, COMMAND_ERROR);
   assert.deepEqual(result.files, []);
   await assertGone(Number(read(pidFile)));
 });
@@ -965,7 +983,7 @@ test("a group that only a mixed chart state gets still needs a color", async () 
       'export const colors = { Waiting: "blue" };\n',
   );
   const result = await run(path.join(corpus, "Login"), { view });
-  assert.equal(result.status, 2);
+  assert.equal(result.status, COMMAND_ERROR);
   assert.match(result.stderr, /group\(\) returned "Checking"/u);
   assert.deepEqual(result.files, []);
 });
@@ -980,7 +998,7 @@ test("a view with a group in a theme color draws that color and names the group 
   );
   const result = await run(path.join(corpus, "Login"), { view });
   assert.equal(result.stderr, "");
-  assert.equal(result.status, 0);
+  assert.equal(result.status, CHECK_PASSED);
   const chart = read(path.join(result.out, "chart.mmd"));
   assert.match(chart, /^title: "Login"$/mu);
   const id = (/^ {2}(s\d+): Signed in$/mu.exec(chart))?.[1];
@@ -1007,7 +1025,7 @@ test("a flat view names a label with U+0000 as written when a loop cannot take a
     `export const state = (v) => (v.playback === "Stopped" || v.volume === "Muted" ? ${JSON.stringify("a\0b")} : v.playback);\n`,
   );
   const result = await run(path.join(corpus, "MediaPlayerProps"), { view });
-  assert.equal(result.status, 2);
+  assert.equal(result.status, COMMAND_ERROR);
   assert.equal(
     result.stderr,
     "The chart draws the step TheCallEnds out of a\0b, but the EventuallyPlays loop cannot take it there. Show in a label what stops it.\n",
@@ -1021,7 +1039,7 @@ visitItems([
     {
       base: "Counter",
       view: byX([["a\0b"], ["a", "b"], ["c"], ["d"]]),
-      status: 0,
+      status: CHECK_PASSED,
       states: ["ab", "a", "b", "c", "d"],
       arrows: ["a start --> b", "ab --> a: Inc", "b --> c: Inc", "c --> d: Inc"],
       says: /^TLC reached 4 states and 3 steps\. The chart draws 4 states and 3 arrows\.$/mu,
@@ -1037,7 +1055,7 @@ visitItems([
         { R: ["a\0b"], S: "q" },
         { R: ["a", "b"], S: "r" },
       ]),
-      status: 0,
+      status: CHECK_PASSED,
       states: ["R f", "S p", "R ab", "S q", "R a", "R b", "S r"],
       arrows: [
         "R f start --> S p",
@@ -1055,7 +1073,7 @@ visitItems([
     {
       base: "Counter",
       view: byX(["a\u0001b", "a", "b", "c"]),
-      status: 0,
+      status: CHECK_PASSED,
       states: ["a\u0001b", "a", "b", "c"],
       arrows: ["a\u0001b --> a: Inc", "a --> b: Inc", "b --> c: Inc"],
       says: /^TLC reached 4 states and 3 steps\. The chart draws 4 states and 3 arrows\.$/mu,
@@ -1066,7 +1084,7 @@ visitItems([
     {
       base: "Counter",
       view: byX([["a\u0001b"], ["a", "b"], ["c"], ["d"]]),
-      status: 0,
+      status: CHECK_PASSED,
       states: ["a\u0001b", "a", "b", "c", "d"],
       arrows: ["a start --> b", "a\u0001b --> a: Inc", "b --> c: Inc", "c --> d: Inc"],
       says: /^TLC reached 4 states and 3 steps\. The chart draws 4 states and 3 arrows\.$/mu,
@@ -1082,7 +1100,7 @@ visitItems([
         { R: "d", S: "p" },
         { R: "e", S: "p" },
       ]),
-      status: 0,
+      status: CHECK_PASSED,
       states: ["a\u0001b", "c", "d", "e", "p"],
       arrows: ["a\u0001b --> c: Inc", "c --> d: Inc", "d --> e: Inc"],
       says: /^TLC reached 4 states and 3 steps\. The chart draws 5 states and 3 arrows\.$/mu,
@@ -1093,7 +1111,7 @@ visitItems([
     {
       base: "FirstRule",
       view: byX(["a", "b\u0002c", "d", "e"]),
-      status: 1,
+      status: RULE_BROKEN,
       states: ["a", "b\u0002c", "d", "e"],
       arrows: ["a --> b\u0002c: Next", "b\u0002c --> d: Next", "d --> e: Next"],
       says: /^## NotOne breaks\nThe shortest path has 1 step:\n0\. a\n1\. Next: b\cBc$/mu,
@@ -1104,7 +1122,7 @@ visitItems([
     {
       base: "FirstRule",
       view: byX([["a"], ["P", "b\u0002c"], ["d"], ["e"]]),
-      status: 1,
+      status: RULE_BROKEN,
       states: ["a", "P", "b\u0002c", "d", "e"],
       arrows: ["P start --> b\u0002c", "a --> P: Next", "b\u0002c --> d: Next", "d --> e: Next"],
       says: /^## NotOne breaks\nThe shortest path has 1 step:\n0\. a\n1\. Next: P \/ b\cBc$/mu,
@@ -1120,7 +1138,7 @@ visitItems([
         { R: "d", S: "p" },
         { R: "e", S: "p" },
       ]),
-      status: 1,
+      status: RULE_BROKEN,
       states: ["a", "b\u0002c", "d", "e", "p"],
       arrows: ["a --> b\u0002c: Next", "b\u0002c --> d: Next", "d --> e: Next"],
       says: /^## NotOne breaks\nThe shortest path has 1 step:\n0\. R a, S p\n1\. Next: R b\cBc, S p$/mu,
@@ -1140,7 +1158,7 @@ visitItems([
           { R: "X\u0003b", S: "r" },
         ])
         }export const step = (action, from, to) => (to.x <= 2 ? ${JSON.stringify("Go\u0003X")} : "Go");\n`,
-      status: 0,
+      status: CHECK_PASSED,
       states: ["R f", "S p", "R a", "S r", "R b", "S q", "R X\u0003a", "S q", "R X\u0003b", "S r"],
       arrows: [
         "R f start --> S p",
@@ -1197,7 +1215,7 @@ visitItems([
   // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
   test(`${what} stops the command with exit 2 before TLC runs`, async () => {
     const result = await run(path.join(corpus, "Login"), { args });
-    assert.equal(result.status, 2);
+    assert.equal(result.status, COMMAND_ERROR);
     assert.match(result.stderr, words);
     assert.deepEqual(result.configs, {});
   });
@@ -1241,7 +1259,7 @@ visitItems([
     "the folder of an earlier run",
     async (out) => {
       const earlier = await run(path.join(corpus, "MediaPlayerProps"), { args: ["--out", out] });
-      assert.equal(earlier.status, 1);
+      assert.equal(earlier.status, RULE_BROKEN);
     },
     /is not empty\. It has chart\.mmd\./u,
   ],
@@ -1262,7 +1280,7 @@ visitItems([
     await make(out);
     const before = await contents(out);
     const result = await run(path.join(corpus, "Login"), { args: ["--out", out] });
-    assert.equal(result.status, 2);
+    assert.equal(result.status, COMMAND_ERROR);
     assert.ok(result.stderr.includes(out), result.stderr);
     assert.match(result.stderr, words);
     assert.match(result.stderr, /Pass --out with a new folder\.\n$/u);
@@ -1284,7 +1302,7 @@ test("a file that appears in --out while TLC runs is kept, and the command stops
     { mode: 0o755 },
   );
   const result = await run(path.join(corpus, "Login"), { args: ["--out", out], java });
-  assert.equal(result.status, 2);
+  assert.equal(result.status, COMMAND_ERROR);
   assert.ok(result.stderr.includes(mine), result.stderr);
   assert.equal(read(mine), "mine\n");
 });
@@ -1390,7 +1408,7 @@ visitItems([
   test(`a config with ${what} stops the command with exit 2 before TLC runs`, async () => {
     const dir = await copyCase("Login", async (d) => { await fs.promises.writeFile(path.join(d, "Login.cfg"), config); });
     const result = await run(dir);
-    assert.equal(result.status, 2);
+    assert.equal(result.status, COMMAND_ERROR);
     assert.match(result.stderr, words);
     assert.deepEqual(result.configs, {});
     assert.deepEqual(result.files, []);
@@ -1404,7 +1422,7 @@ test("a nested comment hides all of its text, as in TLC", async () => {
     await fs.promises.writeFile(file, `(* Off: (* old *) CHECK_DEADLOCK FALSE *)\n${read(file)}`);
   });
   const result = await run(dir);
-  assert.equal(result.status, 0);
+  assert.equal(result.status, CHECK_PASSED);
   assert.equal(result.report, read(path.join(corpus, "Login", "report.md")));
 });
 
@@ -1417,7 +1435,7 @@ test("a string constant keeps the keywords and comment markers in it", async () 
     ); },
   );
   const result = await run(dir);
-  assert.equal(result.status, 1);
+  assert.equal(result.status, RULE_BROKEN);
   assert.equal(result.report, read(path.join(corpus, "TwoPhase", "report.md")));
   assert.match(result.configs.ChartRun, /^CONSTANT RM = .*"INVARIANT \(\*".*"\\\\\* r2"/m);
   assert.deepEqual(result.configs.ChartRun.match(/^INVARIANT.*$/gm), ["INVARIANT ChartMark"]);
@@ -1432,7 +1450,7 @@ test("TYPE and TYPE_CONSTRAINT are config keywords, as in TLC", async () => {
     ); },
   );
   const result = await run(dir);
-  assert.equal(result.status, 0);
+  assert.equal(result.status, CHECK_PASSED);
   assert.equal(result.report, read(path.join(corpus, "Login", "report.md")));
   assert.match(result.configs.ChartRun, /^TYPE TypeOK$/mu);
   assert.match(result.configs.ChartRun, /^TYPE_CONSTRAINT TypeOK$/mu);
