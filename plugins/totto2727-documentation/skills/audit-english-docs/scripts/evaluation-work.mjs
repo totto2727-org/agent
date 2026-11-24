@@ -32,6 +32,15 @@ import { validateSteContext, validateSteVocabulary } from "./ste.mjs";
 /** @typedef {{ criteria: { fail: string, insufficient_context: string, not_applicable: string, pass: string }, instructions: string, type: "choice" }} DecisionQuestion */
 /** @typedef {{ question: DecisionQuestion, ruleId: string }} RuleQuestion */
 /** @typedef {{ document: Document, page: string, path: string, scope: RuleScope, section: Section | null, ste: LocalSteContext }} EvaluationTarget */
+/** @typedef {import("./mechanical.mjs").MechanicalCheck} MechanicalCheck */
+/** @typedef {{ check: MechanicalCheck, criteria?: undefined, instructions?: undefined, ruleId: string, type?: undefined }} MechanicalQuestion */
+/** @typedef {DecisionQuestion & { check?: undefined, ruleId: string }} PreparedDecisionQuestion */
+/** @typedef {MechanicalQuestion | PreparedDecisionQuestion} PreparedQuestion */
+/** @typedef {{ candidates: import("./mechanical.mjs").LexicalCandidate[], completeness: string, issue: number, source: string } | { issue: number, unavailable: string } | null} DictionaryEvidence */
+/** @typedef {ReturnType<typeof nounGroupCounts<import("./ste.mjs").DeclaredNounGroup>> | Array<{ reason: string, status: "insufficient_context" }>} NounEvidence */
+/** @typedef {EvaluationTarget & { dictionaryEvidence?: undefined, engine: "mechanical", nounEvidence?: undefined, questions: Record<string, MechanicalQuestion>, unavailable: boolean }} MechanicalWork */
+/** @typedef {EvaluationTarget & { dictionaryCoverageComplete: boolean, dictionaryEvidence: DictionaryEvidence, engine: "decision", nounCoverageComplete: boolean, nounEvidence: NounEvidence, questionMap: Record<string, string>, questions: Record<string, PreparedDecisionQuestion>, requestQuestions: Record<string, DecisionQuestion>, unavailable: boolean, unavailableReason: string | undefined }} DecisionWork */
+/** @typedef {MechanicalWork | DecisionWork} PreparedWork */
 
 const { dirname, isAbsolute, resolve } = nodePath;
 const textStart = 0;
@@ -219,9 +228,11 @@ const questionNumberWidth = 6;
 /**
  * @param {Manifest} manifest - The validated document and rule settings.
  * @param {string} manifestPath - The manifest's path for resolving local inputs.
+ * @returns {Promise<PreparedWork[]>} The evaluations in report order.
  */
 export const buildWork = async (manifest, manifestPath) => {
   const base = dirname(resolve(manifestPath));
+  /** @type {PreparedWork[]} */
   const work = [];
   /** @type {Map<string, Vocabulary>} */
   const vocabularies = new Map();

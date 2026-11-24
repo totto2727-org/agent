@@ -42,7 +42,19 @@ export { buildWork, segmentMarkdown } from "./evaluation-work.mjs";
 
 export { validateResponse } from "./evaluation-response.mjs";
 
-const stateFor = function (item) {
+/** @typedef {import("./evaluation-work.mjs").PreparedWork} PreparedWork */
+/** @typedef {import("./evaluation-work.mjs").PreparedQuestion} PreparedQuestion */
+/** @typedef {import("./evaluation-work.mjs").DictionaryEvidence} DictionaryEvidence */
+/** @typedef {import("./evaluation-work.mjs").NounEvidence} NounEvidence */
+/** @typedef {{ dictionaryCandidates?: DictionaryEvidence, markdown: string, nounGroupCounts?: NounEvidence }} PageEvidence */
+/** @typedef {PageEvidence & { headingPath: string[], sourceRange: ReturnType<typeof sourceRange> }} LocalEvidence */
+/** @typedef {{ evidence: { document: { audience: string, purpose: string, sourceLanguage: string | null, templateConstraints: string[] }, local: LocalEvidence | null, page: PageEvidence } }} EvaluationState */
+/** @typedef {{ concurrency?: number, dryRun?: boolean, environment?: Record<string, string | undefined>, manifestPath: string, mechanicalOnly?: boolean, outputPath: string }} EvaluationOptions */
+/** @typedef {{ cacheStatus: ReturnType<typeof import("./evaluation-transport.mjs").parseCacheStatus>, ray: ReturnType<typeof import("./evaluation-transport.mjs").parseTraceId>, validated: ReturnType<typeof validateResponse> }} ValidatedOutcome */
+
+/** @type {(item: PreparedWork) => EvaluationState} */
+const stateFor = (item) => {
+  /** @type {EvaluationState} */
   const state = {
     evidence: {
       document: {
@@ -52,14 +64,13 @@ const stateFor = function (item) {
         sourceLanguage: item.document.sourceLanguage ?? null,
       },
       page: { markdown: item.page },
-      local:
-        item.scope === "page"
-          ? null
-          : {
-              headingPath: item.section.headingPath,
-              markdown: item.section.text,
-              sourceRange: item.section.sourceRange,
-            },
+      local: matchesNull(item.section)
+        ? null
+        : {
+            headingPath: item.section.headingPath,
+            markdown: item.section.text,
+            sourceRange: item.section.sourceRange,
+          },
     },
   };
   if (item.dictionaryEvidence) {
@@ -72,13 +83,30 @@ const stateFor = function (item) {
   return state;
 };
 
-const pooled = async function (items, concurrency, run) {
-  const results = Array.from({ length: items.length });
-  let next = 0;
+const firstQueueIndex = 0;
+const nextQueueIndex = 1;
+const defaultConcurrency = 4;
+const minimumConcurrency = 1;
+const maximumConcurrency = 32;
+
+/**
+ * @template Input, Output
+ * @param {Input[]} items - The ordered evaluation targets.
+ * @param {number} concurrency - The worker limit.
+ * @param {(item: Input) => Promise<Output>} run - Evaluate a single target.
+ * @returns {Promise<Output[]>} Results in the original target order.
+ */
+const pooled = async (items, concurrency, run) => {
+  /** @type {Output[]} */
+  const results = new Array(items.length);
+  // oxlint-disable-next-line rules/no-let -- Workers claim each index synchronously before awaiting its evaluation.
+  let next = firstQueueIndex;
   await Promise.all(
     Array.from({ length: Math.min(concurrency, items.length) }, async () => {
       while (next < items.length) {
-        const index = next++;
+        const index = next;
+        next += nextQueueIndex;
+        // oxlint-disable-next-line eslint/no-await-in-loop -- Wait for the current result before this worker takes another target.
         results[index] = await run(items[index]);
       }
     }),
@@ -86,7 +114,8 @@ const pooled = async function (items, concurrency, run) {
   return results;
 };
 
-const reviewFor = function (answer, threshold) {
+/** @type {(answer: { choice: import("./evaluation-response.mjs").Choice, confidence: number }, threshold: number | null) => boolean} */
+const reviewFor = (answer, threshold) => {
   return (
     answer.choice === "insufficient_context" ||
     answer.choice === "not_applicable" ||
@@ -94,15 +123,40 @@ const reviewFor = function (answer, threshold) {
   );
 };
 
-export async function evaluate({
+/** @type {(request: import("./evaluation-transport.mjs").ActionInput) => Promise<ValidatedOutcome>} */
+const requestAndValidate = async (request) => {
+  const outcome = await actionRequest(request);
+  try {
+    return {
+      validated: validateResponse(outcome.response, request.questions, request.model),
+      cacheStatus: outcome.cacheStatus,
+      ray: outcome.ray,
+    };
+  } catch (error) {
+    // Validation failures retain the received headers for every consumer of the shared request.
+    if (error && hasObjectType(error)) {
+      const failure = /** @type {Record<string, unknown>} */ (error);
+      failure.cacheStatus ??= outcome.cacheStatus;
+      failure.ray ??= outcome.ray;
+    }
+    throw error;
+  }
+};
+
+/** @param {EvaluationOptions} options - Inputs and execution settings for one audit run. */
+export const evaluate = async ({
   manifestPath,
   outputPath,
-  concurrency = 4,
+  concurrency = defaultConcurrency,
   dryRun = false,
   mechanicalOnly = false,
   environment = process.env,
-}) {
-  if (!Number.isInteger(concurrency) || concurrency < 1 || concurrency > 32) {
+}) => {
+  if (
+    !Number.isInteger(concurrency) ||
+    concurrency < minimumConcurrency ||
+    concurrency > maximumConcurrency
+  ) {
     throw new EvaluationError("concurrency must be an integer from 1 through 32");
   }
   const manifest = await loadManifest(manifestPath, { mechanicalOnly });
@@ -119,10 +173,14 @@ export async function evaluate({
   // Payload) share one pending/resolved/rejected promise, so duplicate work
   // Never submits a second Gateway request. The memo is intentionally per-run:
   // A fresh run re-validates against the Gateway and its cache again.
+  /** @type {Map<string, Promise<ValidatedOutcome>>} */
   const inflight = new Map();
+  /** @type {TransportFailure | null} */
   let fatal = null;
   const evaluated = await pooled(work, concurrency, async (item) => {
-    const reportQuestions = Object.entries(item.questions).map(([id, question]) => ({
+    /** @type {Record<string, PreparedQuestion>} */
+    const questions = item.questions;
+    const reportQuestions = Object.entries(questions).map(([id, question]) => ({
       id,
       type: item.engine === "mechanical" ? "mechanical" : question.type,
       instructions: question.instructions,
@@ -153,7 +211,17 @@ export async function evaluate({
         : null,
       questions: reportQuestions,
     };
-    if (item.engine === "mechanical" && !dryRun) {
+    const dryRunResult = () => ({
+      ...base,
+      status: "dry_run",
+      state: stateFor(item),
+      answers: [],
+      cache: null,
+    });
+    if (item.engine === "mechanical") {
+      if (dryRun) {
+        return dryRunResult();
+      }
       return {
         ...base,
         status: "complete",
@@ -191,55 +259,44 @@ export async function evaluate({
       };
     }
     if (dryRun) {
-      return { ...base, status: "dry_run", state: stateFor(item), answers: [], cache: null };
+      return dryRunResult();
     }
     if (fatal) {
       return { ...base, status: "skipped", error: fatal.message, answers: [], cache: null };
     }
+    const { model } = manifest;
+    if (matchesNull(credentials) || matchesUndefined(model)) {
+      throw new EvaluationError(
+        "An active semantic evaluation requires a model and gateway credentials.",
+      );
+    }
     const state = stateFor(item);
-    const url = endpointFor(manifest.model, credentials.accountId);
-    const body = payloadFor(manifest.model, state, item.requestQuestions);
+    const url = endpointFor(model, credentials.accountId);
+    const body = payloadFor(model, state, item.requestQuestions);
     const key = cacheFingerprint({
       url,
       gatewayId: credentials.gatewayId,
       apiKey: credentials.apiKey,
       body,
     });
-    let entry = inflight.get(key);
-    const reused = !matchesUndefined(entry);
-    if (!entry) {
-      entry = {};
-      entry.promise = (async () => {
-        const outcome = await actionRequest({
-          model: manifest.model,
-          state,
-          questions: item.requestQuestions,
-          credentials,
-          cacheKey: key,
-          metrics,
-        });
-        // Validate before treating the outcome as reusable so a malformed or
-        // Otherwise invalid payload is shared as a failed outcome, not a pass.
-        // A validation failure still carries the observed cache evidence so a
-        // Shared malformed response records its real header values.
-        try {
-          return {
-            validated: validateResponse(outcome.response, item.requestQuestions, manifest.model),
-            cacheStatus: outcome.cacheStatus,
-            ray: outcome.ray,
-          };
-        } catch (error) {
-          if (error && hasObjectType(error)) {
-            error.cacheStatus ??= outcome.cacheStatus;
-            error.ray ??= outcome.ray;
-          }
-          throw error;
-        }
-      })();
-      inflight.set(key, entry);
+    const existing = inflight.get(key);
+    const reused = !matchesUndefined(existing);
+    // Cache the validation promise before awaiting it so duplicate work shares one outcome.
+    const request =
+      existing ??
+      requestAndValidate({
+        model,
+        state,
+        questions: item.requestQuestions,
+        credentials,
+        cacheKey: key,
+        metrics,
+      });
+    if (!reused) {
+      inflight.set(key, request);
     }
     try {
-      const { validated, cacheStatus, ray } = await entry.promise;
+      const { validated, cacheStatus, ray } = await request;
       return {
         ...base,
         status: "complete",
@@ -331,7 +388,7 @@ export async function evaluate({
   };
   await writeFile(outputPath, `${JSON.stringify(report, null, 2)}\n`);
   return report;
-}
+};
 
 const main = async function () {
   try {

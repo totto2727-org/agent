@@ -147,6 +147,9 @@ const parseCurlOutput = function (stdout) {
 // Automatic retry so that callers control retry policy and duplicate logical
 // Requests are never re-submitted. No request-level retry override is sent, so
 // The Gateway's own configured retry behavior is left unchanged.
+/** @typedef {{ cacheKey: string, credentials: ReturnType<typeof readCredentials>, metrics: { activeRequests: number, observedPeakActiveRequests: number, requestCount: number }, model: string, questions: Record<string, import("./evaluation-work.mjs").DecisionQuestion>, state: unknown }} ActionInput */
+
+/** @param {ActionInput} input - A single routed evaluation and its run counters. */
 export const actionRequest = async function ({
   model,
   state,
