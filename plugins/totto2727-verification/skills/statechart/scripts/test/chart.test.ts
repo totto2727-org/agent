@@ -351,10 +351,10 @@ test("the graph that parseDot returns keeps none of the text it read", () => {
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
-test("TLC's marks place on their states even when TLC wraps them over lines", () => {
+test("TLC's marks place on their states even when TLC wraps them over lines", async () => {
   const spec = corpusSpec("TwoPhase");
-  const out = fs.readFileSync(corpus("TwoPhase", "ChartRun.out"), "utf8");
-  const graph = parseDot(fs.readFileSync(corpus("TwoPhase", "graph.dot"), "utf8"));
+  const out = await fs.promises.readFile(corpus("TwoPhase", "ChartRun.out"), "utf8");
+  const graph = parseDot(await fs.promises.readFile(corpus("TwoPhase", "graph.dot"), "utf8"));
   assert.equal(
     mark(graph, readMarks(readMessages(out), "chart"), spec.variables, stateRules(spec)).size,
     0,

@@ -202,8 +202,8 @@ const model = function (reading: Reading | undefined) {
 test(
   `${CONFIGS} configs from seed ${SEED} read in the skill as in TLC, or stop before TLC runs`,
   { skip },
-  (testContext) => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "statechart-config-fuzz-"));
+  async (testContext) => {
+    const dir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "statechart-config-fuzz-"));
     testContext.after(() => fs.rmSync(dir, { recursive: true }));
     const random = mulberry32(SEED);
     const cases: {

@@ -370,11 +370,11 @@ const compilerAnswers = function (r: Run, c: Case) {
 };
 
 const answer = async function (c: Case): Promise<string> {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "statechart-differential-"));
+  const dir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "statechart-differential-"));
   try {
-    fs.writeFileSync(path.join(dir, `${c.module}.tla`), c.tla);
-    fs.writeFileSync(path.join(dir, `${c.module}.cfg`), configOf(c));
-    if (c.view !== undefined) {fs.writeFileSync(path.join(dir, "view.mjs"), c.view);}
+    await fs.promises.writeFile(path.join(dir, `${c.module}.tla`), c.tla);
+    await fs.promises.writeFile(path.join(dir, `${c.module}.cfg`), configOf(c));
+    if (c.view !== undefined) {await fs.promises.writeFile(path.join(dir, "view.mjs"), c.view);}
     const compile = (view: string[]) =>
       run(
         process.execPath,
@@ -393,7 +393,7 @@ const answer = async function (c: Case): Promise<string> {
     assert.deepEqual(compilerAnswers(compiled, c), plain);
     return compiled.stdout;
   } finally {
-    fs.rmSync(dir, { force: true, recursive: true });
+    await fs.promises.rm(dir, { force: true, recursive: true });
   }
 };
 

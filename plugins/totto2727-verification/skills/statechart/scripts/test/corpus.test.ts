@@ -18,12 +18,12 @@ const read = (file: string): string => fs.readFileSync(file, "utf8");
 
 visitItems(fs.readdirSync(corpus), (name) => {
   // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
-  test(`${name} gives the committed chart and report when TLC runs`, { skip }, () => {
+  test(`${name} gives the committed chart and report when TLC runs`, { skip }, async () => {
     const dir = path.join(corpus, name);
-    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "statechart-corpus-"));
+    const tmp = await fs.promises.mkdtemp(path.join(os.tmpdir(), "statechart-corpus-"));
     const tlc = path.join(tmp, "tlc");
     const out = path.join(tmp, "out");
-    fs.mkdirSync(tlc);
+    await fs.promises.mkdir(tlc);
     const view = path.join(dir, "view.mjs");
     const r = spawnSync(
       process.execPath,
@@ -62,9 +62,9 @@ visitItems(fs.readdirSync(corpus), (name) => {
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
-test("a spec in a folder whose name is not ASCII checks under the POSIX locale", { skip }, () => {
-  const dir = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "statechart-corpus-")), "spec-é");
-  fs.cpSync(path.join(corpus, "Login"), dir, { recursive: true });
+test("a spec in a folder whose name is not ASCII checks under the POSIX locale", { skip }, async () => {
+  const dir = path.join(await fs.promises.mkdtemp(path.join(os.tmpdir(), "statechart-corpus-")), "spec-é");
+  await fs.promises.cp(path.join(corpus, "Login"), dir, { recursive: true });
   const out = path.join(dir, "out");
   const r = spawnSync(
     process.execPath,
@@ -84,8 +84,8 @@ test("a spec in a folder whose name is not ASCII checks under the POSIX locale",
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
-test("an invariant named NoDeadlock and a deadlock break as two rules", { skip }, () => {
-  const out = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "statechart-corpus-")), "out");
+test("an invariant named NoDeadlock and a deadlock break as two rules", { skip }, async () => {
+  const out = path.join(await fs.promises.mkdtemp(path.join(os.tmpdir(), "statechart-corpus-")), "out");
   const r = spawnSync(
     process.execPath,
     [
@@ -350,7 +350,7 @@ for (const [width, height, config, status, drawn, chart, header] of [
   {test(
     `TLC keeps the chart within its budget of 500 states on a ${width} by ${height} grid with ${config}`,
     { skip },
-    () => {
+    async () => {
       const base = writeSpec(
         "Wide",
         [
@@ -370,7 +370,7 @@ for (const [width, height, config, status, drawn, chart, header] of [
       );
       const tlc = path.join(path.dirname(base), "tlc");
       const out = path.join(path.dirname(base), "out");
-      fs.mkdirSync(tlc);
+      await fs.promises.mkdir(tlc);
       const r = spawnSync(
         process.execPath,
         [path.join(here, "../statechart.ts"), `${base}.tla`, "--out", out],
@@ -437,7 +437,7 @@ test(
   { skip },
   async () => {
     const base = broken();
-    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "statechart-corpus-"));
+    const tmp = await fs.promises.mkdtemp(path.join(os.tmpdir(), "statechart-corpus-"));
     const saved = hostEnvironment().TMPDIR;
     hostEnvironment().TMPDIR = tmp;
     try {
@@ -447,6 +447,6 @@ test(
       if (saved === undefined) {delete hostEnvironment().TMPDIR;}
       else {hostEnvironment().TMPDIR = saved;}
     }
-    assert.deepEqual(fs.readdirSync(tmp), []);
+    assert.deepEqual(await fs.promises.readdir(tmp), []);
   },
 );

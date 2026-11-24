@@ -308,8 +308,8 @@ const signalWhile = async function <T extends { dir: string; reached: (parent: s
   const [status] = await closed;
   assert.equal(stderr, `${signal} stopped the check, so the command wrote nothing.\n`);
   assert.equal(status, 128 + os.constants.signals[signal]);
-  assert.deepEqual(fs.readdirSync(parent), []);
-  assert.deepEqual(fs.readdirSync(tmpdir), []);
+  assert.deepEqual(await fs.promises.readdir(parent), []);
+  assert.deepEqual(await fs.promises.readdir(tmpdir), []);
   return phase;
 };
 
@@ -336,7 +336,7 @@ const assertGone = async function (pid: number): Promise<void> {
 
 const assertEmpty = async function (dir: string): Promise<void> {
   for (let i = 0; i < 250 && fs.readdirSync(dir).length; i++) {await sleep(20);}
-  assert.deepEqual(fs.readdirSync(dir), []);
+  assert.deepEqual(await fs.promises.readdir(dir), []);
 };
 
 const gridCase = function (n: number): string {
@@ -445,7 +445,7 @@ test(
     const [status] = await closed;
     assert.equal(stderr, "SIGKILL killed the check, so the command wrote nothing.\n");
     assert.equal(status, 2);
-    assert.deepEqual(fs.readdirSync(parent), []);
+    assert.deepEqual(await fs.promises.readdir(parent), []);
   },
 );
 
@@ -515,11 +515,11 @@ visitItems(["SIGINT", "SIGTERM"] satisfies NodeJS.Signals[], (signal) => {
 
 visitItems(["SIGINT", "SIGTERM"] satisfies NodeJS.Signals[], (signal) => {
   // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
-  test(`${signal} while the command reads TLC's last output stops the check and writes nothing`, () => {
-    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "statechart-late-"));
+  test(`${signal} while the command reads TLC's last output stops the check and writes nothing`, async () => {
+    const tmp = await fs.promises.mkdtemp(path.join(os.tmpdir(), "statechart-late-"));
     const java = path.join(tmp, "java.mjs");
     const tmpdir = path.join(tmp, "tmpdir");
-    fs.mkdirSync(tmpdir);
+    await fs.promises.mkdir(tmpdir);
     const sendWhileRead = `const fs = require("node:fs");
 const [dot, pid, signal, graph] = process.argv.slice(1);
 setTimeout(() => process.exit(1), 30_000).unref();
@@ -528,7 +528,7 @@ fs.open(dot, "w", (error, fd) => {
   fs.writeSync(fd, fs.readFileSync(graph));
   fs.closeSync(fd);
 });`;
-    fs.writeFileSync(
+    await fs.promises.writeFile(
       java,
       `#!/usr/bin/env node
 import { spawn, spawnSync } from "node:child_process";
@@ -543,7 +543,7 @@ spawn(process.execPath, ["-e", ${JSON.stringify(sendWhileRead)}, dot, command, $
     const r = run(path.join(corpus, "Login"), { java, env: { TMPDIR: tmpdir } });
     assert.equal(r.stderr, `${signal} stopped the check, so the command wrote nothing.\n`);
     assert.equal(r.status, 128 + os.constants.signals[signal]);
-    assert.deepEqual(fs.readdirSync(tmpdir), []);
+    assert.deepEqual(await fs.promises.readdir(tmpdir), []);
     assert.equal(fs.existsSync(r.out), false);
   });
 });
@@ -737,10 +737,10 @@ test("a drawing run that TLC cannot finish stops the command with exit 2", () =>
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
-test("a java that cannot start stops the command with exit 2 on a runtime that emits no close for it", () => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "statechart-no-java-"));
+test("a java that cannot start stops the command with exit 2 on a runtime that emits no close for it", async () => {
+  const tmp = await fs.promises.mkdtemp(path.join(os.tmpdir(), "statechart-no-java-"));
   const noClose = path.join(tmp, "no-close.mjs");
-  fs.writeFileSync(
+  await fs.promises.writeFile(
     noClose,
     `import childProcess from "node:child_process";
 import { syncBuiltinESMExports } from "node:module";
@@ -771,12 +771,12 @@ syncBuiltinESMExports();
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
-test("a step hidden by the view is not drawn, and the report counts it", () => {
+test("a step hidden by the view is not drawn, and the report counts it", async () => {
   const dir = path.join(corpus, "MediaPlayer");
   const hidden = new Set(read(path.join(dir, "graph.dot")).match(/^.* -> .*label="ACallComesIn"/gm))
     .size;
-  const view = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "statechart-view-")), "view.mjs");
-  fs.writeFileSync(
+  const view = path.join(await fs.promises.mkdtemp(path.join(os.tmpdir(), "statechart-view-")), "view.mjs");
+  await fs.promises.writeFile(
     view,
     `export * from ${JSON.stringify(path.join(dir, "view.mjs"))};\n` +
       `import { step as words } from ${JSON.stringify(path.join(dir, "view.mjs"))};\n` +
@@ -793,10 +793,10 @@ test("a step hidden by the view is not drawn, and the report counts it", () => {
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
-test("a view that hides a step of a bug path stops the command with exit 2", () => {
+test("a view that hides a step of a bug path stops the command with exit 2", async () => {
   const dir = path.join(corpus, "MediaPlayer");
-  const view = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "statechart-view-")), "view.mjs");
-  fs.writeFileSync(
+  const view = path.join(await fs.promises.mkdtemp(path.join(os.tmpdir(), "statechart-view-")), "view.mjs");
+  await fs.promises.writeFile(
     view,
     `export * from ${JSON.stringify(path.join(dir, "view.mjs"))};\n` +
       `export const step = (action) => (action === "YouTurnItUp" ? null : action);\n`,
@@ -818,9 +818,9 @@ visitItems([
   ],
 ] satisfies [string, string, RegExp][], ([what, body, words]) => {
   // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
-  test(`a view whose ${what} stops the command with exit 2`, () => {
-    const view = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "statechart-view-")), "view.mjs");
-    fs.writeFileSync(view, body);
+  test(`a view whose ${what} stops the command with exit 2`, async () => {
+    const view = path.join(await fs.promises.mkdtemp(path.join(os.tmpdir(), "statechart-view-")), "view.mjs");
+    await fs.promises.writeFile(view, body);
     const r = run(path.join(corpus, "Login"), { view });
     assert.equal(r.status, 2);
     assert.match(r.stderr, words);
@@ -906,7 +906,7 @@ test("a view module that throws a plain object with a message prints the message
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a view that ends the check while TLC runs stops TLC, and the command exits 2 and writes nothing", async () => {
-  const { java, pidFile } = sleepyJava(fs.mkdtempSync(path.join(os.tmpdir(), "statechart-fakes-")));
+  const { java, pidFile } = sleepyJava(await fs.promises.mkdtemp(path.join(os.tmpdir(), "statechart-fakes-")));
   const r = run(path.join(corpus, "Login"), {
     java,
     view: writeView(
@@ -1228,11 +1228,11 @@ visitItems([
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
-test("a file that appears in --out while TLC runs is kept, and the command stops with exit 2", () => {
+test("a file that appears in --out while TLC runs is kept, and the command stops with exit 2", async () => {
   const out = newPath();
   const mine = path.join(out, "report.md");
   const java = path.join(path.dirname(out), "java.sh");
-  fs.writeFileSync(
+  await fs.promises.writeFile(
     java,
     `#!/bin/sh\nmkdir -p ${JSON.stringify(out)}\n` +
       `[ -e ${JSON.stringify(mine)} ] || echo mine > ${JSON.stringify(mine)}\n` +
@@ -1246,13 +1246,13 @@ test("a file that appears in --out while TLC runs is kept, and the command stops
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
-test("an empty --out folder gets the chart and the report", () => {
+test("an empty --out folder gets the chart and the report", async () => {
   const out = newPath();
-  fs.mkdirSync(out);
+  await fs.promises.mkdir(out);
   const r = run(path.join(corpus, "Login"), { args: ["--out", out] });
   assert.equal(r.stderr, "");
   assert.equal(read(path.join(out, "report.md")), read(path.join(corpus, "Login", "report.md")));
-  assert.deepEqual(fs.readdirSync(out).sort(), ["chart.mmd", "report.md", "tlc.out"]);
+  assert.deepEqual((await fs.promises.readdir(out)).sort(), ["chart.mmd", "report.md", "tlc.out"]);
 });
 
 visitItems([

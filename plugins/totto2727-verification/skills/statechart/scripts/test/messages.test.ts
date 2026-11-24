@@ -18,8 +18,8 @@ const tool = (code: number, level: number, ...lines: string[]): string =>
 const plain = (text: string): string => [...plainText(readMessages(text))].join("");
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
-test("TLC output with Windows line ends names the rule that breaks and prints as with Unix ones", () => {
-  const unix = fs.readFileSync(path.join(here, "corpus", "FirstRule", "verdict-1.out"), "utf8");
+test("TLC output with Windows line ends names the rule that breaks and prints as with Unix ones", async () => {
+  const unix = await fs.promises.readFile(path.join(here, "corpus", "FirstRule", "verdict-1.out"), "utf8");
   const windows = unix.replaceAll("\n", "\r\n");
   assert.deepEqual(readVerdict(readMessages(windows)).broke, { kind: "invariant", name: "NotOne" });
   assert.deepEqual(readVerdict(readMessages(windows)), readVerdict(readMessages(unix)));

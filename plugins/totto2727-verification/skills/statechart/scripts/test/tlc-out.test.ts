@@ -35,13 +35,13 @@ test(
   { concurrency: 4, skip },
   async (testContext) => {
     await Promise.all(
-      fs.readdirSync(corpus).map((name) =>
+      (await fs.promises.readdir(corpus)).map((name) =>
         testContext.test(name, async () => {
           const dir = path.join(corpus, name);
-          const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "statechart-plain-"));
+          const tmp = await fs.promises.mkdtemp(path.join(os.tmpdir(), "statechart-plain-"));
           const [tool, twin, out] = ["tool", "plain", "out"].map((f) => path.join(tmp, f));
-          fs.mkdirSync(tool);
-          fs.mkdirSync(twin);
+          await fs.promises.mkdir(tool);
+          await fs.promises.mkdir(twin);
           const view = path.join(dir, "view.mjs");
           const child = spawn(
             process.execPath,
@@ -67,7 +67,7 @@ test(
           child.stderr.on("data", (chunk: Buffer) => (stderr += chunk));
           await once(child, "close");
           assert.equal(stderr, "");
-          const runs = fs.readdirSync(twin).filter((fileName) => fileName.endsWith(".out"));
+          const runs = (await fs.promises.readdir(twin)).filter((fileName) => fileName.endsWith(".out"));
           assert.ok(runs.includes("ChartRun.out"), "the drawing run has a plain twin");
           visitItems(runs, (run) => {
             const exit = run.replace(/\.out$/u, ".exit");
@@ -84,7 +84,7 @@ test(
           );
           const verdicts = new Set<string>();
           visitItems(runs, (run) => {if (run.startsWith("verdict-")) {verdicts.add(steady(`${read(path.join(twin, run))}\n`));}});
-          visitItems(fs.readdirSync(out), (fileName) => {if (/^tlc-\w+\.out$/u.test(fileName))
+          visitItems(await fs.promises.readdir(out), (fileName) => {if (/^tlc-\w+\.out$/u.test(fileName))
               {assert.ok(verdicts.has(steady(read(path.join(out, fileName)))), fileName);}});
         }),
       ),
