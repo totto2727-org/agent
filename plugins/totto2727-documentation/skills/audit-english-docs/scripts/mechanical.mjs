@@ -232,6 +232,89 @@ const excludeMarkup = (mask, exclude) => {
   });
 };
 
+const SOURCE_START = 0;
+const AFTER_FRONTMATTER_OPENING = 1;
+// oxlint-disable-next-line unicorn/no-null -- The public inspection record uses null when no frontmatter range is present.
+const NO_BLOCK = null;
+
+/** @type {(markdown: string) => RegExpExecArray[]} */
+const sourceLines = (markdown) =>
+  [...markdown.matchAll(/[^\n]*(?:\n|$)/gu)].filter(([line]) => line.length > SOURCE_START);
+
+/** @type {(markdown: string, lines: RegExpExecArray[]) => TextRange | null} */
+const frontmatterRange = (markdown, lines) => {
+  if (!/^---\s*(?:\r?\n|$)/u.test(markdown)) {
+    return NO_BLOCK;
+  }
+  const closing = lines
+    .slice(AFTER_FRONTMATTER_OPENING)
+    .find(([line]) => /^(?:---|\.\.\.)\s*$/u.test(line.trimEnd()));
+  const end = closing ? closing.index + closing[0].length : markdown.length;
+  // oxlint-disable-next-line eslint/sort-keys -- Preserve serialized source range fields in the inspection record.
+  return { start: SOURCE_START, end };
+};
+
+/** @type {(line: RegExpExecArray) => FenceOpening | null} */
+const readFenceOpening = (line) => {
+  const [source] = line;
+  const groups = /^ {0,3}(?<delimiter>`{3,}|~{3,})(?<info>[^\n]*)/u.exec(source)?.groups;
+  if (!groups) {
+    return NO_BLOCK;
+  }
+  const { delimiter, info } = groups;
+  const [character] = delimiter;
+  if (character === "`" && info.includes("`")) {
+    return NO_BLOCK;
+  }
+  /* oxlint-disable eslint/sort-keys -- Keep the observable order of the public fence record fields. */
+  return {
+    start: line.index,
+    openingEnd: line.index + source.trimEnd().length,
+    character,
+    length: delimiter.length,
+    language: info.trim(),
+  };
+  /* oxlint-enable eslint/sort-keys */
+};
+
+/** @type {(source: string, opening: FenceOpening) => boolean} */
+const closesFence = (source, opening) => {
+  const delimiter = /^ {0,3}(?<delimiter>`{3,}|~{3,})\s*$/u.exec(source)?.groups?.delimiter;
+  return (
+    !matchesUndefined(delimiter) &&
+    delimiter.startsWith(opening.character) &&
+    delimiter.length >= opening.length
+  );
+};
+
+/** @type {(lines: RegExpExecArray[], frontmatterEnd: number, markdownLength: number) => Fence[]} */
+const findFences = (lines, frontmatterEnd, markdownLength) => {
+  /** @type {Fence[]} */
+  const fences = [];
+  /** @type {{ opening: FenceOpening | null }} */
+  const scan = { opening: NO_BLOCK };
+  lines.forEach((line) => {
+    if (line.index < frontmatterEnd) {
+      return;
+    }
+    const { opening } = scan;
+    if (matchesNull(opening)) {
+      scan.opening = readFenceOpening(line);
+    } else if (closesFence(line[0], opening)) {
+      const end = line.index + line[0].length;
+      // oxlint-disable-next-line eslint/sort-keys -- Retain the insertion order of the closing fields.
+      fences.push({ ...opening, end, closed: true });
+      scan.opening = NO_BLOCK;
+    }
+  });
+  const { opening } = scan;
+  if (!matchesNull(opening)) {
+    // oxlint-disable-next-line eslint/sort-keys -- Retain the insertion order of the closing fields.
+    fences.push({ ...opening, end: markdownLength, closed: false });
+  }
+  return fences;
+};
+
 // Offsets remain UTF-16 source offsets until sourceRange converts them to UTF-8.
 // Conservative exclusions intentionally reduce coverage rather than claim that
 // Code, metadata, link destinations, or HTML meet a prose criterion.
@@ -244,58 +327,26 @@ export const inspectMarkdown = function inspectMarkdown(markdown) {
   const exclusions = [];
   /** @type {Uncertainty[]} */
   const uncertainties = [];
-  /** @type {Fence[]} */
-  const fences = [];
   /** @type {RecordExclusion} */
   const exclude = (start, end, kind) => {
+    // oxlint-disable-next-line eslint/sort-keys -- Preserve serialized exclusion fields in the inspection record.
     exclusions.push({ start, end, kind });
   };
-  const lines = [...markdown.matchAll(/[^\n]*(?:\n|$)/g)].filter((line) => line[0].length);
-  /** @type {TextRange | null} */
-  let frontmatter = null;
-  if (/^---\s*(?:\r?\n|$)/u.test(markdown)) {
-    const closing = lines.slice(1).find((line) => /^(?:---|\.\.\.)\s*$/u.test(line[0].trimEnd()));
-    frontmatter = { start: 0, end: closing ? closing.index + closing[0].length : markdown.length };
+  const lines = sourceLines(markdown);
+  const frontmatter = frontmatterRange(markdown, lines);
+  const frontmatterEnd = frontmatter?.end ?? SOURCE_START;
+  if (frontmatter) {
     exclude(frontmatter.start, frontmatter.end, "frontmatter");
   }
-  /** @type {{ opening: FenceOpening | null }} */
-  const scan = { opening: null };
-  Iterator.from(lines).forEach((line) => {
-    if (frontmatter && line.index < frontmatter.end) {
-      return;
-    }
-    const { opening } = scan;
-    if (opening) {
-      const close = /^ {0,3}(`{3,}|~{3,})\s*$/u.exec(line[0]);
-      if (close && close[1][0] === opening.character && close[1].length >= opening.length) {
-        const end = line.index + line[0].length;
-        fences.push({ ...opening, end, closed: true });
-        exclude(opening.start, end, "fenced-code");
-        scan.opening = null;
-      }
-    } else {
-      const match = /^ {0,3}(`{3,}|~{3,})([^\n]*)/.exec(line[0]);
-      if (match && !(match[1][0] === "`" && match[2].includes("`"))) {
-        scan.opening = {
-          start: line.index,
-          openingEnd: line.index + line[0].trimEnd().length,
-          character: match[1][0],
-          length: match[1].length,
-          language: match[2].trim(),
-        };
-      }
-    }
+  const fences = findFences(lines, frontmatterEnd, markdown.length);
+  fences.forEach((fence) => {
+    exclude(fence.start, fence.end, "fenced-code");
   });
-  const { opening } = scan;
-  if (opening) {
-    fences.push({ ...opening, end: markdown.length, closed: false });
-    exclude(opening.start, markdown.length, "fenced-code");
-  }
   // Container parsing requires a full Markdown block parser. Do not mistake
   // Quote/list fences for checked prose or silently certify a partial scan.
   const containerFence = lines.find(
     (line) =>
-      (!frontmatter || line.index >= frontmatter.end) &&
+      line.index >= frontmatterEnd &&
       !fences.some((fence) => line.index >= fence.start && line.index < fence.end) &&
       /^ {0,3}(?:>\s*|(?:[-+*]|\d+[.)])\s+)(?:>\s*)*(?:`{3,}|~{3,})/u.test(line[0]),
   );
@@ -314,7 +365,7 @@ export const inspectMarkdown = function inspectMarkdown(markdown) {
   /** @type {number | null} */
   let listIndent = null;
   Iterator.from(lines).forEach((line) => {
-    if (frontmatter && line.index < frontmatter.end) {
+    if (line.index < frontmatterEnd) {
       return;
     }
     if (uncertainties.some((range) => line.index >= range.start && line.index < range.end)) {
