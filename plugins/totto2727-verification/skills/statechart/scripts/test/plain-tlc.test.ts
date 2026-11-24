@@ -2,8 +2,7 @@
 import assert from "node:assert/strict";
 // oxlint-disable-next-line rules/no-node-imports -- Statechart runs these fixtures with Node's test runner as part of the standalone skill.
 import { test } from "node:test";
-import { agrees, skip } from "./tlc.ts";
-import { visitItems } from "#statechart/ir.ts";
+import { agrees, forEachTlcCase, skip } from "./tlc.ts";
 
 const late = [
   "---- MODULE Late ----",
@@ -28,9 +27,9 @@ const lateCfg = (mode: string, rules: string): string =>
 test(
   "a rule that breaks before another rule fails to evaluate breaks in either order",
   { skip },
-  () => {
-    const first = agrees("Late", { Late: late }, lateCfg("none", "Below InDomain"));
-    const last = agrees("Late", { Late: late }, lateCfg("none", "InDomain Below"));
+  async () => {
+    const first = await agrees("Late", { Late: late }, lateCfg("none", "Below InDomain"));
+    const last = await agrees("Late", { Late: late }, lateCfg("none", "InDomain Below"));
     assert.equal(first.status, 1);
     assert.deepEqual(first.breaks, new Map([["Below", 2]]));
     assert.deepEqual(first.holds, []);
@@ -40,9 +39,9 @@ test(
 );
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
-test("a rule that breaks before a step fails to evaluate breaks", { skip }, () => {
-  visitItems(["div", "assert"], (mode) => {
-    const verdict = agrees("Late", { Late: late }, lateCfg(mode, "Small"));
+test("a rule that breaks before a step fails to evaluate breaks", { skip }, async () => {
+  await forEachTlcCase(["div", "assert"], async (mode) => {
+    const verdict = await agrees("Late", { Late: late }, lateCfg(mode, "Small"));
     assert.equal(verdict.status, 1);
     assert.deepEqual(verdict.breaks, new Map([["Small", 1]]));
     assert.deepEqual(verdict.unchecked, ["NoDeadlock"]);
@@ -63,8 +62,8 @@ const warnPath = (next: string): string[] => [
 ];
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
-test("a rule that breaks before it fails to evaluate breaks", { skip }, () => {
-  const verdict = agrees(
+test("a rule that breaks before it fails to evaluate breaks", { skip }, async () => {
+  const verdict = await agrees(
     "WarnPath",
     { WarnPath: warnPath(String.raw`One \/ Two`) },
     "INIT Init\nNEXT Next\nINVARIANT Zero\n",
@@ -74,9 +73,9 @@ test("a rule that breaks before it fails to evaluate breaks", { skip }, () => {
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
-test("a rule that fails to evaluate before TLC reaches a break exits 2", { skip }, () => {
-  visitItems(["", "CHECK_DEADLOCK FALSE\n"], (deadlock) => {
-    const verdict = agrees(
+test("a rule that fails to evaluate before TLC reaches a break exits 2", { skip }, async () => {
+  await forEachTlcCase(["", "CHECK_DEADLOCK FALSE\n"], async (deadlock) => {
+    const verdict = await agrees(
       "WarnPath",
       { WarnPath: warnPath(String.raw`Two \/ One`) },
       `INIT Init\nNEXT Next\nINVARIANT Zero\n${deadlock}`,
@@ -87,8 +86,8 @@ test("a rule that fails to evaluate before TLC reaches a break exits 2", { skip 
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
-test("a rule that no verdict run checks stays not checked under a SYMMETRY", { skip }, () => {
-  const verdict = agrees(
+test("a rule that no verdict run checks stays not checked under a SYMMETRY", { skip }, async () => {
+  const verdict = await agrees(
     "Hide",
     {
       Hide: [
@@ -114,8 +113,8 @@ test("a rule that no verdict run checks stays not checked under a SYMMETRY", { s
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
-test("a deadlock breaks whatever shape the SPECIFICATION has", { skip }, () => {
-  const live = agrees(
+test("a deadlock breaks whatever shape the SPECIFICATION has", { skip }, async () => {
+  const live = await agrees(
     "Live",
     {
       Live: [
@@ -134,8 +133,8 @@ test("a deadlock breaks whatever shape the SPECIFICATION has", { skip }, () => {
   );
   assert.deepEqual(live.breaks, new Map([["NoDeadlock", 2]]));
   assert.deepEqual(live.holds, ["TypeOK"]);
-  visitItems([String.raw`[][Next \/ Tick]_vars`, String.raw`[][\E i \in 1..2 : Step(i)]_vars`], (next) => {
-    const verdict = agrees(
+  await forEachTlcCase([String.raw`[][Next \/ Tick]_vars`, String.raw`[][\E i \in 1..2 : Step(i)]_vars`], async (next) => {
+    const verdict = await agrees(
       "Shape",
       {
         Shape: [
@@ -159,8 +158,8 @@ test("a deadlock breaks whatever shape the SPECIFICATION has", { skip }, () => {
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
-test("a SPECIFICATION from an INSTANCE checks deadlock and finds none", { skip }, () => {
-  const verdict = agrees(
+test("a SPECIFICATION from an INSTANCE checks deadlock and finds none", { skip }, async () => {
+  const verdict = await agrees(
     "Outer",
     {
       Inner: [
@@ -185,8 +184,8 @@ test("a SPECIFICATION from an INSTANCE checks deadlock and finds none", { skip }
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
-test("a state at a CONSTRAINT bound is no deadlock", { skip }, () => {
-  const verdict = agrees(
+test("a state at a CONSTRAINT bound is no deadlock", { skip }, async () => {
+  const verdict = await agrees(
     "Bound",
     {
       Bound: [
@@ -210,8 +209,8 @@ test("a state at a CONSTRAINT bound is no deadlock", { skip }, () => {
 test(
   "a model with no initial state passes as it does in TLC, and the report says why",
   { skip },
-  () => {
-    const verdict = agrees(
+  async () => {
+    const verdict = await agrees(
       "NoInit",
       {
         NoInit: [
@@ -239,8 +238,8 @@ test(
 test(
   "a run after a break stops at the state bound and leaves its rules not checked",
   { skip },
-  () => {
-    const verdict = agrees(
+  async () => {
+    const verdict = await agrees(
       "Cycle",
       {
         Cycle: [

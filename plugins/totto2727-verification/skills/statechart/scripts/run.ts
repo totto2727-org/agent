@@ -67,7 +67,14 @@ interface ChildResult {
   error: ExecFileException | undefined;
 }
 
-const runChild = (file: string, args: string[], options: { cwd: string; env: NodeJS.ProcessEnv }) =>
+interface ChildOptions {
+  cwd?: string;
+  env?: NodeJS.ProcessEnv;
+  maxBuffer?: number;
+  windowsHide?: boolean;
+}
+
+export const runChild = (file: string, args: string[], options: ChildOptions): Promise<ChildResult> =>
   new Promise<ChildResult>((resolve) => {
     execFile(
       file,
