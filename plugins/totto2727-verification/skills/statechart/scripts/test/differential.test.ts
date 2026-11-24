@@ -9,9 +9,10 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import fc from "fast-check";
 import { visitItems } from "#statechart/ir.ts";
+import { hostEnvironment } from "#statechart/host-env.ts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const skip = !process.env.TLA2TOOLS && "set TLA2TOOLS to the path of tla2tools.jar to run TLC";
+const skip = !hostEnvironment().TLA2TOOLS && "set TLA2TOOLS to the path of tla2tools.jar to run TLC";
 
 const PROTOTYPE_KEYS = ["constructor", "__proto__", "toString", "valueOf", "hasOwnProperty"];
 const NAMES = [
@@ -265,7 +266,7 @@ const run = (command: string, args: string[], cwd: string) =>
     const child = spawn(command, args, {
       cwd,
       stdio: ["ignore", "pipe", "pipe"],
-      env: { ...process.env, LC_ALL: "C.UTF-8" },
+      env: { ...hostEnvironment(), LC_ALL: "C.UTF-8" },
     });
     const stdout: Buffer[] = [];
     const stderr: Buffer[] = [];
@@ -285,11 +286,11 @@ const plainTlc = (dir: string, c: Case, name: string, lines: string[]) => {
   fs.writeFileSync(path.join(dir, `${name}.cfg`), `${[...c.base, ...lines].join("\n")}\n`);
   fs.mkdirSync(path.join(dir, `tmp-${name}`));
   return run(
-    process.env.JAVA || "java",
+    hostEnvironment().JAVA || "java",
     [
       `-Djava.io.tmpdir=${path.join(dir, `tmp-${name}`)}`,
       "-cp",
-      String(process.env.TLA2TOOLS),
+      String(hostEnvironment().TLA2TOOLS),
       "tlc2.TLC",
       "-tool",
       "-workers",
@@ -406,9 +407,9 @@ test(
         await answer(c);
       }),
       {
-        numRuns: Number(process.env.STATECHART_DIFFERENTIAL_RUNS ?? 20),
-        seed: process.env.STATECHART_DIFFERENTIAL_SEED
-          ? Number(process.env.STATECHART_DIFFERENTIAL_SEED)
+        numRuns: Number(hostEnvironment().STATECHART_DIFFERENTIAL_RUNS ?? 20),
+        seed: hostEnvironment().STATECHART_DIFFERENTIAL_SEED
+          ? Number(hostEnvironment().STATECHART_DIFFERENTIAL_SEED)
           : undefined,
         includeErrorInReport: true,
       },

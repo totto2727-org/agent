@@ -13,6 +13,7 @@ import { plainText } from "#statechart/backends/plain-text.ts";
 import { readMessages } from "#statechart/frontends/messages.ts";
 import { drawn } from "./drawn.ts";
 import { visitItems } from "#statechart/ir.ts";
+import { hostEnvironment } from "#statechart/host-env.ts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const corpus = path.join(here, "corpus");
@@ -52,7 +53,7 @@ const run = function (
     {
       encoding: "utf8",
       env: {
-        ...process.env,
+        ...hostEnvironment(),
         JAVA: java,
         TLA2TOOLS: "tla2tools.jar",
         STATECHART_REPLAY: dir,
@@ -276,7 +277,7 @@ const startCommand = function (
     ],
     {
       env: {
-        ...process.env,
+        ...hostEnvironment(),
         JAVA: java,
         TLA2TOOLS: "tla2tools.jar",
         STATECHART_REPLAY: dir,

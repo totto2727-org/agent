@@ -15,6 +15,7 @@ import { project } from "#statechart/pipeline.ts";
 import { fuzz } from './labels.ts';
 import type { Html, Mermaid, Render } from './labels.ts';
 import { visitItems } from "#statechart/ir.ts";
+import { hostEnvironment } from "#statechart/host-env.ts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const charts = [
@@ -26,7 +27,7 @@ const css = /```css\n([\s\S]*?)```/.exec(guide);
 assert.ok(css, "references/render.md has no css block");
 const theme = css[1];
 const cache = path.join(
-  process.env.XDG_CACHE_HOME ?? path.join(os.homedir(), ".cache"),
+  hostEnvironment().XDG_CACHE_HOME ?? path.join(os.homedir(), ".cache"),
   "statechart",
 );
 const install = (name: string, ...packages: string[]) => {

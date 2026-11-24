@@ -9,10 +9,11 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { check, PINNED_FLAGS } from "#statechart/run.ts";
 import { visitItems } from "#statechart/ir.ts";
+import { hostEnvironment } from "#statechart/host-env.ts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const corpus = path.join(here, "corpus");
-const skip = !process.env.TLA2TOOLS && "set TLA2TOOLS to the path of tla2tools.jar to run TLC";
+const skip = !hostEnvironment().TLA2TOOLS && "set TLA2TOOLS to the path of tla2tools.jar to run TLC";
 const read = (file: string): string => fs.readFileSync(file, "utf8");
 
 visitItems(fs.readdirSync(corpus), (name) => {
@@ -36,15 +37,15 @@ visitItems(fs.readdirSync(corpus), (name) => {
       {
         encoding: "utf8",
         env: {
-          ...process.env,
+          ...hostEnvironment(),
           JAVA: path.join(here, "java.ts"),
-          STATECHART_JAVA: process.env.JAVA ?? "java",
+          STATECHART_JAVA: hostEnvironment().JAVA ?? "java",
           STATECHART_RECORD: tlc,
         },
       },
     );
     assert.equal(r.stderr, "");
-    if (process.env.STATECHART_UPDATE) {
+    if (hostEnvironment().STATECHART_UPDATE) {
       for (const f of fs.readdirSync(dir))
         {if (/\.(?:out|exit|dot|mmd|md)$/u.test(f)) {fs.rmSync(path.join(dir, f));}}
       for (const f of fs.readdirSync(tlc)) {fs.copyFileSync(path.join(tlc, f), path.join(dir, f));}
@@ -75,7 +76,7 @@ test("a spec in a folder whose name is not ASCII checks under the POSIX locale",
       "--out",
       out,
     ],
-    { encoding: "utf8", env: { ...process.env, LC_ALL: "POSIX", LC_CTYPE: "", LANG: "" } },
+    { encoding: "utf8", env: { ...hostEnvironment(), LC_ALL: "POSIX", LC_CTYPE: "", LANG: "" } },
   );
   assert.equal(r.stderr, "");
   assert.equal(r.status, 0);
@@ -125,10 +126,10 @@ const broken = (): string =>
 const plainTlc = (base: string) => {
   const name = path.basename(base);
   const r = spawnSync(
-    process.env.JAVA ?? "java",
+    hostEnvironment().JAVA ?? "java",
     [
       "-cp",
-      String(process.env.TLA2TOOLS),
+      String(hostEnvironment().TLA2TOOLS),
       "tlc2.TLC",
       ...PINNED_FLAGS,
       "-config",
@@ -376,9 +377,9 @@ for (const [width, height, config, status, drawn, chart, header] of [
         {
           encoding: "utf8",
           env: {
-            ...process.env,
+            ...hostEnvironment(),
             JAVA: path.join(here, "java.ts"),
-            STATECHART_JAVA: process.env.JAVA ?? "java",
+            STATECHART_JAVA: hostEnvironment().JAVA ?? "java",
             STATECHART_RECORD: tlc,
           },
         },
@@ -437,14 +438,14 @@ test(
   async () => {
     const base = broken();
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "statechart-corpus-"));
-    const saved = process.env.TMPDIR;
-    process.env.TMPDIR = tmp;
+    const saved = hostEnvironment().TMPDIR;
+    hostEnvironment().TMPDIR = tmp;
     try {
       await check(`${login}.tla`, `${login}.cfg`);
       await assert.rejects(check(`${base}.tla`, `${base}.cfg`), /SANY could not read/u);
     } finally {
-      if (saved === undefined) {delete process.env.TMPDIR;}
-      else {process.env.TMPDIR = saved;}
+      if (saved === undefined) {delete hostEnvironment().TMPDIR;}
+      else {hostEnvironment().TMPDIR = saved;}
     }
     assert.deepEqual(fs.readdirSync(tmp), []);
   },

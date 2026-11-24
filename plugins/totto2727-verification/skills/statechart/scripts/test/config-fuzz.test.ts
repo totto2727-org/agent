@@ -12,9 +12,10 @@ import { readConfig } from "#statechart/frontends/config.ts";
 import { readChecks } from '#statechart/frontends/spec.ts';
 import type { Checks } from '#statechart/frontends/spec.ts';
 import { visitItems } from "#statechart/ir.ts";
+import { hostEnvironment } from "#statechart/host-env.ts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const skip = !process.env.TLA2TOOLS && "set TLA2TOOLS to the path of tla2tools.jar to run TLC";
+const skip = !hostEnvironment().TLA2TOOLS && "set TLA2TOOLS to the path of tla2tools.jar to run TLC";
 const SEED = 1;
 const CONFIGS = 4000;
 const KEYWORDS =
@@ -160,7 +161,7 @@ const generate = function (random: () => number) {
 
 const readInTlc = function (files: string[], jar: string) {
   const r = spawnSync(
-    process.env.JAVA || "java",
+    hostEnvironment().JAVA || "java",
     ["-cp", jar, path.join(here, "ConfigOracle.java")],
     { input: `${files.join("\n")}\n`, encoding: "utf8", maxBuffer: 1 << 30 },
   );
@@ -231,7 +232,7 @@ test(
       }
       cases.push({ i, text, mutated, skill, file, written });
     }
-    const tlc = readInTlc(files, String(process.env.TLA2TOOLS));
+    const tlc = readInTlc(files, String(hostEnvironment().TLA2TOOLS));
     visitItems(cases, ({ i, text, mutated, skill, file, written }) => {
       const want = tlc.get(file);
       assert.ok(want, `TLC printed nothing for config ${i}`);

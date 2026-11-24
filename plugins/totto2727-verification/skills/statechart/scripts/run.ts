@@ -20,6 +20,7 @@ import { CHART_STATES, LEVEL, PART, RERUN_STATES, hasSection, isString, matchesN
 import type { Bug, CheckResult, ConfigSection, Lasso, Mark, Outcome, Output, Part, Property, Rule, Stop, Trace, Verdict } from './ir.ts';
 import { addPast, deadEnds, finder, lasso, mark } from "./passes/annotate.ts";
 import { pathGraph } from "./passes/paths.ts";
+import { hostEnvironment } from "#statechart/host-env.ts";
 
 export function* fileLines(file: string) {
   const fd = fs.openSync(file, "r");
@@ -165,10 +166,10 @@ const runToFiles = (
   });
 
 const findTlc = async function (cwd: string) {
-  const { TLA2TOOLS, JAVA } = process.env;
+  const { TLA2TOOLS, JAVA } = hostEnvironment();
   if (TLA2TOOLS) {return { jar: TLA2TOOLS, java: JAVA || "java" };}
   const mise = (...args: string[]) =>
-    runChild("mise", args, { cwd, env: { ...process.env, MISE_CEILING_PATHS: cwd } });
+    runChild("mise", args, { cwd, env: { ...hostEnvironment(), MISE_CEILING_PATHS: cwd } });
   const where = () =>
     Promise.all([mise("where", TLC_TOOL), mise("which", "java", "--tool", JAVA_TOOL)]);
   let found = await where();
@@ -281,7 +282,7 @@ export async function check(specFile: string, configFile: string): Promise<Check
         {
           cwd: dir,
           out: path.join(dir, name),
-          env: process.platform === "darwin" ? process.env : { ...process.env, LC_ALL: "C.UTF-8" },
+          env: process.platform === "darwin" ? hostEnvironment() : { ...hostEnvironment(), LC_ALL: "C.UTF-8" },
         },
       );
     };

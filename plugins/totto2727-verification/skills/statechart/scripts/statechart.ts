@@ -8,6 +8,7 @@ import { parseArgs } from "node:util";
 import { killGroup } from "./kill.ts";
 import { messageOf } from "./run.ts";
 import { matchesNull, matchesUndefined, visitItems } from "./ir.ts";
+import { hostEnvironment } from "#statechart/host-env.ts";
 
 const USAGE = `Usage: statechart SPEC.tla [--config FILE] [--view FILE] [--out DIR]
 
@@ -112,7 +113,7 @@ try {
       {
         detached: true,
         stdio: ["ignore", "inherit", "inherit"],
-        env: { ...process.env, TMPDIR: tmp, TEMP: tmp, TMP: tmp },
+        env: { ...hostEnvironment(), TMPDIR: tmp, TEMP: tmp, TMP: tmp },
       },
     );
     janitor = spawn(

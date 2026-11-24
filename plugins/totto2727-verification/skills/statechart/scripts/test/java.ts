@@ -4,6 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { plainText } from "#statechart/backends/plain-text.ts";
 import { readMessages } from "#statechart/frontends/messages.ts";
+import { hostEnvironment } from "#statechart/host-env.ts";
 
 const args = process.argv.slice(2);
 const config = args.includes("-config") ? args[args.indexOf("-config") + 1] : undefined;
@@ -14,13 +15,13 @@ const {
   STATECHART_REPLAY: replay,
   STATECHART_LOG: log,
   STATECHART_PLAIN: plain,
-} = process.env;
+} = hostEnvironment();
 if (log && config) {fs.appendFileSync(log, `## ${name}\n${fs.readFileSync(config, "utf8")}\n`);}
 
 const TAG = /"chart-[0-9a-f]{32}"/g;
 
 const java = (folder: string, args: string[]) => {
-  const r = spawnSync(process.env.STATECHART_JAVA ?? "java", args, {
+  const r = spawnSync(hostEnvironment().STATECHART_JAVA ?? "java", args, {
     encoding: "utf8",
     maxBuffer: 1 << 30,
   });

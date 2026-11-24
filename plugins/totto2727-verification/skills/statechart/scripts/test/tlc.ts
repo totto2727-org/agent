@@ -7,9 +7,10 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { PINNED_FLAGS } from "#statechart/run.ts";
 import { visitItems } from "#statechart/ir.ts";
+import { hostEnvironment } from "#statechart/host-env.ts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const jar = process.env.TLA2TOOLS;
+const jar = hostEnvironment().TLA2TOOLS;
 export const skip = !jar && "set TLA2TOOLS to the path of tla2tools.jar to run TLC";
 
 const RULES = /^(INVARIANTS?|PROPERTY|PROPERTIES|CHECK_DEADLOCK)$/u;
@@ -39,7 +40,7 @@ const tlc = function (dir: string, module: string, cfg: string) {
   const tmp = path.join(dir, `${run}-tmp`);
   fs.mkdirSync(tmp);
   const r = spawnSync(
-    process.env.JAVA ?? "java",
+    hostEnvironment().JAVA ?? "java",
     [
       `-Djava.io.tmpdir=${tmp}`,
       "-cp",
