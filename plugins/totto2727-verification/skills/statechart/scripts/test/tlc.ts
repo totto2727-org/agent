@@ -13,7 +13,7 @@ export const skip = !jar && "set TLA2TOOLS to the path of tla2tools.jar to run T
 const RULES = /^(INVARIANTS?|PROPERTY|PROPERTIES|CHECK_DEADLOCK)$/u;
 
 const exitClass = (status: number | null) =>
-  status === 0 ? 0 : status === 11 || status === 12 || status === 13 ? 1 : 2;
+  status === 0 ? 0 : (status === 11 || status === 12 || status === 13 ? 1 : 2);
 
 const stepsIn = (text: string): number =>
   Math.max((text.match(/^State \d+: (?!Stuttering$)/gm)?.length ?? 0) - 1, 0) +
@@ -23,7 +23,7 @@ const properties = function (cfg: string): string[] {
   const names: string[] = [];
   let section = "";
   Iterator.from(cfg.split("\n")).forEach((line) => {
-    section = line.match(/^[A-Z_]+/u)?.[0] ?? section;
+    section = (/^[A-Z_]+/u.exec(line))?.[0] ?? section;
     if (/^PROPERT(?:Y|IES)$/u.test(section))
       {for (const word of line.trim().split(/\s+/u)) {if (word && word !== section) {names.push(word);}}}
   });
@@ -55,7 +55,7 @@ const tlc = function (dir: string, module: string, cfg: string) {
   const out = r.stdout + r.stderr;
   const temporal = properties(cfg);
   const broke =
-    out.match(/^Error: (?:Invariant|Action property|Property) (\S+) is violated/m)?.[1] ??
+    (/^Error: (?:Invariant|Action property|Property) (\S+) is violated/m.exec(out))?.[1] ??
     (/^Error: Deadlock reached\./mu.test(out) ? "NoDeadlock" : undefined) ??
     (/^Error: Temporal properties were violated\./mu.test(out) && temporal.length === 1
       ? temporal[0]
@@ -67,7 +67,7 @@ const alone = function (cfg: string, rule: string): string {
   const lines: string[] = [];
   let section = "";
   Iterator.from(cfg.split("\n")).forEach((line) => {
-    section = line.match(/^[A-Z_]+/u)?.[0] ?? section;
+    section = (/^[A-Z_]+/u.exec(line))?.[0] ?? section;
     if (!RULES.test(section)) {lines.push(line);}
   });
   if (rule !== "NoDeadlock")
@@ -87,7 +87,7 @@ export type Verdict = {
   report: string;
 };
 
-export function agrees(module: string, files: { [name: string]: string[] }, cfg: string): Verdict {
+export function agrees(module: string, files: Record<string, string[]>, cfg: string): Verdict {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "statechart-plain-"));
   try {
     Object.entries(files).forEach(([name, lines]) => {fs.writeFileSync(path.join(dir, `${name}.tla`), `${lines.join("\n")}\n`);});
@@ -110,7 +110,7 @@ export function agrees(module: string, files: { [name: string]: string[] }, cfg:
     if (cli.status !== 2) {assert.equal(cli.stderr, "");}
     if (!report) {assert.match(cli.stderr, /TLC could not check/u);}
     if (cli.status === 2) {
-      const error = plain.out.match(/^Error: .*$/m)?.[0];
+      const error = (/^Error: .*$/m.exec(plain.out))?.[0];
       assert.ok(
         error && shown.includes(error),
         `TLC says:\n${plain.out}\nThe command says:\n${shown}`,
@@ -120,8 +120,8 @@ export function agrees(module: string, files: { [name: string]: string[] }, cfg:
     const breaks = new Map<string, number>();
     const bounded = new Set<string>();
     Iterator.from(report.matchAll(/^## (\S+) breaks\n(.*)$/gm)).forEach(([, rule, body]) => {
-      const said = body.match(/has (\d+) steps?:/u)?.[1];
-      const file = body.match(/ is in (tlc-\S+\.out)\./)?.[1];
+      const said = (/has (\d+) steps?:/u.exec(body))?.[1];
+      const file = (/ is in (tlc-\S+\.out)\./.exec(body))?.[1];
       if (!file) {
         breaks.set(rule, Number(said));
         return;
@@ -132,8 +132,7 @@ export function agrees(module: string, files: { [name: string]: string[] }, cfg:
       breaks.set(rule, stepsIn(text));
     });
     const list = (title: string): string[] =>
-      report
-        .match(new RegExp(`^## ${title}\\n(.*)$`, "m"))?.[1]
+      (new RegExp(`^## ${title}\\n(.*)$`, "m").exec(report))?.[1]
         .split(", ")
         .sort() ?? [];
     const holds = list("Rules that hold");

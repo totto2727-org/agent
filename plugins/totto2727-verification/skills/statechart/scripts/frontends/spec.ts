@@ -22,10 +22,10 @@ export function readChecks({ configFile, config }: { configFile: string; config:
 
 type XmlNode = { tag: string; text: string; children: XmlNode[] };
 
-const ENTITIES: { [name: string]: string } = { amp: "&", apos: "'", gt: ">", lt: "<", quot: '"' };
+const ENTITIES: Record<string, string> = { amp: "&", apos: "'", gt: ">", lt: "<", quot: '"' };
 
 const decode = (text: string): string =>
-  text.replace(/&(#x?)?(\w+);/g, (_, number: string | undefined, name: string) =>
+  text.replaceAll(/&(#x?)?(\w+);/g, (_, number: string | undefined, name: string) =>
     number
       ? String.fromCodePoint(Number.parseInt(name, number === "#x" ? 16 : 10))
       : ENTITIES[name],
@@ -101,7 +101,7 @@ export function initialOnlyProperties({ definitions }: Sany, { written, properti
   Iterator.from(written).forEach((s) => {if (s.key === "CONSTANT")
       {for (let i = 1; i + 1 < s.tokens.length; i++)
         {if (s.tokens[i] === "<-" && NAME.test(s.tokens[i + 1]))
-          replaced.set(s.tokens[i - 1], s.tokens[i + 1]);}}});
+          {replaced.set(s.tokens[i - 1], s.tokens[i + 1]);}}}});
   const names = new Set<string>();
   Iterator.from(properties).forEach((name) => {
     const definition = definitions.get(replaced.get(name) ?? name);

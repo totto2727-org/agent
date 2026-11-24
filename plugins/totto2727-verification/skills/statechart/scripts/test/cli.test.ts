@@ -59,7 +59,7 @@ const run = function (
       },
     },
   );
-  const configs: { [name: string]: string } = {};
+  const configs: Record<string, string> = {};
   if (fs.existsSync(log))
     {Iterator.from(read(log).split(/^## /mu)).forEach((part) => {if (part) {configs[part.slice(0, part.indexOf("\n"))] = part;}});}
   const files = fs.existsSync(out) ? fs.readdirSync(out).sort() : [];
@@ -93,7 +93,7 @@ Iterator.from(fs.readdirSync(corpus)).forEach((name) => {
     assert.equal(r.stderr, "");
     const first = path.join(dir, "verdict-1.exit");
     const plain = fs.existsSync(first) ? Number(read(first)) : 0;
-    assert.equal(r.status, plain === 0 ? 0 : [11, 12, 13].includes(plain) ? 1 : 2);
+    assert.equal(r.status, plain === 0 ? 0 : ([11, 12, 13].includes(plain) ? 1 : 2));
     assert.equal(r.report, read(path.join(dir, "report.md")));
     assert.equal(read(path.join(r.out, "chart.mmd")), read(path.join(dir, "chart.mmd")));
     assert.deepEqual(r.files, ["chart.mmd", "report.md", "tlc.out", ...named(r.report)].sort());
@@ -126,7 +126,7 @@ Iterator.from(fs.readdirSync(corpus)).forEach((name) => {
     assert.equal(r.stderr, "");
     const first = path.join(dir, "verdict-1.exit");
     const plain = fs.existsSync(first) ? Number(read(first)) : 0;
-    assert.equal(r.status, plain === 0 ? 0 : [11, 12, 13].includes(plain) ? 1 : 2);
+    assert.equal(r.status, plain === 0 ? 0 : ([11, 12, 13].includes(plain) ? 1 : 2));
     assert.equal(r.report, read(path.join(corpus, name, "report.md")));
     assert.equal(read(path.join(r.out, "chart.mmd")), read(path.join(corpus, name, "chart.mmd")));
     for (const currentFile of r.files) {assert.doesNotMatch(read(path.join(r.out, currentFile)), /\r|@!@!@/u, currentFile);}
@@ -586,7 +586,7 @@ test("TLC checks the rules and draws the chart with VIEW and SYMMETRY, and the r
 });
 
 const overBudget = (file: string): void =>
-  fs.writeFileSync(file, read(file).replace(/\b\d+( distinct states found)/g, "1234$1"));
+  fs.writeFileSync(file, read(file).replaceAll(/\b\d+( distinct states found)/g, "1234$1"));
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a check above the chart budget skips the drawing run and draws only the bug paths", () => {
@@ -941,9 +941,9 @@ test("a view with a group in a theme color draws that color and names the group 
   assert.equal(r.status, 0);
   const chart = read(path.join(r.out, "chart.mmd"));
   assert.match(chart, /^title: "Login"$/mu);
-  const id = chart.match(/^ {2}(s\d+): Signed in$/mu)?.[1];
+  const id = (/^ {2}(s\d+): Signed in$/mu.exec(chart))?.[1];
   assert.match(chart, new RegExp(`^ {2}class ${id} teal$`, "m"));
-  const legend = chart.match(/^ {4}(lg\d+): Done$/mu)?.[1];
+  const legend = (/^ {4}(lg\d+): Done$/mu.exec(chart))?.[1];
   assert.match(chart, new RegExp(`^ {2}class ${legend} teal$`, "m"));
 });
 
@@ -1165,7 +1165,7 @@ const contents = (p: string) => {
   const stat = fs.lstatSync(p);
   if (stat.isSymbolicLink()) {return fs.readlinkSync(p);}
   if (!stat.isDirectory()) {return read(p);}
-  const files: { [name: string]: string } = {};
+  const files: Record<string, string> = {};
   Iterator.from(fs.readdirSync(p)).forEach((f) => {files[f] = read(path.join(p, f));});
   return files;
 };
@@ -1323,8 +1323,8 @@ Iterator.from([
   ],
   [
     "a no-break space before CHECK_DEADLOCK FALSE",
-    "SPECIFICATION Spec\nINVARIANT TypeOK\n\u00a0CHECK_DEADLOCK FALSE\n",
-    /Login\.cfg at line 3\. It cannot read the character "\u00a0" \(U\+00A0\) outside a string\./,
+    "SPECIFICATION Spec\nINVARIANT TypeOK\n\u00A0CHECK_DEADLOCK FALSE\n",
+    /Login\.cfg at line 3\. It cannot read the character "\u00A0" \(U\+00A0\) outside a string\./,
   ],
   [
     "a line separator before CHECK_DEADLOCK FALSE",

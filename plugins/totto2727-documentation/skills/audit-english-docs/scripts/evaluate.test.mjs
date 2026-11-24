@@ -34,7 +34,7 @@ import {
 } from "./mechanical.mjs";
 
 const execute = promisify(execFile);
-const script = fileURLToPath(new URL("./evaluate.mjs", import.meta.url));
+const script = fileURLToPath(new URL("evaluate.mjs", import.meta.url));
 
 /** @typedef {{ directory: string }} MockDirectory */
 /** @typedef {{ cacheStatus?: string, exitCode?: number, mode?: string, ray?: string, statusSequence?: string }} MockOptions */
@@ -514,7 +514,7 @@ describe("private dictionary evidence boundaries", () => {
       evaluate({ ...paths, environment: CREDENTIALS }),
     );
     expect(calls).toHaveLength(1);
-    const payload = calls[0].payload;
+    const { payload } = calls[0];
     const selected = object(localEvidence(calls[0]).dictionaryCandidates, "dictionary evidence");
     if (!Array.isArray(selected.candidates)) {
       throw new TypeError("The request must contain dictionary candidates");
@@ -848,7 +848,7 @@ describe("documentation quality evaluator public pipeline", () => {
         'header = "Content-Type: application/json"',
         'header = "cf-aig-cache-ttl: 2592000"',
         'header = "cf-aig-skip-cache: false"',
-        'write-out = "\\n%{http_code}"',
+        String.raw`write-out = "\n%{http_code}"`,
       ]),
       readsBodyFile: true,
       retryOverride: false,
@@ -982,7 +982,7 @@ describe("documentation quality evaluator public pipeline", () => {
     expect(calls).toHaveLength(3);
     expect(calls.filter(hasRetryOverride)).toHaveLength(0);
     expect(report.evaluations.every((entry) => entry.status === "error")).toBe(true);
-    const error = report.evaluations[0].error;
+    const { error } = report.evaluations[0];
     expect(
       ["transport failed", "28"].filter((fragment) => !error.includes(fragment)),
     ).toStrictEqual([]);
@@ -1040,7 +1040,7 @@ describe("documentation quality evaluator public pipeline", () => {
     expect(report).toMatchObject({ attentionRequired: true, requestCount: 3 });
     expect(calls).toHaveLength(3);
     expect(report.evaluations.every((entry) => entry.status === "error")).toBe(true);
-    const error = report.evaluations[0].error;
+    const { error } = report.evaluations[0];
     expect(
       ["transport failed", "28"].filter((fragment) => !error.includes(fragment)),
     ).toStrictEqual([]);
@@ -1677,7 +1677,7 @@ describe("local mechanical and semantic engine boundaries", () => {
           "--output",
           paths.outputPath,
           "--mechanical-only",
-        ]).catch((failure) => failure),
+        ]).catch((error_) => error_),
       );
       expect(error).toMatchObject({ code: 2 });
       expect(error.stderr).toContain("Section partial selects only part of a paragraph");
@@ -1738,7 +1738,7 @@ describe("local mechanical and semantic engine boundaries", () => {
         "--output",
         paths.outputPath,
         "--mechanical-only",
-      ]).catch((failure) => failure),
+      ]).catch((error_) => error_),
     );
     expect(error).toMatchObject({ code: 2 });
     expect(error.stderr).toContain("context is no longer supported");

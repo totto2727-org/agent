@@ -53,13 +53,13 @@ const stateFor = function (item) {
       },
       page: { markdown: item.page },
       local:
-        item.scope !== "page"
-          ? {
+        item.scope === "page"
+          ? null
+          : {
               headingPath: item.section.headingPath,
               markdown: item.section.text,
               sourceRange: item.section.sourceRange,
-            }
-          : null,
+            },
     },
   };
   if (item.dictionaryEvidence) {

@@ -8,7 +8,7 @@ const HAZARD =
 const DIRECTION = /(direction)\s+(?=LR|RL|TB|BT)/giu;
 const DOUBLE_BRACKET = /\[(?=\[)/gu;
 const C4 = /C4(?=Container|Component|Dynamic|Deployment)/gu;
-const UNDRAWN = /[\0\x80-\x9F]/u;
+const UNDRAWN = /[\0\u0080-\u009F]/u;
 const REWRITTEN = ["ﬂ°", "¶ß"];
 const MARKER = /(?<=marker-end=)"/gu;
 const FIRST_CODE_UNIT = 0;
@@ -135,10 +135,10 @@ const connection = (
   from: string[],
   to: string[],
   { label, start }: { label?: string | undefined; start: boolean },
-): Edge => {
+): Edge => (
   // oxlint-disable-next-line eslint/sort-keys -- Keep the renderer's established shape for returned edges.
-  return { from, start, to, label };
-};
+  { from, start, to, label }
+);
 
 const parentPaths = (states: ChartState[]): string[][] => {
   const parents = new Map<string, string[]>();

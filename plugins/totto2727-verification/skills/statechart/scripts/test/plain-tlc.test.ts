@@ -8,12 +8,12 @@ const late = [
   "EXTENDS Naturals, TLC",
   "CONSTANT Mode",
   "VARIABLES x",
-  "f == [i \\in 0..2 |-> 0]",
+  String.raw`f == [i \in 0..2 |-> 0]`,
   "Init == x = 0",
-  "Grow == x < 5 /\\ x' = x + 1",
-  'Bad == x = 3 /\\ \\/ Mode = "assert" /\\ Assert(FALSE, "late error") /\\ x\' = 0',
-  '                \\/ Mode = "div" /\\ x\' = 1 \\div 0',
-  "Next == Grow \\/ Bad",
+  String.raw`Grow == x < 5 /\ x' = x + 1`,
+  String.raw`Bad == x = 3 /\ \/ Mode = "assert" /\ Assert(FALSE, "late error") /\ x' = 0`,
+  String.raw`                \/ Mode = "div" /\ x' = 1 \div 0`,
+  String.raw`Next == Grow \/ Bad`,
   "Small == x < 1",
   "Below == x < 2",
   "InDomain == f[x] = 0",
@@ -51,10 +51,10 @@ const warnPath = (next: string): string[] => [
   "---- MODULE WarnPath ----",
   "EXTENDS Naturals",
   "VARIABLES x",
-  "f == [i \\in 0..1 |-> i]",
+  String.raw`f == [i \in 0..1 |-> i]`,
   "Init == x = 0",
-  "One == x < 3 /\\ x' = x + 1",
-  "Two == x < 3 /\\ x' = x + 2",
+  String.raw`One == x < 3 /\ x' = x + 1`,
+  String.raw`Two == x < 3 /\ x' = x + 2`,
   `Next == ${next}`,
   "Zero == f[x] = 0",
   "====",
@@ -64,7 +64,7 @@ const warnPath = (next: string): string[] => [
 test("a rule that breaks before it fails to evaluate breaks", { skip }, () => {
   const verdict = agrees(
     "WarnPath",
-    { WarnPath: warnPath("One \\/ Two") },
+    { WarnPath: warnPath(String.raw`One \/ Two`) },
     "INIT Init\nNEXT Next\nINVARIANT Zero\n",
   );
   assert.equal(verdict.status, 1);
@@ -76,7 +76,7 @@ test("a rule that fails to evaluate before TLC reaches a break exits 2", { skip 
   Iterator.from(["", "CHECK_DEADLOCK FALSE\n"]).forEach((deadlock) => {
     const verdict = agrees(
       "WarnPath",
-      { WarnPath: warnPath("Two \\/ One") },
+      { WarnPath: warnPath(String.raw`Two \/ One`) },
       `INIT Init\nNEXT Next\nINVARIANT Zero\n${deadlock}`,
     );
     assert.equal(verdict.status, 2);
@@ -95,11 +95,11 @@ test("a rule that no verdict run checks stays not checked under a SYMMETRY", { s
         "CONSTANTS a, b, S",
         "VARIABLES x, n",
         "Perms == Permutations(S)",
-        "Init == x \\in S /\\ n = 0",
-        "Next == n < 4 /\\ n' = n + 1 /\\ UNCHANGED x",
+        String.raw`Init == x \in S /\ n = 0`,
+        String.raw`Next == n < 4 /\ n' = n + 1 /\ UNCHANGED x`,
         "Early == n # 1",
         "Bad == x = a",
-        'Boom == n < 3 \\/ Assert(FALSE, "boom")',
+        String.raw`Boom == n < 3 \/ Assert(FALSE, "boom")`,
         "====",
       ],
     },
@@ -121,10 +121,10 @@ test("a deadlock breaks whatever shape the SPECIFICATION has", { skip }, () => {
         "EXTENDS Naturals",
         "VARIABLE x",
         "Init == x = 0",
-        "Next == x < 2 /\\ x' = x + 1",
-        "Spec == Init /\\ [][Next]_x",
-        "LiveSpec == Spec /\\ WF_x(Next)",
-        "TypeOK == x \\in 0..2",
+        String.raw`Next == x < 2 /\ x' = x + 1`,
+        String.raw`Spec == Init /\ [][Next]_x`,
+        String.raw`LiveSpec == Spec /\ WF_x(Next)`,
+        String.raw`TypeOK == x \in 0..2`,
         "====",
       ],
     },
@@ -132,7 +132,7 @@ test("a deadlock breaks whatever shape the SPECIFICATION has", { skip }, () => {
   );
   assert.deepEqual(live.breaks, new Map([["NoDeadlock", 2]]));
   assert.deepEqual(live.holds, ["TypeOK"]);
-  Iterator.from(["[][Next \\/ Tick]_vars", "[][\\E i \\in 1..2 : Step(i)]_vars"]).forEach((next) => {
+  Iterator.from([String.raw`[][Next \/ Tick]_vars`, String.raw`[][\E i \in 1..2 : Step(i)]_vars`]).forEach((next) => {
     const verdict = agrees(
       "Shape",
       {
@@ -141,10 +141,10 @@ test("a deadlock breaks whatever shape the SPECIFICATION has", { skip }, () => {
           "EXTENDS Naturals",
           "VARIABLES x, t",
           "vars == <<x, t>>",
-          "Init == x = 0 /\\ t = 0",
-          "Step(i) == x < 2 /\\ x' = x + i /\\ UNCHANGED t",
+          String.raw`Init == x = 0 /\ t = 0`,
+          String.raw`Step(i) == x < 2 /\ x' = x + i /\ UNCHANGED t`,
           "Next == Step(1)",
-          "Tick == t < 1 /\\ t' = 1 /\\ UNCHANGED x",
+          String.raw`Tick == t < 1 /\ t' = 1 /\ UNCHANGED x`,
           `Spec == Init /\\ ${next}`,
           "====",
         ],
@@ -165,7 +165,7 @@ test("a SPECIFICATION from an INSTANCE checks deadlock and finds none", { skip }
         "---- MODULE Inner ----",
         "EXTENDS Naturals",
         "VARIABLE x",
-        "Spec == x = 0 /\\ [][x' = (x + 1) % 3]_x",
+        String.raw`Spec == x = 0 /\ [][x' = (x + 1) % 3]_x`,
         "====",
       ],
       Outer: [
@@ -216,7 +216,7 @@ test(
           "---- MODULE NoInit ----",
           "EXTENDS Naturals",
           "VARIABLE x",
-          "Init == x = 0 /\\ x > 0",
+          String.raw`Init == x = 0 /\ x > 0`,
           "Next == x' = x + 1",
           "Small == x < 3",
           "====",
@@ -246,7 +246,7 @@ test(
           "EXTENDS Naturals",
           "VARIABLE x",
           "Next == x' = (x + 1) % 100005",
-          "Spec == x = 0 /\\ [][Next]_x /\\ WF_x(Next)",
+          String.raw`Spec == x = 0 /\ [][Next]_x /\ WF_x(Next)`,
           "Early == x # 3",
           "Back == []<>(x = 0)",
           "====",

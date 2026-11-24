@@ -456,15 +456,15 @@ export function scoreReport(report, labels) {
       const { evaluation, answers } = matches[0];
       if (evaluation.status !== "complete") {
         row.reason = evaluation.status === "error" ? "evaluation_error" : "not_evaluated";
-      } else if (answers.length !== 1) {
+      } else if (answers.length === 1) {
+        scoreCompletedAnswer(row, answers[0], threshold);
+      } else {
         row.reason = answers.length === 0 ? "missing" : "duplicate_answer";
         if (answers.length === 0) {
           missing += 1;
         } else {
           duplicates += answers.length - 1;
         }
-      } else {
-        scoreCompletedAnswer(row, answers[0], threshold);
       }
     }
     rows.push(row);

@@ -31,7 +31,7 @@ export const json = (v: Value): Json => {
   return j;
 };
 
-const projectedVars = new WeakMap<Vars, { [name: string]: Json }>();
+const projectedVars = new WeakMap<Vars, Record<string, Json>>();
 
 const jsonVars = (vars: Vars) => {
   let j = projectedVars.get(vars);
@@ -48,7 +48,7 @@ const THEME_COLORS = ["blue", "orange", "purple", "yellow", "teal", "tan", "pink
 
 const isFunction = (v: unknown): v is (...args: unknown[]) => unknown => typeof v === "function";
 
-const isPlainObject = (v: unknown): v is { [key: string]: unknown } => {
+const isPlainObject = (v: unknown): v is Record<string, unknown> => {
   if (typeof v !== "object" || matchesNull(v)) {return false;}
   const proto = Object.getPrototypeOf(v);
   return proto === Object.prototype || matchesNull(proto);
@@ -61,7 +61,7 @@ const VIEW_EXPORTS = ["state", "step", "group", "colors", "title"];
 type Inspect = (value: unknown, options: { breakLength: number }) => string;
 
 export function checkView(
-  view: Readonly<{ [name: string]: unknown }>,
+  view: Readonly<Record<string, unknown>>,
   inspect: Inspect,
 ): CheckedView {
   const literal = (v: unknown): string =>
@@ -87,7 +87,7 @@ export function checkView(
   if (wrong.length) {throw new Error(`The view's ${list(wrong)}.`);}
   if (!matchesUndefined(group) && matchesUndefined(exported))
     {throw new Error("The view exports group() but no colors. Give each group a color in colors.");}
-  const colors: { [group: string]: string } = Object.create(null);
+  const colors: Record<string, string> = Object.create(null);
   const bad: string[] = [];
   Object.entries(exported ?? {}).forEach(([name, color]) => {
     if (isString(color) && THEME_COLORS.includes(color)) {colors[name] = color;}

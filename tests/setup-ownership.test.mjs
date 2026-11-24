@@ -146,10 +146,11 @@ test("uninstall leaves Orca's host-provided guides and their lock entries intact
   const result = uninstall();
   assert.equal(result.status, 0, result.stderr);
   assert.equal(await readFile(lock, "utf8"), bytes);
-  for (const currentName of names)
+  for (const currentName of names) {
     assert.equal(
       await readFile(join(root, ".agents/skills", currentName, "SKILL.md"), "utf8"),
       pristine,
     );
+  }
   await assert.rejects(readFile(receipt), { code: "ENOENT" });
 });

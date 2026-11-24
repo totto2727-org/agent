@@ -16,7 +16,7 @@ import { evaluate } from "./evaluate.mjs";
 import { parseArguments, prepareCorpus, scoreCorpus, scoreReport } from "./history-corpus.mjs";
 
 const execute = promisify(execFile);
-const script = fileURLToPath(new URL("./history-corpus.mjs", import.meta.url));
+const script = fileURLToPath(new URL("history-corpus.mjs", import.meta.url));
 const directories = [];
 const revision = "a".repeat(40);
 

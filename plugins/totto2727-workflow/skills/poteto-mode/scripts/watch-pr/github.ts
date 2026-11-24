@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import type * as T from "./types.ts";
 import { nonEmpty, parsePrNumber } from "./types.ts";
 import { isString, matchesNull, matchesUndefined } from "./native-predicates.ts";
+
 export const REVIEW_THREADS_QUERY =
   "\nquery ReviewThreads($owner: String!, $repo: String!, $pr: Int!, $after: String) {\n  repository(owner: $owner, name: $repo) {\n    pullRequest(number: $pr) {\n      reviewThreads(first: 100, after: $after) {\n        pageInfo {\n          hasNextPage\n          endCursor\n        }\n        nodes {\n          id\n          isResolved\n          comments(first: 10) {\n            nodes {\n              body\n              createdAt\n              path\n              line\n              author { login }\n            }\n          }\n        }\n      }\n    }\n  }\n}\n";
 export const PR_COMMIT_STATUS_QUERY =
@@ -227,9 +228,9 @@ const checkDetails = function (value: Record<string, unknown>, nameKey: string) 
     link:
       isString(value.link)
         ? value.link
-        : isString(value.detailsUrl)
+        : (isString(value.detailsUrl)
           ? value.detailsUrl
-          : "",
+          : ""),
     workflow: isString(value.workflow) ? value.workflow : "",
   };
 };
@@ -321,9 +322,9 @@ const parseComment = function (value: unknown): T.ReviewComment {
     line:
       matchesNull(object.line)
         ? null
-        : Number.isInteger(object.line)
+        : (Number.isInteger(object.line)
           ? Number(object.line)
-          : missing("review comment.line", object.line),
+          : missing("review comment.line", object.line)),
     createdAt: string(object.createdAt, "review comment.createdAt"),
   };
 };
@@ -395,7 +396,7 @@ export function buildReviewThreads(
     if (matchesNull(key)) {keyless = true;}
     else {keys.add(key);}
   });
-  const passes = keys.size > 0 ? keys.size : keyless ? 1 : 0;
+  const passes = keys.size > 0 ? keys.size : (keyless ? 1 : 0);
   return threads
     .filter((thread) => !thread.resolved)
     .map(({ id, firstComment }) => ({
@@ -556,7 +557,7 @@ export class GhGitHubReader implements T.GitHubReader {
     );
     if (commits.length === 0) {return { checks: [], endCursor: null };}
     const commit = record(
-      at(commits[commits.length - 1], ["commit"]),
+      at(commits.at(-1), ["commit"]),
       "commit"
     );
     if (matchesNull(commit.statusCheckRollup))

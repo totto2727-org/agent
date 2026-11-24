@@ -1,7 +1,7 @@
 import { EC, LEVEL, PART, isString } from '../ir.ts';
 import type { Message, Part } from '../ir.ts';
 
-const PREFIX: { [level: number]: string } = {
+const PREFIX: Record<number, string> = {
   [LEVEL.ERROR]: "Error: ",
   [LEVEL.TLCBUG]: "TLC Bug: ",
   [LEVEL.WARNING]: "Warning: ",

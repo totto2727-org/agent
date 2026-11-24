@@ -40,8 +40,8 @@ const VALUES = [
   "m1",
   '"a b"',
   '"INVARIANT (* x"',
-  '"\\\\* y *)"',
-  '"\\""',
+  String.raw`"\\* y *)"`,
+  String.raw`"\""`,
   "{}",
   "{1, 2}",
   '{"p", "q"}',
@@ -50,7 +50,7 @@ const VALUES = [
 const SPACES = [" ", " ", "\t", "  "];
 const BREAKS = ["\n", "\n", "\r\n", "\r", "\n\n"];
 const GAPS = [...SPACES, ...BREAKS, ""];
-const ODD_SPACES = ["", "\u00a0", "\u2028", "\u2029", "\u0085"];
+const ODD_SPACES = ["", "\u00A0", "\u2028", "\u2029", "\u0085"];
 const COMMENTS = [
   "\\* CHECK_DEADLOCK FALSE\n",
   "\\* CHECK_DEADLOCK FALSE\r",
@@ -74,7 +74,7 @@ const INSERTS = [
   "ALIAS",
   "POSTCONDITION",
   "\\",
-  '"a\\qb"',
+  String.raw`"a\qb"`,
 ];
 const NAME = /^\w*[A-Za-z]\w*$/u;
 const MODEL = [
@@ -90,7 +90,7 @@ const MODEL = [
   "TYPE_CONSTRAINT",
 ];
 
-type Reading = { [key: string]: unknown };
+type Reading = Record<string, unknown>;
 
 const isRecord = (v: unknown): v is Reading =>
   typeof v === "object" && v !== null && !Array.isArray(v);
@@ -117,15 +117,15 @@ const generate = function (random: () => number) {
     const add = (text: string): number => out.push({ gap: pick(SPACES), text });
     if (key === "CHECK_DEADLOCK") {add(pick(["TRUE", "FALSE"]));}
     else if (ONE_NAME.includes(key)) {add(pick(NAMES));}
-    else if (!key.startsWith("CONSTANT")) {for (let n = 1 + int(3); n--;) {add(pick(NAMES));}}
-    else
-      {for (let n = 1 + int(2); n--;) {
+    else if (key.startsWith("CONSTANT")) {for (let n = 1 + int(2); n--;) {
         const form = pick(["=", "<-", "<-[M]"]);
         add(pick(["N", "K", "S"]));
         add(form.slice(0, 2));
         if (form === "<-[M]") {add("[M]");}
         add(form === "=" ? pick(VALUES) : pick(NAMES));
       }}
+    else
+      {for (let n = 1 + int(3); n--;) {add(pick(NAMES));}}
     return out;
   };
   const tokens = pick([["SPECIFICATION"], ["INIT", "NEXT"]]).flatMap((key) => section(key));

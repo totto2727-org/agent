@@ -49,7 +49,7 @@ const unlabeled = function (
 export function ask(graph: Graph, { states: tla, nameOf, from, to }: Walk, view: View): Answers {
   const n = nameOf.length;
   const m = from.length;
-  const state = view.state;
+  const {state} = view;
   const shapes = new Array<Shape>(n);
   for (let i = 0; i < n; i++)
     {shapes[i] = shapeOf(state ? state(tla[i].vars) : nameOf[i], tla[i].vars);}

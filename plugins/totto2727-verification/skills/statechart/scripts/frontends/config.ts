@@ -82,7 +82,7 @@ const tokenizeConfig = function (text: string, cannot: (line: number, words: str
     const two = text.slice(i, i + 2);
     const start = line;
     if (c === " " || c === "\t" || c === "\n" || c === "\r") {skip(i + 1);}
-    else if (two === "\\*") {
+    else if (two === String.raw`\*`) {
       const end = text.slice(i).search(/[\n\r]/u);
       skip(end < 0 ? text.length : i + end);
     } else if (two === "(*") {
@@ -103,10 +103,10 @@ const tokenizeConfig = function (text: string, cannot: (line: number, words: str
         if (ch === "\n" || ch === "\r")
           {throw cannot(
             start,
-            "A string starts here and does not end on its line. Write \\n for a line break in a string.",
+            String.raw`A string starts here and does not end on its line. Write \n for a line break in a string.`,
           );}
         if (ch === "\0") {throw cannot(start, "A string has the character U+0000.");}
-        if (ch === "\\" && !matchesUndefined(text[j + 1]) && !'"\\ntrf'.includes(text[j + 1]))
+        if (ch === "\\" && !matchesUndefined(text[j + 1]) && !String.raw`"\ntrf`.includes(text[j + 1]))
           {throw cannot(
             start,
             `A string has a backslash before ${shown(text[j + 1])}. A string can use only the escapes \\" \\\\ \\n \\t \\r \\f.`,
@@ -138,7 +138,7 @@ const tokenizeConfig = function (text: string, cannot: (line: number, words: str
     else if ("{}()[],=!".includes(c)) {push(c);}
     else {
       const ch = String.fromCodePoint(text.codePointAt(i) ?? 0);
-      const where = ch > "\x7f" ? " outside a string" : "";
+      const where = ch > "\x7F" ? " outside a string" : "";
       throw cannot(start, `It cannot read the character ${shown(ch)}${where}. ${CONFIG_HOLDS}`);
     }
   }

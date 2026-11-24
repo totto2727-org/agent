@@ -7,7 +7,7 @@ export type Value =
   | { kind: "interval"; lo: number; hi: number }
   | { kind: "function"; printedAs: "tuple" | "record" | "pairs"; keys: Value[]; values: Value[] };
 
-export type Vars = { [name: string]: Value };
+export type Vars = Record<string, Value>;
 
 export type Rule = { kind: "invariant" | "deadlock" | "property"; name: string };
 
@@ -142,7 +142,7 @@ export type View = {
   state?: (vars: Vars) => unknown;
   step?: (action: string, from: Vars, to: Vars) => unknown;
   group?: (vars: Vars) => unknown;
-  colors?: { [group: string]: string };
+  colors?: Record<string, string>;
   title?: string;
 };
 
@@ -150,7 +150,7 @@ export const checked = Symbol("checked");
 
 export type CheckedView = View & Readonly<{ [checked]: true }>;
 
-export type Shape = { [region: string]: string[] };
+export type Shape = Record<string, string[]>;
 
 export type Walk = {
   ids: string[];
@@ -233,13 +233,13 @@ export type Chart = {
   notes: string[];
   inside: number;
   quiet: number;
-  colors: { [group: string]: string };
+  colors: Record<string, string>;
   paths: string[];
   loops: string[];
   lie?: string;
 };
 
-export const isRecord = (v: unknown): v is { [key: string]: unknown } =>
+export const isRecord = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && !matchesNull(v) && !Array.isArray(v);
 
 // oxlint-disable-next-line rules/force-predicate, typescript/explicit-function-return-type, typescript/explicit-module-boundary-types -- Infer a native type guard for the standalone skill.
@@ -256,20 +256,20 @@ export const matchesUndefined = (value: unknown) => value === undefined;
 
 export const PART = 1 << 24;
 
-export const byText = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
+export const byText = (a: string, b: string) => (a < b ? -1 : (a > b ? 1 : 0));
 
 export const list = (items: string[], and = "and"): string =>
   items.length < 2 ? items.join("") : `${items.slice(0, -1).join(", ")} ${and} ${items.at(-1)}`;
 
-const ESCAPES: { [c: string]: string } = {
-  '"': '\\"',
-  "\\": "\\\\",
-  "\n": "\\n",
-  "\t": "\\t",
-  "\r": "\\r",
-  "\f": "\\f",
+const ESCAPES: Record<string, string> = {
+  '"': String.raw`\"`,
+  "\\": String.raw`\\`,
+  "\n": String.raw`\n`,
+  "\t": String.raw`\t`,
+  "\r": String.raw`\r`,
+  "\f": String.raw`\f`,
 };
-const quote = (s: string): string => `"${s.replace(/["\\\n\t\r\f]/g, (c) => ESCAPES[c])}"`;
+const quote = (s: string): string => `"${s.replaceAll(/["\\\n\t\r\f]/g, (c) => ESCAPES[c])}"`;
 
 const joined = (items: Value[], sep: string): string => {
   let s = "";
@@ -344,7 +344,7 @@ export const defaultState = (vars: Vars): string => {
 export const stateText = (vars: Vars): string => {
   const parts: string[] = [];
   Object.entries(vars).forEach(([k, v]) => {parts.push(`${k} = ${show(v)}`);});
-  return parts.join(" /\\ ");
+  return parts.join(String.raw` /\ `);
 };
 
 export const count = (n: number) => {
@@ -439,7 +439,7 @@ const functionKey = ({ keys, values }: { keys: Value[]; values: Value[] }): stri
     keyTexts.push(key(keys[keyIndex]));
     if (typeof keys[keyIndex] === "number") {ints++;}
   }
-  const rank = (i: number): number => (typeof keys[i] === "number" ? (keys[i] as number) : Infinity);
+  const rank = (i: number): number => (typeof keys[i] === "number" ? (keys[i]) : Infinity);
   order.sort((a, b) => rank(a) - rank(b) || byText(keyTexts[a], keyTexts[b]) || a - b);
   let tuple = ints === keys.length;
   for (let i = 0; tuple && i < order.length; i++) {tuple = keys[order[i]] === i + 1;}
@@ -473,9 +473,9 @@ export const key = (v: Value): string => {
     k =
       v.kind === "interval"
         ? `{${v.lo > v.hi ? "" : span(v.lo, v.hi)}}`
-        : v.kind === "set"
+        : (v.kind === "set"
           ? setKey(v.members)
-          : functionKey(v);
+          : functionKey(v));
     keys.set(v, k);
   }
   return k;

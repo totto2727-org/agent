@@ -169,10 +169,10 @@ describe("rendering", () => {
             isBugbot: false,
             bugbotReviewPasses: 0,
             firstComment: {
-              authorLogin: "evil\x1b[2K\ruser",
-              body: "\x1b[31mDangerous\x1b[0m\r\nSecond line",
+              authorLogin: "evil\x1B[2K\ruser",
+              body: "\x1B[31mDangerous\x1B[0m\r\nSecond line",
               createdAt: "2026-07-26T00:00:00.000Z",
-              path: "src/\x1b[31minvalid\x1b[0m\x00path.ts",
+              path: "src/\x1B[31minvalid\x1B[0m\x00path.ts",
               line: 12,
             },
           },
@@ -185,7 +185,7 @@ describe("rendering", () => {
     expect(rendered).toContain(
       "thread_1 src/invalidpath.ts 12 eviluser isBugBot=false bugbotReviewPasses=0 Dangerous"
     );
-    expect(rendered).not.toContain("\x1b");
+    expect(rendered).not.toContain("\x1B");
     expect(rendered).not.toContain("\r");
     expect(rendered).not.toContain("Second line");
   });

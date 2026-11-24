@@ -1,5 +1,6 @@
 import { stripVTControlCharacters } from "node:util";
 import type * as T from "./types.ts";
+
 export const renderJson = (verdict: T.WatcherVerdict): string =>
   `${JSON.stringify(verdict)}\n`;
 const ciCell = function (row: T.PrSnapshot): string {
@@ -28,12 +29,12 @@ const reviewCell = function (row: T.PrSnapshot): string {
   if (row.kind !== "open") {return "\u2014";}
   const open = row.threads.length;
   return row.reviewAutomationRunning
-    ? open
+    ? (open
       ? `🤖 running, ${open} open`
-      : "🤖 running"
-    : open
+      : "🤖 running")
+    : (open
       ? `📝 ${open} open`
-      : "✅";
+      : "✅");
 };
 const mergeCell = function (row: T.PrSnapshot): string {
   if (row.kind === "merged") {return "✅ merged";}
@@ -58,7 +59,7 @@ export function renderStatusTable(rows: T.NonEmpty<T.PrSnapshot>): string {
   return `${lines.join("\n")}\n`;
 }
 const sanitizeText = function (value: string): string {
-  return stripVTControlCharacters(value).replace(/\p{Cc}/gu, "");
+  return stripVTControlCharacters(value).replaceAll(/\p{Cc}/gu, "");
 };
 const threadLine = function (thread: T.ReviewThread): string {
   const comment = thread.firstComment;
@@ -124,9 +125,9 @@ const renderBlocker = function (blocker: T.MergeBlocker | StatusQueryBlocker): s
       const action =
         blocker.reason === "closed-without-merge"
           ? "restore or remove the closed PR from the queued stack"
-          : blocker.reason === "draft-pr"
+          : (blocker.reason === "draft-pr"
             ? "mark the PR ready for review before waiting for the merge queue"
-            : "resolve the changes-requested review before waiting for the merge queue";
+            : "resolve the changes-requested review before waiting for the merge queue");
       return [
         `BLOCKER: ${blocker.reason}`,
         `pr=${blocker.pr.number}`,

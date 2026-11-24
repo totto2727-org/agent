@@ -10,7 +10,7 @@ if (!checkout || process.argv.length > 4) {
   throw new Error("Usage: node scripts/compare-pstack.mjs <mirror-checkout> [candidate-commit]");
 }
 const record = readFileSync(join(root, "docs/upstream-differences.md"), "utf8");
-const base = record.match(/backnotprop\/pstack\/commit\/([0-9a-f]{40})/u)?.[1];
+const base = /backnotprop\/pstack\/commit\/([0-9a-f]{40})/u.exec(record)?.[1];
 if (!base) {
   throw new Error("Missing pinned pstack mirror commit in the divergence record");
 }
@@ -38,7 +38,9 @@ Iterator.from(readdirSync(join(root, "plugins"))).forEach((pkg) => {
 });
 let identical = 0;
 Iterator.from(retiredSkills).forEach((skill) => {
-  if (owners.has(skill)) throw new Error(`Retired upstream skill still shipped: ${skill}`);
+  if (owners.has(skill)) {
+    throw new Error(`Retired upstream skill still shipped: ${skill}`);
+  }
 });
 let changed = 0;
 const missing = [];
@@ -53,7 +55,9 @@ Iterator.from(git("ls-tree", "-rz", base, "--", "skills").split("\0").filter(Boo
     const [mode, , blob] = header.split(" ");
     const [, skill, ...tail] = path.split("/");
     skills.add(skill);
-    if (retiredSkills.has(skill)) return;
+    if (retiredSkills.has(skill)) {
+      return;
+    }
     const dir = owners.get(skill);
     const file = dir && join(dir, ...tail);
     if (retired.delete(path)) {
@@ -80,7 +84,9 @@ Iterator.from(git("ls-tree", "-rz", base, "--", "skills").split("\0").filter(Boo
 );
 const license = git("show", `${base}:LICENSE`);
 Iterator.from(retiredSkills).forEach((original) => {
-  if (!skills.has(original)) throw new Error(`Unknown retired upstream skill: ${original}`);
+  if (!skills.has(original)) {
+    throw new Error(`Unknown retired upstream skill: ${original}`);
+  }
 });
 Iterator.from(skills).forEach((skill) => {
   if (retiredSkills.has(skill)) {

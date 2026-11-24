@@ -200,7 +200,7 @@ export function drawRegions(
       };
       const andHolds: Condition = { kind: "and", otherKeys: and };
       const orHolds: Condition = { kind: "or", otherKeys: or };
-      const text = move.text;
+      const {text} = move;
       if (fits(andHolds)) {
         const parts: string[] = [];
         for (let j = 0; j < others.length; j++) {

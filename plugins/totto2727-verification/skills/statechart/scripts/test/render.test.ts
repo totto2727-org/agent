@@ -20,7 +20,7 @@ const charts = [
   ...fs.readdirSync(path.join(here, "corpus")).map((folder) => path.join(here, "corpus", folder, "chart.mmd")),
 ];
 const guide = fs.readFileSync(path.join(here, "../../references/render.md"), "utf8");
-const css = guide.match(/```css\n([\s\S]*?)```/);
+const css = /```css\n([\s\S]*?)```/.exec(guide);
 assert.ok(css, "references/render.md has no css block");
 const theme = css[1];
 const cache = path.join(

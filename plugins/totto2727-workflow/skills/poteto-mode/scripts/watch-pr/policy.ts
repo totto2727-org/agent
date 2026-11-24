@@ -6,6 +6,7 @@ import {
 import type * as T from "./types.ts";
 import { nonEmpty } from "./types.ts";
 import { matchesNull, matchesUndefined } from "./native-predicates.ts";
+
 export function assessGitHubMerge(args: Readonly<{
   mergeStateStatus: T.MergeStateStatus;
   headRollupState: T.RollupState;
@@ -113,9 +114,7 @@ export async function readSnapshot(args: Readonly<{
         pending: pending ?? [],
         github: merge.github,
       };}
-    else if (!matchesNull(pending))
-      {ci = { ...base, kind: "ci-pending", failed: [], pending };}
-    else
+    else if (matchesNull(pending))
       {ci = {
         ...base,
         kind: "ci-clean",
@@ -123,6 +122,8 @@ export async function readSnapshot(args: Readonly<{
         pending: [],
         github: merge.github,
       };}
+    else
+      {ci = { ...base, kind: "ci-pending", failed: [], pending };}
   }
   return {
     kind: "open",
@@ -199,7 +200,7 @@ const readyContribution = function (
     !matchesNull(gateReason(row, allowDraft))
   )
     {return null;}
-  const reviewDecision = row.facts.reviewDecision;
+  const {reviewDecision} = row.facts;
   if (reviewDecision === "CHANGES_REQUESTED") {return null;}
   return {
     kind: "ready-pr",

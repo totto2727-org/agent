@@ -259,7 +259,7 @@ export function analyzeSteProse(text, context = {}, { paragraph = false } = {}) 
   // Section 8.6 excludes document/work-step numbering, not ordinary identifiers.
   if (context.writingMode === "procedural") {
     Iterator.from(text.matchAll(/^(?:\(\d+\)|[A-Z][.)])\s+/gm)).forEach((match) => {
-      for (let index = match.index; index < match.index + match[0].length; index += 1) {
+      for (let { index } = match; index < match.index + match[0].length; index += 1) {
         if (!/[\r\n]/u.test(characters[index])) {
           characters[index] = " ";
         }

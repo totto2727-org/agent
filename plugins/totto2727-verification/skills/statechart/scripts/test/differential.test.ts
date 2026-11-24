@@ -188,7 +188,7 @@ const caseOf = function (m: Model): Case {
   const set = (v: number, is: number[]): string =>
     `{${[...new Set(is.map((i) => value(v, i)))].join(", ")}}`;
   const defs = [`vars == <<${vars.join(", ")}>>`];
-  defs.push(`Init == ${vars.map((x, k) => `${x} \\in ${set(k, m.vars[k].init)}`).join(" /\\ ")}`);
+  defs.push(`Init == ${vars.map((x, k) => `${x} \\in ${set(k, m.vars[k].init)}`).join(String.raw` /\ `)}`);
   const actions = m.actions.map((a) => {
     const changed = new Map<number, number[]>();
     Iterator.from(a.set).forEach((s) => {if (!changed.has(s.v % vars.length)) {changed.set(s.v % vars.length, s.to);}});
@@ -197,10 +197,10 @@ const caseOf = function (m: Model): Case {
     const kept = vars.filter((_, k) => !changed.has(k));
     if (kept.length) {parts.push(`UNCHANGED <<${kept.join(", ")}>>`);}
     const action = name();
-    defs.push(`${action} == ${parts.join(" /\\ ")}`);
+    defs.push(`${action} == ${parts.join(String.raw` /\ `)}`);
     return action;
   });
-  defs.push(`Next == ${actions.join(" \\/ ")}`);
+  defs.push(`Next == ${actions.join(String.raw` \/ `)}`);
   const base = modelValues.length
     ? [`CONSTANTS ${modelValues.map((c) => `${c} = ${c}`).join(" ")}`]
     : [];
@@ -213,7 +213,7 @@ const caseOf = function (m: Model): Case {
   base.push(m.initNext && !p ? "INIT Init\nNEXT Next" : "SPECIFICATION Spec");
   const invariants = m.invariants.map((atoms) => {
     const rule = name();
-    defs.push(`${rule} == ~(${atoms.map(atom).join(" /\\ ")})`);
+    defs.push(`${rule} == ~(${atoms.map(atom).join(String.raw` /\ `)})`);
     return rule;
   });
   if (m.constraint) {
@@ -424,7 +424,7 @@ const counting = (print: string): string =>
     "VARIABLE x",
     "Init == x = 0",
     `Next == x < 2 /\\ x' = x + 1 /\\ PrintT(${print})`,
-    "Spec == Init /\\ [][Next]_x",
+    String.raw`Spec == Init /\ [][Next]_x`,
     "Ok == x <= 2",
   );
 
@@ -440,8 +440,8 @@ for (const [what, c, says] of [
         'Init == x = "A"',
         String.raw`ToModel == x = "A" /\ x' = A`,
         String.raw`Back == x = A /\ x' = "A"`,
-        "Next == ToModel \\/ Back",
-        "Spec == Init /\\ [][Next]_x",
+        String.raw`Next == ToModel \/ Back`,
+        String.raw`Spec == Init /\ [][Next]_x`,
         'NotString == x # "A"',
       ),
       base: ["CONSTANT A = A", "SPECIFICATION Spec"],
@@ -460,7 +460,7 @@ for (const [what, c, says] of [
         "VARIABLE x",
         "Init == x = 1..3",
         String.raw`Next == x' = IF x = 1..3 THEN 1..4 ELSE x \ {4}`,
-        "Spec == Init /\\ [][Next]_x",
+        String.raw`Spec == Init /\ [][Next]_x`,
         "Small == Cardinality(x) < 4",
       ),
       base: ["SPECIFICATION Spec"],
@@ -478,9 +478,9 @@ for (const [what, c, says] of [
         "EXTENDS Naturals, Sequences",
         "VARIABLES s, i",
         String.raw`Words == <<"plain", "a\"b", "back\\slash", "line\nbreak", "tab\tstop", "x\n/\\ i = 99", "end\\">>`,
-        "Init == i = 1 /\\ s = Words[1]",
-        "Next == i < Len(Words) /\\ i' = i + 1 /\\ s' = Words[i + 1]",
-        "Spec == Init /\\ [][Next]_<<s, i>>",
+        String.raw`Init == i = 1 /\ s = Words[1]`,
+        String.raw`Next == i < Len(Words) /\ i' = i + 1 /\ s' = Words[i + 1]`,
+        String.raw`Spec == Init /\ [][Next]_<<s, i>>`,
         "NotLast == i < Len(Words)",
       ),
       base: ["SPECIFICATION Spec"],
@@ -507,9 +507,9 @@ for (const [what, c, says] of [
       tla: moduleText(
         "Proto",
         "VARIABLES __proto__, r",
-        'Init == __proto__ = 0 /\\ r = [__proto__ |-> "a"]',
+        String.raw`Init == __proto__ = 0 /\ r = [__proto__ |-> "a"]`,
         String.raw`Next == __proto__ = 0 /\ __proto__' = 1 /\ r' = [__proto__ |-> "b"]`,
-        "Spec == Init /\\ [][Next]_<<__proto__, r>>",
+        String.raw`Spec == Init /\ [][Next]_<<__proto__, r>>`,
         "First == __proto__ = 0",
       ),
       view: "export const state = (v) => JSON.stringify(v);\n",

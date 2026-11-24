@@ -19,12 +19,12 @@ const plain = (text: string): string => [...plainText(readMessages(text))].join(
 
 const steady = (text: string): string =>
   text
-    .replace(/"chart-[0-9a-f]{32}"/gu, '"chart"')
-    .replace(/\bfp \d+ and seed -?\d+/g, "fp _ and seed _")
-    .replace(/\[pid: \d+\]/gu, "[pid: _]")
-    .replace(/\d{4}-\d\d-\d\d \d\d:\d\d:\d\d/gu, "_")
-    .replace(/ \([\d,]+ d?s\/min\)/g, "")
-    .replace(/ in (?:\d+d \d\dh|\d\dh \d\dmin|\d\dmin \d\ds|\d\ds) at /g, " in _ at ");
+    .replaceAll(/"chart-[0-9a-f]{32}"/gu, '"chart"')
+    .replaceAll(/\bfp \d+ and seed -?\d+/g, "fp _ and seed _")
+    .replaceAll(/\[pid: \d+\]/gu, "[pid: _]")
+    .replaceAll(/\d{4}-\d\d-\d\d \d\d:\d\d:\d\d/gu, "_")
+    .replaceAll(/ \([\d,]+ d?s\/min\)/g, "")
+    .replaceAll(/ in (?:\d+d \d\dh|\d\dh \d\dmin|\d\dmin \d\ds|\d\ds) at /g, " in _ at ");
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test(

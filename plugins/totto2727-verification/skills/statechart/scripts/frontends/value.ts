@@ -48,7 +48,7 @@ export const unreadable = (text: string, pos: number) =>
 
 const INT = /^-?\d+$/u;
 const NAME = /^\w*[A-Za-z]\w*$/u;
-const UNESCAPED: { [c: string]: string } = {
+const UNESCAPED: Record<string, string> = {
   '"': '"',
   "\\": "\\",
   n: "\n",

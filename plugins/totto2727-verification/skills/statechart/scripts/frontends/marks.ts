@@ -9,7 +9,7 @@ const markTexts = (chunk: string, top: number[], inner: number[]) => {
   const open = chunk.indexOf("<<", a);
   const close = chunk.lastIndexOf(">>", b);
   const end = chunk.trimEnd().length - 2;
-  if (open < 0 || chunk.slice(a + 1, open).trim() || chunk.slice(close + 2, b).trim())
+  if (open === -1 || chunk.slice(a + 1, open).trim() || chunk.slice(close + 2, b).trim())
     {return undefined;}
   if (!chunk.startsWith(">>", end)) {return undefined;}
   const cuts = [open + 1];

@@ -504,7 +504,7 @@ function runSteMechanical(check, markdown, targetRange, context) {
     }
     if (check.kind === "ste-punctuation") {
       // Unchangeable quoted text can be non-STE (8.6). Do not flag its punctuation.
-      let prose = text.replace(/"[^"\n]*"|“[^”\n]*”|‘[^’\n]*’/g, (match) =>
+      let prose = text.replaceAll(/"[^"\n]*"|“[^”\n]*”|‘[^’\n]*’/g, (match) =>
         " ".repeat(match.length),
       );
       if (/&(?:#[0-9]+|#x[0-9a-f]+|[a-z][a-z0-9]+);/i.test(prose)) {
@@ -512,7 +512,7 @@ function runSteMechanical(check, markdown, targetRange, context) {
           "HTML entities require decoding before deciding prose punctuation.",
           unit.sourceRange,
         );
-        prose = prose.replace(/&(?:#[0-9]+|#x[0-9a-f]+|[a-z][a-z0-9]+);/gi, (match) =>
+        prose = prose.replaceAll(/&(?:#[0-9]+|#x[0-9a-f]+|[a-z][a-z0-9]+);/gi, (match) =>
           " ".repeat(match.length),
         );
       }

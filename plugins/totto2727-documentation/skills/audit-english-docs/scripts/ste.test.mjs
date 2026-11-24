@@ -13,7 +13,7 @@ import { promisify } from "node:util";
 import { afterEach, describe, expect, test } from "vitest";
 
 const execute = promisify(execFile);
-const script = fileURLToPath(new URL("./evaluate.mjs", import.meta.url));
+const script = fileURLToPath(new URL("evaluate.mjs", import.meta.url));
 const directories = [];
 const sentence = (count) => `Check ${"the ".repeat(count - 2)}panel.`;
 const checkFor = (mode = "procedural") => ({ kind: "ste-sentence-length", writingMode: mode });

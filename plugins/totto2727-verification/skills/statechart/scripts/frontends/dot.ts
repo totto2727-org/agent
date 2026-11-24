@@ -22,7 +22,7 @@ const unescapeDot = (s: string): string => {
 
 export const parseState = (label: string, parsed = new Map<string, [string, Value]>()): Vars => {
   const pairs: [string, Value][] = [];
-  Iterator.from((label.startsWith("/\\ ") ? label.slice(3) : label).split("\n/\\ ")).forEach((part) => {
+  Iterator.from((label.startsWith(String.raw`/\ `) ? label.slice(3) : label).split("\n/\\ ")).forEach((part) => {
     let pair = parsed.get(part);
     if (!pair) {
       const [, name, value] = /^(\w+)\s*=\s*([\s\S]*)$/.exec(part) ?? [];

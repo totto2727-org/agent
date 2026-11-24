@@ -109,7 +109,7 @@ const SYNTAX = [
   "C4Dynamic",
   "C4Deployment",
   "&nbsp;",
-  "\\n",
+  String.raw`\n`,
   "---\n",
   "`**b**`",
   "ﬂ°°65¶ß",
@@ -122,13 +122,13 @@ const SYNTAX = [
   ":>",
   "@@",
   "/\\",
-  "\\/",
+  String.raw`\/`,
   "..",
   '"A"',
   'x="a"',
   "[a |-> 1]",
   "{1, 2}",
-  '"\\n"',
+  String.raw`"\n"`,
   "&",
   "<",
   ">",
@@ -147,12 +147,12 @@ const SPACE = [
   "\r\n",
   "\v",
   "\f",
-  "\u00a0",
+  "\u00A0",
   "\u2028",
   "\u2029",
   "\u0085",
-  "\u200b",
-  "\ufeff",
+  "\u200B",
+  "\uFEFF",
   "\u3000",
 ];
 const OTHER = [
@@ -162,16 +162,16 @@ const OTHER = [
   "😀",
   "👩‍💻",
   "e\u0301",
-  "\u202e",
-  "\u200f",
+  "\u202E",
+  "\u200F",
   "ß",
   "Ω",
-  "\ud800",
-  "\x7f",
-  "\x80",
-  "\x9f",
-  "\x1b",
-  "\x00",
+  "\uD800",
+  "\x7F",
+  "\u0080",
+  "\x9F",
+  "\x1B",
+  "\u0000",
 ];
 const BAD_COLORS: unknown[] = [
   "pink\n  s99: Ghost state",
@@ -255,7 +255,7 @@ const generate = function (r: Random): Case {
   const labels: string[] = [];
   const slot = (): number => labels.push(label(r)) - 1;
   const k = r.int(10);
-  const mode = k < 4 ? "flat" : k < 7 ? "parents" : "regions";
+  const mode = k < 4 ? "flat" : (k < 7 ? "parents" : "regions");
   const n = r.range(2, 4);
   let shape: Shape;
   if (mode === "regions") {
@@ -293,7 +293,7 @@ type RawView = {
   state: (vars: { k: number }) => unknown;
   step: (action: string) => string;
   group?: (vars: { k: number }) => string | undefined;
-  colors?: { [group: string]: unknown };
+  colors?: Record<string, unknown>;
   title?: string;
 };
 
@@ -331,45 +331,45 @@ const build = function (c: Case, labels: string[]) {
 const visible = (s: string): string =>
   s
     .toWellFormed()
-    .replace(/(?![\t-\r\x85])[\p{Cc}\u200b-\u200f\u202a-\u202e\u2060-\u2069\ufeff]/gu, "")
-    .replace(/\p{White_Space}+/gu, " ")
+    .replaceAll(/(?![\t-\r\x85])[\p{Cc}\u200B-\u200F\u202A-\u202E\u2060-\u2069\uFEFF]/gu, "")
+    .replaceAll(/\p{White_Space}+/gu, " ")
     .trim();
 const wrapped = (s: string): string => visible(s).replaceAll(" ", "");
-const titled = (want: Want): boolean => /[^\0\x80-\x84\x86-\x9f]/.test(want.title ?? "");
-const NAMED: { [name: string]: string } = {
+const titled = (want: Want): boolean => /[^\0\x80-\x84\x86-\x9F]/.test(want.title ?? "");
+const NAMED: Record<string, string> = {
   quot: '"',
   lt: "<",
   gt: ">",
   amp: "&",
   apos: "'",
-  nbsp: "\u00a0",
+  nbsp: "\u00A0",
 };
-const WINDOWS_1252 = "€\x81‚ƒ„…†‡ˆ‰Š‹Œ\x8dŽ\x8f\x90‘’“”•–—˜™š›œ\x9džŸ";
+const WINDOWS_1252 = "€\x81‚ƒ„…†‡ˆ‰Š‹Œ\x8DŽ\x8F\x90‘’“”•–—˜™š›œ\x9DžŸ";
 const fromRef = (n: number): string => {
-  if (n === 0 || n > 0x10_FF_FF || (n >= 0xD8_00 && n <= 0xDF_FF)) {return "\ufffd";}
+  if (n === 0 || n > 0x10_FF_FF || (n >= 0xD8_00 && n <= 0xDF_FF)) {return "\uFFFD";}
   if (n >= 0x80 && n <= 0x9F) {return WINDOWS_1252[n - 0x80];}
   return String.fromCodePoint(n);
 };
 const fromMermaid = (s: string): string =>
-  s.replace(/ﬂ°°(\d+)¶ß|ﬂ°(\w+)¶ß/g, (_, d, n) =>
+  s.replaceAll(/ﬂ°°(\d+)¶ß|ﬂ°(\w+)¶ß/g, (_, d, n) =>
     d ? fromRef(Number(d)) : (NAMED[n] ?? `&${n};`),
   );
 const decoded = (s: string): string =>
   s
-    .replace(/ﬂ°°/g, "&#")
-    .replace(/ﬂ°/g, "&")
-    .replace(/¶ß/g, ";");
+    .replaceAll('ﬂ°°', "&#")
+    .replaceAll('ﬂ°', "&")
+    .replaceAll('¶ß', ";");
 const MARKER_END = /marker-end="url\([\d+./:=?A-Za-z-]*?#/g;
 const rewritten = (s: string): boolean =>
-  /ﬂ°|¶ß/.test(s) || s.replace(MARKER_END, 'marker-end="url(#') !== s;
+  /ﬂ°|¶ß/.test(s) || s.replaceAll(MARKER_END, 'marker-end="url(#') !== s;
 const fromSvg = (s: string): string =>
   s
-    .replace(/<\/tspan>\s*<tspan[^>]*>/g, " ")
-    .replace(/<[^>]*>/g, "")
-    .replace(/&#x([0-9a-f]+);/gi, (_, h) => fromRef(parseInt(h, 16)))
-    .replace(/&#(\d+);/gu, (_, d) => fromRef(Number(d)))
-    .replace(/&(quot|lt|gt|apos|nbsp);/g, (_, n) => NAMED[n])
-    .replace(/&amp;/gu, "&");
+    .replaceAll(/<\/tspan>\s*<tspan[^>]*>/g, " ")
+    .replaceAll(/<[^>]*>/g, "")
+    .replaceAll(/&#x([0-9a-f]+);/gi, (_, h) => fromRef(Number.parseInt(h, 16)))
+    .replaceAll(/&#(\d+);/gu, (_, d) => fromRef(Number(d)))
+    .replaceAll(/&(quot|lt|gt|apos|nbsp);/g, (_, n) => NAMED[n])
+    .replaceAll('&amp;', "&");
 
 type Node = { text: string; parent: string | null; group: boolean };
 
@@ -478,7 +478,7 @@ const readMermaid = async function (text: string, want: Want, { mermaid, html }:
     {problems.push(`mermaid-nodes: ${count} nodes for ${want.nodes.size}`);}
   if ((data.direction ?? "TB") !== want.direction)
     {problems.push(`mermaid-direction: the chart runs ${data.direction}`);}
-  const head = text.match(/^---\ntitle: (.*)\n---\n/);
+  const head = /^---\ntitle: (.*)\n---\n/.exec(text);
   const raw = head ? String(JSON.parse(head[1])) : undefined;
   const title = raw === undefined ? undefined : fromMermaid(raw);
   if ((title !== undefined) !== titled(want))
@@ -523,7 +523,7 @@ const readPele = function (text: string, want: Want, render: Render, problems: s
     /<g class="pele-(?:node|cluster) ([^"]*)" data-id="([^"]*)"[^>]*>([\s\S]*?)<\/g>/g,
   )).forEach((currentRegexMatch) => {
     if (/state-(?:start|end)/u.test(currentRegexMatch[1])) {return;}
-    const regexMatch = currentRegexMatch[3].match(/<text[^>]*>([\s\S]*?)<\/text>/);
+    const regexMatch = /<text[^>]*>([\s\S]*?)<\/text>/.exec(currentRegexMatch[3]);
     drawn.set(currentRegexMatch[2], regexMatch ? fromSvg(regexMatch[1]) : "");
   });
   if (drawn.size !== want.nodes.size)
@@ -550,7 +550,7 @@ const readPele = function (text: string, want: Want, render: Render, problems: s
         `pele-text: edge${currentRegexMatch[1]} shows ${JSON.stringify(fromSvg(currentRegexMatch[2]))} for ${JSON.stringify(w[2])}`,
       );}
   });
-  const title = svg.match(/<text class="pele-title"[^>]*>([\s\S]*?)<\/text>/);
+  const title = /<text class="pele-title"[^>]*>([\s\S]*?)<\/text>/.exec(svg);
   if (Boolean(title) !== titled(want))
     {problems.push(`pele-title: Pele draws a title for ${JSON.stringify(want.title)}`);}
   else if (title && wrapped(fromSvg(title[1])) !== wrapped(want.title ?? ""))
@@ -570,7 +570,7 @@ const check = async function (c: Case, labels: string[], tools: Tools): Promise<
     checked = checkView(view, inspect);
   } catch (error) {
     if (!(error instanceof Error)) {throw error;}
-    if (refuse && /^The view's colors give /u.test(error.message))
+    if (refuse && error.message.startsWith('The view\'s colors give '))
       {return { refused: true, problems: [] };}
     return { problems: [`skill-throws: ${error.message}`] };
   }
@@ -615,7 +615,7 @@ export async function fuzz({
     else {drawn++;}
     if (!result.problems.length) {continue;}
     const first = kind(result.problems[0]);
-    let labels = c.labels;
+    let {labels} = c;
     for (let labelIndex = 0; labelIndex < labels.length; labelIndex++) {
       const plain = labels.with(labelIndex, `n${labelIndex}`);
       const again = await check(c, plain, tools);

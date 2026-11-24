@@ -1,4 +1,4 @@
-const shown = (text: string): string => text.replace(/#(\d+);/gu, (_, n) => String.fromCodePoint(Number(n)));
+const shown = (text: string): string => text.replaceAll(/#(\d+);/gu, (_, n) => String.fromCodePoint(Number(n)));
 
 export const drawn = (chart: string) => {
   const names = new Map<string, string>();
@@ -6,10 +6,10 @@ export const drawn = (chart: string) => {
   const arrows: string[] = [];
   const blocks: string[] = [];
   Iterator.from(chart.split("\n")).forEach((line) => {
-    const block = line.match(/^ *state ".*" as (\w+) \{$/);
+    const block = /^ *state ".*" as (\w+) \{$/.exec(line);
     if (block) {blocks.push(block[1]);}
     if (/^ *\}$/u.test(line)) {blocks.pop();}
-    const regexMatch = line.match(/^ *(s\d+|\[\*\]) --> (s\d+)(?:: (.*))?$/);
+    const regexMatch = /^ *(s\d+|\[\*\]) --> (s\d+)(?:: (.*))?$/.exec(line);
     const parent = names.get(blocks.at(-1) ?? "");
     if (!regexMatch || (regexMatch[1] === "[*]" && parent === undefined)) {return;}
     const from = regexMatch[1] === "[*]" ? `${parent} start` : names.get(regexMatch[1]);

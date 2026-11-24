@@ -24,7 +24,7 @@ const java = (folder: string, args: string[]) => {
     encoding: "utf8",
     maxBuffer: 1 << 30,
   });
-  fs.writeFileSync(path.join(folder, `${name}.out`), (r.stdout + r.stderr).replace(TAG, '"chart"'));
+  fs.writeFileSync(path.join(folder, `${name}.out`), (r.stdout + r.stderr).replaceAll(TAG, '"chart"'));
   if (r.status) {fs.writeFileSync(path.join(folder, `${name}.exit`), `${r.status}\n`);}
   return r;
 };
@@ -59,5 +59,5 @@ const tag = fs.existsSync("ChartRun.tla")
   ? fs.readFileSync("ChartRun.tla", "utf8").match(TAG)?.[0]
   : undefined;
 const saved = fs.readFileSync(file(".out"), "utf8");
-process.stdout.write(tag ? saved.replace(/(<<\s*)"chart"(?=,)/g, `$1${tag}`) : saved);
+process.stdout.write(tag ? saved.replaceAll(/(<<\s*)"chart"(?=,)/g, `$1${tag}`) : saved);
 process.exit(fs.existsSync(file(".exit")) ? Number(fs.readFileSync(file(".exit"), "utf8")) : 0);

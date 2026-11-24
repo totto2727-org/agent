@@ -200,8 +200,7 @@ const ownNames = function (ref) {
       true,
     ).split("\n");
     const names = paths.flatMap(
-      (path) =>
-        path.match(/^plugins\/totto2727-[^/]+\/skills\/([^/]+)\/SKILL\.md$/)?.slice(1) ?? [],
+      (path) => /^plugins\/totto2727-[^/]+\/skills\/([^/]+)\/SKILL\.md$/.exec(path)?.slice(1) ?? [],
     );
     requireThat(
       names.length > 0 && names.every(safeName) && new Set(names).size === names.length,
@@ -217,9 +216,7 @@ const install = function () {
   const bootstrap = before[self];
   const ref = values.ref ?? (bootstrap?.source === firstParty ? bootstrap.commit : undefined);
   const own = ownNames(ref);
-  const manifest = JSON.parse(
-    readFileSync(new URL("./dependencies.json", import.meta.url), "utf8"),
-  );
+  const manifest = JSON.parse(readFileSync(new URL("dependencies.json", import.meta.url), "utf8"));
   const groups = [own, ...manifest.groups.filter((g) => !values["required-only"] || !g.optional)];
   const seen = new Set();
   const plan = [];

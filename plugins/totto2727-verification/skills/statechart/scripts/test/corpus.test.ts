@@ -52,7 +52,7 @@ Iterator.from(fs.readdirSync(corpus)).forEach((name) => {
     const report = read(path.join(out, "report.md"));
     const first = path.join(dir, "verdict-1.exit");
     const plain = fs.existsSync(first) ? Number(read(first)) : 0;
-    assert.equal(r.status, plain === 0 ? 0 : [11, 12, 13].includes(plain) ? 1 : 2);
+    assert.equal(r.status, plain === 0 ? 0 : ([11, 12, 13].includes(plain) ? 1 : 2));
     assert.equal(report, read(path.join(dir, "report.md")));
     assert.equal(read(path.join(out, "chart.mmd")), read(path.join(dir, "chart.mmd")));
   });
@@ -136,8 +136,8 @@ const plainTlc = (base: string) => {
     { cwd: path.dirname(base), encoding: "utf8" },
   );
   return {
-    exit: r.status === 0 ? 0 : [11, 12, 13].includes(r.status ?? -1) ? 1 : 2,
-    rule: r.stdout.match(/^Error: Invariant (\w+) is violated\.$/mu)?.[1],
+    exit: r.status === 0 ? 0 : ([11, 12, 13].includes(r.status ?? -1) ? 1 : 2),
+    rule: (/^Error: Invariant (\w+) is violated\.$/mu.exec(r.stdout))?.[1],
     path: [...r.stdout.matchAll(/^State \d+: <(\w+) line/gmu)].map((m) => m[1]),
   };
 };
@@ -148,8 +148,8 @@ const counter = (name: string, before: string[], variables: string[]): string[] 
   "EXTENDS Naturals",
   ...variables,
   "Init == x = 0",
-  "Next == x < 2 /\\ x' = x + 1",
-  "Spec == Init /\\ [][Next]_x",
+  String.raw`Next == x < 2 /\ x' = x + 1`,
+  String.raw`Spec == Init /\ [][Next]_x`,
   "Low == x < 2",
   "====",
 ];
@@ -161,12 +161,12 @@ Iterator.from([
     [
       "---- MODULE Paren ----",
       "EXTENDS Naturals",
-      "\\* The reader calls f(*) on each tick.",
+      String.raw`\* The reader calls f(*) on each tick.`,
       "VARIABLES x, y",
-      "Init == x = 0 /\\ y = 0",
-      "Tick == x < 2 /\\ x' = x + 1 /\\ UNCHANGED y",
+      String.raw`Init == x = 0 /\ y = 0`,
+      String.raw`Tick == x < 2 /\ x' = x + 1 /\ UNCHANGED y`,
       "Next == Tick",
-      "Spec == Init /\\ [][Next]_<<x, y>>",
+      String.raw`Spec == Init /\ [][Next]_<<x, y>>`,
       "(* x never passes 1 *)",
       "Low == x < 2",
       "====",
@@ -187,9 +187,9 @@ Iterator.from([
       'Open == "(*"',
       "VARIABLE y",
       'Close == "*)"',
-      "Init == x = 0 /\\ y = 0",
-      "Next == x < 2 /\\ x' = x + 1 /\\ UNCHANGED y",
-      "Spec == Init /\\ [][Next]_<<x, y>>",
+      String.raw`Init == x = 0 /\ y = 0`,
+      String.raw`Next == x < 2 /\ x' = x + 1 /\ UNCHANGED y`,
+      String.raw`Spec == Init /\ [][Next]_<<x, y>>`,
       "Low == x < 2",
       "====",
     ],
@@ -213,12 +213,10 @@ Iterator.from([
     );
     assert.equal(r.stderr, "");
     assert.equal(r.status, tlc.exit);
-    const steps = read(path.join(out, "report.md")).match(
-      new RegExp(
+    const steps = new RegExp(
         `^## ${tlc.rule} breaks\\nThe shortest path has \\d+ steps?:\\n0\\. .*\\n((?:\\d+\\. .*\\n?)*)`,
         "m",
-      ),
-    );
+      ).exec(read(path.join(out, "report.md")));
     assert.ok(steps, `the report has a path for ${tlc.rule}`);
     assert.deepEqual(
       [...steps[1].matchAll(/^\d+\. (\w+): /gmu)].map((m) => m[1]),
@@ -237,7 +235,7 @@ test("a property that breaks on a loop draws the loop and reports it", { skip },
       "VARIABLE x",
       "Init == x = 0",
       "Next == x' = (x + 1) % 3",
-      "Spec == Init /\\ [][Next]_x /\\ WF_x(Next)",
+      String.raw`Spec == Init /\ [][Next]_x /\ WF_x(Next)`,
       "Prop == <>(x = 5)",
       "====",
     ],
@@ -269,15 +267,15 @@ test(
         "---- MODULE SlowLoop ----",
         "EXTENDS Integers, TLC",
         "VARIABLE x",
-        'Late(v) == IF \\E i \\in 1..2000000000 : TLCGet("duration") >= 6 THEN v ELSE v',
+        String.raw`Late(v) == IF \E i \in 1..2000000000 : TLCGet("duration") >= 6 THEN v ELSE v`,
         "Init == x = 0",
-        "Deep == x \\in 0..14 /\\ x' = IF x = 5 THEN Late(x + 1) ELSE x + 1",
-        "Turn == x = 15 /\\ x' = 16",
-        "Back == x = 16 /\\ x' = 15",
-        "Leave == x = 0 /\\ x' = -1",
-        "Return == x = -1 /\\ x' = 0",
-        "Next == Deep \\/ Turn \\/ Back \\/ Leave \\/ Return",
-        "Spec == Init /\\ [][Next]_x /\\ WF_x(Next)",
+        String.raw`Deep == x \in 0..14 /\ x' = IF x = 5 THEN Late(x + 1) ELSE x + 1`,
+        String.raw`Turn == x = 15 /\ x' = 16`,
+        String.raw`Back == x = 16 /\ x' = 15`,
+        String.raw`Leave == x = 0 /\ x' = -1`,
+        String.raw`Return == x = -1 /\ x' = 0`,
+        String.raw`Next == Deep \/ Turn \/ Back \/ Leave \/ Return`,
+        String.raw`Spec == Init /\ [][Next]_x /\ WF_x(Next)`,
         "Prop == <>(x = 99)",
         "====",
       ],
@@ -356,12 +354,12 @@ for (const [width, height, config, status, drawn, chart, header] of [
           "---- MODULE Wide ----",
           "EXTENDS Naturals",
           "VARIABLES x, y",
-          "Init == x = 0 /\\ y = 0",
+          String.raw`Init == x = 0 /\ y = 0`,
           `IncX == x < ${width - 1} /\\ x' = x + 1 /\\ y' = y`,
           `IncY == y < ${height - 1} /\\ y' = y + 1 /\\ x' = x`,
-          "Next == IncX \\/ IncY",
-          "Typed == x \\in 0..39",
-          "Near == ~(x = 2 /\\ y = 1)",
+          String.raw`Next == IncX \/ IncY`,
+          String.raw`Typed == x \in 0..39`,
+          String.raw`Near == ~(x = 2 /\ y = 1)`,
           `Far == ~(x = ${width - 1} /\\ y = ${height - 1})`,
           "====",
         ],

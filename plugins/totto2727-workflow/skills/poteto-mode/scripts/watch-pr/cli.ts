@@ -7,6 +7,7 @@ import { renderJson, renderPretty } from "./render.ts";
 import type * as T from "./types.ts";
 import { nonEmpty, parsePrNumber } from "./types.ts";
 import { matchesNull, matchesUndefined } from "./native-predicates.ts";
+
 export interface CliOptions {
   readonly owner: string | null;
   readonly repo: string | null;
@@ -82,7 +83,7 @@ export function parseArgs(argv: Readonly<string[]>): CliOptions {
     owner: raw.owner ?? null,
     repo: raw.repo ?? null,
     pr: matchesUndefined(raw.pr) ? null : prNumber(raw.pr),
-    mode: raw["queued-stack"] ? "queued-stack" : raw.stack ? "stack" : "single",
+    mode: raw["queued-stack"] ? "queued-stack" : (raw.stack ? "stack" : "single"),
     stackPrs: matchesUndefined(raw["stack-prs"]) ? [] : stackPrList(raw["stack-prs"]),
     statusOnly: raw["status-only"] ?? false,
     pretty: raw.pretty ?? false,

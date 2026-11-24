@@ -48,7 +48,7 @@ const loads = (...targets: string[]) => {
 const COMMENT =
   /("(?:[^"\\\n]|\\[\s\S])*"|'(?:[^'\\\n]|\\[\s\S])*'|`(?:[^`\\]|\\[\s\S])*`)|\/\/[^\n]*|\/\*[\s\S]*?\*\//g;
 const codeOf = (file: string): string =>
-  fs.readFileSync(path.join(scripts, file), "utf8").replace(COMMENT, (_, text) => text ?? " ");
+  fs.readFileSync(path.join(scripts, file), "utf8").replaceAll(COMMENT, (_, text) => text ?? " ");
 
 const RUNTIME =
   /\b(?:process|require|globalThis|global|Deno|Bun|Buffer|setImmediate|clearImmediate|fetch)\b|\bimport\s*\(/g;
@@ -250,7 +250,7 @@ test("a rule named NoDeadlock leaves the deadlock rule a name of its own", () =>
   const holds = (result: CheckResult): string | undefined => {
     result.spec.deadlock = true;
     result.rules = holding(result.spec);
-    return compile(result, noView).report.match(/^## Rules that hold\n(.*)$/m)?.[1];
+    return (/^## Rules that hold\n(.*)$/m.exec(compile(result, noView).report))?.[1];
   };
   const invariant = twoStates([]);
   invariant.spec.invariants = ["NoDeadlock"];

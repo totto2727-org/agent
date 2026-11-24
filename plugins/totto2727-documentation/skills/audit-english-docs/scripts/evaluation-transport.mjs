@@ -26,7 +26,7 @@ export const CACHE_SKIP = "false";
 const CLOUDFLARE_API_ORIGIN = "https://api.cloudflare.com";
 const ACCOUNT_ID_PATTERN = /^[0-9a-f]{32}$/i;
 const GATEWAY_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]*$/u;
-const HEADER_SAFE_PATTERN = /^[\x21-\x7e]+$/u;
+const HEADER_SAFE_PATTERN = /^[\x21-\x7E]+$/u;
 
 /** @type {(model: string) => boolean} */
 export const isNativeModel = (model) => model.startsWith("clef");
@@ -100,7 +100,7 @@ export const readCredentials = (environment) => {
 };
 
 const curlConfig = function (url, apiKey, gatewayId, cacheKey, requestFile, headersFile) {
-  const escaped = (value) => value.replaceAll("\\", "\\\\").replaceAll('"', '\\"');
+  const escaped = (value) => value.replaceAll("\\", String.raw`\\`).replaceAll('"', String.raw`\"`);
   return [
     `url = "${escaped(url)}"`,
     'request = "POST"',
@@ -115,7 +115,7 @@ const curlConfig = function (url, apiKey, gatewayId, cacheKey, requestFile, head
     `header = "cf-aig-skip-cache: ${CACHE_SKIP}"`,
     `data-binary = "@${escaped(requestFile)}"`,
     `dump-header = "${escaped(headersFile)}"`,
-    'write-out = "\\n%{http_code}"',
+    String.raw`write-out = "\n%{http_code}"`,
   ].join("\n");
 };
 

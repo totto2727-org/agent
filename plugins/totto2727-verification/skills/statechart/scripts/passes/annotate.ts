@@ -57,7 +57,7 @@ export function addPast(
   const trace = findTrace(counterexample, names, rule, find);
   const end = trace.length - 1;
   const from = trace[end - 1]?.id;
-  const action = trace[end].action;
+  const {action} = trace[end];
   const taken = (to: string | undefined): boolean => {
     for (const currentStep of graph.steps)
       {if (currentStep.from === from && currentStep.to === to && currentStep.action === action) {return true;}}

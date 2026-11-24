@@ -96,9 +96,9 @@ const draw = function (graph: Graph, view: View, loops: Bug[] = []) {
 };
 
 const marked = (chart: string) => {
-  const out: { [label: string]: string } = {};
+  const out: Record<string, string> = {};
   Iterator.from(chart.matchAll(/^ {2}class (s\d+) (breaks|mayBreak)$/gm)).forEach(([, id, cls]) => {
-    const label = chart.match(new RegExp(`^\\s*${id}: (.*)$`, "m"))?.[1];
+    const label = (new RegExp(`^\\s*${id}: (.*)$`, "m").exec(chart))?.[1];
     assert.ok(label !== undefined, `${id} has no label`);
     out[label] = cls;
   });
@@ -112,7 +112,7 @@ test("TLA+ values reach the view as the skill says: sequences from 1, sets as ar
   assert.deepEqual(seen("{r1, -2}"), ["r1", -2]);
   assert.deepEqual(seen("{}"), []);
   assert.deepEqual(seen("-1..2"), [-1, 0, 1, 2]);
-  assert.deepEqual(seen('[ok |-> TRUE, msg |-> "say \\"hi\\""]'), {
+  assert.deepEqual(seen(String.raw`[ok |-> TRUE, msg |-> "say \"hi\""]`), {
     msg: 'say "hi"',
     ok: true,
   });
@@ -135,7 +135,7 @@ test("a value outside the grammar TLC prints is an error, never a guess", () => 
     "(1 :> 2",
     "1..",
     "1..x",
-    '"\\q"',
+    String.raw`"\q"`,
     "x y",
     "",
     "SUBSET {1}",
@@ -159,7 +159,7 @@ test("a label prints each value in TLA+, so values that TLC tells apart look apa
     "{}",
     "TRUE",
     '"TRUE"',
-    '"a\\nb\\tc\\"d\\\\e"',
+    String.raw`"a\nb\tc\"d\\e"`,
     '(<<1, 2>> :> {A, "A"} @@ 0 :> -1)',
   ]).forEach((text) => {assert.equal(shown(text), text);});
 });
@@ -233,7 +233,7 @@ const replay = function (name: string, graph: Graph): void {
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("each corpus bug path is the shortest way to its rule", () => {
-  const paths: { [rule: string]: string[] } = {};
+  const paths: Record<string, string[]> = {};
   Iterator.from(["DieHard", "MediaPlayer", "LoginParallel", "TwoPhase", "FirstRule"]).forEach((name) => {
     const graph = parseDot(fileLines(corpus(name, "graph.dot")));
     replay(name, graph);
@@ -273,7 +273,7 @@ test("a chart of only the bug paths words each one with the view, asked once for
     Iterator.from(rules).forEach((rule) => {if (broke?.kind === rule.kind && (broke.kind === "deadlock" || rule.name === broke.name))
         {paths.push(drawn.bug(rule, readCounterexample(messages)));}});
   }
-  const asked: { [question: string]: number } = {};
+  const asked: Record<string, number> = {};
   const count = (question: string): number => (asked[question] = (asked[question] ?? 0) + 1);
   const view: View = {
     state: (v) => {
@@ -459,7 +459,7 @@ Iterator.from([0, 1]).forEach((a) => {for (const b of [0, 1])
       if (b === 0) {xorSteps.push([bit(v), bit({ ...v, b: 1 }), "FlipB"]);}
       if (c === 0) {xorSteps.push([bit(v), bit({ ...v, c: 1 }), "FlipC"]);}
     }}});
-const truthGraphs: { [name: string]: [Graph, View] } = {
+const truthGraphs: Record<string, [Graph, View]> = {
   starts: [
     graphOf(
       [
@@ -577,7 +577,7 @@ test("a chart that draws parent states in place of regions still names each regi
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("the view answers once for each state and step, so a chart of parent states agrees with its report", () => {
-  const asked: { [question: string]: number } = {};
+  const asked: Record<string, number> = {};
   const answer = (question: string) => {
     asked[question] = (asked[question] ?? 0) + 1;
     return asked[question] === 1 ? "first" : "later";
@@ -681,8 +681,8 @@ test("a step that leaves every child of a parent the same way is one arrow from 
     ],
   );
   const { chart } = draw(graph, { state: (v) => String(v.at).split(".") });
-  const open = chart.match(/^ {2}state "Open" as (s\d+) \{$/mu)?.[1];
-  const closed = chart.match(/^ {2}(s\d+): Closed$/mu)?.[1];
+  const open = (/^ {2}state "Open" as (s\d+) \{$/mu.exec(chart))?.[1];
+  const closed = (/^ {2}(s\d+): Closed$/mu.exec(chart))?.[1];
   const quits = Array.from(
     chart.matchAll(/^ {2}(s\d+) --> (s\d+): Quit$/gmu),
     (match) => [match[1], match[2]],
@@ -803,7 +803,7 @@ test("a label of only white space or with a lone surrogate still has text in the
     [["s0", "s1", "Go"]],
   );
   const { chart } = draw(graph, {
-    state: (v) => (v.n ? "a\ud800b" : "\t"),
+    state: (v) => (v.n ? "a\uD800b" : "\t"),
     step: () => " ",
   });
   assert.match(chart, /^ {2}s\d+: #32;$/mu);
@@ -821,10 +821,10 @@ test("NUL and C1 controls in a label are left out, since a browser draws their c
     [["s0", "s1", "Go"]],
   );
   const { chart } = draw(graph, {
-    state: (v) => (v.n ? ["P\0\x80", "C\u00004Dynamic"] : "\0\x9f"),
-    step: () => "a\0\x80b\x85c\x9fd",
+    state: (v) => (v.n ? ["P\0\u0080", "C\u00004Dynamic"] : "\0\x9F"),
+    step: () => "a\0\x80b\x85c\x9Fd",
   });
-  assert.doesNotMatch(chart, /[\0\x80-\x9f]|#0;|#1[2-5]\d;/u);
+  assert.doesNotMatch(chart, /[\0\x80-\x9F]|#0;|#1[2-5]\d;/u);
   assert.match(chart, /^ {2}s\d+: #32;$/mu);
   assert.match(chart, /^ {2}state "P" as s\d+ \{$/mu);
   assert.match(chart, /^ {4}s\d+: C#52;Dynamic$/mu);
@@ -943,10 +943,10 @@ test("the title writes each character outside the allow list in the form Mermaid
   );
   const state = (v: Vars): string => `S${v.n}`;
   const title = (t: string): string | undefined =>
-    draw(graph, { title: t, state }).chart.match(/^---\ntitle: (.*)\n---\n/)?.[1];
+    (/^---\ntitle: (.*)\n---\n/.exec(draw(graph, { title: t, state }).chart))?.[1];
   assert.equal(title("Queue<T> for AT&T"), '"Queueﬂ°°60¶ßT> for ATﬂ°°38¶ßT"');
   assert.equal(title("ﬂ°°65¶ß"), '"ﬂﬂ°°8288¶ßﬂ°°176¶ßﬂ°°176¶ß65ﬂ°°182¶ßﬂ°°8288¶ßß"');
-  assert.equal(title('a\0b\x80\n"c"'), '"ab \\"c\\""');
+  assert.equal(title('a\0b\u0080\n"c"'), String.raw`"ab \"c\""`);
   const blank = draw(graph, { title: "\0\0", state }).chart;
   assert.doesNotMatch(blank, /\0|^---$|^title:/mu);
   assert.match(blank, /^stateDiagram-v2$/mu);
@@ -967,7 +967,7 @@ test("labels write the space between direction and LR, RL, TB, or BT as #32;", (
       ["s2", "s3", "Go"],
     ],
   );
-  const steps: { [action: string]: string } = {
+  const steps: Record<string, string> = {
     Turn: "turn direction LR",
     Back: "back direction rl",
     Go: "go",
@@ -1024,7 +1024,7 @@ const keyGraph = () =>
 const keyState = (header: string, pos: string) => ({
   code: EC.TLC_STATE_PRINT2,
   level: LEVEL.STATE,
-  body: [header, `/\\ pos = "${pos}"`, "/\\ key = [at |-> 0, on |-> FALSE]", ""],
+  body: [header, `/\\ pos = "${pos}"`, String.raw`/\ key = [at |-> 0, on |-> FALSE]`, ""],
 });
 const keyTrace = () =>
   readTrace([
@@ -1112,7 +1112,7 @@ test("a chart that draws a way out of a loop that the loop cannot take stops the
     { state: (v) => `${v.pos}, key ${field(v.key, "on") ? "on" : "off"}` },
     [loop],
   );
-  const wait = chart.match(/^ {2}(s\d+): wait, key off$/mu)?.[1];
+  const wait = (/^ {2}(s\d+): wait, key off$/mu.exec(chart))?.[1];
   assert.match(chart, new RegExp(`^ {2}class ${wait} repeats$`, "m"));
 });
 
@@ -1179,14 +1179,14 @@ test("a message writes each value the way JavaScript shows it", () => {
   assert.throws(
     () =>
       checkView(
-        { colors: { Lost: NaN, Far: Infinity, Big: 7n, Boxed: new String("blue"), Loop: loop } },
+        { colors: { Lost: Number.NaN, Far: Infinity, Big: BigInt("7"), Boxed: new String("blue"), Loop: loop } },
         inspect,
       ),
     /"Lost" the color NaN, "Far" the color Infinity, "Big" the color 7n, "Boxed" the color \[String: 'blue'\] and "Loop" the color <ref \*1> \{ self: \[Circular \*1\] \}\./u,
   );
   const graph = graphOf([["s0", { x: 0 }, true]], []);
   assert.throws(
-    () => draw(graph, checkView({ group: () => NaN, colors: {} }, inspect)),
+    () => draw(graph, checkView({ group: () => Number.NaN, colors: {} }, inspect)),
     /group\(\) returned NaN,/u,
   );
 });
