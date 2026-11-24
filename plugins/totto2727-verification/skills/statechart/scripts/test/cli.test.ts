@@ -40,7 +40,7 @@ const run = function (
   const log = path.join(tmp, "configs.log");
   const name = path.basename(dir);
   const [file, ...entry] = command;
-  const r = spawnSync(
+  const commandResult = spawnSync(
     file,
     [
       ...entry,
@@ -67,7 +67,7 @@ const run = function (
     {visitItems(read(log).split(/^## /mu), (part) => {if (part) {configs[part.slice(0, part.indexOf("\n"))] = part;}});}
   const files = fs.existsSync(out) ? fs.readdirSync(out).sort() : [];
   return {
-    ...r,
+    ...commandResult,
     out,
     files,
     configs,
@@ -92,17 +92,17 @@ visitItems(fs.readdirSync(corpus), (name) => {
   // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
   test(`${name} writes the committed chart and report from TLC's output`, () => {
     const dir = path.join(corpus, name);
-    const r = run(dir);
-    assert.equal(r.stderr, "");
+    const result = run(dir);
+    assert.equal(result.stderr, "");
     const first = path.join(dir, "verdict-1.exit");
     const plain = fs.existsSync(first) ? Number(read(first)) : 0;
-    assert.equal(r.status, plain === 0 ? 0 : ([11, 12, 13].includes(plain) ? 1 : 2));
-    assert.equal(r.report, read(path.join(dir, "report.md")));
-    assert.equal(read(path.join(r.out, "chart.mmd")), read(path.join(dir, "chart.mmd")));
-    assert.deepEqual(r.files, ["chart.mmd", "report.md", "tlc.out", ...named(r.report)].sort());
-    for (const currentFile of r.files) {assert.doesNotMatch(read(path.join(r.out, currentFile)), /@!@!@/u, currentFile);}
-    assert.match(r.configs.ChartRun, /^INVARIANT ChartMark$/mu);
-    assert.match(r.configs.ChartRun, /^CONSTRAINT ChartBudget$/mu);
+    assert.equal(result.status, plain === 0 ? 0 : ([11, 12, 13].includes(plain) ? 1 : 2));
+    assert.equal(result.report, read(path.join(dir, "report.md")));
+    assert.equal(read(path.join(result.out, "chart.mmd")), read(path.join(dir, "chart.mmd")));
+    assert.deepEqual(result.files, ["chart.mmd", "report.md", "tlc.out", ...named(result.report)].sort());
+    for (const currentFile of result.files) {assert.doesNotMatch(read(path.join(result.out, currentFile)), /@!@!@/u, currentFile);}
+    assert.match(result.configs.ChartRun, /^INVARIANT ChartMark$/mu);
+    assert.match(result.configs.ChartRun, /^CONSTRAINT ChartBudget$/mu);
   });
 });
 
@@ -125,14 +125,14 @@ visitItems(fs.readdirSync(corpus), (name) => {
         {if (f.endsWith(".out"))
           {fs.writeFileSync(path.join(d, f), asTlcPrintsOnWindows(read(path.join(d, f))));}}
     });
-    const r = run(dir);
-    assert.equal(r.stderr, "");
+    const result = run(dir);
+    assert.equal(result.stderr, "");
     const first = path.join(dir, "verdict-1.exit");
     const plain = fs.existsSync(first) ? Number(read(first)) : 0;
-    assert.equal(r.status, plain === 0 ? 0 : ([11, 12, 13].includes(plain) ? 1 : 2));
-    assert.equal(r.report, read(path.join(corpus, name, "report.md")));
-    assert.equal(read(path.join(r.out, "chart.mmd")), read(path.join(corpus, name, "chart.mmd")));
-    for (const currentFile of r.files) {assert.doesNotMatch(read(path.join(r.out, currentFile)), /\r|@!@!@/u, currentFile);}
+    assert.equal(result.status, plain === 0 ? 0 : ([11, 12, 13].includes(plain) ? 1 : 2));
+    assert.equal(result.report, read(path.join(corpus, name, "report.md")));
+    assert.equal(read(path.join(result.out, "chart.mmd")), read(path.join(corpus, name, "chart.mmd")));
+    for (const currentFile of result.files) {assert.doesNotMatch(read(path.join(result.out, currentFile)), /\r|@!@!@/u, currentFile);}
   });
 });
 
@@ -164,13 +164,13 @@ visitItems([
   // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
   test(`the launcher reached ${how} writes the committed chart on this Node`, () => {
     const dir = path.join(corpus, "MediaPlayer");
-    const r = run(dir, {
+    const result = run(dir, {
       command: [command()],
       env: { PATH: `${path.dirname(process.execPath)}${path.delimiter}${launcherTools()}` },
     });
-    assert.equal(r.stderr, "");
-    assert.equal(r.status, 1);
-    assert.equal(read(path.join(r.out, "chart.mmd")), read(path.join(dir, "chart.mmd")));
+    assert.equal(result.stderr, "");
+    assert.equal(result.status, 1);
+    assert.equal(read(path.join(result.out, "chart.mmd")), read(path.join(dir, "chart.mmd")));
   });
 });
 
@@ -196,13 +196,13 @@ const fakeBun = (version: string) => () => {
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("the launcher runs statechart.ts on Bun 1.1.5 when PATH has no Node", () => {
-  const r = run(path.join(corpus, "Login"), {
+  const result = run(path.join(corpus, "Login"), {
     command: [launcher],
     env: { PATH: fakeBun("1.1.5")() },
   });
-  assert.equal(r.stderr, "");
-  assert.equal(r.status, 0);
-  assert.equal(r.stdout, `${path.join(here, "../statechart.ts")}\n`);
+  assert.equal(result.stderr, "");
+  assert.equal(result.status, 0);
+  assert.equal(result.stdout, `${path.join(here, "../statechart.ts")}\n`);
 });
 
 visitItems([
@@ -212,13 +212,13 @@ visitItems([
 ] satisfies [string, () => string][], ([what, bin]) => {
   // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
   test(`the launcher stops with exit 127 and names only the runtimes when PATH ${what}`, () => {
-    const r = run(path.join(corpus, "Login"), { command: [launcher], env: { PATH: bin() } });
-    assert.equal(r.status, 127);
+    const result = run(path.join(corpus, "Login"), { command: [launcher], env: { PATH: bin() } });
+    assert.equal(result.status, 127);
     assert.equal(
-      r.stderr,
+      result.stderr,
       "statechart needs Node 22.18 to 22.x, Node 23.6 or later, Bun 1.1.5 or later, or Deno 2.0 or later.\n",
     );
-    assert.deepEqual(r.files, []);
+    assert.deepEqual(result.files, []);
   });
 });
 
@@ -246,10 +246,10 @@ test("the order of TLC's dump and its state IDs do not change the chart or the r
       }
       fs.writeFileSync(file, ["strict digraph DiskGraph {", ...lines, "}"].join("\n"));
     });
-    const r = run(dir);
-    assert.equal(r.report, read(path.join(corpus, name, "report.md")), name);
+    const result = run(dir);
+    assert.equal(result.report, read(path.join(corpus, name, "report.md")), name);
     assert.equal(
-      read(path.join(r.out, "chart.mmd")),
+      read(path.join(result.out, "chart.mmd")),
       read(path.join(corpus, name, "chart.mmd")),
       name,
     );
@@ -540,34 +540,34 @@ spawn(process.execPath, ["-e", ${JSON.stringify(sendWhileRead)}, dot, command, $
 `,
       { mode: 0o755 },
     );
-    const r = run(path.join(corpus, "Login"), { java, env: { TMPDIR: tmpdir } });
-    assert.equal(r.stderr, `${signal} stopped the check, so the command wrote nothing.\n`);
-    assert.equal(r.status, 128 + os.constants.signals[signal]);
+    const result = run(path.join(corpus, "Login"), { java, env: { TMPDIR: tmpdir } });
+    assert.equal(result.stderr, `${signal} stopped the check, so the command wrote nothing.\n`);
+    assert.equal(result.status, 128 + os.constants.signals[signal]);
     assert.deepEqual(await fs.promises.readdir(tmpdir), []);
-    assert.equal(fs.existsSync(r.out), false);
+    assert.equal(fs.existsSync(result.out), false);
   });
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a broken property is named in the report, and its TLC trace is in tlc-NAME.out", () => {
   const dir = path.join(corpus, "MediaPlayerProps");
-  const r = run(dir);
-  assert.equal(r.status, 1);
+  const result = run(dir);
+  assert.equal(result.status, 1);
   visitItems(["EventuallyPlays", "QuietWhenStopped"], (p) => {
-    assert.match(r.report, new RegExp(`^## ${p} breaks\n.*tlc-${p}\\.out`, "m"));
-    const out = read(path.join(r.out, `tlc-${p}.out`));
+    assert.match(result.report, new RegExp(`^## ${p} breaks\n.*tlc-${p}\\.out`, "m"));
+    const out = read(path.join(result.out, `tlc-${p}.out`));
     const from: string[] = [];
-    Object.keys(r.configs).forEach((name) => {
+    Object.keys(result.configs).forEach((name) => {
       const tool = name.startsWith("verdict-") && read(path.join(dir, `${name}.out`));
       if (tool && out === `${[...plainText(readMessages(tool))].join("")}\n`) {from.push(name);}
     });
     assert.equal(from.length, 1, p);
-    assert.match(r.configs[from[0]], new RegExp(`^PROPERTY ${p}$`, "m"));
+    assert.match(result.configs[from[0]], new RegExp(`^PROPERTY ${p}$`, "m"));
     assert.match(out, /^TLC2 Version /u);
     assert.doesNotMatch(out, /@!@!@/u);
   });
-  assert.match(read(path.join(r.out, "tlc-QuietWhenStopped.out")), /^State 2: <YouTurnItUp /mu);
-  assert.match(r.report, /^## Rules that hold\n.*\bEventuallyStops\b.*\bStaysTyped\b/m);
+  assert.match(read(path.join(result.out, "tlc-QuietWhenStopped.out")), /^State 2: <YouTurnItUp /mu);
+  assert.match(result.report, /^## Rules that hold\n.*\bEventuallyStops\b.*\bStaysTyped\b/m);
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
@@ -575,16 +575,16 @@ test("TLC checks the rules and draws the chart with VIEW and SYMMETRY, and the r
   const dir = copyCase("MediaPlayer", (d) =>
     fs.appendFileSync(path.join(d, "MediaPlayer.cfg"), "\nVIEW vars\nSYMMETRY Perms\n"),
   );
-  const r = run(dir);
-  assert.equal(r.status, 1);
-  const verdict = r.configs["verdict-1"];
+  const result = run(dir);
+  assert.equal(result.status, 1);
+  const verdict = result.configs["verdict-1"];
   assert.match(verdict, /^PROPERTY EventuallyStops$/mu);
-  visitItems([verdict, r.configs.ChartRun], (config) => {
+  visitItems([verdict, result.configs.ChartRun], (config) => {
     assert.match(config, /^VIEW vars$/mu);
     assert.match(config, /^SYMMETRY Perms$/mu);
   });
   assert.match(
-    r.report,
+    result.report,
     /^With VIEW and SYMMETRY, TLC keeps one representative for each group of states that it counts as the same\. An arrow can lead to the representative rather than to the state that the step reaches\.$/mu,
   );
   assert.doesNotMatch(run(path.join(corpus, "MediaPlayer")).report, /representative/u);
@@ -598,66 +598,66 @@ test("a check above the chart budget skips the drawing run and draws only the bu
   const dir = copyCase("FirstRule", (d) => {
     visitItems(fs.readdirSync(d), (fileName) => {if (/^verdict-\d+\.out$/u.test(fileName)) {overBudget(path.join(d, fileName));}});
   });
-  const r = run(dir);
-  assert.equal(r.status, 1);
-  assert.equal(r.configs.ChartRun, undefined);
-  assert.ok(r.files.includes("chart.mmd"));
+  const result = run(dir);
+  assert.equal(result.status, 1);
+  assert.equal(result.configs.ChartRun, undefined);
+  assert.ok(result.files.includes("chart.mmd"));
   assert.match(
-    r.report,
+    result.report,
     /^TLC reached more states than the chart budget of 500, so the chart draws only the bug paths: 4 states and 3 arrows\.$/mu,
   );
-  visitItems(["NotOne", "NotOneOrThree", "AlsoNotOne", "NoDeadlock"], (rule) => {assert.match(r.report, new RegExp(`^## ${rule} breaks$`, "m"));});
+  visitItems(["NotOne", "NotOneOrThree", "AlsoNotOne", "NoDeadlock"], (rule) => {assert.match(result.report, new RegExp(`^## ${rule} breaks$`, "m"));});
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a passing check above the chart budget writes no chart.mmd and gives the state count", () => {
   const dir = copyCase("Login", (d) => overBudget(path.join(d, "verdict-1.out")));
-  const r = run(dir);
-  assert.equal(r.status, 0);
-  assert.equal(r.configs.ChartRun, undefined);
-  assert.deepEqual(r.files, ["report.md", "tlc.out"]);
+  const result = run(dir);
+  assert.equal(result.status, 0);
+  assert.equal(result.configs.ChartRun, undefined);
+  assert.deepEqual(result.files, ["report.md", "tlc.out"]);
   assert.match(
-    r.report,
+    result.report,
     /^TLC reached 1,234 states, more than the chart budget of 500, so the command wrote no chart\.mmd\.$/mu,
   );
-  assert.match(r.report, /^## Rules that hold\nTypeOK, NoDeadlock$/mu);
+  assert.match(result.report, /^## Rules that hold\nTypeOK, NoDeadlock$/mu);
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a property that INSTANCE actions break above the chart budget draws their qualified names and the loop", () => {
   const dir = copyCase("CounterInstance", (d) => overBudget(path.join(d, "verdict-1.out")));
-  const r = run(dir);
-  assert.equal(r.status, 1);
-  assert.equal(r.configs.ChartRun, undefined);
+  const result = run(dir);
+  assert.equal(result.status, 1);
+  assert.equal(result.configs.ChartRun, undefined);
   assert.match(
-    r.report,
+    result.report,
     /^1\. C!Up: 1\n2\. C!Up: 2\n3\. C!Back: 1\nThe run loops through "1" and "2" forever\.$/mu,
   );
-  assert.match(read(path.join(r.out, "chart.mmd")), /^  s\d+ --> s\d+: C!Back$/mu);
+  assert.match(read(path.join(result.out, "chart.mmd")), /^  s\d+ --> s\d+: C!Back$/mu);
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a drawing run that counts more states than the chart budget gives only the bug paths", () => {
   const dir = copyCase("FirstRule", (d) => overBudget(path.join(d, "ChartRun.out")));
-  const r = run(dir);
-  assert.equal(r.status, 1);
-  assert.match(r.configs.ChartRun, /^CONSTRAINT ChartBudget$/mu);
+  const result = run(dir);
+  assert.equal(result.status, 1);
+  assert.match(result.configs.ChartRun, /^CONSTRAINT ChartBudget$/mu);
   assert.match(
-    r.report,
+    result.report,
     /^TLC reached more states than the chart budget of 500, so the chart draws only the bug paths: 4 states and 3 arrows\.$/mu,
   );
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a property with no temporal operator says TLC checked it only in the initial states", () => {
-  const r = run(path.join(corpus, "Counter"));
-  assert.equal(r.status, 0);
-  assert.match(r.report, /^## Rules that hold\nLow, StaysSmall\n/mu);
+  const result = run(path.join(corpus, "Counter"));
+  assert.equal(result.status, 0);
+  assert.match(result.report, /^## Rules that hold\nLow, StaysSmall\n/mu);
   assert.match(
-    r.report,
+    result.report,
     /^TLC checked Low only in the initial states, because it has no \[\], <>, or ~>\. List it as an INVARIANT to check every state\.$/mu,
   );
-  assert.doesNotMatch(r.report, /TLC checked StaysSmall/u);
+  assert.doesNotMatch(result.report, /TLC checked StaysSmall/u);
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
@@ -668,18 +668,18 @@ test("a property that the config replaces with a state predicate gets the initia
       "SPECIFICATION Spec\nCONSTANT StaysSmall <- Low\nPROPERTY StaysSmall\nCHECK_DEADLOCK FALSE\n",
     ),
   );
-  const r = run(dir);
-  assert.equal(r.status, 0);
-  assert.match(r.report, /^TLC checked StaysSmall only in the initial states, /mu);
+  const result = run(dir);
+  assert.equal(result.status, 0);
+  assert.match(result.report, /^TLC checked StaysSmall only in the initial states, /mu);
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a property that an extended module also defines as LOCAL takes the root definition's level", () => {
-  const r = run(path.join(corpus, "Shadow"));
-  assert.equal(r.status, 0);
-  assert.doesNotMatch(r.report, /TLC checked Shadow/u);
-  assert.match(r.report, /^TLC checked Shade only in the initial states, /mu);
-  assert.match(r.report, /^TLC checked Hold only in the initial states, /mu);
+  const result = run(path.join(corpus, "Shadow"));
+  assert.equal(result.status, 0);
+  assert.doesNotMatch(result.report, /TLC checked Shadow/u);
+  assert.match(result.report, /^TLC checked Shade only in the initial states, /mu);
+  assert.match(result.report, /^TLC checked Hold only in the initial states, /mu);
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
@@ -688,27 +688,27 @@ test("a property from an extended module gets the initial-states note too", () =
     fs.appendFileSync(path.join(d, "MediaPlayerProps.cfg"), "\nPROPERTY TypeOK\n");
     fs.copyFileSync(path.join(d, "verdict-6.out"), path.join(d, "verdict-7.out"));
   });
-  const r = run(dir);
-  assert.match(r.report, /^TLC checked TypeOK only in the initial states, /mu);
-  assert.doesNotMatch(r.report, /TLC checked (?:EventuallyStops|StaysTyped)/u);
+  const result = run(dir);
+  assert.match(result.report, /^TLC checked TypeOK only in the initial states, /mu);
+  assert.doesNotMatch(result.report, /TLC checked (?:EventuallyStops|StaysTyped)/u);
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a spec that SANY cannot read stops the command with exit 2", () => {
   const dir = copyCase("MediaPlayer", (d) => fs.writeFileSync(path.join(d, "sany.exit"), "150\n"));
-  const r = run(dir);
-  assert.equal(r.status, 2);
-  assert.match(r.stderr, /SANY could not read .*MediaPlayer\.tla \(exit 150\)/);
-  assert.deepEqual(r.files, []);
+  const result = run(dir);
+  assert.equal(result.status, 2);
+  assert.match(result.stderr, /SANY could not read .*MediaPlayer\.tla \(exit 150\)/);
+  assert.deepEqual(result.files, []);
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a first verdict run that TLC cannot finish stops the command with exit 2", () => {
   const dir = copyCase("Login", (d) => fs.writeFileSync(path.join(d, "verdict-1.exit"), "150\n"));
-  const r = run(dir);
-  assert.equal(r.status, 2);
-  assert.match(r.stderr, /TLC could not check .*Login\.tla \(exit 150\)/);
-  assert.deepEqual(r.files, []);
+  const result = run(dir);
+  assert.equal(result.status, 2);
+  assert.match(result.stderr, /TLC could not check .*Login\.tla \(exit 150\)/);
+  assert.deepEqual(result.files, []);
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
@@ -716,11 +716,11 @@ test("a later verdict run that TLC cannot finish keeps the exit and leaves its r
   const dir = copyCase("CounterJump", (d) =>
     fs.writeFileSync(path.join(d, "verdict-2.exit"), "150\n"),
   );
-  const r = run(dir);
-  assert.equal(r.status, 1);
-  assert.match(r.report, /^## NotThree breaks$/mu);
+  const result = run(dir);
+  assert.equal(result.status, 1);
+  assert.match(result.report, /^## NotThree breaks$/mu);
   assert.match(
-    r.report,
+    result.report,
     /^## Rules not checked\nNoDeadlock\nTLC stopped with exit 150 before it checked this rule:$/mu,
   );
 });
@@ -731,9 +731,9 @@ test("a drawing run that TLC cannot finish stops the command with exit 2", () =>
     fs.rmSync(path.join(d, "graph.dot"));
     fs.writeFileSync(path.join(d, "ChartRun.exit"), "150\n");
   });
-  const r = run(dir);
-  assert.equal(r.status, 2);
-  assert.match(r.stderr, /TLC could not check .*Login\.tla \(exit 150\)/);
+  const result = run(dir);
+  assert.equal(result.status, 2);
+  assert.match(result.stderr, /TLC could not check .*Login\.tla \(exit 150\)/);
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
@@ -757,7 +757,7 @@ syncBuiltinESMExports();
   );
   const java = path.join(tmp, "java");
   const spec = path.join(corpus, "Login", "Login.tla");
-  const r = run(path.dirname(spec), {
+  const result = run(path.dirname(spec), {
     java,
     command: [
       process.execPath,
@@ -765,9 +765,9 @@ syncBuiltinESMExports();
       path.join(here, "../statechart.ts"),
     ],
   });
-  assert.equal(r.stderr, `SANY could not read ${spec} (exit null):\nspawn ${java} ENOENT\n`);
-  assert.equal(r.status, 2);
-  assert.equal(fs.existsSync(r.out), false);
+  assert.equal(result.stderr, `SANY could not read ${spec} (exit null):\nspawn ${java} ENOENT\n`);
+  assert.equal(result.status, 2);
+  assert.equal(fs.existsSync(result.out), false);
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
@@ -782,14 +782,14 @@ test("a step hidden by the view is not drawn, and the report counts it", async (
       `import { step as words } from ${JSON.stringify(path.join(dir, "view.mjs"))};\n` +
       `export const step = (action, from, to) => action === "ACallComesIn" ? null : words(action, from, to);\n`,
   );
-  const r = run(dir, { view });
-  assert.equal(r.status, 1);
+  const result = run(dir, { view });
+  assert.equal(result.status, 1);
   assert.match(
-    r.report,
+    result.report,
     new RegExp(`^The view hides ${hidden} steps, so the chart does not draw them\\.$`, "m"),
   );
-  assert.doesNotMatch(read(path.join(r.out, "chart.mmd")), /a call comes in/u);
-  assert.match(r.report, /^1\. you turn it up: Playback Stopped, Volume Loud$/mu);
+  assert.doesNotMatch(read(path.join(result.out, "chart.mmd")), /a call comes in/u);
+  assert.match(result.report, /^1\. you turn it up: Playback Stopped, Volume Loud$/mu);
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
@@ -801,10 +801,10 @@ test("a view that hides a step of a bug path stops the command with exit 2", asy
     `export * from ${JSON.stringify(path.join(dir, "view.mjs"))};\n` +
       `export const step = (action) => (action === "YouTurnItUp" ? null : action);\n`,
   );
-  const r = run(dir, { view });
-  assert.equal(r.status, 2);
-  assert.match(r.stderr, /LoudWhenStopped/u);
-  assert.deepEqual(r.files, []);
+  const result = run(dir, { view });
+  assert.equal(result.status, 2);
+  assert.match(result.stderr, /LoudWhenStopped/u);
+  assert.deepEqual(result.files, []);
 });
 
 visitItems([
@@ -821,9 +821,9 @@ visitItems([
   test(`a view whose ${what} stops the command with exit 2`, async () => {
     const view = path.join(await fs.promises.mkdtemp(path.join(os.tmpdir(), "statechart-view-")), "view.mjs");
     await fs.promises.writeFile(view, body);
-    const r = run(path.join(corpus, "Login"), { view });
-    assert.equal(r.status, 2);
-    assert.match(r.stderr, words);
+    const result = run(path.join(corpus, "Login"), { view });
+    assert.equal(result.status, 2);
+    assert.match(result.stderr, words);
   });
 });
 
@@ -865,49 +865,49 @@ visitItems([
 ] satisfies [string, string, RegExp][], ([what, body, words]) => {
   // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
   test(`a view that ${what} stops the command with exit 2 before TLC runs`, () => {
-    const r = run(path.join(corpus, "Login"), { view: writeView(body) });
-    assert.equal(r.status, 2);
-    assert.match(r.stderr, words);
-    assert.deepEqual(r.files, []);
-    assert.deepEqual(r.configs, {});
+    const result = run(path.join(corpus, "Login"), { view: writeView(body) });
+    assert.equal(result.status, 2);
+    assert.match(result.stderr, words);
+    assert.deepEqual(result.files, []);
+    assert.deepEqual(result.configs, {});
   });
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a view module that throws null stops the command with exit 2 and no stack trace", () => {
-  const r = run(path.join(corpus, "Login"), { view: writeView("throw null;\n") });
-  assert.equal(r.status, 2);
-  assert.equal(r.stderr, "null\n");
-  assert.deepEqual(r.files, []);
-  assert.deepEqual(r.configs, {});
+  const result = run(path.join(corpus, "Login"), { view: writeView("throw null;\n") });
+  assert.equal(result.status, 2);
+  assert.equal(result.stderr, "null\n");
+  assert.deepEqual(result.files, []);
+  assert.deepEqual(result.configs, {});
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a view module that throws an object with no prototype stops the command with exit 2", () => {
-  const r = run(path.join(corpus, "Login"), {
+  const result = run(path.join(corpus, "Login"), {
     view: writeView("throw Object.create(null);\n"),
   });
-  assert.equal(r.status, 2);
-  assert.equal(r.stderr, "[Object: null prototype] {}\n");
-  assert.deepEqual(r.files, []);
-  assert.deepEqual(r.configs, {});
+  assert.equal(result.status, 2);
+  assert.equal(result.stderr, "[Object: null prototype] {}\n");
+  assert.deepEqual(result.files, []);
+  assert.deepEqual(result.configs, {});
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a view module that throws a plain object with a message prints the message", () => {
-  const r = run(path.join(corpus, "Login"), {
+  const result = run(path.join(corpus, "Login"), {
     view: writeView('throw { message: "The view has no states." };\n'),
   });
-  assert.equal(r.status, 2);
-  assert.equal(r.stderr, "The view has no states.\n");
-  assert.deepEqual(r.files, []);
-  assert.deepEqual(r.configs, {});
+  assert.equal(result.status, 2);
+  assert.equal(result.stderr, "The view has no states.\n");
+  assert.deepEqual(result.files, []);
+  assert.deepEqual(result.configs, {});
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a view that ends the check while TLC runs stops TLC, and the command exits 2 and writes nothing", async () => {
   const { java, pidFile } = sleepyJava(await fs.promises.mkdtemp(path.join(os.tmpdir(), "statechart-fakes-")));
-  const r = run(path.join(corpus, "Login"), {
+  const result = run(path.join(corpus, "Login"), {
     java,
     view: writeView(
       'import fs from "node:fs";\n' +
@@ -915,8 +915,8 @@ test("a view that ends the check while TLC runs stops TLC, and the command exits
         "export const state = (v) => JSON.stringify(v);\n",
     ),
   });
-  assert.equal(r.status, 2);
-  assert.deepEqual(r.files, []);
+  assert.equal(result.status, 2);
+  assert.deepEqual(result.files, []);
   await assertGone(Number(read(pidFile)));
 });
 
@@ -927,10 +927,10 @@ test("a group that only a mixed chart state gets still needs a color", () => {
       'export const group = (v) => v.main.includes("Checking") ? "Checking" : v.main.includes("Wrong") ? "Waiting" : undefined;\n' +
       'export const colors = { Waiting: "blue" };\n',
   );
-  const r = run(path.join(corpus, "Login"), { view });
-  assert.equal(r.status, 2);
-  assert.match(r.stderr, /group\(\) returned "Checking"/u);
-  assert.deepEqual(r.files, []);
+  const result = run(path.join(corpus, "Login"), { view });
+  assert.equal(result.status, 2);
+  assert.match(result.stderr, /group\(\) returned "Checking"/u);
+  assert.deepEqual(result.files, []);
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
@@ -941,10 +941,10 @@ test("a view with a group in a theme color draws that color and names the group 
       'export const colors = { Done: "teal" };\n' +
       'export const title = "Login";\n',
   );
-  const r = run(path.join(corpus, "Login"), { view });
-  assert.equal(r.stderr, "");
-  assert.equal(r.status, 0);
-  const chart = read(path.join(r.out, "chart.mmd"));
+  const result = run(path.join(corpus, "Login"), { view });
+  assert.equal(result.stderr, "");
+  assert.equal(result.status, 0);
+  const chart = read(path.join(result.out, "chart.mmd"));
   assert.match(chart, /^title: "Login"$/mu);
   const id = (/^ {2}(s\d+): Signed in$/mu.exec(chart))?.[1];
   assert.match(chart, new RegExp(`^ {2}class ${id} teal$`, "m"));
@@ -969,13 +969,13 @@ test("a flat view names a label with U+0000 as written when a loop cannot take a
   const view = writeView(
     `export const state = (v) => (v.playback === "Stopped" || v.volume === "Muted" ? ${JSON.stringify("a\0b")} : v.playback);\n`,
   );
-  const r = run(path.join(corpus, "MediaPlayerProps"), { view });
-  assert.equal(r.status, 2);
+  const result = run(path.join(corpus, "MediaPlayerProps"), { view });
+  assert.equal(result.status, 2);
   assert.equal(
-    r.stderr,
+    result.stderr,
     "The chart draws the step TheCallEnds out of a\0b, but the EventuallyPlays loop cannot take it there. Show in a label what stops it.\n",
   );
-  assert.deepEqual(r.files, []);
+  assert.deepEqual(result.files, []);
 });
 
 visitItems([
@@ -1137,14 +1137,14 @@ visitItems([
     const dir = width
       ? copyCase(c.base, (d) => fs.writeFileSync(path.join(d, "graph.dot"), fanOut(width)))
       : path.join(corpus, c.base);
-    const r = run(dir, { view: writeView(c.view) });
-    assert.equal(r.stderr, "");
-    assert.equal(r.status, c.status);
-    assert.deepEqual(drawn(read(path.join(r.out, "chart.mmd"))), {
+    const result = run(dir, { view: writeView(c.view) });
+    assert.equal(result.stderr, "");
+    assert.equal(result.status, c.status);
+    assert.deepEqual(drawn(read(path.join(result.out, "chart.mmd"))), {
       states: c.states,
       arrows: c.arrows,
     });
-    assert.match(r.report, c.says);
+    assert.match(result.report, c.says);
   });
 });
 
@@ -1159,10 +1159,10 @@ visitItems([
 ] satisfies [string, string[], RegExp][], ([what, args, words]) => {
   // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
   test(`${what} stops the command with exit 2 before TLC runs`, () => {
-    const r = run(path.join(corpus, "Login"), { args });
-    assert.equal(r.status, 2);
-    assert.match(r.stderr, words);
-    assert.deepEqual(r.configs, {});
+    const result = run(path.join(corpus, "Login"), { args });
+    assert.equal(result.status, 2);
+    assert.match(result.stderr, words);
+    assert.deepEqual(result.configs, {});
   });
 });
 
@@ -1217,12 +1217,12 @@ visitItems([
     const out = newPath();
     make(out);
     const before = contents(out);
-    const r = run(path.join(corpus, "Login"), { args: ["--out", out] });
-    assert.equal(r.status, 2);
-    assert.ok(r.stderr.includes(out), r.stderr);
-    assert.match(r.stderr, words);
-    assert.match(r.stderr, /Pass --out with a new folder\.\n$/u);
-    assert.deepEqual(r.configs, {});
+    const result = run(path.join(corpus, "Login"), { args: ["--out", out] });
+    assert.equal(result.status, 2);
+    assert.ok(result.stderr.includes(out), result.stderr);
+    assert.match(result.stderr, words);
+    assert.match(result.stderr, /Pass --out with a new folder\.\n$/u);
+    assert.deepEqual(result.configs, {});
     assert.deepEqual(contents(out), before);
   });
 });
@@ -1239,9 +1239,9 @@ test("a file that appears in --out while TLC runs is kept, and the command stops
       `exec ${JSON.stringify(path.join(here, "java.ts"))} "$@"\n`,
     { mode: 0o755 },
   );
-  const r = run(path.join(corpus, "Login"), { args: ["--out", out], java });
-  assert.equal(r.status, 2);
-  assert.ok(r.stderr.includes(mine), r.stderr);
+  const result = run(path.join(corpus, "Login"), { args: ["--out", out], java });
+  assert.equal(result.status, 2);
+  assert.ok(result.stderr.includes(mine), result.stderr);
   assert.equal(read(mine), "mine\n");
 });
 
@@ -1249,8 +1249,8 @@ test("a file that appears in --out while TLC runs is kept, and the command stops
 test("an empty --out folder gets the chart and the report", async () => {
   const out = newPath();
   await fs.promises.mkdir(out);
-  const r = run(path.join(corpus, "Login"), { args: ["--out", out] });
-  assert.equal(r.stderr, "");
+  const result = run(path.join(corpus, "Login"), { args: ["--out", out] });
+  assert.equal(result.stderr, "");
   assert.equal(read(path.join(out, "report.md")), read(path.join(corpus, "Login", "report.md")));
   assert.deepEqual((await fs.promises.readdir(out)).sort(), ["chart.mmd", "report.md", "tlc.out"]);
 });
@@ -1345,11 +1345,11 @@ visitItems([
   // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
   test(`a config with ${what} stops the command with exit 2 before TLC runs`, () => {
     const dir = copyCase("Login", (d) => fs.writeFileSync(path.join(d, "Login.cfg"), config));
-    const r = run(dir);
-    assert.equal(r.status, 2);
-    assert.match(r.stderr, words);
-    assert.deepEqual(r.configs, {});
-    assert.deepEqual(r.files, []);
+    const result = run(dir);
+    assert.equal(result.status, 2);
+    assert.match(result.stderr, words);
+    assert.deepEqual(result.configs, {});
+    assert.deepEqual(result.files, []);
   });
 });
 
@@ -1359,9 +1359,9 @@ test("a nested comment hides all of its text, as in TLC", () => {
     const file = path.join(d, "Login.cfg");
     fs.writeFileSync(file, `(* Off: (* old *) CHECK_DEADLOCK FALSE *)\n${read(file)}`);
   });
-  const r = run(dir);
-  assert.equal(r.status, 0);
-  assert.equal(r.report, read(path.join(corpus, "Login", "report.md")));
+  const result = run(dir);
+  assert.equal(result.status, 0);
+  assert.equal(result.report, read(path.join(corpus, "Login", "report.md")));
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
@@ -1372,11 +1372,11 @@ test("a string constant keeps the keywords and comment markers in it", () => {
       'CONSTANT RM = {"INVARIANT (*", "\\\\* r2"}\nSPECIFICATION TPSpec\nINVARIANT TPTypeOK TCConsistent\n',
     ),
   );
-  const r = run(dir);
-  assert.equal(r.status, 1);
-  assert.equal(r.report, read(path.join(corpus, "TwoPhase", "report.md")));
-  assert.match(r.configs.ChartRun, /^CONSTANT RM = .*"INVARIANT \(\*".*"\\\\\* r2"/m);
-  assert.deepEqual(r.configs.ChartRun.match(/^INVARIANT.*$/gm), ["INVARIANT ChartMark"]);
+  const result = run(dir);
+  assert.equal(result.status, 1);
+  assert.equal(result.report, read(path.join(corpus, "TwoPhase", "report.md")));
+  assert.match(result.configs.ChartRun, /^CONSTANT RM = .*"INVARIANT \(\*".*"\\\\\* r2"/m);
+  assert.deepEqual(result.configs.ChartRun.match(/^INVARIANT.*$/gm), ["INVARIANT ChartMark"]);
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
@@ -1387,9 +1387,9 @@ test("TYPE and TYPE_CONSTRAINT are config keywords, as in TLC", () => {
       "SPECIFICATION Spec\nINVARIANT TypeOK\nTYPE TypeOK\nTYPE_CONSTRAINT TypeOK\nVIEW vars\n",
     ),
   );
-  const r = run(dir);
-  assert.equal(r.status, 0);
-  assert.equal(r.report, read(path.join(corpus, "Login", "report.md")));
-  assert.match(r.configs.ChartRun, /^TYPE TypeOK$/mu);
-  assert.match(r.configs.ChartRun, /^TYPE_CONSTRAINT TypeOK$/mu);
+  const result = run(dir);
+  assert.equal(result.status, 0);
+  assert.equal(result.report, read(path.join(corpus, "Login", "report.md")));
+  assert.match(result.configs.ChartRun, /^TYPE TypeOK$/mu);
+  assert.match(result.configs.ChartRun, /^TYPE_CONSTRAINT TypeOK$/mu);
 });

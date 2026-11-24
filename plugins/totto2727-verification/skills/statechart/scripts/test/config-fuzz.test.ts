@@ -160,13 +160,13 @@ const generate = function (random: () => number) {
 };
 
 const readInTlc = function (files: string[], jar: string) {
-  const r = spawnSync(
+  const commandResult = spawnSync(
     hostEnvironment().JAVA || "java",
     ["-cp", jar, path.join(here, "ConfigOracle.java")],
     { input: `${files.join("\n")}\n`, encoding: "utf8", maxBuffer: 1 << 30 },
   );
-  assert.equal(r.status, 0, r.error?.message ?? r.stderr);
-  const lines = r.stdout.split("\n");
+  assert.equal(commandResult.status, 0, commandResult.error?.message ?? commandResult.stderr);
+  const lines = commandResult.stdout.split("\n");
   const readings = new Map<string, Reading>();
   for (let i = 0; i < files.length; i++) {
     const reading: unknown = JSON.parse(lines[i]);

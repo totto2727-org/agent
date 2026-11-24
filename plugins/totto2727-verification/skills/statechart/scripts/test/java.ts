@@ -21,13 +21,13 @@ if (log && config) {fs.appendFileSync(log, `## ${name}\n${fs.readFileSync(config
 const TAG = /"chart-[0-9a-f]{32}"/g;
 
 const java = (folder: string, args: string[]) => {
-  const r = spawnSync(hostEnvironment().STATECHART_JAVA ?? "java", args, {
+  const commandResult = spawnSync(hostEnvironment().STATECHART_JAVA ?? "java", args, {
     encoding: "utf8",
     maxBuffer: 1 << 30,
   });
-  fs.writeFileSync(path.join(folder, `${name}.out`), (r.stdout + r.stderr).replaceAll(TAG, '"chart"'));
-  if (r.status) {fs.writeFileSync(path.join(folder, `${name}.exit`), `${r.status}\n`);}
-  return r;
+  fs.writeFileSync(path.join(folder, `${name}.out`), (commandResult.stdout + commandResult.stderr).replaceAll(TAG, '"chart"'));
+  if (commandResult.status) {fs.writeFileSync(path.join(folder, `${name}.exit`), `${commandResult.status}\n`);}
+  return commandResult;
 };
 
 if (record) {

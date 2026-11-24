@@ -39,7 +39,7 @@ const tlc = function (dir: string, module: string, cfg: string) {
   fs.writeFileSync(file, cfg);
   const tmp = path.join(dir, `${run}-tmp`);
   fs.mkdirSync(tmp);
-  const r = spawnSync(
+  const commandResult = spawnSync(
     hostEnvironment().JAVA ?? "java",
     [
       `-Djava.io.tmpdir=${tmp}`,
@@ -55,7 +55,7 @@ const tlc = function (dir: string, module: string, cfg: string) {
     ],
     { cwd: dir, encoding: "utf8" },
   );
-  const out = r.stdout + r.stderr;
+  const out = commandResult.stdout + commandResult.stderr;
   const temporal = properties(cfg);
   const broke =
     (/^Error: (?:Invariant|Action property|Property) (\S+) is violated/m.exec(out))?.[1] ??
@@ -63,7 +63,7 @@ const tlc = function (dir: string, module: string, cfg: string) {
     (/^Error: Temporal properties were violated\./mu.test(out) && temporal.length === 1
       ? temporal[0]
       : undefined);
-  return { status: r.status, out, broke, steps: stepsIn(out) };
+  return { status: commandResult.status, out, broke, steps: stepsIn(out) };
 };
 
 const alone = function (cfg: string, rule: string): string {

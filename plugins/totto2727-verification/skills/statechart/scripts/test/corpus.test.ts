@@ -25,7 +25,7 @@ visitItems(fs.readdirSync(corpus), (name) => {
     const out = path.join(tmp, "out");
     await fs.promises.mkdir(tlc);
     const view = path.join(dir, "view.mjs");
-    const r = spawnSync(
+    const commandResult = spawnSync(
       process.execPath,
       [
         path.join(here, "../statechart.ts"),
@@ -44,7 +44,7 @@ visitItems(fs.readdirSync(corpus), (name) => {
         },
       },
     );
-    assert.equal(r.stderr, "");
+    assert.equal(commandResult.stderr, "");
     if (hostEnvironment().STATECHART_UPDATE) {
       for (const f of fs.readdirSync(dir))
         {if (/\.(?:out|exit|dot|mmd|md)$/u.test(f)) {fs.rmSync(path.join(dir, f));}}
@@ -55,7 +55,7 @@ visitItems(fs.readdirSync(corpus), (name) => {
     const report = read(path.join(out, "report.md"));
     const first = path.join(dir, "verdict-1.exit");
     const plain = fs.existsSync(first) ? Number(read(first)) : 0;
-    assert.equal(r.status, plain === 0 ? 0 : ([11, 12, 13].includes(plain) ? 1 : 2));
+    assert.equal(commandResult.status, plain === 0 ? 0 : ([11, 12, 13].includes(plain) ? 1 : 2));
     assert.equal(report, read(path.join(dir, "report.md")));
     assert.equal(read(path.join(out, "chart.mmd")), read(path.join(dir, "chart.mmd")));
   });
@@ -66,7 +66,7 @@ test("a spec in a folder whose name is not ASCII checks under the POSIX locale",
   const dir = path.join(await fs.promises.mkdtemp(path.join(os.tmpdir(), "statechart-corpus-")), "spec-é");
   await fs.promises.cp(path.join(corpus, "Login"), dir, { recursive: true });
   const out = path.join(dir, "out");
-  const r = spawnSync(
+  const commandResult = spawnSync(
     process.execPath,
     [
       path.join(here, "../statechart.ts"),
@@ -78,15 +78,15 @@ test("a spec in a folder whose name is not ASCII checks under the POSIX locale",
     ],
     { encoding: "utf8", env: { ...hostEnvironment(), LC_ALL: "POSIX", LC_CTYPE: "", LANG: "" } },
   );
-  assert.equal(r.stderr, "");
-  assert.equal(r.status, 0);
+  assert.equal(commandResult.stderr, "");
+  assert.equal(commandResult.status, 0);
   assert.equal(read(path.join(out, "chart.mmd")), read(path.join(corpus, "Login", "chart.mmd")));
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("an invariant named NoDeadlock and a deadlock break as two rules", { skip }, async () => {
   const out = path.join(await fs.promises.mkdtemp(path.join(os.tmpdir(), "statechart-corpus-")), "out");
-  const r = spawnSync(
+  const commandResult = spawnSync(
     process.execPath,
     [
       path.join(here, "../statechart.ts"),
@@ -96,8 +96,8 @@ test("an invariant named NoDeadlock and a deadlock break as two rules", { skip }
     ],
     { encoding: "utf8" },
   );
-  assert.equal(r.stderr, "");
-  assert.equal(r.status, 1);
+  assert.equal(commandResult.stderr, "");
+  assert.equal(commandResult.status, 1);
   const report = read(path.join(out, "report.md"));
   assert.match(
     report,
@@ -125,7 +125,7 @@ const broken = (): string =>
 
 const plainTlc = (base: string) => {
   const name = path.basename(base);
-  const r = spawnSync(
+  const commandResult = spawnSync(
     hostEnvironment().JAVA ?? "java",
     [
       "-cp",
@@ -139,9 +139,9 @@ const plainTlc = (base: string) => {
     { cwd: path.dirname(base), encoding: "utf8" },
   );
   return {
-    exit: r.status === 0 ? 0 : ([11, 12, 13].includes(r.status ?? -1) ? 1 : 2),
-    rule: (/^Error: Invariant (\w+) is violated\.$/mu.exec(r.stdout))?.[1],
-    path: [...r.stdout.matchAll(/^State \d+: <(\w+) line/gmu)].map((m) => m[1]),
+    exit: commandResult.status === 0 ? 0 : ([11, 12, 13].includes(commandResult.status ?? -1) ? 1 : 2),
+    rule: (/^Error: Invariant (\w+) is violated\.$/mu.exec(commandResult.stdout))?.[1],
+    path: [...commandResult.stdout.matchAll(/^State \d+: <(\w+) line/gmu)].map((m) => m[1]),
   };
 };
 
@@ -209,13 +209,13 @@ visitItems([
     const tlc = plainTlc(base);
     assert.equal(tlc.rule, "Low");
     const out = path.join(path.dirname(base), "out");
-    const r = spawnSync(
+    const commandResult = spawnSync(
       process.execPath,
       [path.join(here, "../statechart.ts"), `${base}.tla`, "--out", out],
       { encoding: "utf8" },
     );
-    assert.equal(r.stderr, "");
-    assert.equal(r.status, tlc.exit);
+    assert.equal(commandResult.stderr, "");
+    assert.equal(commandResult.status, tlc.exit);
     const steps = new RegExp(
         `^## ${tlc.rule} breaks\\nThe shortest path has \\d+ steps?:\\n0\\. .*\\n((?:\\d+\\. .*\\n?)*)`,
         "m",
@@ -245,13 +245,13 @@ test("a property that breaks on a loop draws the loop and reports it", { skip },
     "SPECIFICATION Spec\nPROPERTY Prop\n",
   );
   const out = path.join(path.dirname(base), "out");
-  const r = spawnSync(
+  const commandResult = spawnSync(
     process.execPath,
     [path.join(here, "../statechart.ts"), `${base}.tla`, "--out", out],
     { encoding: "utf8" },
   );
-  assert.equal(r.stderr, "");
-  assert.equal(r.status, 1);
+  assert.equal(commandResult.stderr, "");
+  assert.equal(commandResult.status, 1);
   assert.match(
     read(path.join(out, "report.md")),
     /^## Prop breaks\nTLC's counterexample is in tlc-Prop\.out\. It has 3 steps:\n0\. 0\n1\. Next: 1\n2\. Next: 2\n3\. Next: 0\nThe run loops through "0", "1" and "2" forever\.$/mu,
@@ -285,13 +285,13 @@ test(
       "SPECIFICATION Spec\nPROPERTY Prop\n",
     );
     const out = path.join(path.dirname(base), "out");
-    const r = spawnSync(
+    const commandResult = spawnSync(
       process.execPath,
       [path.join(here, "../statechart.ts"), `${base}.tla`, "--out", out],
       { encoding: "utf8" },
     );
-    assert.equal(r.stderr, "");
-    assert.equal(r.status, 1);
+    assert.equal(commandResult.stderr, "");
+    assert.equal(commandResult.status, 1);
     assert.match(
       read(path.join(out, "report.md")),
       /^## Prop breaks\nTLC's counterexample is in tlc-Prop\.out\. It has 17 steps:\n0\. 0\n1\. Deep: 1\n(?:.*\n){14}16\. Turn: 16\n17\. Back: 15\nThe run loops through "15" and "16" forever\.$/m,
@@ -371,7 +371,7 @@ for (const [width, height, config, status, drawn, chart, header] of [
       const tlc = path.join(path.dirname(base), "tlc");
       const out = path.join(path.dirname(base), "out");
       await fs.promises.mkdir(tlc);
-      const r = spawnSync(
+      const commandResult = spawnSync(
         process.execPath,
         [path.join(here, "../statechart.ts"), `${base}.tla`, "--out", out],
         {
@@ -384,8 +384,8 @@ for (const [width, height, config, status, drawn, chart, header] of [
           },
         },
       );
-      assert.equal(r.stderr, "");
-      assert.equal(r.status, status);
+      assert.equal(commandResult.stderr, "");
+      assert.equal(commandResult.status, status);
       assert.equal(fs.existsSync(path.join(tlc, "ChartRun.out")), drawn);
       assert.equal(fs.existsSync(path.join(out, "chart.mmd")), chart);
       assert.equal(read(path.join(out, "report.md")).split("\n")[2], header);
