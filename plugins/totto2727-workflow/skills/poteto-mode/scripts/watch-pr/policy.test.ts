@@ -29,6 +29,7 @@ import type {
   RollupState,
 } from "./types.ts";
 import { parsePrNumber } from "./types.ts";
+import { visitItems } from "./native-iteration.ts";
 
 const context = (number: number): PrContext => ({
   owner: "owner",
@@ -62,7 +63,7 @@ describe("readiness truth table", () => {
       ["UNKNOWN", null, "allowed"],
       ["CLEAN", "SUCCESS", "allowed"],
     ];
-    Iterator.from(cases).forEach(([mergeStateStatus, headRollupState, expected]) => {
+    visitItems(cases, ([mergeStateStatus, headRollupState, expected]) => {
       expect(
         assessGitHubMerge({ mergeStateStatus, headRollupState }).kind
       ).toBe(expected);
@@ -422,7 +423,7 @@ it("uses the specified retry floor and cap", () => {
 
 
 describe("polling deadline sleeps", () => {
-  Iterator.from(["single", "queued-stack", "query-retry"] as const).forEach((mode) => {
+  visitItems(["single", "queued-stack", "query-retry"] as const, (mode) => {
     it(`caps ${mode} sleeps at the configured deadline`, async () => {
       let now = 0;
       const sleeps: number[] = [];

@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import type * as T from "./types.ts";
 import { nonEmpty, parsePrNumber } from "./types.ts";
 import { isString, matchesNull, matchesUndefined } from "./native-predicates.ts";
+import { visitItems } from "./native-iteration.ts";
 
 export const REVIEW_THREADS_QUERY =
   "\nquery ReviewThreads($owner: String!, $repo: String!, $pr: Int!, $after: String) {\n  repository(owner: $owner, name: $repo) {\n    pullRequest(number: $pr) {\n      reviewThreads(first: 100, after: $after) {\n        pageInfo {\n          hasNextPage\n          endCursor\n        }\n        nodes {\n          id\n          isResolved\n          comments(first: 10) {\n            nodes {\n              body\n              createdAt\n              path\n              line\n              author { login }\n            }\n          }\n        }\n      }\n    }\n  }\n}\n";
@@ -104,7 +105,7 @@ const list = function (value: unknown, path: string): Readonly<unknown[]> {
 };
 const at = function (value: unknown, path: Readonly<string[]>): unknown {
   let current = value;
-  Iterator.from(path).forEach((key) => {
+  visitItems(path, (key) => {
     const object = record(current, path.join("."));
     if (!(key in object)) {missing(path.join("."));}
     current = object[key];
@@ -362,7 +363,7 @@ export function parseReviewThreadPage(value: unknown): T.ReviewThreadPage {
   );
   const nodes = list(reviewThreads.nodes, "reviewThreads.nodes");
   const threads: T.RawReviewThread[] = [];
-  Iterator.from(nodes).forEach((node) => {
+  visitItems(nodes, (node) => {
     const thread = record(node, "review thread");
     if (typeof thread.isResolved !== "boolean")
       {missing("review thread.isResolved", thread.isResolved);}
@@ -390,7 +391,7 @@ export function buildReviewThreads(
 ): Readonly<T.ReviewThread[]> {
   const keys = new Set<string>();
   let keyless = false;
-  Iterator.from(threads).forEach((thread) => {
+  visitItems(threads, (thread) => {
     if (!isBugbot(thread.firstComment)) {return;}
     const key = passKey(thread.firstComment);
     if (matchesNull(key)) {keyless = true;}
@@ -682,11 +683,11 @@ export function orderStack(
     open.filter((pr) => !pr.isCrossRepository).map((pr) => [pr.headRefName, pr])
   );
   const children = new Map<string, T.OpenPullRequest[]>();
-  Iterator.from(open).forEach((pr) => {
+  visitItems(open, (pr) => {
     if (pr.isCrossRepository) {return;}
     children.set(pr.baseRefName, [...(children.get(pr.baseRefName) ?? []), pr]);
   });
-  Iterator.from(children.values()).forEach((values) => {values.sort((left, right) => left.number - right.number);});
+  visitItems(children.values(), (values) => {values.sort((left, right) => left.number - right.number);});
   const start = byNumber.get(context.number);
   if (matchesUndefined(start)) {return [context];}
   const down: T.OpenPullRequest[] = [];
@@ -704,7 +705,7 @@ export function orderStack(
   const up: T.OpenPullRequest[] = [];
   const visit = (parent: T.OpenPullRequest): void => {
     if (parent.isCrossRepository) {return;}
-    Iterator.from(children.get(parent.headRefName) ?? []).forEach((child) => {
+    visitItems(children.get(parent.headRefName) ?? [], (child) => {
       if (child.isCrossRepository) {return;}
       if (seen.has(child.number)) {return;}
       seen.add(child.number);

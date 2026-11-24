@@ -23,6 +23,7 @@ import {
   pendingCheck,
 } from "./fakes.test-helper.ts";
 import { parsePrNumber } from "./types.ts";
+import { visitItems } from "./native-iteration.ts";
 
 const context = {
   owner: "owner",
@@ -96,7 +97,7 @@ describe("rollup node mapping", () => {
       ["COMPLETED", "TIMED_OUT", "failed", "FAILURE"],
       ["COMPLETED", "FUTURE_VALUE", "failed", "FAILURE"],
     ] as const;
-    Iterator.from(cases).forEach(([status, conclusion, kind, reportedState]) => {
+    visitItems(cases, ([status, conclusion, kind, reportedState]) => {
       expect(
         mapRollupNode({
           __typename: "CheckRun",
