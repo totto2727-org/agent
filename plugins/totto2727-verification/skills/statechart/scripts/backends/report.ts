@@ -49,9 +49,9 @@ export function report(
 ): string {
   let size = 0;
   let arrows = 0;
-  visitItems(chart?.regions ?? [], (r) => {
-    size += r.states.length;
-    arrows += r.steps.length;
+  visitItems(chart?.regions ?? [], (region) => {
+    size += region.states.length;
+    arrows += region.steps.length;
   });
   let past = 0;
   let pastSteps = 0;
@@ -124,7 +124,7 @@ export function report(
     if (!matchesUndefined(bug.loop)) {out.push(forever(path.slice(bug.loop), bug.stutters));}
   });
   const drawn = new Set<string>();
-  visitItems(found, (b) => {drawn.add(ruleKey(b.rule));});
+  visitItems(found, (bug) => {drawn.add(ruleKey(bug.rule));});
   const holds: string[] = [];
   const unchecked: string[] = [];
   visitItems([...rules, ...properties], ({ rule, outcome, messages }) => {

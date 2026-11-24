@@ -57,7 +57,7 @@ export function compile(result: CheckResult, view: CheckedView) {
   files.set("report.md", [text]);
   files.set("tlc.out", plainText(result.messages));
   const drawn = new Set<string>();
-  visitItems(found, (b) => {if (b.rule.kind !== "property") {drawn.add(ruleKey(b.rule));}});
+  visitItems(found, (bug) => {if (bug.rule.kind !== "property") {drawn.add(ruleKey(bug.rule));}});
   visitItems([...result.rules, ...result.properties], ({ rule, outcome, messages }) => {if (outcome === "broken" && messages && !drawn.has(ruleKey(rule)))
       {files.set(`tlc-${rule.name}.out`, plainText(messages));}});
   return { report: text, files, exit: result.exit };

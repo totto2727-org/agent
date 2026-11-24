@@ -100,7 +100,7 @@ export function labelGraph(
   const n = shapes.length;
   const m = stepLabels.length;
   const onPath = new Set<Step>();
-  visitItems(found, (b) => {for (const currentStep of b.path) {onPath.add(currentStep.step);}});
+  visitItems(found, (bug) => {for (const currentStep of bug.path) {onPath.add(currentStep.step);}});
   const pathStepIndex = new Map<Step, number>();
   if (onPath.size)
     {for (let j = 0; j < m; j++)

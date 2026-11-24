@@ -156,77 +156,77 @@ export function readConfig({ file, text }: { file: string; text: string }): Conf
   const next = () => tokens[at++] ?? eof;
   let deferred: Error | undefined;
   const defer = (error: Error) => (deferred ??= error);
-  const defined = (t: Token, undefinedNoun: string | undefined): void => {
-    if (!NAME.test(t.image))
+  const defined = (token: Token, undefinedNoun: string | undefined): void => {
+    if (!NAME.test(token.image))
       {defer(
         refuse(
-          t.line,
-          `The ${undefinedNoun} ${t.image} specified in the configuration file is not defined in the specification.`,
+          token.line,
+          `The ${undefinedNoun} ${token.image} specified in the configuration file is not defined in the specification.`,
         ),
       );}
   };
-  const name = (t: Token, what: string): void => {
-    if (SECTIONS.has(t.image))
-      {defer(cannot(t.line, `TLC would read the keyword ${t.image} as ${what}.`));}
-    else if (!NAME.test(t.image))
-      {defer(cannot(t.line, `TLC would read ${t.image} as ${what}, and it is not a name.`));}
+  const name = (token: Token, what: string): void => {
+    if (SECTIONS.has(token.image))
+      {defer(cannot(token.line, `TLC would read the keyword ${token.image} as ${what}.`));}
+    else if (!NAME.test(token.image))
+      {defer(cannot(token.line, `TLC would read ${token.image} as ${what}, and it is not a name.`));}
   };
-  const value = (t: Token): void => {
-    if (t === eof) {throw refuse(t.line, "It was expecting a value, but did not find it.");}
-    if (t.image === "{") {
-      t = next();
-      if (t.image === "}") {return;}
-      value(t);
-      while ((t = next()).image === ",") {value(next());}
-      if (t.image !== "}") {throw refuse(t.line, "It was expecting }, but did not find it.");}
-    } else if (SECTIONS.has(t.image))
-      {defer(cannot(t.line, `TLC would read the keyword ${t.image} as a value.`));}
-    else if (!NAME.test(t.image) && !/^(?:\d+|".*")$/.test(t.image))
+  const value = (token: Token): void => {
+    if (token === eof) {throw refuse(token.line, "It was expecting a value, but did not find it.");}
+    if (token.image === "{") {
+      token = next();
+      if (token.image === "}") {return;}
+      value(token);
+      while ((token = next()).image === ",") {value(next());}
+      if (token.image !== "}") {throw refuse(token.line, "It was expecting }, but did not find it.");}
+    } else if (SECTIONS.has(token.image))
+      {defer(cannot(token.line, `TLC would read the keyword ${token.image} as a value.`));}
+    else if (!NAME.test(token.image) && !/^(?:\d+|".*")$/.test(token.image))
       {defer(
         cannot(
-          t.line,
-          `TLC would read ${t.image} as a value. A value is a name, a number, a string, or a set in braces.`,
+          token.line,
+          `TLC would read ${token.image} as a value. A value is a name, a number, a string, or a set in braces.`,
         ),
       );}
   };
-  const constant = (t: Token, loc: number): void => {
-    name(t, "a constant name");
-    for (t = next(); t.image === "!"; t = next()) {name((t = next()), "a constant name");}
-    if (t.image === "<-") {
-      t = next();
-      if (t.image === "[") {
-        t = next();
-        if (t === eof) {throw refuse(t.line, "Expected an identifier after <-[.");}
-        name(t, "a module name");
-        t = next();
-        if (t.image !== "]") {throw refuse(t.line, "It was expecting ], but did not find it.");}
-        t = next();
-        if (t === eof) {throw refuse(t.line, "Expected an identifier after <-[mod].");}
-      } else if (t === eof) {throw refuse(t.line, "Expected an identifier after <-.");}
-      name(t, "the name after <-");
+  const constant = (token: Token, loc: number): void => {
+    name(token, "a constant name");
+    for (token = next(); token.image === "!"; token = next()) {name((token = next()), "a constant name");}
+    if (token.image === "<-") {
+      token = next();
+      if (token.image === "[") {
+        token = next();
+        if (token === eof) {throw refuse(token.line, "Expected an identifier after <-[.");}
+        name(token, "a module name");
+        token = next();
+        if (token.image !== "]") {throw refuse(token.line, "It was expecting ], but did not find it.");}
+        token = next();
+        if (token === eof) {throw refuse(token.line, "Expected an identifier after <-[mod].");}
+      } else if (token === eof) {throw refuse(token.line, "Expected an identifier after <-.");}
+      name(token, "the name after <-");
       return;
     }
-    if (t.image === "(") {
+    if (token.image === "(") {
       value(next());
-      while ((t = next()).image === ",") {value(next());}
-      if (t.image !== ")")
+      while ((token = next()).image === ",") {value(next());}
+      if (token.image !== ")")
         {throw refuse(
           loc,
           "TLC gives no reason here. An operator's arguments are one or more values in ( ), with commas between them.",
         );}
-      t = next();
+      token = next();
     }
-    if (t.image !== "=") {throw refuse(t.line, "It was expecting = or <-, but did not find it.");}
-    t = next();
-    if (t.image === "[") {
-      t = next();
-      if (t === eof) {throw refuse(t.line, "Expected an identifier after =[.");}
-      name(t, "a module name");
-      t = next();
-      if (t.image !== "]") {throw refuse(t.line, "It was expecting ], but did not find it.");}
-      t = next();
+    if (token.image !== "=") {throw refuse(token.line, "It was expecting = or <-, but did not find it.");}
+    token = next();
+    if (token.image === "[") {
+      token = next();
+      if (token === eof) {throw refuse(token.line, "Expected an identifier after =[.");}
+      name(token, "a module name");
+      token = next();
+      if (token.image !== "]") {throw refuse(token.line, "It was expecting ], but did not find it.");}
+      token = next();
     }
-    value(t);
+    value(token);
   };
   const config: Config = {
     sections: [],

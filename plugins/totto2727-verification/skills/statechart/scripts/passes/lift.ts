@@ -24,17 +24,17 @@ export function liftToParents(states: ChartState[], steps: ChartStep[]) {
   const lifted: ChartStep[] = [];
   for (const [prefix] of [...depths].sort((left, right) => left[1] - right[1])) {
     const groups = new Map<string, ChartStep[]>();
-    visitItems(leaving.get(prefix) ?? [], (s) => {if (!removed.has(s)) {append(groups, tupleKey([s.label, s.when, s.to]), s);}});
+    visitItems(leaving.get(prefix) ?? [], (chartStep) => {if (!removed.has(chartStep)) {append(groups, tupleKey([chartStep.label, chartStep.when, chartStep.to]), chartStep);}});
     const under = must(leaves, prefix);
     for (const group of groups.values()) {
       if (under < 2 || group.length < under) {continue;}
-      visitItems(group, (s) => {removed.add(s);});
+      visitItems(group, (chartStep) => {removed.add(chartStep);});
       lifted.push({ ...group[0], from: unkey(prefix) });
     }
   }
   const kept: ChartStep[] = [];
   visitItems(steps, (step) => {if (!removed.has(step)) {kept.push(step);}});
-  visitItems(lifted, (s) => {kept.push(s);});
+  visitItems(lifted, (chartStep) => {kept.push(chartStep);});
   return kept;
 }
 

@@ -515,17 +515,17 @@ const readMermaid = async function (text: string, want: Want, { mermaid, html }:
     count++;
     let parent = byId.get(currentNode.parentId);
     while (parent?.shape === "divider") {parent = byId.get(parent.parentId);}
-    const w = want.nodes.get(currentNode.id);
+    const expectedNode = want.nodes.get(currentNode.id);
     const shown = fromMermaid(currentNode.label ?? "");
-    if (!w || (parent?.id ?? null) !== w.parent || Boolean(currentNode.isGroup) !== w.group)
+    if (!expectedNode || (parent?.id ?? null) !== expectedNode.parent || Boolean(currentNode.isGroup) !== expectedNode.group)
       {problems.push(`mermaid-nodes: Mermaid draws ${currentNode.id} where the chart has no such node`);}
     else if (rewritten(shown))
       {problems.push(
         `mermaid-text: Mermaid's SVG cleanup rewrites ${currentNode.id}'s ${JSON.stringify(shown)}`,
       );}
-    else if (visible(html(decoded(currentNode.label ?? ""))) !== visible(w.text))
+    else if (visible(html(decoded(currentNode.label ?? ""))) !== visible(expectedNode.text))
       {problems.push(
-        `mermaid-text: ${currentNode.id} shows ${JSON.stringify(html(decoded(currentNode.label ?? "")))} for ${JSON.stringify(w.text)}`,
+        `mermaid-text: ${currentNode.id} shows ${JSON.stringify(html(decoded(currentNode.label ?? "")))} for ${JSON.stringify(expectedNode.text)}`,
       );}
     if (currentNode.isGroup && currentNode.dir && currentNode.dir !== "TB")
       {problems.push(`mermaid-direction: ${currentNode.id} runs ${currentNode.dir}`);}

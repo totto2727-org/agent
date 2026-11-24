@@ -331,7 +331,7 @@ export const append = <K, V>(groups: Map<K, V[]>, key: K, item: V): void => {
 
 export const seqOf = (bug: Bug, index: ReadonlyMap<string, number>): number[] => {
   const seq = [must(index, bug.start)];
-  visitItems(bug.path, (p) => {seq.push(must(index, p.state));});
+  visitItems(bug.path, (step) => {seq.push(must(index, step.state));});
   return seq;
 };
 
@@ -544,7 +544,7 @@ export const pastState = (
   excluded: boolean,
 ): PastState => {
   const breaks: Rule[] = [];
-  visitItems(marked, (r) => {if (!hasRule(breaks, r)) {breaks.push(r);}});
+  visitItems(marked, (rule) => {if (!hasRule(breaks, rule)) {breaks.push(rule);}});
   return { vars, start, breaks, ends: [], past: true, excluded };
 };
 
@@ -559,7 +559,7 @@ const deadlockRule = ({ invariants, properties }: Spec): Rule => ({
 });
 
 export const hasSection = ({ written }: Spec, ...keys: string[]): boolean => {
-  for (const s of written) {if (keys.includes(s.key)) {return true;}}
+  for (const section of written) {if (keys.includes(section.key)) {return true;}}
   return false;
 };
 

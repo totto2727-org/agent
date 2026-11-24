@@ -23,9 +23,9 @@ export function drawRegions(
   const R = names.length;
   const lead = new Uint8Array(n);
   const looped = new Uint8Array(n);
-  visitItems(found, (b) => {
-    for (const i of seqOf(b, index).slice(0, b.loop)) {lead[i] = 1;}
-    for (const i of loopOf(b, index)) {looped[i] = 1;}
+  visitItems(found, (bug) => {
+    for (const i of seqOf(bug, index).slice(0, bug.loop)) {lead[i] = 1;}
+    for (const i of loopOf(bug, index)) {looped[i] = 1;}
   });
   const loop = (j: number): boolean => R === 1 && pathSteps[j] === 1;
   const stays = (j: number): boolean => {
@@ -255,9 +255,9 @@ export function drawRegions(
   visitItems(hidden, (ps) => {for (const currentState of ps) {currentState.works = false;}});
   const paths: string[] = [];
   const loops: string[] = [];
-  visitItems(found, (b) => {
-    if (b.loop !== 0) {paths.push(b.rule.name);}
-    if (!matchesUndefined(b.loop)) {loops.push(b.rule.name);}
+  visitItems(found, (bug) => {
+    if (bug.loop !== 0) {paths.push(bug.rule.name);}
+    if (!matchesUndefined(bug.loop)) {loops.push(bug.rule.name);}
   });
   return {
     title: view.title,

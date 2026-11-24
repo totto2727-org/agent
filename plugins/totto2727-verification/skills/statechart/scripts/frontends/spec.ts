@@ -98,10 +98,10 @@ const STATE_LEVEL = 1;
 
 export function initialOnlyProperties({ definitions }: Sany, { written, properties }: Spec) {
   const replaced = new Map<string, string>();
-  visitItems(written, (s) => {if (s.key === "CONSTANT")
-      {for (let i = 1; i + 1 < s.tokens.length; i++)
-        {if (s.tokens[i] === "<-" && NAME.test(s.tokens[i + 1]))
-          {replaced.set(s.tokens[i - 1], s.tokens[i + 1]);}}}});
+  visitItems(written, (section) => {if (section.key === "CONSTANT")
+      {for (let i = 1; i + 1 < section.tokens.length; i++)
+        {if (section.tokens[i] === "<-" && NAME.test(section.tokens[i + 1]))
+          {replaced.set(section.tokens[i - 1], section.tokens[i + 1]);}}}});
   const names = new Set<string>();
   visitItems(properties, (name) => {
     const definition = definitions.get(replaced.get(name) ?? name);

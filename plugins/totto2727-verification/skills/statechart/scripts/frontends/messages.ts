@@ -42,11 +42,11 @@ export function* readMessages(tlcOut: string | Iterable<string>): Generator<Part
 export const textOf = ({ body }: Message): string =>
   body.filter((part) => isString(part)).join("\n");
 
-export const actionOf = (m: Message): string | undefined =>
-  /^\d+: (?:Back to state: )?<([^\s>]+)/.exec(textOf(m))?.[1];
+export const actionOf = (message: Message): string | undefined =>
+  /^\d+: (?:Back to state: )?<([^\s>]+)/.exec(textOf(message))?.[1];
 
-export const messageState = (m: Message) => {
-  const lines = textOf(m).split("\n");
+export const messageState = (message: Message) => {
+  const lines = textOf(message).split("\n");
   const body: string[] = [];
   for (let i = 1; i < lines.length && lines[i].trim(); i++) {body.push(lines[i]);}
   return parseState(body.join("\n"));

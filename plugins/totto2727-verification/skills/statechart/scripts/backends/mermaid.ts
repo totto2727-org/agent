@@ -195,7 +195,7 @@ export function mermaidLines(chart: Chart): string[] {
   const marks: string[] = [];
   const used = new Set<string>();
   const rules = { breaks: new Set<string>(), mayBreak: new Set<string>() };
-  const region = (r: Region): string[] => {
+  const region = (region: Region): string[] => {
     const out: string[] = [];
     const topIds = new Map<string, string>();
     const nestedIds = new Map<string, string>();
@@ -213,12 +213,12 @@ export function mermaidLines(chart: Chart): string[] {
       if (matchesUndefined(s)) {known.set(path, (s = id(path)));}
       return s;
     };
-    const drawn = drawnEdges(r);
+    const drawn = drawnEdges(region);
     const line = (e: Edge, indent: string): string =>
       `${indent}${e.start ? "[*]" : idOf(e.from)} --> ${idOf(e.to)}${matchesUndefined(e.label) ? "" : `: ${esc(e.label)}`}`;
     const tree = (prefix: string[], indent: string, below: ChartState[]): void => {
       const heads = new Map<string, ChartState[]>();
-      visitItems(below, (s) => {append(heads, s.path[prefix.length], s);});
+      visitItems(below, (chartState) => {append(heads, chartState.path[prefix.length], chartState);});
       visitItems(heads, ([head, under]) => {
         const path = [...prefix, head];
         let leaf: ChartState | undefined;
@@ -250,7 +250,7 @@ export function mermaidLines(chart: Chart): string[] {
         }
       });
     };
-    tree([], "  ", r.states);
+    tree([], "  ", region.states);
     visitItems(drawn, (e) => {if (!e.start || !e.from.length) {out.push(line(e, "  "));}});
     return out;
   };
