@@ -17,7 +17,7 @@ const jar = hostEnvironment().TLA2TOOLS;
 export const skip = !jar && "set TLA2TOOLS to the path of tla2tools.jar to run TLC";
 
 const FIXTURE_OUTPUT_LIMIT = 1_048_576;
-const NATIVE_WINDOW_OPTIONS = { maxBuffer: FIXTURE_OUTPUT_LIMIT, windowsHide: false };
+export const FIXTURE_PROCESS_OPTIONS = { maxBuffer: FIXTURE_OUTPUT_LIMIT, windowsHide: false };
 
 export const forEachTlcCase = async <Case>(
   cases: Iterable<Case>,
@@ -60,7 +60,8 @@ const properties = function (cfg: string): string[] {
 };
 
 const tlc = async function (dir: string, module: string, cfg: string) {
-  const run = `alone-${(await readdir(dir)).length}`;
+  const files = await readdir(dir);
+  const run = `alone-${files.length}`;
   const file = path.join(dir, `${run}.cfg`);
   await writeFile(file, cfg);
   const tmp = path.join(dir, `${run}-tmp`);
@@ -79,7 +80,7 @@ const tlc = async function (dir: string, module: string, cfg: string) {
       path.join(dir, `${run}-meta`),
       module,
     ],
-    { ...NATIVE_WINDOW_OPTIONS, cwd: dir },
+    { ...FIXTURE_PROCESS_OPTIONS, cwd: dir },
   );
   const out = commandResult.stdout + commandResult.stderr;
   const temporal = properties(cfg);
@@ -127,7 +128,7 @@ export const agrees = async function agrees(module: string, files: Record<string
     const cli = await runChild(
       process.execPath,
       [path.join(here, "../statechart.ts"), path.join(dir, `${module}.tla`), "--out", out],
-      NATIVE_WINDOW_OPTIONS,
+      FIXTURE_PROCESS_OPTIONS,
     );
     const plain = await tlc(dir, module, cfg);
     const report = (await fixtureExists(out)) ? await readFile(path.join(out, "report.md"), "utf8") : "";
