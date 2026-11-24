@@ -1,14 +1,6 @@
 {
   "groups": [
     {
-      "repo": "stablyai/orca",
-      "pin": "6272306c5a5a59ed1c6b604896610bfadde180cc",
-      "path": "skills",
-      "names": ["orca-cli", "orchestration"],
-      "usedBy": ["poteto-mode", "setup-pstack", "orchestration"],
-      "reason": "Discovery stubs from v1.4.272. Each reads its version-matched guide from the selected Orca executable."
-    },
-    {
       "repo": "nicobailon/visual-explainer",
       "pin": "9d5f880b7e8e0a9a80c890b8e1bb6918b68481ad",
       "names": ["visual-explainer"],
@@ -19,17 +11,8 @@
       "repo": "moonbitlang/skills",
       "pin": "cc5435cb236fb92b144ccd46773adfe5502a42c6",
       "names": ["moonbit-orientation"],
-      "optional": true,
       "usedBy": ["mbt-stack"],
-      "reason": "MoonBit workflow guidance."
-    },
-    {
-      "repo": "totto2727-org/lens",
-      "pin": "8530273ac759cd18a80a7b47862b9c6b0faa2de3",
-      "names": ["lens"],
-      "optional": true,
-      "usedBy": ["mbt-stack"],
-      "reason": "Typed MoonBit JSON access."
+      "reason": "Required MoonBit workflow guidance."
     },
     {
       "repo": "typesafe-ai/skills",

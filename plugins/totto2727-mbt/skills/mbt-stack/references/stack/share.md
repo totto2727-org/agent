@@ -30,14 +30,14 @@
 
 ## Capability additions
 
-| Selected technology                                                                             | Add when                                                                         |
-| ----------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| [Admiral](https://mooncakes.io/docs/totto2727/admiral)                                          | [CLI composition](cli.md)                                                        |
-| [Standard `FromJson` and `ToJson`](https://docs.moonbitlang.com/en/latest/language/derive.html) | Fixed-shape JSON                                                                 |
-| [Lens](https://mooncakes.io/docs/totto2727/lens)                                                | [Dynamic or presence-sensitive JSON](../knowledge/json.md) with path diagnostics |
-| [moonbitlang/async](https://github.com/moonbitlang/async)                                       | [Async I/O](../knowledge/async.md)                                               |
-| [Workgraph](https://github.com/totto2727-org/workgraph)                                         | Sequential task graphs with reduction before routing                             |
-| Existing typed path library                                                                     | [Filesystem path boundaries](../knowledge/json.md#path-boundaries)               |
+| Selected technology                                                                             | Add when                                                                            |
+| ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| [Admiral](https://mooncakes.io/docs/totto2727/admiral)                                          | [CLI composition](cli.md)                                                           |
+| [Standard `FromJson` and `ToJson`](https://docs.moonbitlang.com/en/latest/language/derive.html) | Fixed-shape JSON                                                                    |
+| [Model](https://mooncakes.io/docs/totto2727/model)                                              | [Custom wire formats, nested JSON paths, or model validation](../knowledge/json.md) |
+| [moonbitlang/async](https://github.com/moonbitlang/async)                                       | [Async I/O](../knowledge/async.md)                                                  |
+| [Workgraph](https://github.com/totto2727-org/workgraph)                                         | Sequential task graphs with reduction before routing                                |
+| Existing typed path library                                                                     | [Filesystem path boundaries](../knowledge/json.md#path-boundaries)                  |
 
 - Manual codec only when derivation cannot express the wire contract.
 

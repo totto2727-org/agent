@@ -6,11 +6,11 @@
 - Presence-sensitive contracts: distinguish missing fields, explicit `null`, and supplied values.
 - Optional values must not collapse these cases or encode omitted request fields as `null`.
 
-## Official Lens guidance
+## Choose a codec
 
-- Prefer the installed official [lens skill](https://github.com/totto2727-org/lens/blob/main/.agents/skills/lens/SKILL.md).
-- Fallback: its upstream skill and [Lens API](https://mooncakes.io/docs/totto2727/lens).
-- Use the consumer's resolved interface, not examples from `main`.
+Use standard `FromJson` and `ToJson` derivation when the MoonBit type already matches the wire format.
+Use [Model](https://github.com/totto2727-org/model) for custom wire models: Serde generates codecs for field aliases, defaults, and nested paths; Garde validates decoded models separately.
+Check the [Model API](https://mooncakes.io/docs/totto2727/model) for the consumer's resolved version.
 
 ## Other input formats
 

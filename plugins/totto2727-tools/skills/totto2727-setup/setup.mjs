@@ -137,7 +137,7 @@ function uninstall() {
       `Unknown skill to keep: ${n}`,
     );
   for (const [name, record] of Object.entries(ledger.owned)) {
-    if (values.keep.includes(name)) {
+    if (values.keep.includes(name) || name === "orca-cli" || name === "orchestration") {
       delete ledger.owned[name];
       console.log(`Released ownership: ${name}`);
       continue;
@@ -206,7 +206,7 @@ function install() {
   const groups = [own, ...manifest.groups.filter((g) => !values["required-only"] || !g.optional)];
   const seen = new Set();
   const plan = [];
-  for (const { repo, pin, names, path } of groups) {
+  for (const { repo, pin, names } of groups) {
     requireThat(
       /^[\w.-]+\/[\w.-]+$/.test(repo) && /^[a-f0-9]{40}$/.test(pin),
       "Invalid source pin.",
@@ -235,8 +235,7 @@ function install() {
       missing.push(n);
     }
     console.log(`${repo}#${pin}: ${missing.length} to add`, missing.join(" "));
-    const source = path ? `https://github.com/${repo}/tree/${pin}/${path}` : `${repo}#${pin}`;
-    plan.push({ repo, pin, source, names: missing });
+    plan.push({ repo, pin, source: `${repo}#${pin}`, names: missing });
   }
   console.log(
     "Host-provided skills: reuse the installed oo guide; if absent, follow SKILL.md#host-provided-openconnector-skills. This command does not install or own host exports.",

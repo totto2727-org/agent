@@ -119,3 +119,26 @@ test("project uninstall refuses a receipt copied from another scope without chan
   for (const base of [root, home])
     assert.equal(await readFile(join(base, ".agents/skills/shared/SKILL.md"), "utf8"), pristine);
 });
+
+test("uninstall leaves Orca's host-provided guides and their lock entries intact", async (t) => {
+  const { root, uninstall } = await fixture(t);
+  const names = ["orca-cli", "orchestration"];
+  const entries = {};
+  const owned = {};
+  for (const n of names) {
+    await skill(join(root, ".agents/skills"), n, pristine);
+    entries[n] = lockEntry(n, "stablyai/orca");
+    owned[n] = { lock: entries[n], hash: originalHash };
+  }
+  const receipt = join(root, ".agents/totto2727-setup.json");
+  const lock = join(root, "skills-lock.json");
+  const bytes = JSON.stringify({ version: 2, skills: entries });
+  await writeFile(receipt, JSON.stringify({ version: 1, scope: "project", root, owned }));
+  await writeFile(lock, bytes);
+  const result = uninstall();
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(await readFile(lock, "utf8"), bytes);
+  for (const n of names)
+    assert.equal(await readFile(join(root, ".agents/skills", n, "SKILL.md"), "utf8"), pristine);
+  await assert.rejects(readFile(receipt), { code: "ENOENT" });
+});

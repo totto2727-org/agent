@@ -10,7 +10,7 @@ description: >-
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------- |
 | [Nix](https://nixos.org/), [moonbit-overlay](https://github.com/totto2727-org/moonbit-overlay), [Moon](https://docs.moonbitlang.com/en/latest/toolchain/moon/index.html) | [MoonBit baseline](references/stack/share.md)                              |
 | [Admiral](https://mooncakes.io/docs/totto2727/admiral)                                                                                                                   | [CLI addition](references/stack/cli.md)                                    |
-| [Standard codecs](https://docs.moonbitlang.com/en/latest/language/derive.html), conditional [Lens](https://mooncakes.io/docs/totto2727/lens)                             | Baseline [codec selection](references/stack/share.md#capability-additions) |
+| [Standard codecs](https://docs.moonbitlang.com/en/latest/language/derive.html), [Model](https://mooncakes.io/docs/totto2727/model)                                       | Baseline [codec selection](references/stack/share.md#capability-additions) |
 | [moonbitlang/async](https://github.com/moonbitlang/async), conditional [Workgraph](https://github.com/totto2727-org/workgraph)                                           | Baseline I/O and sequential task-graph additions                           |
 
 - Audience: advanced users selecting or maintaining MoonBit stacks.
