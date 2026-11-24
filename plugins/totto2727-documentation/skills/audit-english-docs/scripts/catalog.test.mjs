@@ -10,7 +10,7 @@ const catalogPath = fileURLToPath(new URL("../references/rules.json", import.met
 const sourcePath = fileURLToPath(new URL("../SKILL.md", import.meta.url));
 const sectionCounts = [14, 2, 7, 5, 5, 6, 3, 7, 4];
 const numberedRules = sectionCounts.flatMap((count, section) =>
-  Array.from({ length: count }, (_, index) => `${section + 1}.${index + 1}`),
+  Array.from({ length: count }, (_unused, index) => `${section + 1}.${index + 1}`),
 );
 const loadCatalog = async () => JSON.parse(await readFile(catalogPath, "utf8"));
 const mappedNumbers = (rules) =>

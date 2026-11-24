@@ -51,7 +51,7 @@ export function walk(graph: Graph): Walk {
   const fill = first.slice(0, n);
   const next = new Int32Array(m);
   Iterator.from(sortBy(count(m), [action, toName])).forEach((j) => {next[fill[from[j]]++] = j;});
-  starts.sort((a, b) => nameRank[a] - nameRank[b]);
+  starts.sort((left, right) => nameRank[left] - nameRank[right]);
   const depth = new Int32Array(n).fill(-1);
   const via = new Int32Array(n).fill(-1);
   const reached = new Int32Array(n);

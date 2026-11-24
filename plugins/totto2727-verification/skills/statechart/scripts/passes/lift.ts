@@ -22,7 +22,7 @@ export function liftToParents(states: ChartState[], steps: ChartStep[]) {
   }
   const removed = new Set<ChartStep>();
   const lifted: ChartStep[] = [];
-  for (const [prefix] of [...depths].sort((a, b) => a[1] - b[1])) {
+  for (const [prefix] of [...depths].sort((left, right) => left[1] - right[1])) {
     const groups = new Map<string, ChartStep[]>();
     Iterator.from(leaving.get(prefix) ?? []).forEach((s) => {if (!removed.has(s)) {append(groups, tupleKey([s.label, s.when, s.to]), s);}});
     const under = must(leaves, prefix);

@@ -115,8 +115,8 @@ const fingerprint = function (name) {
   }
   const hash = createHash("sha256");
   const walk = function (p, rel) {
-    for (const entry of readdirSync(p, { withFileTypes: true }).sort((a, b) =>
-      a.name < b.name ? -1 : 1,
+    for (const entry of readdirSync(p, { withFileTypes: true }).sort((left, right) =>
+      left.name < right.name ? -1 : 1,
     )) {
       const f = join(p, entry.name);
       const key = `${rel}/${entry.name}`;
@@ -217,7 +217,10 @@ const install = function () {
   const ref = values.ref ?? (bootstrap?.source === firstParty ? bootstrap.commit : undefined);
   const own = ownNames(ref);
   const manifest = JSON.parse(readFileSync(new URL("dependencies.json", import.meta.url), "utf8"));
-  const groups = [own, ...manifest.groups.filter((g) => !values["required-only"] || !g.optional)];
+  const groups = [
+    own,
+    ...manifest.groups.filter((group) => !values["required-only"] || !group.optional),
+  ];
   const seen = new Set();
   const plan = [];
   for (const { repo, pin, names } of groups) {

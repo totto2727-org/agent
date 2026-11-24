@@ -30,7 +30,7 @@ const java = (folder: string, args: string[]) => {
 };
 
 if (record) {
-  let tool = plain ? args.map((a, i) => (args[i - 1] === "-workers" ? "1" : a)) : args;
+  let tool = plain ? args.map((argument, index) => (args[index - 1] === "-workers" ? "1" : argument)) : args;
   const wantsPlainText = tool.includes("tlc2.TLC") && !tool.includes("-tool");
   if (wantsPlainText) {tool = tool.flatMap((a) => (a === "tlc2.TLC" ? [a, "-tool"] : [a]));}
   const r = java(record, tool);
@@ -40,8 +40,8 @@ if (record) {
       plain,
       tool
         .filter((a) => a !== "-tool")
-        .map((a, i, all) =>
-          all[i - 1] === "-metadir" || all[i - 2] === "-dump" ? `${a}-plain` : a,
+        .map((a, index, all) =>
+          all[index - 1] === "-metadir" || all[index - 2] === "-dump" ? `${a}-plain` : a,
         ),
     );}
   const shown = (text: string): string =>

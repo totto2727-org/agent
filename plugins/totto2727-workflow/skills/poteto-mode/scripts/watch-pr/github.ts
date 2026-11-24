@@ -686,7 +686,7 @@ export function orderStack(
     if (pr.isCrossRepository) {return;}
     children.set(pr.baseRefName, [...(children.get(pr.baseRefName) ?? []), pr]);
   });
-  Iterator.from(children.values()).forEach((values) => {values.sort((a, b) => a.number - b.number);});
+  Iterator.from(children.values()).forEach((values) => {values.sort((left, right) => left.number - right.number);});
   const start = byNumber.get(context.number);
   if (matchesUndefined(start)) {return [context];}
   const down: T.OpenPullRequest[] = [];

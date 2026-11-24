@@ -78,7 +78,7 @@ export function readSany(xml: string): Sany {
     if (node.tag === "OpDeclNode" && textOf(node, "kind") === VARIABLE_KIND)
       {variables.push({ uid: Number(uid), name });}
   });
-  variables.sort((a, b) => a.uid - b.uid);
+  variables.sort((left, right) => left.uid - right.uid);
   return { variables: variables.map((variable) => variable.name), definitions };
 }
 

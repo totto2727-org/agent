@@ -268,7 +268,9 @@ export function analyzeSteProse(text, context = {}, { paragraph = false } = {}) 
   }
   /** @type {CountedSentence[]} */
   const extraSentences = [];
-  const groups = [...(context.wordGroups ?? [])].sort((a, b) => b.text.length - a.text.length);
+  const groups = [...(context.wordGroups ?? [])].sort(
+    (left, right) => right.text.length - left.text.length,
+  );
   Iterator.from(groups).forEach((group) => {
     let at = 0;
     while ((at = characters.join("").indexOf(group.text, at)) !== -1) {
@@ -353,7 +355,7 @@ export function analyzeSteProse(text, context = {}, { paragraph = false } = {}) 
       "Ω",
       ...(context.measurementUnits ?? []),
     ]),
-  ].sort((a, b) => b.length - a.length);
+  ].sort((left, right) => right.length - left.length);
   current = characters.join("");
   Iterator.from(current.matchAll(/[+-]?\d+(?:,\d{3})*(?:\.\d+)?/g)).forEach((match) => {
     if (!boundary(current, match.index - 1) || !boundary(current, match.index + match[0].length)) {

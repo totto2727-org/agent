@@ -414,7 +414,7 @@ const setKey = (members: Value[]): string => {
     else {others.push(key(currentValue));}});
   for (let i = 1; i < ints.length; i++)
     {if (ints[i - 1] >= ints[i]) {
-      ints.sort((a, b) => a - b);
+      ints.sort((left, right) => left - right);
       break;
     }}
   if (!ascending(others)) {others = others.sort(byText);}
@@ -440,7 +440,7 @@ const functionKey = ({ keys, values }: { keys: Value[]; values: Value[] }): stri
     if (typeof keys[keyIndex] === "number") {ints++;}
   }
   const rank = (i: number): number => (typeof keys[i] === "number" ? (keys[i]) : Infinity);
-  order.sort((a, b) => rank(a) - rank(b) || byText(keyTexts[a], keyTexts[b]) || a - b);
+  order.sort((left, right) => rank(left) - rank(right) || byText(keyTexts[left], keyTexts[right]) || left - right);
   let tuple = ints === keys.length;
   for (let i = 0; tuple && i < order.length; i++) {tuple = keys[order[i]] === i + 1;}
   let s = tuple ? "<<" : "(";

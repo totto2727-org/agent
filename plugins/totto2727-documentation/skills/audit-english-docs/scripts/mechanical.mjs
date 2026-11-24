@@ -603,7 +603,7 @@ function runSteMechanical(check, markdown, targetRange, context) {
           ...entries.keys(),
           ...technical.map((term) => (matchesString(term) ? term : term.text).toLowerCase()),
         ]),
-      ].sort((a, b) => b.length - a.length);
+      ].sort((left, right) => right.length - left.length);
       let consumed = 0;
       Iterator.from(text.matchAll(/[\p{L}\p{N}]+(?:[-'][\p{L}\p{N}]+)*/gu)).forEach((match) => {
         if (match.index < consumed) {

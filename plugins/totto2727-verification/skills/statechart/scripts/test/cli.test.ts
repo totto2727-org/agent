@@ -592,7 +592,7 @@ const overBudget = (file: string): void =>
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a check above the chart budget skips the drawing run and draws only the bug paths", () => {
   const dir = copyCase("FirstRule", (d) => {
-    Iterator.from(fs.readdirSync(d)).forEach((f) => {if (/^verdict-\d+\.out$/u.test(f)) {overBudget(path.join(d, f));}});
+    Iterator.from(fs.readdirSync(d)).forEach((fileName) => {if (/^verdict-\d+\.out$/u.test(fileName)) {overBudget(path.join(d, fileName));}});
   });
   const r = run(dir);
   assert.equal(r.status, 1);
@@ -1167,7 +1167,7 @@ const contents = (p: string) => {
   if (stat.isSymbolicLink()) {return fs.readlinkSync(p);}
   if (!stat.isDirectory()) {return read(p);}
   const files: Record<string, string> = {};
-  Iterator.from(fs.readdirSync(p)).forEach((f) => {files[f] = read(path.join(p, f));});
+  Iterator.from(fs.readdirSync(p)).forEach((fileName) => {files[fileName] = read(path.join(p, fileName));});
   return files;
 };
 const newPath = (): string => path.join(fs.mkdtempSync(path.join(os.tmpdir(), "statechart-out-")), "out");

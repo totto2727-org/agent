@@ -65,7 +65,7 @@ test(
           child.stderr.on("data", (chunk: Buffer) => (stderr += chunk));
           await once(child, "close");
           assert.equal(stderr, "");
-          const runs = fs.readdirSync(twin).filter((f) => f.endsWith(".out"));
+          const runs = fs.readdirSync(twin).filter((fileName) => fileName.endsWith(".out"));
           assert.ok(runs.includes("ChartRun.out"), "the drawing run has a plain twin");
           Iterator.from(runs).forEach((run) => {
             const exit = run.replace(/\.out$/u, ".exit");
@@ -82,8 +82,8 @@ test(
           );
           const verdicts = new Set<string>();
           Iterator.from(runs).forEach((run) => {if (run.startsWith("verdict-")) {verdicts.add(steady(`${read(path.join(twin, run))}\n`));}});
-          Iterator.from(fs.readdirSync(out)).forEach((f) => {if (/^tlc-\w+\.out$/u.test(f))
-              {assert.ok(verdicts.has(steady(read(path.join(out, f)))), f);}});
+          Iterator.from(fs.readdirSync(out)).forEach((fileName) => {if (/^tlc-\w+\.out$/u.test(fileName))
+              {assert.ok(verdicts.has(steady(read(path.join(out, fileName)))), fileName);}});
         }),
       ),
     );

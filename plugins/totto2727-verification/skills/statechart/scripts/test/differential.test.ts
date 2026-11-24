@@ -157,7 +157,7 @@ function viewOf(v: NonNullable<Model["view"]>, vars: string[], actions: string[]
   ];
   const { steps } = v;
   if (steps) {
-    const labels = actions.map((a, k) => [a, k < steps.length ? steps[k] : a]);
+    const labels = actions.map((action, index) => [action, index < steps.length ? steps[index] : action]);
     lines.push(
       `const STEPS = new Map(${json(labels)});`,
       "export const step = (action) => STEPS.get(action);",
@@ -165,7 +165,7 @@ function viewOf(v: NonNullable<Model["view"]>, vars: string[], actions: string[]
   }
   if (v.title) {lines.push(`export const title = ${json(v.title)};`);}
   if (v.groups) {
-    const colors = v.groups.map((g, k) => [g, COLORS[k]]);
+    const colors = v.groups.map((group, index) => [group, COLORS[index]]);
     lines.push(
       `export const colors = Object.fromEntries(${json(colors)});`,
       `export const group = (v) => pick(v[VARS[0]], 3, ${json(v.groups)});`,
@@ -181,7 +181,7 @@ const caseOf = function (m: Model): Case {
   const domains = m.vars.map(({ domain }) =>
     Array.isArray(domain) ? domain : Array.from({ length: domain.modelValues }, name),
   );
-  const modelValues = m.vars.flatMap(({ domain }, k) => (Array.isArray(domain) ? [] : domains[k]));
+  const modelValues = m.vars.flatMap(({ domain }, index) => (Array.isArray(domain) ? [] : domains[index]));
   const value = (v: number, i: number): string =>
     domains[v % vars.length][i % domains[v % vars.length].length];
   const atom = ({ v, i, not }: Atom): string =>
@@ -189,13 +189,13 @@ const caseOf = function (m: Model): Case {
   const set = (v: number, is: number[]): string =>
     `{${[...new Set(is.map((i) => value(v, i)))].join(", ")}}`;
   const defs = [`vars == <<${vars.join(", ")}>>`];
-  defs.push(`Init == ${vars.map((x, k) => `${x} \\in ${set(k, m.vars[k].init)}`).join(String.raw` /\ `)}`);
-  const actions = m.actions.map((a) => {
+  defs.push(`Init == ${vars.map((variable, index) => `${variable} \\in ${set(index, m.vars[index].init)}`).join(String.raw` /\ `)}`);
+  const actions = m.actions.map((currentAction) => {
     const changed = new Map<number, number[]>();
-    Iterator.from(a.set).forEach((s) => {if (!changed.has(s.v % vars.length)) {changed.set(s.v % vars.length, s.to);}});
-    const parts = a.guard.map(atom);
+    Iterator.from(currentAction.set).forEach((s) => {if (!changed.has(s.v % vars.length)) {changed.set(s.v % vars.length, s.to);}});
+    const parts = currentAction.guard.map(atom);
     Iterator.from(changed).forEach(([k, to]) => {parts.push(`${vars[k]}' \\in ${set(k, to)}`);});
-    const kept = vars.filter((_, k) => !changed.has(k));
+    const kept = vars.filter((variable, index) => !changed.has(index));
     if (kept.length) {parts.push(`UNCHANGED <<${kept.join(", ")}>>`);}
     const action = name();
     defs.push(`${action} == ${parts.join(String.raw` /\ `)}`);

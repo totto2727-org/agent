@@ -56,7 +56,7 @@ const RUNTIME =
 const TYPE_IMPORT =
   /\b(?:import|export)\s+type\b\s*(?:[\w$]+|\*(?:\s*as\s+[\w$]+)?|\{[^}]*\})\s*from\s*["']([^"']*)["']/g;
 const typeImports = (file: string): string[] =>
-  Array.from(codeOf(file).matchAll(TYPE_IMPORT), (m) => path.join(path.dirname(file), m[1]));
+  Array.from(codeOf(file).matchAll(TYPE_IMPORT), (match) => path.join(path.dirname(file), match[1]));
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("ir.ts imports nothing", () => {
@@ -104,7 +104,7 @@ test("no frontend or backend loads a node: module when imported, even through an
   Iterator.from(["frontends", "backends"]).forEach((folder) => {
     const files = fs
       .readdirSync(path.join(scripts, folder), { encoding: "utf8", recursive: true })
-      .filter((f) => f.endsWith(".ts"));
+      .filter((fileName) => fileName.endsWith(".ts"));
     assert.ok(files.length > 0, folder);
     for (const currentFile of files)
       {for (const [, to] of loads(path.join(folder, currentFile)))

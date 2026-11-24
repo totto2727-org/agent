@@ -40,7 +40,7 @@ const unlabeled = function (
   bug: { rule: Rule; loop?: number },
 ): never {
   const changed: string[] = [];
-  Object.keys(after).forEach((k) => {if (key(before[k]) !== key(after[k])) {changed.push(k);}});
+  Object.keys(after).forEach((currentKey) => {if (key(before[currentKey]) !== key(after[currentKey])) {changed.push(currentKey);}});
   throw new Error(
     `The view's step() returned null for the step ${action} that changes ${changed.join(", ") || "nothing"}. It is on the path to the ${bug.rule.name} bug${matchesUndefined(bug.loop) ? "" : " or leaves its loop"}, so label it.`,
   );

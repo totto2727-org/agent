@@ -152,9 +152,9 @@ export function report(
         : ["", "## TLC stopped", `TLC stopped with exit ${stop.status}:`]),
       fenced(stop.message),
     );}
-  Iterator.from(properties).forEach((p) => {if (p.outcome === "holds" && p.initialOnly)
+  Iterator.from(properties).forEach((property) => {if (property.outcome === "holds" && property.initialOnly)
       {out.push(
-        `TLC checked ${p.rule.name} only in the initial states, because it has no [], <>, or ~>. List it as an INVARIANT to check every state.`,
+        `TLC checked ${property.rule.name} only in the initial states, because it has no [], <>, or ~>. List it as an INVARIANT to check every state.`,
       );}});
   return out.join("\n");
 }

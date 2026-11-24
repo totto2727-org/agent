@@ -407,7 +407,7 @@ for (const [what, tla, where] of [
       "---- MODULE Broken ----",
       "VARIABLE x",
       "Init == x = 0",
-      ...Array.from({ length: 12 }, (_, i) => `D${i} == u${i}`),
+      ...Array.from({ length: 12 }, (_unused, index) => `D${index} == u${index}`),
       "Next == x' = x",
       "====",
     ],

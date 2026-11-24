@@ -95,7 +95,7 @@ export function drawRegions(
       for (const i of state.members) {for (const rule of tla[i].breaks) {rules.set(ruleKey(rule), rule);}}
       state.breaks = [];
       for (const rule of [...rules.values()].sort(
-        (a, b) => byText(a.name, b.name) || byText(a.kind, b.kind),
+        (left, right) => byText(left.name, right.name) || byText(left.kind, right.kind),
       )) {
         let always = true;
         for (const i of state.members) {always &&= hasRule(tla[i].breaks, rule);}
