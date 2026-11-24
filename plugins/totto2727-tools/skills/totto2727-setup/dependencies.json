@@ -1,0 +1,67 @@
+{
+  "groups": [
+    {
+      "repo": "stablyai/orca",
+      "pin": "6272306c5a5a59ed1c6b604896610bfadde180cc",
+      "path": "skills",
+      "names": ["orca-cli", "orchestration"],
+      "usedBy": ["poteto-mode", "setup-pstack", "orchestration"],
+      "reason": "Discovery stubs from v1.4.272. Each reads its version-matched guide from the selected Orca executable."
+    },
+    {
+      "repo": "nicobailon/visual-explainer",
+      "pin": "9d5f880b7e8e0a9a80c890b8e1bb6918b68481ad",
+      "names": ["visual-explainer"],
+      "usedBy": ["visual-explainer-ja"],
+      "reason": "Required HTML renderer."
+    },
+    {
+      "repo": "moonbitlang/skills",
+      "pin": "cc5435cb236fb92b144ccd46773adfe5502a42c6",
+      "names": ["moonbit-orientation"],
+      "optional": true,
+      "usedBy": ["mbt-stack"],
+      "reason": "MoonBit workflow guidance."
+    },
+    {
+      "repo": "totto2727-org/lens",
+      "pin": "8530273ac759cd18a80a7b47862b9c6b0faa2de3",
+      "names": ["lens"],
+      "optional": true,
+      "usedBy": ["mbt-stack"],
+      "reason": "Typed MoonBit JSON access."
+    },
+    {
+      "repo": "typesafe-ai/skills",
+      "pin": "302eea662c54bca6730873fe245bec1d69ebc23d",
+      "names": ["typesafe-ai"],
+      "optional": true,
+      "usedBy": ["decision-model"],
+      "reason": "Typed primitive design, not provider configuration."
+    },
+    {
+      "repo": "GoogleChrome/modern-web-guidance",
+      "pin": "56c61c9ee79a8df1a98822309c04847a57f56000",
+      "names": ["modern-web-guidance"],
+      "optional": true,
+      "usedBy": ["js-coding"],
+      "reason": "IME-safe enter submission guidance, tag v0.0.186."
+    },
+    {
+      "repo": "cathrynlavery/diagram-design",
+      "pin": "0eeda75a708f419560d5e032693618bb9954f17b",
+      "names": ["diagram-design"],
+      "optional": true,
+      "usedBy": ["totto2727-profile"],
+      "reason": "Complex figures when pstack and Visual Explainer cannot produce them."
+    }
+  ],
+  "hostExports": [
+    {
+      "provider": "oo",
+      "source": "https://github.com/oomol-lab/oo-cli/tree/8aaaeb3dc000c8988d186fd82d971dfaf26e5077/contrib/skills/shared",
+      "skills": { "oo": "open-connector", "oo-find-skills": "oo package discovery or repair only" },
+      "instructions": "SKILL.md#host-provided-openconnector-skills"
+    }
+  ]
+}

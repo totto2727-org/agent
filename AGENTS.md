@@ -43,6 +43,8 @@
 
 ## Skill maintenance
 
+When changing `totto2727-setup`, check install and removal in a disposable home and project. Run `vp node --test tests/setup-ownership.test.mjs` for the removal boundaries; it must not touch the developer's installed skills. Verify external skill names and revisions in the bootstrap's `dependencies.json` when their sources change.
+
 Use `totto2727-` for each plugin name and directory. Group implementation, stack, and tests by language. Keep cross-language principles separate from document-specific procedures. Keep skill names independent of plugin names.
 Write a short description that identifies the user task. For distinct workflows, link to the relevant reference at the point of choice instead of requiring every reader to follow every procedure.
 When a plugin or a skill moves, update the README map and check its links both in the repository and in the installed flat skills directory.

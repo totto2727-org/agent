@@ -15,6 +15,18 @@ Install the language you work in and add shared guidance when needed. Each [Agen
 
 ## Install
 
+### Start with one skill
+
+Install [`totto2727-setup`](plugins/totto2727-tools/skills/totto2727-setup/SKILL.md) into the project from the repository root:
+
+```bash
+vpx skills@1.9.0 add https://github.com/totto2727-org/agent --full-depth --skill totto2727-setup --agent universal --copy --yes
+```
+
+Use `--global` for a user-wide installation instead. To install from a PR or release, use `https://github.com/totto2727-org/agent.git#REF` with its branch, tag, or commit. Then ask the agent to use `totto2727-setup` to install the collection and its external skill dependencies in the same scope. To remove the collection, use the same skill and scope.
+
+### Install one plugin instead
+
 With a `c-plugin` version that supports `github:` sources, install one package by name:
 
 ```bash
@@ -33,6 +45,7 @@ vpx skills add https://github.com/totto2727-org/agent --skill visual-explainer-j
 ```
 
 **Refers to** lists other skills in this repository linked or explicitly named in a skill or its reference material. These are reading paths, not automatic install dependencies. A cross-plugin link has a source fallback, so you can install a language plugin alone.
+For external skills, see the [dependency inventory](plugins/totto2727-tools/skills/totto2727-setup/dependencies.json). Each entry names the consuming workflow, source repository, and exact commit. For example, `visual-explainer-ja` uses the external `visual-explainer` skill. The `oxlint` skill is already in `totto2727-js`; its npm plugin is not another skill to install.
 External tools are separate: the OpenConnector workflows use the configured `oo` CLI, Monid workflows use the Monid CLI, and hosted inference needs Cloudflare credentials. The mechanical documentation checks run locally. Only their optional semantic evaluation needs a configured inference service.
 
 ### [totto2727-communication](plugins/totto2727-communication/plugin.json)
@@ -195,11 +208,12 @@ Rust implementation, stack selection, and tests.
 
 ### [totto2727-tools](plugins/totto2727-tools/plugin.json)
 
-Filesystem path resolution.
+Install and remove the skill collection and resolve filesystem paths.
 
-| Skill                                                        | Refers to |
-| ------------------------------------------------------------ | --------- |
-| [realpath](plugins/totto2727-tools/skills/realpath/SKILL.md) | None      |
+| Skill                                                                      | Refers to |
+| -------------------------------------------------------------------------- | --------- |
+| [realpath](plugins/totto2727-tools/skills/realpath/SKILL.md)               | None      |
+| [totto2727-setup](plugins/totto2727-tools/skills/totto2727-setup/SKILL.md) | `oxlint`  |
 
 ### [totto2727-verification](plugins/totto2727-verification/plugin.json)
 
