@@ -23,6 +23,8 @@ Use pstack for document analysis and drafting. Use its recap, technical writing,
 
 ## Personal defaults
 
+For a Japanese HTML handoff, use [visual-explainer-ja](../visual-explainer-ja/SKILL.md) ([source](https://github.com/totto2727-org/agent/blob/main/plugins/totto2727-documentation/skills/visual-explainer-ja/SKILL.md)).
+
 | Decision         | Default                                                                                                                                                                                                                                                                           |
 | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Git identity     | Use `totto2727-ai <2000.0727.hayato+ai@gmail.com>` for both author and committer. Do not change shared Git configuration to set one commit's identity.                                                                                                                            |

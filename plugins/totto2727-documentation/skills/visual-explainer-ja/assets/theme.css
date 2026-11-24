@@ -1,0 +1,51 @@
+:root[data-register] {
+  color-scheme: dark;
+  --bg: #141414;
+  --surface: #242424;
+  --surface2: #303030;
+  --text: #f2f2f2;
+  --text-dim: #c2c2c2;
+  --accent: #9dbaff;
+  --accent-dim: #9dbaff1f;
+  --border: #454545;
+  --border-bright: #808080;
+  --node-a: var(--accent);
+  --node-b: #88ded8;
+  --node-c: #e0b6ff;
+  --node-a-dim: var(--accent-dim);
+  --node-b-dim: #88ded81f;
+  --node-c-dim: #e0b6ff1f;
+  --ok: #95dda8;
+  --warn: #ffda80;
+  --risk: #ffb3b3;
+  --info: var(--accent);
+  --ok-dim: #95dda81f;
+  --warn-dim: #ffda801f;
+  --risk-dim: #ffb3b31f;
+  --info-dim: var(--accent-dim);
+  --font-body: "Noto Sans JP", "Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif;
+  --font-display: var(--font-body);
+  --font-mono: "Noto Sans Mono", ui-monospace, monospace;
+}
+
+main {
+  line-break: strict;
+  overflow-wrap: anywhere;
+}
+
+main a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 0.16em;
+}
+
+:focus-visible {
+  outline: 2px solid var(--warn);
+  outline-offset: 3px;
+}
+
+@media (forced-colors: active) {
+  :focus-visible {
+    outline-color: Highlight;
+  }
+}

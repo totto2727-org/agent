@@ -25,6 +25,13 @@ Replace `totto2727-js` with another package listed below. Omit `--all` to select
 
 ## Plugin and skill map
 
+For a Japanese HTML report, install the [Visual Explainer renderer](https://github.com/nicobailon/visual-explainer) and this repository's [Japanese theme](plugins/totto2727-documentation/skills/visual-explainer-ja/SKILL.md). With Vite+:
+
+```bash
+vpx skills add https://github.com/nicobailon/visual-explainer --skill visual-explainer --global --agent codex claude-code --yes
+vpx skills add https://github.com/totto2727-org/agent --skill visual-explainer-ja --global --agent codex claude-code --yes
+```
+
 **Refers to** lists other skills in this repository linked or explicitly named in a skill or its reference material. These are reading paths, not automatic install dependencies. A cross-plugin link has a source fallback, so you can install a language plugin alone.
 External tools are separate: the OpenConnector workflows use the configured `oo` CLI, Monid workflows use the Monid CLI, and hosted inference needs Cloudflare credentials. The mechanical documentation checks run locally. Only their optional semantic evaluation needs a configured inference service.
 
@@ -55,6 +62,7 @@ Developer documentation, artifact templates, documentation quality checks, and s
 | [skill-reviewer](plugins/totto2727-documentation/skills/skill-reviewer/SKILL.md)               | `documentation-principles`                                    |
 | [technical-writing](plugins/totto2727-documentation/skills/technical-writing/SKILL.md)         | `documentation-principles`, `documentation-quality`, `unslop` |
 | [unslop](plugins/totto2727-documentation/skills/unslop/SKILL.md)                               | None                                                          |
+| [visual-explainer-ja](plugins/totto2727-documentation/skills/visual-explainer-ja/SKILL.md)     | None                                                          |
 
 ### [totto2727-engineering](plugins/totto2727-engineering/plugin.json)
 
@@ -171,9 +179,9 @@ Shared principles for implementation, writing, testing, and stack selection.
 
 Optional personal defaults for totto2727's Git identity, delivery, and local workspace.
 
-| Skill                                                                            | Refers to                                                 |
-| -------------------------------------------------------------------------------- | --------------------------------------------------------- |
-| [totto2727-profile](plugins/totto2727-profile/skills/totto2727-profile/SKILL.md) | `doc-search`, `open-connector`, `projektor`, `web-search` |
+| Skill                                                                            | Refers to                                                                        |
+| -------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| [totto2727-profile](plugins/totto2727-profile/skills/totto2727-profile/SKILL.md) | `doc-search`, `open-connector`, `projektor`, `visual-explainer-ja`, `web-search` |
 
 ### [totto2727-rust](plugins/totto2727-rust/plugin.json)
 
