@@ -52,6 +52,15 @@ Both commands install every skill without a selection prompt.
 Omit `--all` for interactive skill selection.
 Each package contains its manifest at `plugins/<plugin>/plugin.json` and its skills in the immediate child directories of `plugins/<plugin>/skills/`.
 
+### Install Japanese visual reports with Vite+
+
+To install only the Japanese HTML report workflow, use `vpx skills` to add the renderer and the theme skill:
+
+```bash
+vpx skills add https://github.com/nicobailon/visual-explainer --skill visual-explainer --global --agent codex claude-code --yes
+vpx skills add https://github.com/totto2727-org/agent --skill visual-explainer-ja --global --agent codex claude-code --yes
+```
+
 ## API
 
 ### `totto2727-coding`
@@ -59,6 +68,7 @@ Each package contains its manifest at `plugins/<plugin>/plugin.json` and its ski
 Provides reusable coding and testing guidance, [documentation-principles](plugins/totto2727-coding/skills/documentation-principles/SKILL.md) for shared writing principles, [share-test-design](plugins/totto2727-coding/skills/share-test-design/SKILL.md) for test-design decisions, and [share-artifact](plugins/totto2727-coding/skills/share-artifact/SKILL.md) for adaptable README, AGENTS.md, and ADR structures.
 Use [documentation-quality](plugins/totto2727-coding/skills/documentation-quality/SKILL.md) to review developer documentation.
 Use [realpath](plugins/totto2727-coding/skills/realpath/SKILL.md) for filesystem path calculations and [skill-reviewer](plugins/totto2727-coding/skills/skill-reviewer/SKILL.md) for Agent Skill reviews.
+Use [visual-explainer-ja](plugins/totto2727-coding/skills/visual-explainer-ja/SKILL.md) to turn a draft into a Japanese HTML report with a fixed dark theme.
 
 ### `external-information`
 
