@@ -5,7 +5,7 @@ import fs from "node:fs";
 // oxlint-disable-next-line rules/no-node-imports -- Node resolves type-only imports from each file for the dependency boundary test.
 import { createRequire } from "node:module";
 import path from "node:path";
-// oxlint-disable-next-line rules/no-node-imports, vitest/no-import-node-test -- Statechart runs these fixtures with Node's test runner as part of the standalone skill.
+// oxlint-disable-next-line rules/no-node-imports -- Statechart runs these fixtures with Node's test runner as part of the standalone skill.
 import { test } from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { inspect } from "node:util";

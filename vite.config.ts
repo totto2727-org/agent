@@ -3,7 +3,7 @@ import { defineConfig } from "vite-plus";
 
 const auditScripts = "plugins/totto2727-documentation/skills/audit-english-docs/scripts";
 
-// These four native JavaScript suites use Vitest alongside the preset's TypeScript suites.
+// Only these four suites run through Vitest. Statechart and watch-pr use their native runners.
 const auditVitestFiles = ["catalog", "evaluate", "history-corpus", "ste"].map(
   (name) => `${auditScripts}/${name}.test.mjs`,
 );
@@ -23,7 +23,7 @@ export default defineConfig({
     overrides: [
       ...(preset.overrides ?? []).map((override) =>
         override.plugins?.includes("vitest") && override.files.includes("**/*.test.ts")
-          ? { ...override, files: [...override.files, ...auditVitestFiles] }
+          ? { ...override, files: auditVitestFiles }
           : override,
       ),
       {

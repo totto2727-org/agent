@@ -4,7 +4,7 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-// oxlint-disable-next-line rules/no-node-imports, vitest/no-import-node-test -- Statechart runs these fixtures with Node's test runner as part of the standalone skill.
+// oxlint-disable-next-line rules/no-node-imports -- Statechart runs these fixtures with Node's test runner as part of the standalone skill.
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { configText } from "#statechart/backends/cfg.ts";

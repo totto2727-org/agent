@@ -32,6 +32,7 @@ import {
   sourceRange,
   validateMechanicalCheck,
 } from "./mechanical.mjs";
+import { matchesUndefined } from "./native-predicates.mjs";
 
 const execute = promisify(execFile);
 const script = fileURLToPath(new URL("evaluate.mjs", import.meta.url));
@@ -314,70 +315,81 @@ const localEvidence = (call) => {
   return object(evidence.local, "local request evidence");
 };
 
-/** @type {(saved: Record<string, string | undefined>) => void} */
-const restoreEnvironment = function (saved) {
-  Object.entries(saved).forEach(([key, value]) => {
-    if (value === undefined) {
-      delete process.env[key];
+/** @type {(value: unknown, label: string) => unknown[]} */
+const requestArray = (value, label) => {
+  if (!Array.isArray(value)) {
+    // oxlint-disable-next-line rules/require-tagged-error -- Match the test fixture's native type error for a malformed subprocess request.
+    throw new TypeError(`The request must contain ${label}`);
+  }
+  return value;
+};
+
+/** @type {() => NodeJS.ProcessEnv} */
+// oxlint-disable-next-line node/no-process-env -- The native curl subprocess inherits the fixture PATH and options from this test host.
+const hostEnvironment = () => process.env;
+
+/** @typedef {[name: string, value: string | undefined]} EnvironmentValue */
+
+/** @type {(environment: NodeJS.ProcessEnv, changes: EnvironmentValue[]) => void} */
+const setEnvironment = (environment, changes) => {
+  changes.forEach(([key, value]) => {
+    if (matchesUndefined(value)) {
+      Reflect.deleteProperty(environment, key);
     } else {
-      process.env[key] = value;
+      environment[key] = value;
     }
   });
+};
+
+/** @type {(value: string | undefined) => string | undefined} */
+const suppliedMockString = (value) => {
+  const supplied = Boolean(value);
+  return supplied ? value : undefined;
+};
+
+/** @type {(directory: string, options: MockOptions) => EnvironmentValue[]} */
+const mockVariables = (directory, { cacheStatus, exitCode, mode, ray, statusSequence }) => {
+  const suppliedExit = Boolean(exitCode);
+  return [
+    ["PATH", `${directory}:${hostEnvironment().PATH}`],
+    ["CURL_LOG", resolve(directory, "calls.log")],
+    ["CURL_MOCK_COUNTER", resolve(directory, "counter.txt")],
+    ["CURL_MOCK_EXIT", suppliedExit ? String(exitCode) : undefined],
+    ["CURL_MOCK_MODE", suppliedMockString(mode)],
+    ["CURL_MOCK_STATUS_SEQUENCE", suppliedMockString(statusSequence)],
+    ["CURL_MOCK_CACHE_STATUS", suppliedMockString(cacheStatus)],
+    ["CURL_MOCK_RAY", suppliedMockString(ray)],
+  ];
 };
 
 /** @type {(paths: MockDirectory, options?: MockOptions) => Promise<{ log: string, restore: () => void }>} */
 const prepareMock = async function (paths, options = {}) {
   await installCurlMock(paths.directory);
-  const log = resolve(paths.directory, "calls.log");
-  const counter = resolve(paths.directory, "counter.txt");
-  const saved = {
-    PATH: process.env.PATH,
-    CURL_LOG: process.env.CURL_LOG,
-    CURL_MOCK_COUNTER: process.env.CURL_MOCK_COUNTER,
-    CURL_MOCK_EXIT: process.env.CURL_MOCK_EXIT,
-    CURL_MOCK_MODE: process.env.CURL_MOCK_MODE,
-    CURL_MOCK_STATUS_SEQUENCE: process.env.CURL_MOCK_STATUS_SEQUENCE,
-    CURL_MOCK_CACHE_STATUS: process.env.CURL_MOCK_CACHE_STATUS,
-    CURL_MOCK_RAY: process.env.CURL_MOCK_RAY,
+  const environment = hostEnvironment();
+  const changes = mockVariables(paths.directory, options);
+  /** @type {EnvironmentValue[]} */
+  const saved = changes.map(([name]) => [name, environment[name]]);
+  setEnvironment(environment, changes);
+  return {
+    log: resolve(paths.directory, "calls.log"),
+    restore: () => {
+      setEnvironment(hostEnvironment(), saved);
+    },
   };
-  process.env.PATH = `${paths.directory}:${saved.PATH}`;
-  process.env.CURL_LOG = log;
-  process.env.CURL_MOCK_COUNTER = counter;
-  delete process.env.CURL_MOCK_EXIT;
-  delete process.env.CURL_MOCK_MODE;
-  delete process.env.CURL_MOCK_STATUS_SEQUENCE;
-  delete process.env.CURL_MOCK_CACHE_STATUS;
-  delete process.env.CURL_MOCK_RAY;
-  if (options.exitCode) {
-    process.env.CURL_MOCK_EXIT = String(options.exitCode);
-  }
-  if (options.mode) {
-    process.env.CURL_MOCK_MODE = options.mode;
-  }
-  if (options.statusSequence) {
-    process.env.CURL_MOCK_STATUS_SEQUENCE = options.statusSequence;
-  }
-  if (options.cacheStatus) {
-    process.env.CURL_MOCK_CACHE_STATUS = options.cacheStatus;
-  }
-  if (options.ray) {
-    process.env.CURL_MOCK_RAY = options.ray;
-  }
-  return { log, restore: () => restoreEnvironment(saved) };
 };
 
 /**
  * @template Result
  * @param {MockDirectory} paths - The fixture directory for the mock and its trace.
  * @param {MockOptions} options - The simulated response.
- * @param {() => Result | PromiseLike<Result>} callback - The evaluator or CLI invocation.
+ * @param {() => Result | PromiseLike<Result>} runTest - The evaluator or CLI invocation.
  * @returns {Promise<{ calls: Awaited<ReturnType<typeof readCalls>>, result: Awaited<Result> }>} The invocation result and its recorded requests.
  */
-const withMock = async function (paths, options, callback) {
+const withMock = async function (paths, options, runTest) {
   const mock = await prepareMock(paths, options);
   try {
-    const result = await callback();
-    return { result, calls: await readCalls(mock.log) };
+    const result = await runTest();
+    return { calls: await readCalls(mock.log), result };
   } finally {
     mock.restore();
   }
@@ -418,10 +430,7 @@ describe("private dictionary evidence boundaries", () => {
       evaluate({ ...paths, environment: CREDENTIALS }),
     );
     expect(calls).toHaveLength(1);
-    const counts = localEvidence(calls[0]).nounGroupCounts;
-    if (!Array.isArray(counts)) {
-      throw new TypeError("The request must contain noun group counts");
-    }
+    const counts = requestArray(localEvidence(calls[0]).nounGroupCounts, "noun group counts");
     const projected = counts.map((entry) => {
       const { status, wordCount } = object(entry, "noun group count");
       return [status, wordCount];
@@ -464,10 +473,7 @@ describe("private dictionary evidence boundaries", () => {
       localEvidence(calls[0]).dictionaryCandidates,
       "dictionary evidence",
     );
-    if (!Array.isArray(candidates)) {
-      throw new TypeError("The request must contain dictionary candidates");
-    }
-    const candidate = candidates.find(
+    const candidate = requestArray(candidates, "dictionary candidates").find(
       (entry) => object(entry, "dictionary candidate").term === "status panel",
     );
     expect(candidate).toMatchObject({
@@ -516,11 +522,9 @@ describe("private dictionary evidence boundaries", () => {
     expect(calls).toHaveLength(1);
     const { payload } = calls[0];
     const selected = object(localEvidence(calls[0]).dictionaryCandidates, "dictionary evidence");
-    if (!Array.isArray(selected.candidates)) {
-      throw new TypeError("The request must contain dictionary candidates");
-    }
+    const candidates = requestArray(selected.candidates, "dictionary candidates");
     expect({
-      candidate: selected.candidates[0],
+      candidate: candidates[0],
       issue: selected.issue,
       source: selected.source,
     }).toMatchObject({
@@ -729,6 +733,7 @@ describe("documentation quality evaluator public pipeline", () => {
   });
 
   test("rejects non-finite confidence, probabilities, and thresholds", () => {
+    expect.hasAssertions();
     const questions = { q: { type: "choice" } };
     const valid = {
       type: "choice",
@@ -893,6 +898,7 @@ describe("documentation quality evaluator public pipeline", () => {
   });
 
   test.each(MODELS)("adds cache headers to every model request (%s)", async (model) => {
+    expect.hasAssertions();
     const paths = await fixture({ model });
     const { result: report, calls } = await withMock(paths, {}, () =>
       evaluate({
@@ -1062,7 +1068,7 @@ describe("documentation quality evaluator public pipeline", () => {
             "--concurrency",
             "1",
           ],
-          { env: { ...process.env, ...CREDENTIALS } },
+          { env: { ...hostEnvironment(), ...CREDENTIALS } },
         ),
       ).rejects.toMatchObject({ code: 1 });
     } finally {
@@ -1568,7 +1574,7 @@ describe("local mechanical and semantic engine boundaries", () => {
       expect.hasAssertions();
       const paths = await localFixture({ markdown, rules: [rule] });
       const { result: report, calls } = await withMock(paths, {}, async () => {
-        const environment = { ...process.env };
+        const environment = { ...hostEnvironment() };
         Object.keys(CREDENTIALS).forEach((key) => {
           delete environment[key];
         });
@@ -1610,6 +1616,7 @@ describe("local mechanical and semantic engine boundaries", () => {
   );
 
   test("keeps list uncertainty local and evaluates independent later top-level sections normally", async () => {
+    expect.hasAssertions();
     const markdown =
       "# Ambiguous\n\n- Example:\n\n    ```\n    forbidden();\n    ```\n\n# Independent\n\nClean prose.\n\n```js\nvalid();\n```\n";
     const paths = await localFixture({
@@ -1752,7 +1759,7 @@ describe("local mechanical and semantic engine boundaries", () => {
       expect.hasAssertions();
       const paths = await localFixture({ markdown });
       const { result: report, calls } = await withMock(paths, {}, async () => {
-        const environment = { ...process.env };
+        const environment = { ...hostEnvironment() };
         Object.keys(CREDENTIALS).forEach((key) => {
           delete environment[key];
         });
@@ -1799,7 +1806,7 @@ describe("local mechanical and semantic engine boundaries", () => {
     async (_mechanicalOnly, cliFlags) => {
       const paths = await localFixture();
       const { result: report, calls } = await withMock(paths, {}, async () => {
-        const environment = { ...process.env };
+        const environment = { ...hostEnvironment() };
         Object.keys(CREDENTIALS).forEach((key) => {
           delete environment[key];
         });
@@ -1842,7 +1849,7 @@ describe("local mechanical and semantic engine boundaries", () => {
       ],
     });
     const { result: report, calls } = await withMock(paths, {}, async () => {
-      const environment = { ...process.env };
+      const environment = { ...hostEnvironment() };
       Object.keys(CREDENTIALS).forEach((key) => {
         delete environment[key];
       });
@@ -2195,6 +2202,7 @@ describe("local mechanical and semantic engine boundaries", () => {
   });
 
   test("retains paragraph-local UTF-8 ranges, heading paths and intact code blocks", () => {
+    expect.hasAssertions();
     const markdown =
       "---\n# Metadata only\n---\n# Setup {#setup}\n\nCafé bad.\nSecond line.\n\n````js\n# Not a heading\n```\n\ncode();\n````\n\n## Next {#next}\n\nFinal.\n";
     const sections = segmentMarkdown(markdown);
@@ -2230,6 +2238,7 @@ describe("local mechanical and semantic engine boundaries", () => {
   });
 
   test("uses only explicit whole-token project restrictions, honoring protected terms and excluded syntax", () => {
+    expect.hasAssertions();
     const markdown =
       "---\nbad: bad\n---\n# Safe {#bad}\n\nBad badly widget `bad` ``bad ` bad`` [safe](https://example.com/bad) https://bad.example/path\n\n```txt\nbad\n```\n\n<span>bad</span>\n\n<!-- bad -->\n\n<script>\nbad\n</script>\n\n<div>\nbad\n\n    bad\n";
     const answer = runMechanical(
@@ -2284,6 +2293,7 @@ describe("local mechanical and semantic engine boundaries", () => {
   test.each(["> ```\n> bad\n> ```\n", "- ```\n  bad\n  ```\n"])(
     "abstains conservatively on container fence syntax without lexical or language compliance claims: %j",
     (container) => {
+      expect.assertions(4);
       const markdown = `Safe prose.\n\n\`\`\`js\ncode();\n\`\`\`\n\n${container}`;
       Iterator.from([lexicalRule.check, fenceRule.check]).forEach((check) => {
         const answer = runMechanical(check, markdown, sourceRange(markdown, 0, markdown.length));

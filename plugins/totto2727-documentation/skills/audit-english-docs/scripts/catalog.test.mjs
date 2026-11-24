@@ -29,6 +29,7 @@ describe("executable rule catalog for Issue 9", () => {
   });
 
   test("keeps rule identities unique and all executable scopes local", async () => {
+    expect.hasAssertions();
     const rules = await loadCatalog();
     expect(new Set(rules.map((rule) => rule.id)).size).toBe(rules.length);
     Iterator.from(rules).forEach((rule) => {
@@ -48,6 +49,7 @@ describe("executable rule catalog for Issue 9", () => {
   test.each(["5.1", "6.3"])(
     "uses paragraph evidence and the counting dependencies for rule %s",
     async (number) => {
+      expect.hasAssertions();
       const checks = bySourceNumber(await loadCatalog(), number);
       expect(checks.length).toBeGreaterThan(0);
       Iterator.from(checks).forEach((rule) => {

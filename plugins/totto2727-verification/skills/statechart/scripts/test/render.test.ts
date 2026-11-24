@@ -5,7 +5,7 @@ import fs from "node:fs";
 import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
-// oxlint-disable-next-line rules/no-node-imports, vitest/no-import-node-test -- Statechart runs these fixtures with Node's test runner as part of the standalone skill.
+// oxlint-disable-next-line rules/no-node-imports -- Statechart runs these fixtures with Node's test runner as part of the standalone skill.
 import { before, test } from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { mermaid as chartText } from "#statechart/backends/mermaid.ts";
