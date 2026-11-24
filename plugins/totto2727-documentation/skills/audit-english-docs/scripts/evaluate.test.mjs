@@ -41,6 +41,66 @@ const script = fileURLToPath(new URL("evaluate.mjs", import.meta.url));
 /** @typedef {{ cacheStatus?: string, exitCode?: number, mode?: string, ray?: string, statusSequence?: string }} MockOptions */
 /** @typedef {{ argv: string[], config: string, headers: string[], payload: Record<string, unknown>, url: string }} MockCall */
 
+const ACCOUNT_ID = "0123456789abcdef0123456789abcdef";
+const API_KEY = "test-gateway-key";
+const GATEWAY_ID = "test-gateway";
+const CREDENTIALS = {
+  CLOUDFLARE_ACCOUNT_ID: ACCOUNT_ID,
+  CLOUDFLARE_AI_GATEWAY_API_KEY: API_KEY,
+  CLOUDFLARE_AI_GATEWAY_ID: GATEWAY_ID,
+};
+
+const temporaryDirectories = [];
+
+// The evaluator must not send a request-level retry override, so the Gateway's
+// Own configured retry policy stays in effect.
+/** @type {(call: MockCall) => boolean} */
+const hasRetryOverride = (call) =>
+  call.headers.some((header) => header.startsWith("cf-aig-max-attempts:"));
+
+const fixture = async function fixture({ model = "clef-flash" } = {}) {
+  const directory = await mkdtemp(resolve(tmpdir(), "audit-english-docs-test-"));
+  temporaryDirectories.push(directory);
+  await writeFile(
+    resolve(directory, "guide.md"),
+    "# Start\n\nUse the tool.\n\n## Details\n\n```md\n# Not a heading\n```\n\nMore detail.\n",
+  );
+  const manifest = {
+    model,
+    threshold: 0.8,
+    rules: [
+      {
+        id: "direct",
+        scope: "section",
+        instructions: "Evaluate directness.",
+        pass: "Direct.",
+        fail: "Indirect.",
+        expected: "pass",
+      },
+      {
+        id: "flow",
+        scope: "page",
+        instructions: "Evaluate flow.",
+        pass: "Coherent.",
+        fail: "Fragmented.",
+      },
+    ],
+    documents: [
+      {
+        id: "guide",
+        path: "guide.md",
+        purpose: "Teach setup.",
+        audience: "A new user.",
+        ruleIds: ["direct", "flow"],
+        expected: { direct: "pass" },
+      },
+    ],
+  };
+  const manifestPath = resolve(directory, "manifest.json");
+  await writeFile(manifestPath, JSON.stringify(manifest));
+  return { directory, manifestPath, outputPath: resolve(directory, "report.json") };
+};
+
 const dictionaryFixture = async function ({ complete = false, vocabulary = true } = {}) {
   const paths = await fixture();
   await writeFile(
@@ -85,66 +145,6 @@ const dictionaryFixture = async function ({ complete = false, vocabulary = true 
   await writeFile(paths.manifestPath, JSON.stringify(manifest));
   return { ...paths, data };
 };
-
-const ACCOUNT_ID = "0123456789abcdef0123456789abcdef";
-const API_KEY = "test-gateway-key";
-const GATEWAY_ID = "test-gateway";
-const CREDENTIALS = {
-  CLOUDFLARE_ACCOUNT_ID: ACCOUNT_ID,
-  CLOUDFLARE_AI_GATEWAY_API_KEY: API_KEY,
-  CLOUDFLARE_AI_GATEWAY_ID: GATEWAY_ID,
-};
-
-const temporaryDirectories = [];
-
-// The evaluator must not send a request-level retry override, so the Gateway's
-// Own configured retry policy stays in effect.
-/** @type {(call: MockCall) => boolean} */
-const hasRetryOverride = (call) =>
-  call.headers.some((header) => header.startsWith("cf-aig-max-attempts:"));
-
-async function fixture({ model = "clef-flash" } = {}) {
-  const directory = await mkdtemp(resolve(tmpdir(), "audit-english-docs-test-"));
-  temporaryDirectories.push(directory);
-  await writeFile(
-    resolve(directory, "guide.md"),
-    "# Start\n\nUse the tool.\n\n## Details\n\n```md\n# Not a heading\n```\n\nMore detail.\n",
-  );
-  const manifest = {
-    model,
-    threshold: 0.8,
-    rules: [
-      {
-        id: "direct",
-        scope: "section",
-        instructions: "Evaluate directness.",
-        pass: "Direct.",
-        fail: "Indirect.",
-        expected: "pass",
-      },
-      {
-        id: "flow",
-        scope: "page",
-        instructions: "Evaluate flow.",
-        pass: "Coherent.",
-        fail: "Fragmented.",
-      },
-    ],
-    documents: [
-      {
-        id: "guide",
-        path: "guide.md",
-        purpose: "Teach setup.",
-        audience: "A new user.",
-        ruleIds: ["direct", "flow"],
-        expected: { direct: "pass" },
-      },
-    ],
-  };
-  const manifestPath = resolve(directory, "manifest.json");
-  await writeFile(manifestPath, JSON.stringify(manifest));
-  return { directory, manifestPath, outputPath: resolve(directory, "report.json") };
-}
 
 const duplicateFixture = async function ({
   model = "clef-flash",

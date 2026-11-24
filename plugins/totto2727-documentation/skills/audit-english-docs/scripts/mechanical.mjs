@@ -157,44 +157,6 @@ export const sourceRange = function sourceRange(markdown, start, end) {
   };
 };
 
-/**
- * @template {{ text: string }} Group
- * @param {string} markdown - The complete source document.
- * @param {SourceRange} targetRange - The range in which to look for noun groups.
- * @param {Group[]} [groups] - The caller's declarations and their literal text.
- * @returns {Array<Group & NounGroupEvidence>} Evidence for matching declarations.
- */
-export const nounGroupCounts = function nounGroupCounts(markdown, targetRange, groups = []) {
-  const { visible, uncertainties } = inspectMarkdown(markdown);
-  /** @type {Array<Group & NounGroupEvidence>} */
-  const selected = [];
-  Iterator.from(groups).forEach((group) => {
-    let at = 0;
-    while ((at = visible.indexOf(group.text, at)) !== -1) {
-      const end = at + group.text.length;
-      const range = sourceRange(markdown, at, end);
-      if (
-        range.startByte >= targetRange.startByte &&
-        range.endByte <= targetRange.endByte &&
-        !/[\p{L}\p{N}_'-]/u.test(visible[at - 1] ?? "") &&
-        !/[\p{L}\p{N}_'-]/u.test(visible[end] ?? "")
-      ) {
-        const counts = uncertainties.some((entry) => at < entry.end && end > entry.start)
-          ? null
-          : countDeclaredNounGroup(group.text);
-        selected.push({
-          ...group,
-          status: counts ? "counted" : "insufficient_context",
-          ...(counts ?? { wordCount: null, hyphenComponentCounts: null }),
-          sourceRange: range,
-        });
-      }
-      at = end;
-    }
-  });
-  return selected;
-};
-
 // Offsets remain UTF-16 source offsets until sourceRange converts them to UTF-8.
 // Conservative exclusions intentionally reduce coverage rather than claim that
 // Code, metadata, link destinations, or HTML meet a prose criterion.
@@ -202,7 +164,7 @@ export const nounGroupCounts = function nounGroupCounts(markdown, targetRange, g
  * @param {string} markdown - The complete Markdown document.
  * @returns {{ exclusions: Exclusion[], fences: Fence[], frontmatter: TextRange | null, uncertainties: Uncertainty[], visible: string }} Visible text and the source spans consulted to derive it.
  */
-export function inspectMarkdown(markdown) {
+export const inspectMarkdown = function inspectMarkdown(markdown) {
   /** @type {Exclusion[]} */
   const exclusions = [];
   /** @type {Uncertainty[]} */
@@ -371,7 +333,45 @@ export function inspectMarkdown(markdown) {
     exclude(match.index, match.index + match[0].length, "indented-code");
   });
   return { visible: mask(), exclusions, fences, frontmatter, uncertainties };
-}
+};
+
+/**
+ * @template {{ text: string }} Group
+ * @param {string} markdown - The complete source document.
+ * @param {SourceRange} targetRange - The range in which to look for noun groups.
+ * @param {Group[]} [groups] - The caller's declarations and their literal text.
+ * @returns {Array<Group & NounGroupEvidence>} Evidence for matching declarations.
+ */
+export const nounGroupCounts = function nounGroupCounts(markdown, targetRange, groups = []) {
+  const { visible, uncertainties } = inspectMarkdown(markdown);
+  /** @type {Array<Group & NounGroupEvidence>} */
+  const selected = [];
+  Iterator.from(groups).forEach((group) => {
+    let at = 0;
+    while ((at = visible.indexOf(group.text, at)) !== -1) {
+      const end = at + group.text.length;
+      const range = sourceRange(markdown, at, end);
+      if (
+        range.startByte >= targetRange.startByte &&
+        range.endByte <= targetRange.endByte &&
+        !/[\p{L}\p{N}_'-]/u.test(visible[at - 1] ?? "") &&
+        !/[\p{L}\p{N}_'-]/u.test(visible[end] ?? "")
+      ) {
+        const counts = uncertainties.some((entry) => at < entry.end && end > entry.start)
+          ? null
+          : countDeclaredNounGroup(group.text);
+        selected.push({
+          ...group,
+          status: counts ? "counted" : "insufficient_context",
+          ...(counts ?? { wordCount: null, hyphenComponentCounts: null }),
+          sourceRange: range,
+        });
+      }
+      at = end;
+    }
+  });
+  return selected;
+};
 
 /**
  * @template Context
