@@ -233,21 +233,6 @@ const checkDetails = function (value: Record<string, unknown>, nameKey: string) 
     workflow: isString(value.workflow) ? value.workflow : "",
   };
 };
-export function parseFastCheck(value: unknown): T.Check {
-  const object = record(value, "check");
-  const details = checkDetails(object, "name");
-  const state = string(object.state, "check.state").toUpperCase();
-  const bucket = string(object.bucket, "check.bucket");
-  if (state === "ACTION_REQUIRED") {return gateOr("failed", details, state);}
-  if (bucket === "fail" || ["FAILURE", "ERROR"].includes(state))
-    {return { ...details, kind: "failed", reportedState: state };}
-  if (bucket === "pending") {return gateOr("pending", details, state);}
-  if (bucket === "pass")
-    {return { ...details, kind: "passed", reportedState: state };}
-  if (bucket === "skipping")
-    {return { ...details, kind: "skipped", reportedState: state };}
-  return { ...details, kind: "failed", reportedState: state };
-}
 // Every read path classifies the owner-approval gate here, so the rule has one
 // Home. A gate that is pending or waits on an owner approval must not count as
 // Pending or failed, or the watcher waits on a human.
@@ -269,6 +254,21 @@ function gateOr(
         reportedState,
       }
     : { ...details, kind, reportedState };
+}
+export function parseFastCheck(value: unknown): T.Check {
+  const object = record(value, "check");
+  const details = checkDetails(object, "name");
+  const state = string(object.state, "check.state").toUpperCase();
+  const bucket = string(object.bucket, "check.bucket");
+  if (state === "ACTION_REQUIRED") {return gateOr("failed", details, state);}
+  if (bucket === "fail" || ["FAILURE", "ERROR"].includes(state))
+    {return { ...details, kind: "failed", reportedState: state };}
+  if (bucket === "pending") {return gateOr("pending", details, state);}
+  if (bucket === "pass")
+    {return { ...details, kind: "passed", reportedState: state };}
+  if (bucket === "skipping")
+    {return { ...details, kind: "skipped", reportedState: state };}
+  return { ...details, kind: "failed", reportedState: state };
 }
 export function mapRollupNode(value: unknown): T.Check | null {
   const object = record(value, "rollup node");

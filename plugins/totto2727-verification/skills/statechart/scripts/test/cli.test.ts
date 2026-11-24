@@ -298,9 +298,10 @@ const signalWhile = async function <T extends { dir: string; reached: (parent: s
   let stderr = "";
   child.stderr.on("data", (chunk: Buffer) => (stderr += chunk));
   const closed = once(child, "close");
-  const end = Date.now() + 60_000;
+  const signalTimeoutMilliseconds = 60_000;
+  const end = performance.now() + signalTimeoutMilliseconds;
   while (!phase.reached(parent))
-    {assert.ok(Date.now() < end, "The command did not reach the phase.");}
+    {assert.ok(performance.now() < end, "The command did not reach the phase.");}
   child.kill(signal);
   const [status] = await closed;
   assert.equal(stderr, `${signal} stopped the check, so the command wrote nothing.\n`);

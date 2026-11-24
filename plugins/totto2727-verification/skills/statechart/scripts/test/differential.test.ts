@@ -137,6 +137,42 @@ const configOf = (c: Case) => {
   return `${cfg.join("\n")}\n`;
 };
 
+function viewOf(v: NonNullable<Model["view"]>, vars: string[], actions: string[]) {
+  const json = JSON.stringify;
+  const state = {
+    string: `pick(VARS.map((n) => v[n]), 0)`,
+    parents: `[pick(v[VARS[0]], 1), pick(VARS.map((n) => v[n]), 2)]`,
+    regions: `Object.fromEntries(${json(v.regions)}.map((r, k) => [r, pick(v[VARS[k % VARS.length]], k)]))`,
+  }[v.form];
+  const lines = [
+    `const VARS = ${json(vars)};`,
+    `const LABELS = ${json(v.labels)};`,
+    "const pick = (value, salt, from = LABELS) => {",
+    "  let h = salt;",
+    '  for (const c of JSON.stringify(value) ?? "") h = (h * 31 + c.codePointAt(0)) >>> 0;',
+    "  return from[h % from.length];",
+    "};",
+    `export const state = (v) => ${state};`,
+  ];
+  const { steps } = v;
+  if (steps) {
+    const labels = actions.map((a, k) => [a, k < steps.length ? steps[k] : a]);
+    lines.push(
+      `const STEPS = new Map(${json(labels)});`,
+      "export const step = (action) => STEPS.get(action);",
+    );
+  }
+  if (v.title) {lines.push(`export const title = ${json(v.title)};`);}
+  if (v.groups) {
+    const colors = v.groups.map((g, k) => [g, COLORS[k]]);
+    lines.push(
+      `export const colors = Object.fromEntries(${json(colors)});`,
+      `export const group = (v) => pick(v[VARS[0]], 3, ${json(v.groups)});`,
+    );
+  }
+  return `${lines.join("\n")}\n`;
+}
+
 const caseOf = function (m: Model): Case {
   let next = 0;
   const name = () => m.names[next++];
@@ -220,42 +256,6 @@ const caseOf = function (m: Model): Case {
     property,
   };
 };
-
-function viewOf(v: NonNullable<Model["view"]>, vars: string[], actions: string[]) {
-  const json = JSON.stringify;
-  const state = {
-    string: `pick(VARS.map((n) => v[n]), 0)`,
-    parents: `[pick(v[VARS[0]], 1), pick(VARS.map((n) => v[n]), 2)]`,
-    regions: `Object.fromEntries(${json(v.regions)}.map((r, k) => [r, pick(v[VARS[k % VARS.length]], k)]))`,
-  }[v.form];
-  const lines = [
-    `const VARS = ${json(vars)};`,
-    `const LABELS = ${json(v.labels)};`,
-    "const pick = (value, salt, from = LABELS) => {",
-    "  let h = salt;",
-    '  for (const c of JSON.stringify(value) ?? "") h = (h * 31 + c.codePointAt(0)) >>> 0;',
-    "  return from[h % from.length];",
-    "};",
-    `export const state = (v) => ${state};`,
-  ];
-  const { steps } = v;
-  if (steps) {
-    const labels = actions.map((a, k) => [a, k < steps.length ? steps[k] : a]);
-    lines.push(
-      `const STEPS = new Map(${json(labels)});`,
-      "export const step = (action) => STEPS.get(action);",
-    );
-  }
-  if (v.title) {lines.push(`export const title = ${json(v.title)};`);}
-  if (v.groups) {
-    const colors = v.groups.map((g, k) => [g, COLORS[k]]);
-    lines.push(
-      `export const colors = Object.fromEntries(${json(colors)});`,
-      `export const group = (v) => pick(v[VARS[0]], 3, ${json(v.groups)});`,
-    );
-  }
-  return `${lines.join("\n")}\n`;
-}
 
 type Run = { status: number | null; stdout: string; stderr: string };
 

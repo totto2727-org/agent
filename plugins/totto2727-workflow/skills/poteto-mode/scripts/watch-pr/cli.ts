@@ -106,6 +106,7 @@ const realRuntime = function (): CliRuntime {
     reader: new GhGitHubReader(),
     clock: {
       now: () => performance.now() / 1000,
+      // oxlint-disable-next-line rules/no-js-date -- The review observation protocol records the current wall-clock time as ISO 8601.
       observedAt: () => new Date().toISOString(),
       sleep: async (seconds) => {
         await delay(seconds * 1000);
