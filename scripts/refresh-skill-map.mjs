@@ -11,6 +11,7 @@ const locations = new Map();
 for (const pkg of packages) {
   const dir = `plugins/${pkg}/skills`;
   for (const skill of readdirSync(join(root, dir)).sort()) {
+    if (!existsSync(join(root, dir, skill, "SKILL.md"))) continue;
     if (locations.has(skill)) throw new Error(`Duplicate skill: ${skill}`);
     locations.set(skill, `${dir}/${skill}`);
   }

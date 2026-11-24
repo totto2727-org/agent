@@ -15,26 +15,22 @@ function git(...args) {
   return execFileSync("git", ["-C", checkout, ...args], { encoding: "utf8" });
 }
 const owners = new Map();
-const renamed = new Map(
-  Array.from(
-    record.matchAll(/^Renamed upstream skill: `([^`]+)` → `([^`]+)`/gmu),
-    ([, original, local]) => [original, local],
-  ),
+const retiredSkills = new Set(
+  Array.from(record.matchAll(/^Retired upstream skill: `([^`]+)`/gmu), ([, name]) => name),
 );
 for (const pkg of readdirSync(join(root, "plugins"))) {
   const dir = join(root, "plugins", pkg, "skills");
   if (!existsSync(dir)) continue;
   for (const skill of readdirSync(dir)) {
+    if (!existsSync(join(dir, skill, "SKILL.md"))) continue;
     if (owners.has(skill)) throw new Error(`Ambiguous skill name: ${skill}`);
     owners.set(skill, join(dir, skill));
   }
 }
 let identical = 0;
-for (const original of renamed.keys()) {
-  if (owners.has(original))
-    throw new Error(`Renamed upstream skill still shipped as an alias: ${original}`);
+for (const skill of retiredSkills) {
+  if (owners.has(skill)) throw new Error(`Retired upstream skill still shipped: ${skill}`);
 }
-const localOwner = (original) => owners.get(renamed.get(original) ?? original);
 let changed = 0;
 const missing = [];
 const retired = new Set(
@@ -47,7 +43,8 @@ for (const row of git("ls-tree", "-rz", base, "--", "skills").split("\0").filter
   const [mode, , blob] = header.split(" ");
   const [, skill, ...tail] = path.split("/");
   skills.add(skill);
-  const dir = localOwner(skill);
+  if (retiredSkills.has(skill)) continue;
+  const dir = owners.get(skill);
   const file = dir && join(dir, ...tail);
   if (retired.delete(path)) {
     if (file && existsSync(file)) throw new Error(`Documented retirement still shipped: ${path}`);
@@ -68,11 +65,12 @@ for (const row of git("ls-tree", "-rz", base, "--", "skills").split("\0").filter
   }
 }
 const license = git("show", `${base}:LICENSE`);
-for (const original of renamed.keys()) {
-  if (!skills.has(original)) throw new Error(`Unknown renamed upstream skill: ${original}`);
+for (const original of retiredSkills) {
+  if (!skills.has(original)) throw new Error(`Unknown retired upstream skill: ${original}`);
 }
 for (const skill of skills) {
-  const dir = localOwner(skill);
+  if (retiredSkills.has(skill)) continue;
+  const dir = owners.get(skill);
   const file = dir && join(dir, "LICENSE");
   if (!file || !existsSync(file) || readFileSync(file, "utf8") !== license)
     missing.push(`MIT notice: ${skill}`);
@@ -80,7 +78,7 @@ for (const skill of skills) {
 for (const path of missing) console.error(`Missing: ${path}`);
 if (retired.size) throw new Error(`Unknown retired paths: ${[...retired].join(", ")}`);
 console.log(
-  `${skills.size} upstream skills: ${identical} unchanged files, ${changed} adapted, ${removed} retired, ${missing.length} missing files or notices.`,
+  `${skills.size} upstream skills (${skills.size - retiredSkills.size} distributed, ${retiredSkills.size} retired): ${identical} unchanged files, ${changed} adapted, ${removed} individual files retired, ${missing.length} missing files or notices.`,
 );
 if (candidate) {
   const rev = git("rev-parse", "--verify", "--end-of-options", `${candidate}^{commit}`).trim();

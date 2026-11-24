@@ -38,7 +38,6 @@ Otherwise, prefer the typed `raise` effect so the signature exposes failure with
 | Array construction and alias safety               | [Arrays](references/arrays.md)                           |
 | Structured execution                              | [Concurrency](references/concurrency.md)                 |
 
-Use [mbt-stack](../mbt-stack/SKILL.md) for toolchains, targets, Admiral, codecs, paths, async libraries, SDKs, and semantic navigation.
-Its [official guidance](../mbt-stack/SKILL.md#official-guidance) supplies MoonBit skill and documentation links.
+Use [mbt-stack](../mbt-stack/SKILL.md) for toolchains, targets, Admiral, codecs, and async libraries. It also routes compiler and tooling questions to the official MoonBit skill.
 
 If the linked skills are not installed, read the source: [share-coding](https://github.com/totto2727-org/agent/blob/main/plugins/totto2727-principle/skills/share-coding/SKILL.md).

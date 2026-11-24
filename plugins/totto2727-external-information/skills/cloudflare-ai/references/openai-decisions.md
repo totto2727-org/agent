@@ -101,14 +101,7 @@ Do not infer a cache hit from equal response bodies or reuse the cached response
 
 ## Other question and input types
 
-- `predicate` returns `probability`, not a separate confidence value.
-- `choice` accepts `choices: [{value, description}]` and returns `choice`, `probabilities`, and `confidence`.
-  Check typed choice membership, complete distribution coverage, finite probabilities in `[0, 1]`, and a sum near one.
-- `score` accepts ordered `levels: [{label, description}]` and returns `score`, `probabilities`, and `confidence`.
-  Scores use the zero-based level scale: four levels span `[0, 3]`, not `[0, 1]`.
-  Check the level distribution and its probability-weighted score.
-- To supply structured data, use `input: [{type: "message", role: "user", content: [{type: "input_json", data: {message: "Hello"}}]}]`.
-  `input_json` is a message-content part, not a top-level item in the `input` array.
+Use the [OpenAI Decisions API reference](https://developers.openai.com/api/reference/resources/decisions/methods/create) for input shapes and answer fields. Validate each answer against its original question before passing it to application code: check choice membership and distribution coverage, check predicate bounds, and check scores against the supplied ordered levels rather than a fixed unit interval.
 
 Check current model limits before large batches or multimodal requests.
 Keep no-match outcomes explicit and test positive, negative, and insufficient-evidence cases in the application's real workflow.

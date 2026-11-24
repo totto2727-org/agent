@@ -5,15 +5,16 @@ import { join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
-test("a renamed skill is compared under its original name, including the license, without shipping an alias", (t) => {
+test("a retired skill stays absent while every distributed skill keeps its notice", (t) => {
   const scratch = fileURLToPath(new URL("../tmp/", import.meta.url));
   mkdirSync(scratch, { recursive: true });
   const root = mkdtempSync(join(scratch, "pstack-rename-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const upstream = join(root, "upstream");
-  const local = join(root, "plugins/example/skills/local-name");
+  const local = join(root, "plugins/example/skills/kept");
   for (const path of [
-    join(upstream, "skills/original-name"),
+    join(upstream, "skills/retired"),
+    join(upstream, "skills/kept"),
     local,
     join(root, "scripts"),
     join(root, "docs"),
@@ -22,7 +23,8 @@ test("a renamed skill is compared under its original name, including the license
   const cli = join(root, "scripts/compare-pstack.mjs");
   copyFileSync(new URL("../scripts/compare-pstack.mjs", import.meta.url), cli);
   writeFileSync(join(upstream, "LICENSE"), "test notice\n");
-  writeFileSync(join(upstream, "skills/original-name/SKILL.md"), "Original\n");
+  writeFileSync(join(upstream, "skills/retired/SKILL.md"), "Retired\n");
+  writeFileSync(join(upstream, "skills/kept/SKILL.md"), "Original\n");
   const git = (...args) => execFileSync("git", ["-C", upstream, ...args], { encoding: "utf8" });
   git("init", "--quiet");
   git("add", ".");
@@ -39,20 +41,21 @@ test("a renamed skill is compared under its original name, including the license
   );
   writeFileSync(
     join(root, "docs/upstream-differences.md"),
-    `backnotprop/pstack/commit/${git("rev-parse", "HEAD").trim()}\nRenamed upstream skill: \`original-name\` → \`local-name\`.\n`,
+    `backnotprop/pstack/commit/${git("rev-parse", "HEAD").trim()}\nRetired upstream skill: \`retired\`.\n`,
   );
   writeFileSync(join(local, "SKILL.md"), "Local adaptation\n");
   copyFileSync(join(upstream, "LICENSE"), join(local, "LICENSE"));
   const compare = () => spawnSync(process.execPath, [cli, upstream], { encoding: "utf8" });
   const success = compare();
   assert.equal(success.status, 0, success.stderr);
-  assert.match(success.stdout, /Adapted: skills\/original-name\/SKILL\.md/u);
+  assert.match(success.stdout, /Adapted: skills\/kept\/SKILL\.md/u);
   writeFileSync(join(local, "LICENSE"), "wrong notice\n");
   const missingNotice = compare();
   assert.equal(missingNotice.status, 1);
-  assert.match(missingNotice.stderr, /MIT notice: original-name/u);
-  mkdirSync(join(local, "../original-name"));
+  assert.match(missingNotice.stderr, /MIT notice: kept/u);
+  mkdirSync(join(local, "../retired"));
+  writeFileSync(join(local, "../retired/SKILL.md"), "Reintroduced\n");
   const alias = compare();
   assert.notEqual(alias.status, 0);
-  assert.match(alias.stderr, /still shipped as an alias/u);
+  assert.match(alias.stderr, /Retired upstream skill still shipped/u);
 });

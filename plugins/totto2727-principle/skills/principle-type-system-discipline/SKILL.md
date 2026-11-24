@@ -11,5 +11,3 @@ Make the compiler reject impossible states, mismatched primitives, and unhandled
 - **Brand semantic primitives.** If two arguments share a primitive type but mean different things, give each its own type. Validate once at creation.
 - **External data is untyped until parsed.** JSON, RPC payloads, CLI args, config, environment variables, and database rows go through a parse function at the boundary that returns the typed model.
 - **Derive types from authoritative schemas.** When a schema file owns a shape, derive the type from it instead of hand-rolling a parallel one.
-
-For TypeScript modeling and narrowing, see [TypeScript type design](../typescript-type-design/SKILL.md) ([source](https://github.com/totto2727-org/agent/blob/main/plugins/totto2727-js/skills/typescript-type-design/SKILL.md)).

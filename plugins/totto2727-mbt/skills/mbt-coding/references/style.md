@@ -9,7 +9,7 @@ State caller-visible behavior and constraints rather than restating the signatur
 
 ### Project README
 
-Use the stack's [project README guidance](../../mbt-stack/references/stack/share.md#project-readme) for documentation file layout and literate examples.
+Use the stack's [project README guidance](../../mbt-stack/SKILL.md#toolchain-and-target) for documentation file layout and literate examples.
 
 ## Names
 

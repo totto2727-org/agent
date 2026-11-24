@@ -8,11 +8,11 @@ Use typed `raise` effects to expose decoding and validation failures instead of 
 ## JSON ingress
 
 When decoding a domain type directly, route the decoded fields through its [canonical constructor](constructors.md) so decoding cannot bypass invariants.
-Use [JSON integration guidance](../../mbt-stack/references/knowledge/json.md) for concrete codec selection and external skill routing.
+Use [JSON integration guidance](../../mbt-stack/SKILL.md#json-contracts) for concrete codec selection and external skill routing.
 
 ## Admiral ingress
 
-Use the stack's [CLI input conversion](../../mbt-stack/references/stack/cli.md#input-conversion) for the Admiral adapter.
+Use the stack's [CLI input conversion](../../mbt-stack/SKILL.md#command-line-input) for the Admiral adapter.
 Keep library-owned context out of internal function signatures and represent mutually exclusive command inputs with enums.
 
 ## Library adapters

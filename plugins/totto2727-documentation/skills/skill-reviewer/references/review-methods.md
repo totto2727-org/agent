@@ -10,23 +10,8 @@ The [Agent Skills specification](https://agentskills.io/specification) governs f
 Inspect the actual directory and parse the `SKILL.md` YAML frontmatter rather than judging its visual appearance.
 Record the parser or validator used and the fields checked; a partial check is not exhaustive conformance.
 
-A skill contains `SKILL.md` with YAML frontmatter between `---` delimiters, followed by Markdown content.
-
-| Field           | Standard constraint                                                                                                                               |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `name`          | 1–64 lowercase Unicode alphanumeric characters or hyphens, with no leading/trailing or consecutive hyphens. Must match the parent directory name. |
-| `description`   | Nonempty string, at most 1024 characters, describing what the skill does and when to use it.                                                      |
-| `license`       | Optional license name or reference to a bundled license file.                                                                                     |
-| `compatibility` | Optional string, 1–500 characters when present. Use for environment-specific requirements.                                                        |
-| `metadata`      | Optional mapping from string keys to string values.                                                                                               |
-| `allowed-tools` | Optional experimental space-delimited string. Client support varies.                                                                              |
-
-Check parsed values, including numeric-looking metadata accidentally represented as a number.
-Check referenced license files when supplied; do not penalize a skill simply for omitting optional author, version, or license metadata.
-The standard permits arbitrary supporting files and does not require `scripts/`, `references/`, or `assets/`.
-It does not prescribe body headings, a workflow shape, or a report template; assess their usefulness under G3–G5 rather than treating their absence as a format error.
-It does not prohibit particular vendor names, XML angle brackets, or an auxiliary README.
-`allowed-tools` is not a portable security boundary.
+Compare the parsed fields and directory name with the current [Agent Skills specification](https://agentskills.io/specification). Check actual YAML value types and verify that any referenced license file exists.
+Separate required format constraints from recommendations and client-specific extensions. Do not treat optional metadata, a particular body layout, or tool declarations as mandatory safeguards.
 
 Report invalid fields with the observed value or type, the applicable constraint, and the correction.
 If parsing fails, report that failure and inspect the readable body where possible; do not infer that the other areas passed.

@@ -7,10 +7,10 @@ Install the language you work in and add shared guidance when needed. Each [Agen
 - **Run a pstack workflow in Orca:** start with [`poteto-mode`](plugins/totto2727-workflow/skills/poteto-mode/SKILL.md) in `totto2727-workflow`. For example: “Compare two designs in separate Orca workers, using Codex for one and Jcode for the other.” The [Orca guide](plugins/totto2727-workflow/skills/poteto-mode/references/orca.md) distinguishes ordinary commands, handoffs, and supervised workers.
 - **Choose a narrower workflow:** use `totto2727-engineering` for design and parallel reviews, `totto2727-verification` for executable checks or statecharts, and `totto2727-communication` for explanations and recaps. Shared principles, TypeScript guidance, and writing skills are integrated with their existing subject packages.
 
-- **Implement, select a stack, or test:** use the plugin for your language. In `totto2727-js`, use [`typescript-type-design`](plugins/totto2727-js/skills/typescript-type-design/SKILL.md) to model data and narrow types, and [`typescript-effect-design`](plugins/totto2727-js/skills/typescript-effect-design/SKILL.md) to design services, typed failures, and resource lifetimes. The [Hono migration map](plugins/totto2727-js/skills/js-stack/references/knowledge/hono-to-effect/README.md) compares replacement stacks. Each library owns the recipes for its API.
+- **Choose an application stack:** [`js-stack`](plugins/totto2727-js/skills/js-stack/SKILL.md) compares Projektor's Worker-backed web UI, Flowdeck's durable workflow design, GlossShift's native NSH and TypeScript GUI, and a standalone Node CLI. To migrate Hono imports, use the [effect-http skill](https://github.com/totto2727-org/effect-http/blob/main/.agents/skills/effect-http/SKILL.md).
 - **Decide how to design, write, or test across languages:** use `totto2727-principle`. For example, [choose between `.gitignore` and local Git excludes](plugins/totto2727-principle/skills/share-coding/references/git-excludes.md).
 - **Write a README, audit documentation, or review a skill:** use `totto2727-documentation`. For example, ask: “Use share-artifact to separate installation instructions in README from maintenance instructions in AGENTS.md.”
-- **Use connected services or research a source:** use `totto2727-external-information`. Use `totto2727-tools` for filesystem path calculations.
+- **Use connected services or research a source:** use `totto2727-external-information`. Use `totto2727-tools` to manage the skill collection.
 - **Apply totto2727's personal preferences:** opt into [`totto2727-profile`](plugins/totto2727-profile/skills/totto2727-profile/SKILL.md). A target worktree's root `PROFILE.local.md` overrides individual defaults. The other plugins do not require this profile.
 
 ## Install
@@ -101,42 +101,23 @@ Monid/TinyFish research, cost-aware Cloudflare AI inference and typed Decision M
 | [projektor](plugins/totto2727-external-information/skills/projektor/SKILL.md)           | `open-connector`                                                           |
 | [web-search](plugins/totto2727-external-information/skills/web-search/SKILL.md)         | `cloudflare-ai`, `decision-model`, `doc-search`, `monid`, `open-connector` |
 
-### [totto2727-go](plugins/totto2727-go/plugin.json)
-
-Go toolchain and application stack selection.
-
-| Skill                                                     | Refers to                     |
-| --------------------------------------------------------- | ----------------------------- |
-| [go-stack](plugins/totto2727-go/skills/go-stack/SKILL.md) | `share-coding`, `share-stack` |
-
-### [totto2727-haskell](plugins/totto2727-haskell/plugin.json)
-
-Haskell toolchain and application stack selection.
-
-| Skill                                                                    | Refers to                     |
-| ------------------------------------------------------------------------ | ----------------------------- |
-| [haskell-stack](plugins/totto2727-haskell/skills/haskell-stack/SKILL.md) | `share-coding`, `share-stack` |
-
 ### [totto2727-js](plugins/totto2727-js/plugin.json)
 
-TypeScript type design, Effect workflow design, JavaScript stack selection, and tests.
+TypeScript stack choices for Cloudflare web apps, durable workflows, native macOS GUIs, and CLIs.
 
-| Skill                                                                                     | Refers to                                                                             |
-| ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| [js-stack](plugins/totto2727-js/skills/js-stack/SKILL.md)                                 | `js-test`, `share-stack`, `typescript-effect-design`, `typescript-type-design`        |
-| [js-test](plugins/totto2727-js/skills/js-test/SKILL.md)                                   | `share-test`, `share-test-design`                                                     |
-| [typescript-effect-design](plugins/totto2727-js/skills/typescript-effect-design/SKILL.md) | `js-stack`, `share-coding`, `typescript-type-design`                                  |
-| [typescript-type-design](plugins/totto2727-js/skills/typescript-type-design/SKILL.md)     | `js-stack`, `js-test`, `principle-type-system-discipline`, `typescript-effect-design` |
+| Skill                                                     | Refers to |
+| --------------------------------------------------------- | --------- |
+| [js-stack](plugins/totto2727-js/skills/js-stack/SKILL.md) | None      |
 
 ### [totto2727-mbt](plugins/totto2727-mbt/plugin.json)
 
 MoonBit implementation, stack selection, and tests.
 
-| Skill                                                          | Refers to                                       |
-| -------------------------------------------------------------- | ----------------------------------------------- |
-| [mbt-coding](plugins/totto2727-mbt/skills/mbt-coding/SKILL.md) | `mbt-stack`, `mbt-test`, `share-coding`         |
-| [mbt-stack](plugins/totto2727-mbt/skills/mbt-stack/SKILL.md)   | `mbt-coding`, `mbt-test`, `share-stack`         |
-| [mbt-test](plugins/totto2727-mbt/skills/mbt-test/SKILL.md)     | `mbt-coding`, `share-test`, `share-test-design` |
+| Skill                                                          | Refers to                                                    |
+| -------------------------------------------------------------- | ------------------------------------------------------------ |
+| [mbt-coding](plugins/totto2727-mbt/skills/mbt-coding/SKILL.md) | `mbt-stack`, `mbt-test`, `share-coding`                      |
+| [mbt-stack](plugins/totto2727-mbt/skills/mbt-stack/SKILL.md)   | `share-stack`                                                |
+| [mbt-test](plugins/totto2727-mbt/skills/mbt-test/SKILL.md)     | `mbt-coding`, `mbt-stack`, `share-test`, `share-test-design` |
 
 ### [totto2727-principle](plugins/totto2727-principle/plugin.json)
 
@@ -168,11 +149,11 @@ Shared principles for implementation, writing, testing, and stack selection.
 | [principle-sequence-verifiable-units](plugins/totto2727-principle/skills/principle-sequence-verifiable-units/SKILL.md)                               | None                                                                                                                                                                                                                                                                                                                                                                 |
 | [principle-subtract-before-you-add](plugins/totto2727-principle/skills/principle-subtract-before-you-add/SKILL.md)                                   | None                                                                                                                                                                                                                                                                                                                                                                 |
 | [principle-test-behavior-not-implementation](plugins/totto2727-principle/skills/principle-test-behavior-not-implementation/SKILL.md)                 | None                                                                                                                                                                                                                                                                                                                                                                 |
-| [principle-type-system-discipline](plugins/totto2727-principle/skills/principle-type-system-discipline/SKILL.md)                                     | `typescript-type-design`                                                                                                                                                                                                                                                                                                                                             |
+| [principle-type-system-discipline](plugins/totto2727-principle/skills/principle-type-system-discipline/SKILL.md)                                     | None                                                                                                                                                                                                                                                                                                                                                                 |
 | [share-coding](plugins/totto2727-principle/skills/share-coding/SKILL.md)                                                                             | `principle-boundary-discipline`, `principle-exhaust-the-design-space`, `principle-foundational-thinking`, `principle-laziness-protocol`, `principle-migrate-callers-then-delete-legacy-apis`, `principle-minimize-reader-load`, `principle-model-the-domain`, `principle-sequence-verifiable-units`, `principle-type-system-discipline`, `share-stack`, `share-test` |
-| [share-stack](plugins/totto2727-principle/skills/share-stack/SKILL.md)                                                                               | `go-stack`, `haskell-stack`, `js-stack`, `mbt-coding`, `mbt-stack`, `rust-coding`, `rust-stack`, `share-coding`, `typescript-effect-design`, `typescript-type-design`                                                                                                                                                                                                |
-| [share-test](plugins/totto2727-principle/skills/share-test/SKILL.md)                                                                                 | `js-test`, `mbt-test`, `principle-test-behavior-not-implementation`, `rust-test`, `share-test-design`                                                                                                                                                                                                                                                                |
-| [share-test-design](plugins/totto2727-principle/skills/share-test-design/SKILL.md)                                                                   | `documentation-principles`, `js-test`, `mbt-test`, `rust-test`, `share-test`                                                                                                                                                                                                                                                                                         |
+| [share-stack](plugins/totto2727-principle/skills/share-stack/SKILL.md)                                                                               | `js-stack`                                                                                                                                                                                                                                                                                                                                                           |
+| [share-test](plugins/totto2727-principle/skills/share-test/SKILL.md)                                                                                 | `js-stack`, `mbt-test`, `principle-test-behavior-not-implementation`                                                                                                                                                                                                                                                                                                 |
+| [share-test-design](plugins/totto2727-principle/skills/share-test-design/SKILL.md)                                                                   | `share-test`                                                                                                                                                                                                                                                                                                                                                         |
 
 ### [totto2727-profile](plugins/totto2727-profile/plugin.json)
 
@@ -182,23 +163,12 @@ Optional personal defaults for totto2727's Git identity, delivery, and local wor
 | -------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
 | [totto2727-profile](plugins/totto2727-profile/skills/totto2727-profile/SKILL.md) | `doc-search`, `open-connector`, `projektor`, `visual-explainer-ja`, `web-search` |
 
-### [totto2727-rust](plugins/totto2727-rust/plugin.json)
-
-Rust implementation, stack selection, and tests.
-
-| Skill                                                             | Refers to                                                        |
-| ----------------------------------------------------------------- | ---------------------------------------------------------------- |
-| [rust-coding](plugins/totto2727-rust/skills/rust-coding/SKILL.md) | `rust-stack`, `rust-test`, `share-coding`                        |
-| [rust-stack](plugins/totto2727-rust/skills/rust-stack/SKILL.md)   | `rust-coding`, `rust-test`, `share-stack`                        |
-| [rust-test](plugins/totto2727-rust/skills/rust-test/SKILL.md)     | `rust-coding`, `share-coding`, `share-test`, `share-test-design` |
-
 ### [totto2727-tools](plugins/totto2727-tools/plugin.json)
 
-Install and remove the skill collection and resolve filesystem paths.
+Install and remove the skill collection and its external dependencies.
 
 | Skill                                                                      | Refers to |
 | -------------------------------------------------------------------------- | --------- |
-| [realpath](plugins/totto2727-tools/skills/realpath/SKILL.md)               | None      |
 | [totto2727-setup](plugins/totto2727-tools/skills/totto2727-setup/SKILL.md) | None      |
 
 ### [totto2727-verification](plugins/totto2727-verification/plugin.json)

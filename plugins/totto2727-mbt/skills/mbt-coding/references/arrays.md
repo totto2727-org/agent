@@ -2,28 +2,7 @@
 
 > Document type: concrete MoonBit implementation guidance.
 
-## Construction choices
-
-Choose the operation that states the intended transformation directly.
-
-| Intent                                        | Preferred shape                                                   |
-| --------------------------------------------- | ----------------------------------------------------------------- |
-| Append, prepend, or concatenate known arrays  | Spread literals such as `[..items, value]` or `[..left, ..right]` |
-| Produce a known number of values from indices | `Array::makei`                                                    |
-| Map or filter an existing collection          | `map`, `filter`, or an iterator pipeline ending in `collect`      |
-| Combine values into an accumulator            | `fold` with a small pure helper                                   |
-| Inspect membership                            | `any`, `all`, or `contains`                                       |
-| Flatten nested collections                    | `flat_map`, `flatten`, or iterator concatenation                  |
-
-```mbt check
-let edges = Array::makei(coords.length() - 1, i =>
-  Line::Line(coords[i], coords[i + 1])
-)
-
-let extended = [..coords, origin]
-```
-
-Do not implement a routine map, filter, membership check, or append with a mutable result array and a manual loop.
+Prefer a collection transformation over a mutable result buffer for ordinary selection, mapping, or aggregation. Look up the operation on the actual input type in the [MoonBit core library](https://mooncakes.io/docs/moonbitlang/core).
 
 ## Unique collections
 

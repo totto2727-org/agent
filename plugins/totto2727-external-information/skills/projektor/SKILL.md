@@ -20,46 +20,11 @@ Use `oo connector proxy projektor`, not action search or `oo connector run`.
 The CLI uses the configured gateway and the saved Projektor credential.
 Do not add an `Authorization` header or read the backend token.
 
-Use the workspace slug supplied by the user.
-If the workspace is unknown, list accessible workspaces:
+Resolve the workspace slug from the user's request or `GET /api/workspaces`. If multiple workspaces match, clarify before accessing workspace data. Pass the chosen slug in `X-Workspace-Slug`.
 
-```bash
-oo connector proxy projektor --endpoint /api/workspaces --method GET --json
-```
+Check the CLI exit status and the backend status in `.data.status`. Read the payload from `.data.data` and retain `.meta.executionId` for tracing. List only the pages the task needs; do not report a partial page as a complete inventory. Fetch the individual issue when its body matters.
 
-Read workspace `slug` values from `.data.data`.
-If several workspaces fit the request, ask which one to use before retrieving workspace data.
-Pass the selected slug in `X-Workspace-Slug` for subsequent requests.
-Replace the example slug and issue reference below with the selected values.
-
-```bash
-oo connector proxy projektor \
-  --endpoint /api/issues \
-  --method GET \
-  --headers '{"X-Workspace-Slug":"example"}' \
-  --query '{"limit":10}' \
-  --json
-```
-
-The response contains `.data.status`, `.data.data`, and `.meta.executionId`.
-Check the CLI exit status and the backend HTTP status before using the data.
-An issue list contains `items`, `nextCursor`, and `total` in `.data.data`.
-Fetch only the pages needed for the request, passing `nextCursor` as the next request's `cursor` query value.
-Do not describe a partial page as the complete result.
-List responses omit issue bodies by default, so retrieve a specific issue when its full text is needed:
-
-```bash
-oo connector proxy projektor \
-  --endpoint /api/issues/PROJ-42 \
-  --method GET \
-  --headers '{"X-Workspace-Slug":"example"}' \
-  --json
-```
-
-For project details, use `GET /api/projects/<project-id-or-slug>` with the same workspace header.
-For other filters and endpoints, consult the official [Projektor routes](https://github.com/totto2727-org/projektor/tree/main/apps/api/src/routes) and [issue input schemas](https://github.com/totto2727-org/projektor/blob/main/apps/api/src/schemas/issues.ts).
-Do not infer endpoint paths from UI URLs.
-See the [provider contract](https://github.com/totto2727-org/open-connector/blob/main/docs/projektor.md) for supported paths and transport limits.
+Use the [provider contract](https://github.com/totto2727-org/open-connector/blob/main/docs/projektor.md) for the proxy's supported paths and limits, and [Projektor routes](https://github.com/totto2727-org/projektor/tree/main/apps/api/src/routes) and [issue input schemas](https://github.com/totto2727-org/projektor/blob/main/apps/api/src/schemas/issues.ts) for backend operations. Do not infer endpoint paths from UI URLs.
 
 ## Maintain tasks
 

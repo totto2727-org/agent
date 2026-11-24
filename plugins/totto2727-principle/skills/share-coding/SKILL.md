@@ -14,8 +14,8 @@ Use the decision that matches the change. These eight principles follow the [ori
 2. Choosing the scope: [implement current requirements without speculative layers](../principle-laziness-protocol/SKILL.md).
 3. Sequencing delivery: [verify the smallest end-to-end version first](../principle-sequence-verifiable-units/SKILL.md).
 4. Splitting modules: [give each module a clear responsibility](../principle-minimize-reader-load/SKILL.md).
-5. Choosing between building and adopting: [prefer a mature, maintained library](../share-stack/SKILL.md#keep-environments-and-dependencies-explicit).
-6. Adding a capability: [check installed dependencies first](../share-stack/SKILL.md#keep-environments-and-dependencies-explicit).
+5. Prefer a mature, maintained library over reimplementation unless a concrete requirement rules it out.
+6. Check the project's existing dependencies before adding a package or writing custom code.
 7. Choosing an architecture: [design for maintenance rather than a temporary workaround](../principle-foundational-thinking/SKILL.md).
 8. Choosing a pattern: [inspect mature products before inventing one](../principle-exhaust-the-design-space/SKILL.md).
 
@@ -26,6 +26,5 @@ Use the decision that matches the change. These eight principles follow the [ori
 - For scheduled jobs and polling, define [timing, restart, overlap, and missed-run semantics](references/scheduling.md).
 - For testability, keep the public surface limited to declarations callers need. Do not widen visibility for tests. Use [test implementation boundaries](../share-test/SKILL.md#test-implementation-boundaries) for runner and fixture decisions.
 - For recurring workspace tasks, use [task orchestration](../share-stack/references/task-orchestration.md).
-- For implementation in a specific language, select its [coding profile](../share-stack/SKILL.md#select-a-language-profile).
 
 Name public operations for what callers can rely on. Use established domain vocabulary. Explain a non-obvious constraint or deliberate divergence near the code that depends on it.

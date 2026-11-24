@@ -13,7 +13,7 @@ Load only the reference required by the task; already available principles need 
 
 - [`file-layout.md`](references/file-layout.md) — required unit/integration test directories and implementation-aligned file names.
 - [`execution.md`](references/execution.md) — supported Vite+ and `moon test` commands and their boundary.
-- [`assertions.md`](references/assertions.md) — assertion selection, direct-result inspection, raised-error expectations, and package setup.
+- [`assertions.md`](references/assertions.md) — direct-result inspection and expected-error policy.
 - [`names.md`](references/names.md) — test-case naming.
 - [`markdown-tests.md`](references/markdown-tests.md) — executable `.mbt.md` examples and optional explanatory structure.
 

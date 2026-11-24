@@ -4,22 +4,30 @@ description: >-
   Select MoonBit toolchains, build targets, CLI libraries, JSON codecs, or async I/O.
 ---
 
-# MoonBit Stack
+# MoonBit stack decisions
 
-| Selected technologies                                                                                                                                                    | Composition                                                                |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------- |
-| [Nix](https://nixos.org/), [moonbit-overlay](https://github.com/totto2727-org/moonbit-overlay), [Moon](https://docs.moonbitlang.com/en/latest/toolchain/moon/index.html) | [MoonBit baseline](references/stack/share.md)                              |
-| [Admiral](https://mooncakes.io/docs/totto2727/admiral)                                                                                                                   | [CLI addition](references/stack/cli.md)                                    |
-| [Standard codecs](https://docs.moonbitlang.com/en/latest/language/derive.html), [Model](https://mooncakes.io/docs/totto2727/model)                                       | Baseline [codec selection](references/stack/share.md#capability-additions) |
-| [moonbitlang/async](https://github.com/moonbitlang/async), conditional [Workgraph](https://github.com/totto2727-org/workgraph)                                           | Baseline I/O and sequential task-graph additions                           |
+## Toolchain and target
 
-- Audience: advanced users selecting or maintaining MoonBit stacks.
-- Common policy: [share-stack](../share-stack/SKILL.md).
-- Language and tests: [mbt-coding](../mbt-coding/SKILL.md), [mbt-test](../mbt-test/SKILL.md).
+For a new Nix project, start from the [MoonBit template](https://github.com/totto2727-org/template-moonbit-simple): use the locked overlay's compiler in both the development shell and the moon-nix package build.
+Do not copy a builder or attribute path from a project pinned to another overlay revision.
+Follow the [template's target policy](https://github.com/totto2727-org/template-moonbit-simple/blob/main/moon.mod): leave a synchronous, backend-neutral library unrestricted. For async code, prefer Wasm, then JS, then native among targets that support the required host operations and dependencies.
+Test the operation that constrains the choice, such as spawning the provider process, on each promised target.
+For executable README examples, keep `README.mbt.md` canonical and link `README.md` to it, as the template does.
 
-## Official guidance
+## Command-line input
 
-- Prefer installed official [moonbit-orientation](https://github.com/moonbitlang/skills/blob/master/skills/moonbit-orientation/SKILL.md).
-- Fallback: its upstream skill and [MoonBit documentation](https://docs.moonbitlang.com/en/latest/).
+Use Admiral for new command grammars. Convert parser results into application input before dispatching domain work.
+Prefer the installed [Admiral skill](https://github.com/totto2727-org/admiral/blob/main/.agents/skills/admiral/SKILL.md) for parser choices, or consult the [package guide](https://github.com/totto2727-org/admiral/blob/main/README.mbt.md#defining-options-and-positions).
 
-If the linked skills are not installed, read the source: [share-stack](https://github.com/totto2727-org/agent/blob/main/plugins/totto2727-principle/skills/share-stack/SKILL.md).
+## JSON contracts
+
+- If the whole value matches the wire format, use [standard derivation](https://docs.moonbitlang.com/en/latest/language/derive.html).
+- If the application owns the whole model but the wire format requires aliases, defaults, or nested paths, use [Model's Serde generator](https://github.com/totto2727-org/model/blob/main/README.mbt.md). Add Garde only when decoded values need semantic validation.
+
+## Async work
+
+Use [moonbitlang/async](https://github.com/moonbitlang/async) for independent I/O. Add [Workgraph](https://github.com/totto2727-org/workgraph) only when the application needs explicit steps, state reduction, and routing.
+Its sequential graph executor does not make independent nodes concurrent; keep concurrency inside a step if reduction order must stay observable.
+
+For compiler and tooling questions, prefer the installed official [moonbit-orientation](https://github.com/moonbitlang/skills/blob/master/skills/moonbit-orientation/SKILL.md), or consult the [MoonBit documentation](https://docs.moonbitlang.com/en/latest/).
+For shared policy, use [share-stack](../share-stack/SKILL.md) ([source](https://github.com/totto2727-org/agent/blob/main/plugins/totto2727-principle/skills/share-stack/SKILL.md)).

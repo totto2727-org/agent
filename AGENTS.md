@@ -26,6 +26,7 @@
 
 ### External documentation
 
+- For first-party guidance, record the choice a maintainer must make and what would change it. Link the official documentation for syntax, commands, and API mechanics rather than restating it.
 - Keep instructions for a single library's API, migrations, and diagnostics in a skill owned by that library. Keep stack comparisons and decisions about how multiple libraries work together here. Link to the owner's skill rather than copying its procedures.
 - Do not distribute a local documentation copy when the upstream site publishes an official Agent Skill.
 - Referencing skills must name the official skill, prefer its local installation, and provide a direct official-site fallback when the skill is unavailable.

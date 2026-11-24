@@ -12,15 +12,4 @@ Do not add eager and lazy variants speculatively. Add the second shape when a co
 
 ## Dual implementations
 
-When both shapes are justified, the lazy form must not allocate the full `Array`, and the eager form should use the direct immutable construction described by [MoonBit Arrays](arrays.md), under "Construction choices". Shared per-element logic may live in a private pure helper.
-
-```mbt check
-pub fn LineString::lines(self : LineString) -> Array[Line] {
-  let n = self.coords.length()
-  if n < 2 {
-    []
-  } else {
-    Array::makei(n - 1, i => Line::Line(self.coords[i], self.coords[i + 1]))
-  }
-}
-```
+When both shapes are justified, the lazy form must not allocate the full array. Use direct [array construction](arrays.md) in the eager form. Share per-element logic with a private helper when both paths need it.

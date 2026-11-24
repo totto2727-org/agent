@@ -2,7 +2,7 @@
 
 ## Format authority
 
-- [Agent Skills specification](https://agentskills.io/specification): normative format constraints and separately identified recommendations, summarized in [G1: Format](review-methods.md#g1-format).
+- [Agent Skills specification](https://agentskills.io/specification): normative format constraints and recommendations applied in [G1: Format](review-methods.md#g1-format).
 
 ## Further design and evaluation guidance
 
