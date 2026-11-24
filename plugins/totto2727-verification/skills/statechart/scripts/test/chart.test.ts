@@ -1,7 +1,7 @@
 // oxlint-disable-next-line rules/no-node-imports -- Statechart's Node suite uses native assertions for chart and subprocess results.
 import assert from "node:assert/strict";
-// oxlint-disable-next-line rules/no-node-imports -- Statechart's native fixtures use this built-in to inspect or write files through the host filesystem.
-import fs from "node:fs";
+// oxlint-disable-next-line rules/no-node-imports -- Statechart's native fixtures await the host filesystem for the corpus configuration and replay paths.
+import { readFile, readdir } from "node:fs/promises";
 // oxlint-disable-next-line rules/no-node-imports -- Statechart's native fixtures use this built-in to resolve paths using the host platform's filesystem conventions.
 import path from "node:path";
 // oxlint-disable-next-line rules/no-node-imports -- Statechart runs these fixtures with Node's test runner as part of the standalone skill.
@@ -33,16 +33,17 @@ import { readVerdict } from "#statechart/frontends/verdict.ts";
 import { compile, project } from "#statechart/pipeline.ts";
 import { fileLines } from "#statechart/run.ts";
 import { drawn } from "./drawn.ts";
+import { fixtureExists, forEachTlcCase } from "./tlc.ts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const corpus = (name: string, file: string): string => path.join(here, "corpus", name, file);
 
-const corpusSpec = (name: string) => {
+const corpusSpec = async (name: string): Promise<Spec> => {
   const configFile = corpus(name, `${name}.cfg`);
-  const config = readConfig({ file: configFile, text: fs.readFileSync(configFile, "utf8") });
+  const config = readConfig({ file: configFile, text: await readFile(configFile, "utf8") });
   return readSpec({
     module: name,
-    sany: readSany(fs.readFileSync(corpus(name, "sany.out"), "utf8")),
+    sany: readSany(await readFile(corpus(name, "sany.out"), "utf8")),
     checks: readChecks({ configFile, config }),
   });
 };
@@ -206,17 +207,18 @@ test("equal TLA+ values share one key and unequal ones do not, as TLC compares t
   visitItems(apart, ([a, b]) => {assert.notEqual(key(parseValue(a)), key(parseValue(b)), `${a} # ${b}`);});
 });
 
-const replay = function (name: string, graph: Graph): void {
-  const spec = corpusSpec(name);
+const replay = async function (name: string, graph: Graph): Promise<void> {
+  const spec = await corpusSpec(name);
   const names = spec.variables;
   const rules = stateRules(spec);
   const find = finder(graph, names);
   const marks = readMarks(readMessages(fileLines(corpus(name, "ChartRun.out"))), "chart");
   const past = mark(graph, marks, names, rules, find);
-  const drawn = !fs.existsSync(corpus(name, "ChartRun.exit"));
-  visitItems(fs.readdirSync(path.join(here, "corpus", name)).sort(), (f) => {
-    if (!/^verdict-\d+\.out$/u.test(f)) {return;}
-    const messages = [...readMessages(fileLines(corpus(name, f)))];
+  const drawn = !(await fixtureExists(corpus(name, "ChartRun.exit")));
+  const verdictFiles = await readdir(path.join(here, "corpus", name));
+  visitItems(verdictFiles.sort(), (file) => {
+    if (!/^verdict-\d+\.out$/u.test(file)) {return;}
+    const messages = [...readMessages(fileLines(corpus(name, file)))];
     const { broke } = readVerdict(messages);
     if (!broke) {return;}
     let rule: Rule | undefined;
@@ -239,11 +241,11 @@ const replay = function (name: string, graph: Graph): void {
 };
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
-test("each corpus bug path is the shortest way to its rule", () => {
+test("each corpus bug path is the shortest way to its rule", async () => {
   const paths: Record<string, string[]> = {};
-  visitItems(["DieHard", "MediaPlayer", "LoginParallel", "TwoPhase", "FirstRule"], (name) => {
+  await forEachTlcCase(["DieHard", "MediaPlayer", "LoginParallel", "TwoPhase", "FirstRule"], async (name) => {
     const graph = parseDot(fileLines(corpus(name, "graph.dot")));
-    replay(name, graph);
+    await replay(name, graph);
     visitItems(bugs(graph), (bug) => {
       paths[bug.rule.name] = [];
       for (const stepItem of bug.path) {paths[bug.rule.name].push(stepItem.action);}
@@ -268,14 +270,15 @@ test("each corpus bug path is the shortest way to its rule", () => {
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
-test("a chart of only the bug paths words each one with the view, asked once for each state and step", () => {
-  const spec = corpusSpec("FirstRule");
+test("a chart of only the bug paths words each one with the view, asked once for each state and step", async () => {
+  const spec = await corpusSpec("FirstRule");
   const rules = stateRules(spec);
   const drawn = pathGraph(spec.variables);
   const paths: Bug[] = [];
-  visitItems(fs.readdirSync(path.join(here, "corpus", "FirstRule")).sort(), (f) => {
-    if (!/^verdict-\d+\.out$/u.test(f)) {return;}
-    const messages = [...readMessages(fileLines(corpus("FirstRule", f)))];
+  const verdictFiles = await readdir(path.join(here, "corpus", "FirstRule"));
+  visitItems(verdictFiles.sort(), (file) => {
+    if (!/^verdict-\d+\.out$/u.test(file)) {return;}
+    const messages = [...readMessages(fileLines(corpus("FirstRule", file)))];
     const { broke } = readVerdict(messages);
     visitItems(rules, (rule) => {if (broke?.kind === rule.kind && (broke.kind === "deadlock" || rule.name === broke.name))
         {paths.push(drawn.bug(rule, readCounterexample(messages)));}});
@@ -358,9 +361,10 @@ test("the graph that parseDot returns keeps none of the text it read", () => {
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("TLC's marks place on their states even when TLC wraps them over lines", async () => {
-  const spec = corpusSpec("TwoPhase");
-  const out = await fs.promises.readFile(corpus("TwoPhase", "ChartRun.out"), "utf8");
-  const graph = parseDot(await fs.promises.readFile(corpus("TwoPhase", "graph.dot"), "utf8"));
+  const spec = await corpusSpec("TwoPhase");
+  const out = await readFile(corpus("TwoPhase", "ChartRun.out"), "utf8");
+  const graphText = await readFile(corpus("TwoPhase", "graph.dot"), "utf8");
+  const graph = parseDot(graphText);
   assert.equal(
     mark(graph, readMarks(readMessages(out), "chart"), spec.variables, stateRules(spec)).size,
     0,
@@ -376,7 +380,7 @@ test("TLC's marks place on their states even when TLC wraps them over lines", as
   assert.throws(
     () =>
       mark(
-        parseDot(fs.readFileSync(corpus("TwoPhase", "graph.dot"), "utf8")),
+        parseDot(graphText),
         readMarks(readMessages(cut), "chart"),
         spec.variables,
         stateRules(spec),

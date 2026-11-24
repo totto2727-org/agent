@@ -30,7 +30,7 @@ export const forEachTlcCase = async <Case>(
   }
 };
 
-const exists = async (file: string): Promise<boolean> => {
+export const fixtureExists = async (file: string): Promise<boolean> => {
   try {
     await access(file);
     return true;
@@ -130,7 +130,7 @@ export const agrees = async function agrees(module: string, files: Record<string
       NATIVE_WINDOW_OPTIONS,
     );
     const plain = await tlc(dir, module, cfg);
-    const report = (await exists(out)) ? await readFile(path.join(out, "report.md"), "utf8") : "";
+    const report = (await fixtureExists(out)) ? await readFile(path.join(out, "report.md"), "utf8") : "";
     const shown = `${cli.stderr}${report}`;
     assert.equal(
       cli.status,
@@ -169,7 +169,7 @@ export const agrees = async function agrees(module: string, files: Record<string
     const holds = list("Rules that hold");
     const unchecked = list("Rules not checked");
     const chartFile = path.join(out, "chart.mmd");
-    const chart = (await exists(chartFile)) ? await readFile(chartFile, "utf8") : "";
+    const chart = (await fixtureExists(chartFile)) ? await readFile(chartFile, "utf8") : "";
     if (plain.broke) {assert.equal(breaks.get(plain.broke), plain.steps, shown);}
     await forEachTlcCase(holds, async (rule) => {
       const r = await tlc(dir, module, alone(cfg, rule));
