@@ -7,13 +7,12 @@
 
 ## Input conversion
 
-- Reuse typed option definitions for registration and extraction.
-- Convert Admiral context into typed command input at the callback boundary, with explicit fallback precedence.
+- Use the installed [Admiral skill](https://github.com/totto2727-org/admiral/blob/main/.agents/skills/admiral/SKILL.md) for option definitions, input precedence, and callback getters. If it is unavailable, consult the [package guide](https://github.com/totto2727-org/admiral/blob/main/README.mbt.md#defining-options-and-positions).
+- Pass typed command input to application code, not the CLI context.
 - Keep payload reads, domain parsing, request encoding, and transport outside option conversion.
 - Keep maintained command compatibility contracts.
 - No universal HTTP client selected.
 
 - Audience: advanced MoonBit CLI consumers.
 - JSON contracts: [codec boundaries](../knowledge/json.md).
-- Admiral adapter contracts: [input and request boundaries](../knowledge/cli.md).
 - Output and exit contracts: [mbt-test](../../../mbt-test/SKILL.md).

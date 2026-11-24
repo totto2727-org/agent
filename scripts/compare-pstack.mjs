@@ -15,6 +15,12 @@ function git(...args) {
   return execFileSync("git", ["-C", checkout, ...args], { encoding: "utf8" });
 }
 const owners = new Map();
+const renamed = new Map(
+  Array.from(
+    record.matchAll(/^Renamed upstream skill: `([^`]+)` → `([^`]+)`/gmu),
+    ([, original, local]) => [original, local],
+  ),
+);
 for (const pkg of readdirSync(join(root, "plugins"))) {
   const dir = join(root, "plugins", pkg, "skills");
   if (!existsSync(dir)) continue;
@@ -24,6 +30,11 @@ for (const pkg of readdirSync(join(root, "plugins"))) {
   }
 }
 let identical = 0;
+for (const original of renamed.keys()) {
+  if (owners.has(original))
+    throw new Error(`Renamed upstream skill still shipped as an alias: ${original}`);
+}
+const localOwner = (original) => owners.get(renamed.get(original) ?? original);
 let changed = 0;
 const missing = [];
 const retired = new Set(
@@ -36,7 +47,7 @@ for (const row of git("ls-tree", "-rz", base, "--", "skills").split("\0").filter
   const [mode, , blob] = header.split(" ");
   const [, skill, ...tail] = path.split("/");
   skills.add(skill);
-  const dir = owners.get(skill);
+  const dir = localOwner(skill);
   const file = dir && join(dir, ...tail);
   if (retired.delete(path)) {
     if (file && existsSync(file)) throw new Error(`Documented retirement still shipped: ${path}`);
@@ -57,8 +68,12 @@ for (const row of git("ls-tree", "-rz", base, "--", "skills").split("\0").filter
   }
 }
 const license = git("show", `${base}:LICENSE`);
+for (const original of renamed.keys()) {
+  if (!skills.has(original)) throw new Error(`Unknown renamed upstream skill: ${original}`);
+}
 for (const skill of skills) {
-  const file = owners.has(skill) && join(owners.get(skill), "LICENSE");
+  const dir = localOwner(skill);
+  const file = dir && join(dir, "LICENSE");
   if (!file || !existsSync(file) || readFileSync(file, "utf8") !== license)
     missing.push(`MIT notice: ${skill}`);
 }

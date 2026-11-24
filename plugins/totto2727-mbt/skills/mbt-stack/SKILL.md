@@ -15,11 +15,11 @@ description: >-
 
 - Audience: advanced users selecting or maintaining MoonBit stacks.
 - Common policy: [share-stack](../share-stack/SKILL.md).
-- Language, tests, and Nix: [mbt-coding](../mbt-coding/SKILL.md), [mbt-test](../mbt-test/SKILL.md), [nix-stack](../nix-stack/SKILL.md).
+- Language and tests: [mbt-coding](../mbt-coding/SKILL.md), [mbt-test](../mbt-test/SKILL.md).
 
 ## Official guidance
 
 - Prefer installed official [moonbit-orientation](https://github.com/moonbitlang/skills/blob/master/skills/moonbit-orientation/SKILL.md).
 - Fallback: its upstream skill and [MoonBit documentation](https://docs.moonbitlang.com/en/latest/).
 
-If the linked skills are not installed, read the source: [share-stack](https://github.com/totto2727-org/agent/blob/main/plugins/totto2727-principle/skills/share-stack/SKILL.md), [nix-stack](https://github.com/totto2727-org/agent/blob/main/plugins/totto2727-nix/skills/nix-stack/SKILL.md).
+If the linked skills are not installed, read the source: [share-stack](https://github.com/totto2727-org/agent/blob/main/plugins/totto2727-principle/skills/share-stack/SKILL.md).

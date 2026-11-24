@@ -15,6 +15,14 @@
       "reason": "Required MoonBit workflow guidance."
     },
     {
+      "repo": "totto2727-org/e2e",
+      "pin": "fabc164421873e3642bf84dbb98bf904887effbd",
+      "names": ["cli-e2e"],
+      "optional": true,
+      "usedBy": ["share-test"],
+      "reason": "Caseyard scenarios for testing a CLI with its native test framework."
+    },
+    {
       "repo": "typesafe-ai/skills",
       "pin": "302eea662c54bca6730873fe245bec1d69ebc23d",
       "names": ["typesafe-ai"],
@@ -27,7 +35,7 @@
       "pin": "56c61c9ee79a8df1a98822309c04847a57f56000",
       "names": ["modern-web-guidance"],
       "optional": true,
-      "usedBy": ["js-coding"],
+      "usedBy": ["js-stack"],
       "reason": "IME-safe enter submission guidance, tag v0.0.186."
     },
     {
@@ -37,14 +45,6 @@
       "optional": true,
       "usedBy": ["totto2727-profile"],
       "reason": "Complex figures when pstack and Visual Explainer cannot produce them."
-    }
-  ],
-  "hostExports": [
-    {
-      "provider": "oo",
-      "source": "https://github.com/oomol-lab/oo-cli/tree/8aaaeb3dc000c8988d186fd82d971dfaf26e5077/contrib/skills/shared",
-      "skills": { "oo": "open-connector", "oo-find-skills": "oo package discovery or repair only" },
-      "instructions": "SKILL.md#host-provided-openconnector-skills"
     }
   ]
 }

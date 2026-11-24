@@ -38,21 +38,8 @@ Use the same root and scope as the install. Setup reads `.agents/totto2727-setup
 
 A bootstrap installed separately in step 2 is deliberately not owned by the subsequent install. Leave it in place for the next setup. To remove it too, first verify that it is the bootstrap you explicitly installed, no other workflow needs it, and it has no user edits. Then run `vpx skills@1.9.0 remove totto2727-setup --agent universal --yes` in that project, or add `--global` for its global copy.
 
-## Host-provided OpenConnector skills
-
-Prefer the installed official [oo skill](https://github.com/oomol-lab/oo-cli/tree/main/contrib/skills/shared/oo). If it already exists in the selected scope or is shared by the harness, use it without taking ownership. If absent and needed, use the configured `oo` executable to render its own skill. The upstream Git files are templates, not installable skill frontmatter. If the executable is unavailable, use the [official CLI reference](https://github.com/oomol-lab/oo-cli/blob/main/docs/commands.md); do not install a replacement CLI or bypass authentication.
-
-Choose a **new, dedicated local source directory** that can remain available for as long as the selected scope's local lock references it. Set `EXPORT` to its absolute path. Confirm the `oo` skill and its lock entry are absent in the selected target before running these commands. Do not commit a machine-specific source path to a shared lock. To use this export only on one machine, prefer global scope.
-
-```sh
-oo skills install --skill oo --out-dir "$EXPORT" --agent-format universal
-vpx skills@1.9.0 add "$EXPORT/oo" --skill oo --agent universal --copy --yes
-```
-
-For user scope add `--global` to the `vpx` command. Only for OOMOL skill discovery or installation repair, repeat with the official [oo-find-skills](https://github.com/oomol-lab/oo-cli/tree/main/contrib/skills/shared/oo-find-skills) name and directory. Do not install publishing, authoring, connector suggestions, or unrelated integrations automatically. Collection uninstall deliberately leaves host-managed skills alone. To undo an explicit export install, verify its lock source, compare its installed files with the retained export, and check that no other workflow needs it. Run `vpx skills@1.9.0 remove oo --agent universal --yes` in the original project (or add `--global` for its global copy). Remove an owned export only after confirming no scope still references it.
-
 ## What counts as a dependency
 
-[The dependency manifest](dependencies.json) records the upstream repositories, exact commits, skill names, and consuming workflows. It is an audited transitive closure, not a request to install every sibling in those repositories. Runtime programs, npm dependencies, API credentials, and third-party modules are not skills. In particular, the collection already ships its own `oxlint` guidance; `@totto2727/oxlint`, `oxlint`, and `oxlint-tsgolint` are runtime packages, not additional skills. The [Vite+ guide](https://viteplus.dev/guide/) is documentation, not a reason to import maintainer skills.
+[The dependency manifest](dependencies.json) records the upstream sources and the skills that use them. Install only the named skills, not every sibling in their repositories. Installing a diagnostic guide does not install its linter or change a project's lint preset. The [Vite+ guide](https://viteplus.dev/guide/) is documentation, not another skill dependency.
 
-[Orca](https://orca.dev/) supplies its own `orca-cli` and `orchestration` guides. This setup does not install or remove them. Keep the installed OpenConnector and Monid executable wrappers unchanged. An absent CLI, authentication, or unavailable provider remains an operational prerequisite; a successful skill install does not demonstrate readiness. The [Monid reference](https://monid.ai/SKILL.md) does not replace the collection's identically named local guidance.
+[Orca](https://orca.dev/) and the [oo CLI](https://github.com/oomol-lab/oo-cli) supply their own skills automatically. They are outside this setup's install and removal scope. The [Monid reference](https://monid.ai/SKILL.md) does not replace the collection's identically named local guidance.

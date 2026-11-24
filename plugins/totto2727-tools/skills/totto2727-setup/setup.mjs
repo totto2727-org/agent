@@ -237,9 +237,6 @@ function install() {
     console.log(`${repo}#${pin}: ${missing.length} to add`, missing.join(" "));
     plan.push({ repo, pin, source: `${repo}#${pin}`, names: missing });
   }
-  console.log(
-    "Host-provided skills: reuse the installed oo guide; if absent, follow SKILL.md#host-provided-openconnector-skills. This command does not install or own host exports.",
-  );
   if (action === "plan") return;
   for (const { repo, pin, source, names } of plan) {
     if (!names.length) continue;
