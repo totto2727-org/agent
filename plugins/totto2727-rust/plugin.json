@@ -1,0 +1,7 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "totto2727-rust",
+  "description": "Rust implementation, stack selection, and tests.",
+  "version": "0.1.0",
+  "repository": "https://github.com/totto2727-org/agent"
+}

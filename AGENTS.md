@@ -39,9 +39,18 @@
 - Keep secrets out of skills, templates, examples, and workflows; refer to environment variables instead.
 - When changing skill metadata, check it against the Agent Skills specification, using a skill validator when available.
 - When changing plugin metadata or skill locations, verify the standard manifest schema and affected reference paths.
-- Decide whether history belongs by the document's purpose. Documents about the current state or how to act now must state current guidance and necessary concrete grounds. Retain history when recording or analyzing it is essential to the purpose, using [documentation-principles](plugins/totto2727-coding/skills/documentation-principles/SKILL.md#state-current-guidance-and-its-grounds).
+- Decide whether history belongs by the document's purpose. Documents about the current state or how to act now must state current guidance and necessary concrete grounds. Retain history when recording or analyzing it is essential to the purpose, using [documentation-principles](plugins/totto2727-principle/skills/documentation-principles/SKILL.md#state-current-guidance-and-its-grounds).
+
+## Skill maintenance
+
+Use `totto2727-` for each plugin name and directory. Group implementation, stack, and tests by language. Keep cross-language principles separate from document-specific procedures. Keep skill names independent of plugin names.
+Write a short description that identifies the user task. For distinct workflows, link to the relevant reference at the point of choice instead of requiring every reader to follow every procedure.
+When a plugin or a skill moves, update the README map and check its links both in the repository and in the installed flat skills directory.
+
+To refresh the Oxlint index and rule pages, install the locked dependencies. With Node.js 24 or later, run `node scripts/sync-oxlint-skill.mjs /path/to/oxlint-docs` against a trusted, clean checkout matching the installed plugin. The index links the exact docs revision used.
+The command imports the site's English rule Markdown and checks its IDs against the plugin. Review the incorporated Effect rule references against their implementation and tests, then run `vp fmt plugins/totto2727-js/skills/oxlint` and `vp check`.
 
 ## Task-specific documentation
 
-- When maintaining README, AGENTS, or ADR guidance, use the matching slice linked from [share-artifact](plugins/totto2727-coding/skills/share-artifact/SKILL.md).
-- When changing skill metadata or activation scope, use the relevant format and triggering criteria in [skill-reviewer](plugins/totto2727-coding/skills/skill-reviewer/SKILL.md).
+- When maintaining README, AGENTS, or ADR guidance, use the matching slice linked from [share-artifact](plugins/totto2727-documentation/skills/share-artifact/SKILL.md).
+- When changing skill metadata or activation scope, use the relevant format and triggering criteria in [skill-reviewer](plugins/totto2727-documentation/skills/skill-reviewer/SKILL.md).
