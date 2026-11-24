@@ -7,9 +7,9 @@
 | Infrastructure integration                     | Effront's separate Alchemy adapter             |
 | UI components                                  | Base UI-based shadcn/ui, not the Radix variant |
 
-- Use [Effront integration knowledge](../knowledge/effront.md) for conditional exports and adapter compatibility.
+- For conditional exports and adapter compatibility, prefer the installed [effront skill](https://github.com/totto2727-org/effront/blob/main/skills/effront/SKILL.md). Check its peer requirements alongside the [stack dependency safeguards](share.md#dependency-versions).
 - Compose the Alchemy adapter with native Effect HTTP, not a second HTTP server.
 - Keep request-specific services outside a process-wide runtime under [ManagedRuntime conventions](../knowledge/effect/services-runtime.md#managedruntime).
 - Verify that shadcn/ui generator or registry output uses Base UI.
 - Select form and client-state libraries only for explicit requirements.
-- Apply [IME-safe submission](../../../js-coding/references/ime-safe-enter-submit.md) to custom Enter-to-submit behavior.
+- Apply [IME-safe submission](../knowledge/ime-safe-enter-submit.md) to custom Enter-to-submit behavior.

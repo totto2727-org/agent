@@ -61,7 +61,8 @@ Wait for every asynchronous operation and assertion whose result belongs to the 
 
 ## End-to-end test scope
 
-Use [`github.com/totto2727-org/e2e`](https://github.com/totto2727-org/e2e) to implement CLI end-to-end tests. This skill does not yet specify a shared implementation approach for non-CLI end-to-end tests.
+For CLI end-to-end tests, use the installed [cli-e2e skill](https://github.com/totto2727-org/e2e/blob/main/.agents/skills/cli-e2e/SKILL.md) and the [package guide](https://github.com/totto2727-org/e2e#readme) for the consumer's language.
+This skill does not select a shared implementation for non-CLI end-to-end tests.
 
 ## Behavior scope
 

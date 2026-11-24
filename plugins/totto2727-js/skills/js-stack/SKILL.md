@@ -15,10 +15,9 @@ description: >-
 
 - Audience: advanced TypeScript users selecting application stacks.
 - Shared policy: [share-stack](../share-stack/SKILL.md).
-- Implementation: [js-coding](../js-coding/SKILL.md), [Effect knowledge](references/knowledge/effect.md).
+- Implementation: [TypeScript Effect design](../typescript-effect-design/SKILL.md), [TypeScript type design](../typescript-type-design/SKILL.md), [Effect knowledge](references/knowledge/effect.md).
 - Replacing Hono with Effect HTTP or effront: [migration guide and public import map](references/knowledge/hono-to-effect/README.md).
 - Maintaining existing `remix/ui` handlers: [client event boundaries](references/knowledge/remix-client-events.md).
 - Tests: [js-test](../js-test/SKILL.md).
-- Nix packaging: [nix-stack](../nix-stack/SKILL.md).
 
-If the linked skills are not installed, read the source: [share-stack](https://github.com/totto2727-org/agent/blob/main/plugins/totto2727-principle/skills/share-stack/SKILL.md), [nix-stack](https://github.com/totto2727-org/agent/blob/main/plugins/totto2727-nix/skills/nix-stack/SKILL.md).
+If the linked skills are not installed, read the source: [share-stack](https://github.com/totto2727-org/agent/blob/main/plugins/totto2727-principle/skills/share-stack/SKILL.md).

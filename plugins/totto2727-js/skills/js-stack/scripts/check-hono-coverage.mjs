@@ -6,6 +6,10 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 
 const baseline = "f6fbaf0299c48eea9e656e03e2ffe7ac755e8823";
+const libraryRecipes = new Map([
+  ["effront", "skills/effront/references/hono-migration.md"],
+  ["effect-http", ".agents/skills/effect-http/references/standalone-policies.md"],
+]);
 const guideRoot = resolve(
   dirname(fileURLToPath(import.meta.url)),
   "../references/knowledge/hono-to-effect",
@@ -36,23 +40,28 @@ function assertInventory(expected, rows, label) {
   assert.deepEqual({ missing, extra }, { missing: [], extra: [] }, label);
 }
 
-function assertLinks(file) {
+function assertLinks(file, externalContent) {
   const markdown = readFileSync(file, "utf8");
   for (const match of markdown.matchAll(/\[[^\]]*\]\(([^\s)]+)\)/gu)) {
     const href = match[1];
-    if (/^https?:\/\//u.test(href)) continue;
     const [path, fragment] = href.split("#");
-    const target = path ? resolve(dirname(file), path) : file;
-    assert.ok(target.startsWith(guideRoot + sep), `Link leaves Hono guide: ${href}`);
-    assert.ok(existsSync(target), `Missing local link from ${file}: ${href}`);
+    let content;
+    if (externalContent.has(path)) {
+      content = externalContent.get(path);
+    } else {
+      if (/^https?:\/\//u.test(href)) continue;
+      const target = path ? resolve(dirname(file), path) : file;
+      assert.ok(target.startsWith(guideRoot + sep), `Link leaves Hono guide: ${href}`);
+      assert.ok(existsSync(target), `Missing local link from ${file}: ${href}`);
+      if (fragment) content = readFileSync(target, "utf8");
+    }
     if (fragment) {
-      const anchors = [...readFileSync(target, "utf8").matchAll(/^#{1,6}\s+(.+)$/gmu)].map(
-        (heading) =>
-          heading[1]
-            .replace(/`/gu, "")
-            .toLowerCase()
-            .replace(/[^\p{L}\p{N}\s_-]/gu, "")
-            .replace(/\s/gu, "-"),
+      const anchors = [...content.matchAll(/^#{1,6}\s+(.+)$/gmu)].map((heading) =>
+        heading[1]
+          .replace(/`/gu, "")
+          .toLowerCase()
+          .replace(/[^\p{L}\p{N}\s_-]/gu, "")
+          .replace(/\s/gu, "-"),
       );
       assert.ok(anchors.includes(fragment), `Missing anchor from ${file}: ${href}`);
     }
@@ -63,13 +72,25 @@ function main() {
   const { values } = parseArgs({
     options: {
       "hono-root": { type: "string" },
-      compatibility: { type: "string" },
+      "effront-root": { type: "string" },
+      "effect-http-root": { type: "string" },
     },
   });
   assert.ok(
-    values["hono-root"] && values.compatibility,
-    "Usage: node check-hono-coverage.mjs --hono-root <pinned-checkout> --compatibility <hono-compatibility.md>",
+    values["hono-root"] && values["effect-http-root"] && values["effront-root"],
+    "Usage: node check-hono-coverage.mjs --hono-root <pinned-checkout> --effect-http-root <effect-http-checkout> --effront-root <effront-checkout>",
   );
+  const readLibraryFile = (owner, path) =>
+    execFileSync("git", ["-C", resolve(values[`${owner}-root`]), "show", `HEAD:${path}`], {
+      encoding: "utf8",
+    });
+  const recipeUrls = new Map();
+  const externalContent = new Map();
+  for (const [owner, path] of libraryRecipes) {
+    const url = `https://github.com/totto2727-org/${owner}/blob/main/${path}`;
+    recipeUrls.set(owner, url);
+    externalContent.set(url, readLibraryFile(owner, path));
+  }
   const honoRoot = resolve(values["hono-root"]);
   assert.equal(
     execFileSync("git", ["-C", honoRoot, "rev-parse", "HEAD"], { encoding: "utf8" }).trim(),
@@ -119,7 +140,7 @@ function main() {
   assert.equal(new Set(expected).size, 104);
 
   const rows = readRows(readFileSync(join(guideRoot, "import-paths.md"), "utf8"));
-  const compatibility = readRows(readFileSync(resolve(values.compatibility), "utf8"));
+  const compatibility = readRows(readLibraryFile("effect-http", "docs/hono-compatibility.md"));
   assertInventory(expected, rows, "Hono guide inventory");
   assertInventory(expected, compatibility, "Compatibility inventory");
   const owners = new Map([
@@ -134,7 +155,14 @@ function main() {
     assert.equal(row.owner, classifications.get(row.path), `Changed classification: ${row.path}`);
     assert.ok(row.how.length >= 40, `Missing concrete guidance or reason: ${row.path}`);
     totals[row.owner]++;
-    if (row.owner !== "Excluded") {
+    if (recipeUrls.has(row.owner)) {
+      const href = row.recipe.match(/^\[[^\]]+\]\(([^)]+)#[a-z-]+\)$/u)?.[1];
+      assert.equal(
+        href,
+        recipeUrls.get(row.owner),
+        `Missing canonical ${row.owner} recipe for ${row.path}`,
+      );
+    } else if (row.owner !== "Excluded") {
       assert.match(
         row.recipe,
         /^\[[^\]]+\]\([a-z-]+\.md(?:#[a-z-]+)?\)$/u,
@@ -150,7 +178,7 @@ function main() {
   }
   assert.deepEqual(totals, { Effect: 54, effront: 21, "effect-http": 6, Excluded: 23 });
   for (const name of readdirSync(guideRoot).filter((name) => name.endsWith(".md"))) {
-    assertLinks(join(guideRoot, name));
+    assertLinks(join(guideRoot, name), externalContent);
   }
   console.log(
     JSON.stringify(
@@ -165,6 +193,7 @@ function main() {
         extra: [],
         duplicates: [],
         localLinks: "pass",
+        libraryRecipeLinks: "pass",
         classifications: "pass",
         scope: "Inventory and local reference checks, not proof of runtime parity for every API",
       },

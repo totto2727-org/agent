@@ -9,10 +9,8 @@
 | Lint                      | HLint                                   | Nix-managed lint tool.                                                                                           |
 | Tests                     | Hspec                                   | Cabal test suite.                                                                                                |
 | Task orchestration        | Native Cabal commands, Just when needed | Project-local Justfile for multi-step tasks.                                                                     |
-| Application packaging     | Nix `callCabal2nix`                     | Selected Haskell package set, [nix-stack](../../../nix-stack/SKILL.md) for package mechanics.                    |
+| Application packaging     | Nix `callCabal2nix`                     | Selected Haskell package set.                                                                                    |
 
 - Generate the `.cabal` file before build and test tasks.
 - Check generated-manifest drift in a disposable copy without changes to the working tree.
 - Keep immutable dependency revisions consistent between Cabal and Nix when both resolve a dependency.
-
-If the linked skills are not installed, read the source: [nix-stack](https://github.com/totto2727-org/agent/blob/main/plugins/totto2727-nix/skills/nix-stack/SKILL.md).

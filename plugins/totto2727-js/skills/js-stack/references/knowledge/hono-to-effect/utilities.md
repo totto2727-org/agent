@@ -427,8 +427,7 @@ The concrete JWS recipe below imports an HS256 secret key and leaves the crypto 
 4. Decode the verified payload only after verification succeeds.
 
 ```ts
-import { Effect, Layer, Redacted } from "effect";
-import { Mac, SecureRandom } from "effect/crypto";
+import { Effect, Redacted } from "effect";
 import { Jwk, Jws } from "effect/jose";
 
 export const roundTrip = (secret: Redacted.Redacted<Jwk.SecretJwk>) =>
@@ -438,19 +437,13 @@ export const roundTrip = (secret: Redacted.Redacted<Jwk.SecretJwk>) =>
     const verified = yield* Jws.verify(token, key);
     return new TextDecoder("utf-8", { fatal: true }).decode(verified.payload);
   });
-
-const CryptoLive = Mac.layerWebCrypto.pipe(Layer.provide(SecureRandom.layerWebCrypto));
-
-export const runRoundTrip = (secret: Redacted.Redacted<Jwk.SecretJwk>) =>
-  Effect.runPromise(roundTrip(secret).pipe(Effect.provide(CryptoLive)));
 ```
 
 Supply generated, appropriately sized secret key material from a secret store at the caller, never a tutorial secret in production.
 The compact token returned by signing is `Redacted<string>`; keep that protection except at the deliberate transport boundary.
 JWS verifies bytes but does not validate JWT claims or assert that the payload is JSON.
-The resulting Effect retains the key-import/sign/verify crypto service requirements; do not close it with `runSync` or silently select WebCrypto inside this function.
-`runRoundTrip` is the example executable boundary that selects and supplies `Mac` and its `SecureRandom` dependency.
-The reusable `roundTrip` function makes no runtime choice; applications using asymmetric keys instead select the corresponding `Signature` implementation at their composition root.
+The caller supplies the cryptographic implementation required by key import, signing, and verification.
+For the symmetric example, supply `Mac` and its `SecureRandom` dependency. Applications using asymmetric keys instead select the corresponding `Signature` implementation.
 
 ### hono/utils/jwt/jwt
 
@@ -499,10 +492,10 @@ Hono's proxy option object and rewrite conventions are not an equivalence guaran
 
 ## Negotiation and rendering delegation
 
-`hono/utils/accept` maps to the same generic `Accepts.parse` and negotiation workflow as `hono/accepts` in [Accept parsing and negotiation](standalone-policies.md#accept-parsing-and-negotiation).
+`hono/utils/accept` maps to the same generic `Accepts.parse` and negotiation workflow as `hono/accepts` in [Accept parsing and negotiation](https://github.com/totto2727-org/effect-http/blob/main/.agents/skills/effect-http/references/standalone-policies.md#accept-parsing-and-negotiation).
 Parse by negotiation kind, handle invalid input explicitly, negotiate against a configured list, and handle no match rather than copying Hono's parser return shape.
 Do not use generic negotiation to replace effront's HTML/Flight protocol selection or its associated `Vary` and cache behavior.
-`hono/utils/html` belongs to [JSX and HTML](effront.md#jsx-and-html): render with the chosen React/effront renderer, keep raw HTML trust boundaries explicit, and do not transplant Hono escaped-string brands or callback phases.
+`hono/utils/html` belongs to [JSX and HTML](https://github.com/totto2727-org/effront/blob/main/skills/effront/references/hono-migration.md#jsx-and-html): render with the chosen React/effront renderer, keep raw HTML trust boundaries explicit, and do not transplant Hono escaped-string brands or callback phases.
 These delegated paths are documented here to make the utilities mapping complete, not to add a second implementation.
 
 ## Sources and verification boundaries

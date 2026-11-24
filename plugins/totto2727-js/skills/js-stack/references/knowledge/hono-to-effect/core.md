@@ -1,7 +1,7 @@
 # Core HTTP migration recipes
 
 Audience: application authors replacing Hono request handlers with Effect HTTP APIs, not authors implementing a Hono compatibility runtime.
-Use these recipes for independent HTTP endpoints; keep effront application construction, UI rendering, assets, and host integration in the [effront integration recipes](effront.md).
+Use these recipes for independent HTTP endpoints; keep effront application construction, UI rendering, assets, and host integration in the [effront integration recipes](https://github.com/totto2727-org/effront/blob/main/skills/effront/references/hono-migration.md).
 The comparison is pinned to Hono `f6fbaf0299c48eea9e656e03e2ffe7ac755e8823` and Effect 4.1.4 `3e2030b43e86a60113f2f32671076ff3b1d84ce4`.
 The examples use public `effect/http`, `effect/http-api`, `effect/encoding`, and `effect/socket` exports, not the Effect 3 platform packages.
 Each TypeScript block is a separate module unless a step explicitly tells you to extend a preceding module.
@@ -132,7 +132,7 @@ Do not infer an automatic 405 `Allow` inventory from this example.
 
 Path: `hono/http-exception`.
 
-1. Represent an expected domain failure with `Data.TaggedError` or an existing typed domain error.
+1. Identify which domain failures correspond to public HTTP responses.
 2. Fail in the Effect error channel, rather than throwing an `HTTPException` from arbitrary code.
 3. Map known failures to a response at the handler boundary with `Effect.catchTag`.
 4. Preserve unexpected failures for the server's error handling and logging.
@@ -143,7 +143,7 @@ import { Data, Effect } from "effect";
 import { HttpEffect, HttpServerResponse } from "effect/http";
 
 class MissingItem extends Data.TaggedError("MissingItem")<{
-  readonly id: string;
+  id: string;
 }> {}
 
 const lookup = (id: string) => Effect.fail(new MissingItem({ id }));
@@ -229,11 +229,9 @@ Paths: `hono/streaming`, `hono/utils/stream`.
 5. Let stream consumption own production and interruption; do not start an independent untracked producer fiber.
 
 ```ts
-import { Stream } from "effect";
+import { Effect, Stream } from "effect";
 import { Sse } from "effect/encoding";
 import { HttpEffect, HttpServerResponse } from "effect/http";
-import { Effect } from "effect";
-
 const events: ReadonlyArray<Sse.Event> = [
   { _tag: "Event", event: "message", id: "1", data: JSON.stringify({ value: 1 }) },
   { _tag: "Event", event: "message", id: "2", data: JSON.stringify({ value: 2 }) },
@@ -346,7 +344,7 @@ Path: `hono/testing`.
 import { Effect } from "effect";
 import { HttpEffect, HttpServerRequest, HttpServerResponse } from "effect/http";
 
-const fetch = HttpEffect.toWebHandler(
+const handleRequest = HttpEffect.toWebHandler(
   Effect.gen(function* () {
     const request = yield* HttpServerRequest.HttpServerRequest;
     return HttpServerResponse.text(request.method);
@@ -354,7 +352,9 @@ const fetch = HttpEffect.toWebHandler(
 );
 
 export async function checkRequestBoundary(): Promise<void> {
-  const response = await fetch(new Request("https://example.test/check", { method: "POST" }));
+  const response = await handleRequest(
+    new Request("https://example.test/check", { method: "POST" }),
+  );
   if (response.status !== 200 || (await response.text()) !== "POST") {
     throw new Error("HTTP request boundary failed");
   }

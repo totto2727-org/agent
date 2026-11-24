@@ -24,7 +24,7 @@ Use [Middleware recipes](./middleware.md) for the migration that is possible now
 ## Evidence and package boundary
 
 The package exports six subpaths: `accepts`, `cacheControl`, `conditionalRequest`, `csrf`, `responseCache`, and `secureHeaders`.
-See the [effect-http package manifest](https://github.com/totto2727-org/effect-http/blob/feat/hono-http-utilities/package.json).
+See the [effect-http package manifest](https://github.com/totto2727-org/effect-http/blob/main/package.json).
 These are existing repository APIs, not evidence that every remaining Hono middleware is already packaged.
 Registry publication is a separate operational concern.
 

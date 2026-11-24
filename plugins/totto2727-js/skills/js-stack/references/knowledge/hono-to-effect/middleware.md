@@ -50,7 +50,7 @@ The compression recipe and conditional-request recipe depend on this distinction
 
 Provide services such as `Digest` and HTTP clients to `HttpRouter.serve(Routes)` at startup, alongside the host layer.
 Leave those service requirements in the handler or middleware type.
-Initialize shared state during route or application layer construction, not with a separate `Effect.runPromise` or inside each request.
+Initialize state shared by routes during application layer construction so all routes receive the same instance.
 Prefer `Effect.gen` and `yield*` for sequential work; use `pipe` to compose middleware, error policies, and layers.
 Provide request-local values inside the request effect, not in a mutable global variable or a process-wide layer.
 Map known domain failures to HTTP responses before outer successful-response decorators when those decorators must apply to errors too.
@@ -117,7 +117,7 @@ The cache skips Authorization, Cookie, forbidden cache directives, undeclared Va
 It is bounded process-local storage, not a distributed cache or an effront page/Flight cache.
 Use `CacheControl` to parse and serialize policy rather than concatenating unvalidated directives.
 Keep compression outside cache policy and test the final encoded representation and Vary behavior.
-See [existing ResponseCache source](https://github.com/totto2727-org/effect-http/blob/feat/hono-http-utilities/src/responseCache.ts).
+See [existing ResponseCache source](https://github.com/totto2727-org/effect-http/blob/main/src/responseCache.ts).
 
 ## Combine
 
@@ -165,7 +165,7 @@ Path: `hono/context-storage`.
 Define a `Context.Service` for each request-local value and provide it around downstream effects.
 Handlers obtain `HttpServerRequest.HttpServerRequest` from the same environment.
 Keep service requirements in the effect type so missing context is caught before serving.
-Do not use a process-global map or call `Effect.runPromise` inside a request merely to imitate a synchronous `getContext()` accessor.
+Keep request context scoped to the request so simultaneous callers cannot read each other's values.
 Use an explicit adapter if a third-party callback cannot participate in Effect context propagation.
 The [request ID example](#request-id) shows scoped service provision.
 
@@ -193,7 +193,7 @@ Use `Csrf.decide` when the host already owns the response boundary and pass norm
 Malformed policy is configuration failure, not an authentication success.
 CORS does not replace this check for cookie-authenticated endpoints.
 Do not insert this policy into effront Server Functions without checking their existing origin enforcement.
-See [existing Csrf source](https://github.com/totto2727-org/effect-http/blob/feat/hono-http-utilities/src/csrf.ts).
+See [existing Csrf source](https://github.com/totto2727-org/effect-http/blob/main/src/csrf.ts).
 
 ## ETag
 
@@ -208,7 +208,7 @@ The deferred compression transform then runs first.
 Compressed streams need supplied validators, preferably weak validators that are valid across encodings.
 Do not generate one strong hash for multiple different wire representations.
 Static ETag, range, and file serving remain owned by Effect/effront.
-See [existing ConditionalRequest source](https://github.com/totto2727-org/effect-http/blob/feat/hono-http-utilities/src/conditionalRequest.ts).
+See [existing ConditionalRequest source](https://github.com/totto2727-org/effect-http/blob/main/src/conditionalRequest.ts).
 
 ## IP restriction
 
@@ -258,7 +258,7 @@ Validate each candidate against a finite supported-language list before using it
 Provide the selected language as a request-local service and merge `Vary: Accept-Language` when headers affect the representation.
 If Cookie or query affects the choice, the cache key and cacheability must reflect that choice too.
 A reusable header-only service adapter is possible, but a universal locale policy would bake in application decisions.
-See [existing Accepts source](https://github.com/totto2727-org/effect-http/blob/feat/hono-http-utilities/src/accepts.ts).
+See [existing Accepts source](https://github.com/totto2727-org/effect-http/blob/main/src/accepts.ts).
 
 ## Logger
 
@@ -340,7 +340,7 @@ Configure HSTS only where HTTPS deployment guarantees make it valid.
 Configure CSP for the actual renderer and asset origins rather than copying a broad policy.
 Nonce generation, nonce insertion into rendered scripts, and React/effront integration are outside this middleware's ownership.
 Do not return unvalidated CSP directive values from request data.
-See [existing SecureHeaders source](https://github.com/totto2727-org/effect-http/blob/feat/hono-http-utilities/src/secureHeaders.ts).
+See [existing SecureHeaders source](https://github.com/totto2727-org/effect-http/blob/main/src/secureHeaders.ts).
 
 ## Timeout
 

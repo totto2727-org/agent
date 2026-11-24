@@ -58,26 +58,25 @@ Before writing custom code or adding a dependency, check whether an installed de
 
 ## Select a language profile
 
-| Language                  | Stack                                      | Coding                                    |
-| ------------------------- | ------------------------------------------ | ----------------------------------------- |
-| JavaScript and TypeScript | [JS stack](../js-stack/SKILL.md)           | [JS coding](../js-coding/SKILL.md)        |
-| MoonBit                   | [MoonBit stack](../mbt-stack/SKILL.md)     | [MoonBit coding](../mbt-coding/SKILL.md)  |
-| Rust                      | [Rust stack](../rust-stack/SKILL.md)       | [Rust coding](../rust-coding/SKILL.md)    |
-| Go                        | [Go stack](../go-stack/SKILL.md)           | [Shared coding](../share-coding/SKILL.md) |
-| Haskell                   | [Haskell stack](../haskell-stack/SKILL.md) | [Shared coding](../share-coding/SKILL.md) |
+| Language                  | Stack                                      | Coding                                                                                                        |
+| ------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------- |
+| JavaScript and TypeScript | [JS stack](../js-stack/SKILL.md)           | [Effect workflows](../typescript-effect-design/SKILL.md), [type modeling](../typescript-type-design/SKILL.md) |
+| MoonBit                   | [MoonBit stack](../mbt-stack/SKILL.md)     | [MoonBit coding](../mbt-coding/SKILL.md)                                                                      |
+| Rust                      | [Rust stack](../rust-stack/SKILL.md)       | [Rust coding](../rust-coding/SKILL.md)                                                                        |
+| Go                        | [Go stack](../go-stack/SKILL.md)           | [Shared coding](../share-coding/SKILL.md)                                                                     |
+| Haskell                   | [Haskell stack](../haskell-stack/SKILL.md) | [Shared coding](../share-coding/SKILL.md)                                                                     |
 
 ## Keep one owner for each policy
 
-| Owner                                                  | Content                                     |
-| ------------------------------------------------------ | ------------------------------------------- |
-| `share-stack`                                          | Cross-language selections and exceptions.   |
-| A language stack's `references/stack/share.md`         | Language toolchain.                         |
-| A language stack's other `references/stack/` pages     | One application stack per page.             |
-| A language stack's `references/knowledge/` pages       | Necessary library-specific constraints.     |
-| Coding skills                                          | Implementation principles.                  |
-| Test skills                                            | Test implementation.                        |
-| [nix-stack](../nix-stack/SKILL.md)                     | Nix infrastructure and package definitions. |
-| [Task orchestration](references/task-orchestration.md) | Shared task and CI behavior.                |
+| Owner                                                  | Content                                   |
+| ------------------------------------------------------ | ----------------------------------------- |
+| `share-stack`                                          | Cross-language selections and exceptions. |
+| A language stack's `references/stack/share.md`         | Language toolchain.                       |
+| A language stack's other `references/stack/` pages     | One application stack per page.           |
+| A language stack's `references/knowledge/` pages       | Necessary library-specific constraints.   |
+| Coding skills                                          | Implementation principles.                |
+| Test skills                                            | Test implementation.                      |
+| [Task orchestration](references/task-orchestration.md) | Shared task and CI behavior.              |
 
 - List selected technologies before stack-specific constraints.
 - Separate fundamentally different stacks into different pages.
@@ -87,4 +86,4 @@ Before writing custom code or adding a dependency, check whether an installed de
 - Apply defaults to new projects and approved migrations, not unrelated maintenance or upstream-first forks.
 - Ask before unifying different stacks unless the user has approved that choice.
 
-If the linked skills are not installed, read the source: [rust-stack: desktop](https://github.com/totto2727-org/agent/blob/main/plugins/totto2727-rust/skills/rust-stack/references/stack/desktop.md), [js-stack: frontend](https://github.com/totto2727-org/agent/blob/main/plugins/totto2727-js/skills/js-stack/references/stack/frontend.md), [js-stack](https://github.com/totto2727-org/agent/blob/main/plugins/totto2727-js/skills/js-stack/SKILL.md), [js-coding](https://github.com/totto2727-org/agent/blob/main/plugins/totto2727-js/skills/js-coding/SKILL.md), [mbt-stack](https://github.com/totto2727-org/agent/blob/main/plugins/totto2727-mbt/skills/mbt-stack/SKILL.md), [mbt-coding](https://github.com/totto2727-org/agent/blob/main/plugins/totto2727-mbt/skills/mbt-coding/SKILL.md), [rust-stack](https://github.com/totto2727-org/agent/blob/main/plugins/totto2727-rust/skills/rust-stack/SKILL.md), [rust-coding](https://github.com/totto2727-org/agent/blob/main/plugins/totto2727-rust/skills/rust-coding/SKILL.md), [go-stack](https://github.com/totto2727-org/agent/blob/main/plugins/totto2727-go/skills/go-stack/SKILL.md), [haskell-stack](https://github.com/totto2727-org/agent/blob/main/plugins/totto2727-haskell/skills/haskell-stack/SKILL.md), [nix-stack](https://github.com/totto2727-org/agent/blob/main/plugins/totto2727-nix/skills/nix-stack/SKILL.md).
+If the linked skills are not installed, read the source: [rust-stack: desktop](https://github.com/totto2727-org/agent/blob/main/plugins/totto2727-rust/skills/rust-stack/references/stack/desktop.md), [js-stack: frontend](https://github.com/totto2727-org/agent/blob/main/plugins/totto2727-js/skills/js-stack/references/stack/frontend.md), [js-stack](https://github.com/totto2727-org/agent/blob/main/plugins/totto2727-js/skills/js-stack/SKILL.md), [TypeScript Effect design](https://github.com/totto2727-org/agent/blob/main/plugins/totto2727-js/skills/typescript-effect-design/SKILL.md), [TypeScript type design](https://github.com/totto2727-org/agent/blob/main/plugins/totto2727-js/skills/typescript-type-design/SKILL.md), [mbt-stack](https://github.com/totto2727-org/agent/blob/main/plugins/totto2727-mbt/skills/mbt-stack/SKILL.md), [mbt-coding](https://github.com/totto2727-org/agent/blob/main/plugins/totto2727-mbt/skills/mbt-coding/SKILL.md), [rust-stack](https://github.com/totto2727-org/agent/blob/main/plugins/totto2727-rust/skills/rust-stack/SKILL.md), [rust-coding](https://github.com/totto2727-org/agent/blob/main/plugins/totto2727-rust/skills/rust-coding/SKILL.md), [go-stack](https://github.com/totto2727-org/agent/blob/main/plugins/totto2727-go/skills/go-stack/SKILL.md), [haskell-stack](https://github.com/totto2727-org/agent/blob/main/plugins/totto2727-haskell/skills/haskell-stack/SKILL.md).

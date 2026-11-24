@@ -15,7 +15,7 @@
 
 For first-party Effect projects, use the [shared Oxlint package](https://github.com/totto2727-org/oxlint): `@totto2727/oxlint/preset/application` for applications and `/preset/library` for libraries. The modes differ in where they permit tracing.
 Loading the plugin without extending a preset enables only the custom rules selected by the project. Inspect file overrides before assuming the full preset applies.
-For a reported `rules/<id>`, look up the [rule and its remedy](../../../oxlint/SKILL.md).
+For a reported `rules/<id>`, use the installed [oxlint skill](https://github.com/totto2727-org/oxlint/blob/main/skills/oxlint/SKILL.md) or open its rule index at that link.
 
 ## Package manager
 
@@ -47,7 +47,7 @@ For a reported `rules/<id>`, look up the [rule and its remedy](../../../oxlint/S
 - Declare recurring tasks in `vite.config.*` and invoke them with `vp run`.
 - Follow [shared task orchestration](../../../share-stack/references/task-orchestration.md).
 - Use `vp exec` or `vpx`, not `npx` or `bunx`, for package runners.
-- Prefer the installed official [vite-plus skill](https://github.com/voidzero-dev/vite-plus), with the [Vite+ guide](https://viteplus.dev/guide/) as fallback.
+- Consult the [Vite+ guide](https://viteplus.dev/guide/) for its task runner and CLI.
 - Use [`@totto2727/fp`](https://jsr.io/@totto2727/fp) only for an existing integration or an explicit requirement, not as an Effect prerequisite.
 
 If the linked skills are not installed, read the source: [share-stack](https://github.com/totto2727-org/agent/blob/main/plugins/totto2727-principle/skills/share-stack/SKILL.md#keep-environments-and-dependencies-explicit), [share-stack: task-orchestration](https://github.com/totto2727-org/agent/blob/main/plugins/totto2727-principle/skills/share-stack/references/task-orchestration.md).

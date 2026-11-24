@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "totto2727-js",
-  "description": "JavaScript and TypeScript implementation, stack selection, tests, and Oxlint rule remedies.",
+  "description": "TypeScript type design, Effect workflow design, JavaScript stack selection, and tests.",
   "version": "0.1.0",
   "repository": "https://github.com/totto2727-org/agent"
 }

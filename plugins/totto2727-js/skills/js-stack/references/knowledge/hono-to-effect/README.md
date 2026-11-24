@@ -22,16 +22,18 @@ The remaining 23 paths have explicit exclusion reasons.
 
 ## Select and apply a recipe
 
-Read the map first, then load the relevant references directly:
+Read the map first, then load the relevant references directly.
+For Effront-owned imports, prefer the installed [effront skill](https://github.com/totto2727-org/effront/blob/main/skills/effront/SKILL.md) and its Hono migration recipes.
+For standalone HTTP policies, prefer the installed [effect-http skill](https://github.com/totto2727-org/effect-http/blob/main/.agents/skills/effect-http/SKILL.md) and its policy recipes.
 
-| Reference                                               | Read when migrating                                                                                                                                   |
-| ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [Core](core.md)                                         | Requests, typed failures, validation, clients, routing, testing, generic streaming, or WebSocket upgrades.                                            |
-| [Middleware](middleware.md)                             | Authentication, request policies, middleware composition, response transforms, cookies, or proxy forwarding.                                          |
-| [Utilities](utilities.md)                               | Byte/text conversion, encoding, cryptography, JOSE, IP networks, URL/header/status helpers, or utility aliases.                                       |
-| [effront](effront.md)                                   | Applications, JSX, HTML, CSS, static assets, Workers, Node, Bun, or host bindings.                                                                    |
-| [Standalone policies](standalone-policies.md)           | Accept negotiation, Cache-Control, response caching, conditional requests, CSRF, or security headers.                                                 |
-| [Implementation proposals](implementation-proposals.md) | A primitive composition needs reusable middleware or other substantial policy glue. This is a separate proposal document, not a list of shipped APIs. |
+| Reference                                                                                                                                  | Read when migrating                                                                                                                                   |
+| ------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [Core](core.md)                                                                                                                            | Requests, typed failures, validation, clients, routing, testing, generic streaming, or WebSocket upgrades.                                            |
+| [Middleware](middleware.md)                                                                                                                | Authentication, request policies, middleware composition, response transforms, cookies, or proxy forwarding.                                          |
+| [Utilities](utilities.md)                                                                                                                  | Byte/text conversion, encoding, cryptography, JOSE, IP networks, URL/header/status helpers, or utility aliases.                                       |
+| [Effront migration recipes](https://github.com/totto2727-org/effront/blob/main/skills/effront/references/hono-migration.md)                | Applications, JSX, HTML, CSS, static assets, Workers, Node, Bun, or host bindings.                                                                    |
+| [Standalone policies](https://github.com/totto2727-org/effect-http/blob/main/.agents/skills/effect-http/references/standalone-policies.md) | Accept negotiation, Cache-Control, response caching, conditional requests, CSRF, or security headers.                                                 |
+| [Implementation proposals](implementation-proposals.md)                                                                                    | A primitive composition needs reusable middleware or other substantial policy glue. This is a separate proposal document, not a list of shipped APIs. |
 
 For each non-excluded import, apply the documented sequence and preserve the required observable behavior.
 Record the exact target import, configuration, request/response boundary, service requirements, and important differences.
@@ -91,10 +93,10 @@ When asked to audit all Hono APIs, include all 104 map rows and do not omit alia
 From the installed `js-stack` directory, run the inventory checker with Node.js 24 or newer:
 
 ```sh
-node scripts/check-hono-coverage.mjs --hono-root /path/to/pinned-hono --compatibility /path/to/effect-http/docs/hono-compatibility.md
+node scripts/check-hono-coverage.mjs --hono-root /path/to/pinned-hono --effect-http-root /path/to/effect-http --effront-root /path/to/effront
 ```
 
 It reads local files and Git metadata only.
 It does not clone repositories, install dependencies, or call a hosted API.
-It requires the exact pinned Hono commit, expands its real public wildcard modules, checks all 104 rows and 81 recipe links, and compares classifications with the maintained effect-http correspondence table.
+It requires the exact pinned Hono commit, expands its real public wildcard modules, checks all 104 rows and 81 recipe links (including anchors in the Effront and effect-http recipes at the supplied checkouts’ HEAD revisions), and compares classifications with the maintained effect-http correspondence table.
 When changing the upstream baseline, update the map, recipes, checker baseline, and proposal evidence together.
