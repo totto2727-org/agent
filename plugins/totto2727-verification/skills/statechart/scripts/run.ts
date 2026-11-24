@@ -1,10 +1,18 @@
+// oxlint-disable-next-line rules/no-node-imports -- The standalone Statechart tool uses this built-in to preserve the bytes and UTF-8 boundaries in the host's streams.
 import { Buffer } from "node:buffer";
+// oxlint-disable-next-line rules/no-node-imports -- The standalone Statechart tool uses this built-in to launch the real programs whose stdout, stderr and status are consumed.
 import { execFile, spawn } from 'node:child_process';
+// oxlint-disable-next-line rules/no-node-imports -- The standalone Statechart tool uses this built-in to type the real subprocess status and streams.
 import type { ChildProcess, ExecFileException } from 'node:child_process';
+// oxlint-disable-next-line rules/no-node-imports -- The standalone Statechart tool uses this built-in to generate the native run's independent marker using the host's entropy source.
 import { randomBytes } from "node:crypto";
+// oxlint-disable-next-line rules/no-node-imports -- The standalone Statechart tool uses this built-in to inspect or write files through the host filesystem.
 import fs from "node:fs";
+// oxlint-disable-next-line rules/no-node-imports -- The standalone Statechart tool uses this built-in to select the host's real temporary directory.
 import os from "node:os";
+// oxlint-disable-next-line rules/no-node-imports -- The standalone Statechart tool uses this built-in to resolve paths using the host platform's filesystem conventions.
 import path from "node:path";
+// oxlint-disable-next-line rules/no-node-imports -- The standalone Statechart tool uses this built-in to preserve the native rendering of the observed diagnostic.
 import { inspect } from "node:util";
 import { boundRun, chartRun, configText } from "./backends/cfg.ts";
 import { plainText } from "./backends/plain-text.ts";

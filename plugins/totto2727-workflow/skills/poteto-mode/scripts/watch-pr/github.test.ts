@@ -1,7 +1,11 @@
 import { describe, expect, it } from "bun:test";
+// oxlint-disable-next-line rules/no-node-imports -- The watcher's Bun fixtures use this built-in to launch the real programs whose stdout, stderr and status are consumed.
 import { spawnSync } from "node:child_process";
+// oxlint-disable-next-line rules/no-node-imports -- The watcher's Bun fixtures use this built-in to inspect or write files through the host filesystem.
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+// oxlint-disable-next-line rules/no-node-imports -- The watcher's Bun fixtures use this built-in to select the host's real temporary directory.
 import { tmpdir } from "node:os";
+// oxlint-disable-next-line rules/no-node-imports -- The watcher's Bun fixtures use this built-in to resolve paths using the host platform's filesystem conventions.
 import { join } from "node:path";
 import {
   ChecksUnavailable,

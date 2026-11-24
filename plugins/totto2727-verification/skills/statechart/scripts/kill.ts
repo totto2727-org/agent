@@ -1,3 +1,4 @@
+// oxlint-disable-next-line rules/no-node-imports -- The standalone Statechart tool uses this built-in to launch the real programs whose stdout, stderr and status are consumed.
 import { spawn } from "node:child_process";
 
 export const killGroup = (pid: number): Promise<void> =>

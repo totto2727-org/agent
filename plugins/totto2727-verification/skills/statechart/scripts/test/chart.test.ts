@@ -1,12 +1,18 @@
 // oxlint-disable-next-line rules/no-node-imports -- Statechart's Node suite uses native assertions for chart and subprocess results.
 import assert from "node:assert/strict";
+// oxlint-disable-next-line rules/no-node-imports -- Statechart's native fixtures use this built-in to inspect or write files through the host filesystem.
 import fs from "node:fs";
+// oxlint-disable-next-line rules/no-node-imports -- Statechart's native fixtures use this built-in to resolve paths using the host platform's filesystem conventions.
 import path from "node:path";
 // oxlint-disable-next-line rules/no-node-imports -- Statechart runs these fixtures with Node's test runner as part of the standalone skill.
 import { test } from "node:test";
+// oxlint-disable-next-line rules/no-node-imports -- Statechart's native fixtures use this built-in to preserve the native rendering of the observed diagnostic.
 import { inspect } from "node:util";
+// oxlint-disable-next-line rules/no-node-imports -- Statechart's native fixtures use this built-in to convert local module URLs with the host platform's path rules.
 import { fileURLToPath } from "node:url";
+// oxlint-disable-next-line rules/no-node-imports -- Statechart's native fixtures use this built-in to inspect the native V8 state used by the rendering fixture.
 import v8 from "node:v8";
+// oxlint-disable-next-line rules/no-node-imports -- Statechart's native fixtures use this built-in to evaluate the fixture in the native isolated VM context.
 import vm from "node:vm";
 import { mermaid } from "#statechart/backends/mermaid.ts";
 import { report } from "#statechart/backends/report.ts";

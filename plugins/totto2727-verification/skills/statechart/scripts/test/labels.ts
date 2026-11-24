@@ -1,3 +1,4 @@
+// oxlint-disable-next-line rules/no-node-imports -- Statechart's native fixtures use this built-in to preserve the native rendering of the observed diagnostic.
 import { inspect } from "node:util";
 import { drawnEdges, mermaid as chartText } from "#statechart/backends/mermaid.ts";
 import { checkView } from "#statechart/frontends/view.ts";

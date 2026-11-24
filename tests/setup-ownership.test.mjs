@@ -1,6 +1,8 @@
 // oxlint-disable-next-line rules/no-node-imports -- The workspace's Node suite uses native assertions for the installed script's outputs and failures.
 import assert from "node:assert/strict";
+// oxlint-disable-next-line rules/no-node-imports -- The Node setup fixtures use this built-in to launch the real programs whose stdout, stderr and status are consumed.
 import { spawnSync } from "node:child_process";
+// oxlint-disable-next-line rules/no-node-imports -- The Node setup fixtures use this built-in to await writes and reads through the host filesystem.
 import {
   mkdir,
   mkdtemp,
@@ -11,9 +13,11 @@ import {
   symlink,
   writeFile,
 } from "node:fs/promises";
+// oxlint-disable-next-line rules/no-node-imports -- The Node setup fixtures use this built-in to resolve paths using the host platform's filesystem conventions.
 import { join } from "node:path";
 // oxlint-disable-next-line rules/no-node-imports -- The setup ownership suite runs directly on Node.
 import test from "node:test";
+// oxlint-disable-next-line rules/no-node-imports -- The Node setup fixtures use this built-in to convert local module URLs with the host platform's path rules.
 import { fileURLToPath } from "node:url";
 
 const cli = fileURLToPath(

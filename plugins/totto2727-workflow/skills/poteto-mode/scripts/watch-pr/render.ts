@@ -1,3 +1,4 @@
+// oxlint-disable-next-line rules/no-node-imports -- The standalone Bun watcher uses this built-in to remove terminal control codes before writing the watcher's report.
 import { stripVTControlCharacters } from "node:util";
 import type * as T from "./types.ts";
 import { visitItems } from "./native-iteration.ts";

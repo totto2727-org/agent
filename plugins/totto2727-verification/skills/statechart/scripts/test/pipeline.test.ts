@@ -1,13 +1,18 @@
 // oxlint-disable-next-line rules/no-node-imports -- Statechart's Node suite uses native assertions for chart and subprocess results.
 import assert from "node:assert/strict";
+// oxlint-disable-next-line rules/no-node-imports -- Statechart's native fixtures use this built-in to launch the real programs whose stdout, stderr and status are consumed.
 import { execFileSync } from "node:child_process";
+// oxlint-disable-next-line rules/no-node-imports -- Statechart's native fixtures use this built-in to inspect or write files through the host filesystem.
 import fs from "node:fs";
 // oxlint-disable-next-line rules/no-node-imports -- Node resolves type-only imports from each file for the dependency boundary test.
 import { createRequire } from "node:module";
+// oxlint-disable-next-line rules/no-node-imports -- Statechart's native fixtures use this built-in to resolve paths using the host platform's filesystem conventions.
 import path from "node:path";
 // oxlint-disable-next-line rules/no-node-imports -- Statechart runs these fixtures with Node's test runner as part of the standalone skill.
 import { test } from "node:test";
+// oxlint-disable-next-line rules/no-node-imports -- Statechart's native fixtures use this built-in to convert local module URLs with the host platform's path rules.
 import { fileURLToPath, pathToFileURL } from "node:url";
+// oxlint-disable-next-line rules/no-node-imports -- Statechart's native fixtures use this built-in to preserve the native rendering of the observed diagnostic.
 import { inspect } from "node:util";
 import { checkView } from "#statechart/frontends/view.ts";
 import { EC, LEVEL, stateRules, visitItems } from '#statechart/ir.ts';

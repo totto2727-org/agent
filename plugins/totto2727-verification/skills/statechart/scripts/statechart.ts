@@ -1,9 +1,15 @@
 #!/usr/bin/env node
+// oxlint-disable-next-line rules/no-node-imports -- The standalone Statechart tool uses this built-in to launch the real programs whose stdout, stderr and status are consumed.
 import { spawn } from 'node:child_process';
+// oxlint-disable-next-line rules/no-node-imports -- The standalone Statechart tool uses this built-in to type the real subprocess status and streams.
 import type { ChildProcess } from 'node:child_process';
+// oxlint-disable-next-line rules/no-node-imports -- The standalone Statechart tool uses this built-in to inspect or write files through the host filesystem.
 import fs from "node:fs";
+// oxlint-disable-next-line rules/no-node-imports -- The standalone Statechart tool uses this built-in to select the host's real temporary directory.
 import os from "node:os";
+// oxlint-disable-next-line rules/no-node-imports -- The standalone Statechart tool uses this built-in to resolve paths using the host platform's filesystem conventions.
 import path from "node:path";
+// oxlint-disable-next-line rules/no-node-imports -- The standalone Statechart tool uses this built-in to parse the CLI's established switches with its native argument parser.
 import { parseArgs } from "node:util";
 import { killGroup } from "./kill.ts";
 import { messageOf } from "./run.ts";
