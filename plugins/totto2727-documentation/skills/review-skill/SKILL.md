@@ -1,5 +1,5 @@
 ---
-name: skill-reviewer
+name: review-skill
 description: >-
   Review an Agent Skill or diagnose why it triggers incorrectly or produces the wrong output.
 ---

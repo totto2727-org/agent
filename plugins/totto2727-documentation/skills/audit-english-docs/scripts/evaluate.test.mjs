@@ -90,7 +90,7 @@ const hasRetryOverride = (call) =>
   call.headers.some((header) => header.startsWith("cf-aig-max-attempts:"));
 
 async function fixture({ model = "clef-flash" } = {}) {
-  const directory = await mkdtemp(resolve(tmpdir(), "documentation-quality-test-"));
+  const directory = await mkdtemp(resolve(tmpdir(), "audit-english-docs-test-"));
   temporaryDirectories.push(directory);
   await writeFile(
     resolve(directory, "guide.md"),
@@ -133,7 +133,7 @@ async function fixture({ model = "clef-flash" } = {}) {
 }
 
 async function duplicateFixture({ model = "clef-flash", secondAudience, secondRuleIds } = {}) {
-  const directory = await mkdtemp(resolve(tmpdir(), "documentation-quality-test-"));
+  const directory = await mkdtemp(resolve(tmpdir(), "audit-english-docs-test-"));
   temporaryDirectories.push(directory);
   await writeFile(
     resolve(directory, "guide.md"),

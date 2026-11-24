@@ -16,7 +16,7 @@ Keep the [coverage record](coverage.md) with the report: the catalog maps the nu
   "model": "typesafe/jev",
   "englishOnly": true,
   "templateConstraints": ["Preserve required headings, order, sections, and exact identifiers."],
-  "rulesFile": "../../plugins/totto2727-documentation/skills/documentation-quality/references/rules.json",
+  "rulesFile": "../../plugins/totto2727-documentation/skills/audit-english-docs/references/rules.json",
   "documents": [
     {
       "id": "guide",
@@ -225,7 +225,7 @@ For oversized pages, use a reasoning reviewer or a genuinely independent smaller
 Create the output directory, then inspect a plan:
 
 ```bash
-node plugins/totto2727-documentation/skills/documentation-quality/scripts/evaluate.mjs \
+node plugins/totto2727-documentation/skills/audit-english-docs/scripts/evaluate.mjs \
   --manifest tmp/review/manifest.json \
   --output tmp/review/plan.json \
   --dry-run
@@ -234,7 +234,7 @@ node plugins/totto2727-documentation/skills/documentation-quality/scripts/evalua
 Run actual mechanical checks without model credentials:
 
 ```bash
-node plugins/totto2727-documentation/skills/documentation-quality/scripts/evaluate.mjs \
+node plugins/totto2727-documentation/skills/audit-english-docs/scripts/evaluate.mjs \
   --manifest tmp/review/manifest.json \
   --output tmp/review/mechanical.json \
   --mechanical-only
@@ -297,7 +297,7 @@ Keep earlier reports under ignored `tmp/` and choose a new path for each run.
 ## Validate implementation and use
 
 ```bash
-nix develop --command vp test run plugins/totto2727-documentation/skills/documentation-quality/scripts
+nix develop --command vp test run plugins/totto2727-documentation/skills/audit-english-docs/scripts
 nix develop --command vp check
 git diff --check
 ```

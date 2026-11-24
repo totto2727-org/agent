@@ -1,5 +1,5 @@
 ---
-name: documentation-quality
+name: audit-english-docs
 description: >-
   Audit English developer documentation against ASD-STE100 using local checks and optional semantic review.
 compatibility: Node.js 22 or later. Semantic evaluation additionally requires curl and the configured Cloudflare environment from cloudflare-ai.
@@ -7,10 +7,7 @@ compatibility: Node.js 22 or later. Semantic evaluation additionally requires cu
 
 # Documentation Quality
 
-Apply [documentation-principles](../documentation-principles/SKILL.md) with ASD-STE100 as the strict default, not an optional selection of writing tips.
-Apply all applicable, verified rules to the content within the required document structure.
-Preserve template headings, order, sections, identifiers, and exact executable or quoted material.
-A structural constraint is not a blanket exemption for the prose inside it.
+Use the [controlled-English baseline and exception policy](../technical-writing/SKILL.md#controlled-english-for-developer-documentation) when auditing English prose.
 
 > [!IMPORTANT]
 > The rule catalog maps the 53 numbered writing rules in ASD-STE100 Issue 9 to local checks or explicit counting dependencies.
@@ -53,10 +50,6 @@ Open its linked guide only when interpreting a finding or resolving applicabilit
 Supplementary rules cover audience boundaries, substantive representations, navigation, and visual roles that the language standard does not itself settle.
 Do not restate these supplements as new STE requirements.
 
-Record an exception candidate with its affected rule, precise passage, unavoidable operational constraint, and smallest proposed relaxation.
-Do not exempt all technical prose, all advanced documentation, or all unfamiliar words.
-Treat protected syntax, names, and exact quotations according to their role and the verified standard, not a model's vocabulary guess.
-
 ## Scripted and semantic evaluation
 
 Use [running evaluations](references/running.md) for manifests, local execution, Cloudflare routes, and report interpretation.
@@ -74,5 +67,3 @@ Keep labeled examples and expected verdicts out of blind requests.
 Run representative public workflows separately to verify runnable examples, rendering, links, source accuracy, and packaging.
 Translation fidelity requires a separate review against the English source.
 The local tests establish evaluator behavior, not standard coverage or model accuracy.
-
-If the linked skills are not installed, read the source: [documentation-principles](https://github.com/totto2727-org/agent/blob/main/plugins/totto2727-principle/skills/documentation-principles/SKILL.md).

@@ -71,7 +71,7 @@ Check:
 - Whether a short self-contained skill is being split into files without helping its reader.
 - Whether evaluation queries, expected answers, iteration logs, or generated results leak into normal skill execution.
 - Whether SKILL.md states current instructions and necessary concrete grounds rather than change chronology, past decisions, retired names, or incident narratives.
-  Apply [current-guidance principles](../../documentation-principles/SKILL.md#state-current-guidance-and-its-grounds): retain a useful lesson as its conclusion, applicability, and grounds, not its history.
+  Keep a useful lesson as a current instruction with its scope and grounds, not as a history of revisions.
 - Whether bundled scripts have discoverable invocations and dependencies, and complex repeated commands should instead be a tested helper.
 
 Use [script-design.md](script-design.md) for script interfaces, help, errors, output size, dependency provenance, and retry safeguards.
@@ -151,6 +151,3 @@ A low count of other findings never offsets a material safety problem.
 
 The [source index](sources.md) identifies the standard and further guidance behind these methods.
 Keep normative claims tied to the specification and quality findings tied to their observed effect.
-Use the shared documentation principles for clear reports without turning a particular report layout into the quality criterion.
-
-If the linked skills are not installed, read the source: [documentation-principles](https://github.com/totto2727-org/agent/blob/main/plugins/totto2727-principle/skills/documentation-principles/SKILL.md#state-current-guidance-and-its-grounds).

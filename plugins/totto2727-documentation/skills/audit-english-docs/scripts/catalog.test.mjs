@@ -5,12 +5,7 @@ import { describe, expect, it } from "vitest";
 import { buildWork, validateManifest } from "./evaluate.mjs";
 
 const catalogPath = fileURLToPath(new URL("../references/rules.json", import.meta.url));
-const principlesPath = fileURLToPath(
-  new URL(
-    "../../../../totto2727-principle/skills/documentation-principles/SKILL.md",
-    import.meta.url,
-  ),
-);
+const sourcePath = fileURLToPath(new URL("../SKILL.md", import.meta.url));
 const sectionCounts = [14, 2, 7, 5, 5, 6, 3, 7, 4];
 const numberedRules = sectionCounts.flatMap((count, section) =>
   Array.from({ length: count }, (_, index) => `${section + 1}.${index + 1}`),
@@ -90,7 +85,7 @@ describe("Issue 9 executable rule catalog", () => {
     }
   });
 
-  it("builds every executable rule against the real principles skill", async () => {
+  it("builds every executable rule against the shipped audit guide", async () => {
     const rules = await loadCatalog();
     const manifest = validateManifest({
       model: "clef-flash",
@@ -98,8 +93,8 @@ describe("Issue 9 executable rule catalog", () => {
       rules,
       documents: [
         {
-          id: "real-principles",
-          path: principlesPath,
+          id: "audit-guide",
+          path: sourcePath,
           sourceLanguage: "en",
           purpose: "Write and maintain English developer documentation.",
           audience: "Authors of the subject's documentation.",
@@ -112,7 +107,7 @@ describe("Issue 9 executable rule catalog", () => {
       Object.values(item.questions).map((question) => question.ruleId),
     );
     expect([...new Set(planned)].sort()).toEqual(rules.map((rule) => rule.id).sort());
-    expect(work.every((item) => item.path === principlesPath)).toBe(true);
+    expect(work.every((item) => item.path === sourcePath)).toBe(true);
     // Planning real input verifies integration, not semantic acceptance.
   });
 });

@@ -21,6 +21,12 @@ Use the installed task skill if available. For project and issue management, use
 
 Use pstack for document analysis and drafting. Use its recap, technical writing, or formal statechart workflow according to the requested output. For a complex figure that neither pstack nor Visual Explainer can produce, use the installed [Diagram Design](https://github.com/cathrynlavery/diagram-design) skill if available, otherwise consult its official repository. Match the destination theme and embed the figure in the deliverable.
 
+## Repository defaults
+
+Commit ignore rules only for artifacts any contributor's supported workflow can produce, such as build output or linter caches. Put personal `/tmp/`, `/.claude/`, and `/PROFILE.local.md` in the repository's `info/exclude`, not its `.gitignore`. In a linked worktree locate it with `git rev-parse --git-path info/exclude`.
+
+For new services, prefer Cloudflare Workers for TypeScript and Containers for workloads Workers cannot run. Keep one owner for SQL migration history: Atlas versions remote schemas and Alchemy applies the SQL to D1. Test that child rows survive a cascading parent-table rebuild on the deployment runner, not just a foreign-key check.
+
 ## Personal defaults
 
 For a Japanese HTML handoff, use [visual-explainer-ja](../visual-explainer-ja/SKILL.md) ([source](https://github.com/totto2727-org/agent/blob/main/plugins/totto2727-documentation/skills/visual-explainer-ja/SKILL.md)).

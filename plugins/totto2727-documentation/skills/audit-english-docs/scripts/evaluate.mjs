@@ -743,7 +743,7 @@ function parseCurlOutput(stdout) {
 // requests are never re-submitted. No request-level retry override is sent, so
 // the Gateway's own configured retry behavior is left unchanged.
 async function actionRequest({ model, state, questions, credentials, cacheKey, metrics }) {
-  const temporary = await mkdtemp(resolve(tmpdir(), "documentation-quality-"));
+  const temporary = await mkdtemp(resolve(tmpdir(), "audit-english-docs-"));
   try {
     const requestFile = resolve(temporary, "request.json");
     const headersFile = resolve(temporary, "headers.txt");

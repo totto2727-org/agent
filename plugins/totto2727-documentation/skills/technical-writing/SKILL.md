@@ -10,7 +10,6 @@ Write so a tired engineer understands on the first read.
 
 - Cut every word that does no work.
 - Use the short, everyday word: "use", not "utilize".
-- For English developer documentation, apply [documentation principles](../documentation-principles/SKILL.md) ([source](https://github.com/totto2727-org/agent/blob/main/plugins/totto2727-principle/skills/documentation-principles/SKILL.md)). Its STE baseline and exception criteria take precedence over the style advice below.
 - Write the real symbol, file, flag, or command name, not a synonym or a description of it.
 - Don't invent jargon. Use the words a developer would say out loud. Say what a named pattern means the first time.
 
@@ -21,6 +20,8 @@ Write so a tired engineer understands on the first read.
 - Be specific. Not "schema changes can cause issues" but "a column rename fails the build".
 
 ## Pick the mode first (Diátaxis)
+
+For a README, AGENTS.md, or architecture decision record, use the [repository document outlines](references/repository-documents.md).
 
 One document, one mode. Don't mix modes. Split and link instead.
 
@@ -41,9 +42,15 @@ One document, one mode. Don't mix modes. Split and link instead.
 - Numbered lists for sequences, bullets for everything else. Introduce a list with a complete sentence. Keep items parallel.
 - Code goes in code font. UI elements go in bold. Use serial commas. Drop "etc.".
 
-## Review controlled English
+## Controlled English for developer documentation
 
-Use [documentation quality](../documentation-quality/SKILL.md) for mechanical checks and review against the adopted issue. A clean mechanical result alone does not establish STE compliance.
+Apply [ASD-STE100 Issue 9](https://www.asd-ste100.org/STE_downloads.html) (January 2025), including its dictionary, to English developer prose before the style advice in this skill.
+Preserve required headings, public identifiers, commands, and exact quotations. Their surrounding prose still needs review.
+If you cannot verify a rule or dictionary entry, report the missing evidence rather than guessing.
+Try a compliant formulation and check permitted uses before proposing a local exception.
+If an operational requirement makes compliance impossible, identify the issue, rule, exact passage, conflict, and smallest alternative for approval.
+Do not claim unqualified compliance for an exception or a clean script result.
+Use [audit-english-docs](../audit-english-docs/SKILL.md) for the checks.
 
 ## Leave no sentence open to two readings (Global English)
 

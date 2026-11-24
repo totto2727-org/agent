@@ -6,7 +6,7 @@
     "check": { "kind": "fenced-code-language" },
     "source": {
       "kind": "supplement",
-      "reference": "documentation-principles#project-conventions-and-markdown"
+      "reference": "rules/mechanical.md"
     }
   },
   {
@@ -15,7 +15,7 @@
     "scope": "section",
     "source": {
       "kind": "supplement",
-      "reference": "documentation-principles#state-current-guidance-and-its-grounds"
+      "reference": "rules/consumer-contract.md"
     },
     "instructions": "Judge only the target unit's relevance to the declared reader and purpose. For guidance about the current state, retain supported behavior, requirements, recommendations, and necessary concrete grounds. A past decision or incident alone does not justify a current requirement. Flag history, repetition, or implementation detail that adds no value to that reader. Retain chronology when recording or analyzing it is the document's purpose, including ADRs, changelogs, and incident investigations. Preserve required template sections and judge their content, not whether a different document structure would be preferable. Do not assess another page or verify external facts. Return insufficient_context when audience or purpose cannot be established.",
     "pass": "The content serves the declared reader and purpose, with any history or grounds justified by that purpose.",
@@ -27,7 +27,7 @@
     "scope": "section",
     "source": {
       "kind": "supplement",
-      "reference": "documentation-principles#serve-a-readers-purpose"
+      "reference": "rules/audience-boundary.md"
     },
     "instructions": "Distinguish beginner users, intermediate users, advanced users, and developers of the subject itself. Split the last group into contributors and maintainers only when their tasks differ. A programmer consuming a library or API is its user, not its developer. Judge the selected unit against the declared group and assumed knowledge. Beginner and intermediate guidance must not expose implementation internals unless the knowledge is indispensable to correct use. In that case, prefer necessary behavior, conditions, and consequences; an underlying mechanism is justified only when those facts are insufficient. Technical public interfaces required by the task are not automatically internals. Advanced users may need internals without contributing to the subject. Respect imposed structure and do not demand all groups in every page, a generic audience paragraph, or a new heading. Use only this page and declared task metadata. Return insufficient_context for an unresolved audience or indispensable-knowledge question.",
     "pass": "The unit serves its intended group without requiring it to filter out another group's unnecessary content.",
@@ -39,7 +39,7 @@
     "scope": "section",
     "source": {
       "kind": "supplement",
-      "reference": "documentation-principles#treat-code-and-diagrams-as-substantive-documentation"
+      "reference": "rules/actionable-example.md"
     },
     "instructions": "When the target needs a demonstration, judge the local code, commands, configuration, input/output, table, or diagram together with its explanation. It must show the inputs, relationships or actions, and result or interpretation needed for the task. A substantive representation can supply the main answer without redundant prose. Preserve runnable syntax and quoted output rather than applying English language rules to them. Do not verify an external API, execute code, or inspect a linked page. A deliberately delegated demonstration is not automatically missing; if the judgment depends on its unseen content, return insufficient_context. Return not_applicable when the fact, warning, principle, or navigation is self-sufficient without a demonstration.",
     "pass": "The supplied representation and context demonstrate what the intended reader needs without redundant prose.",
@@ -51,7 +51,7 @@
     "scope": "section",
     "source": {
       "kind": "supplement",
-      "reference": "documentation-principles#verify-claims-against-their-evidence"
+      "reference": "rules/consequential-limit.md"
     },
     "instructions": "For a limitation communicated in the selected unit, identify its affected condition or behavior, observable consequence, and available next action when the page establishes one. This checks the content of a limitation, not a second definition of STE language rules. Do not invent a remedy, infer behavior from implementation names, require a nonexistent workaround, or judge an unseen linked document. Return not_applicable if no consequential limitation is communicated. Return insufficient_context if the supplied page does not establish a fact required to judge the claimed limitation.",
     "pass": "The local limitation states its applicability, consequence, and known available next action accurately within the supplied evidence.",
@@ -63,7 +63,7 @@
     "scope": "section",
     "source": {
       "kind": "supplement",
-      "reference": "documentation-principles#serve-a-readers-purpose"
+      "reference": "rules/focused-unit.md"
     },
     "instructions": "Judge whether the selected unit answers a coherent question for its intended reader. Keep necessary prerequisites, constraints, representations, and explanation together. Flag unrelated tasks, redundant framing, or removable repetition, not technical detail required by that audience. Do not impose a word count or require an introduction and summary around a self-sufficient unit. Preserve fixed template headings, order, and sections; recommend content corrections within them rather than restructuring the template. Judge only this unit in its page context.",
     "pass": "The unit answers its reader's question without unrelated content or unnecessary repetition.",
@@ -75,7 +75,7 @@
     "scope": "page",
     "source": {
       "kind": "supplement",
-      "reference": "documentation-principles#maintain-document-ownership-and-navigation"
+      "reference": "rules/reader-route.md"
     },
     "instructions": "Judge only the route visible within this page: locally stated prerequisites, ordered actions, choices, and descriptions of onward links. Present a documented normal path before optional branches when one exists, without inventing a default or requiring a different template. Respect required headings and order, and judge whether their content supplies the necessary route. Do not judge whether a link works, whether its destination contains enough guidance, canonical ownership, or cross-page duplication; these are outside this automated check. If a decisive prerequisite or destination is unseen, return insufficient_context instead of asserting a defect. Return not_applicable for an isolated lookup entry with no navigation or ordering responsibility.",
     "pass": "The locally supplied content provides a coherent route and clearly identifies the next action or onward guidance.",
@@ -87,7 +87,7 @@
     "scope": "section",
     "source": {
       "kind": "supplement",
-      "reference": "documentation-principles#project-conventions-and-markdown"
+      "reference": "rules/visual-role.md"
     },
     "instructions": "When the target contains materially different content roles, judge whether its Markdown presentation makes instructions, warnings, examples, and reference information easy to distinguish. Use project formatting constraints first. Code, tables, diagrams, lists, and GitHub alerts can communicate the distinctions. Do not demand an alert or another decoration merely because the feature exists; a self-sufficient existing representation is acceptable. Do not inspect rendering on a different page or claim a renderer supports a feature without local evidence. Respect the template's structure and exact quoted material. Return not_applicable when no meaningful visual distinction is needed.",
     "pass": "Meaningful content roles are distinguishable using the permitted visual forms without decorative or repeated emphasis.",
