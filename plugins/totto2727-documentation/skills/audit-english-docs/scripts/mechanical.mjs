@@ -7,74 +7,113 @@ import {
   matchesUndefined,
 } from "./native-predicates.mjs";
 
+const MAX_TERMS = 1_000;
+const MAX_TERM_LENGTH = 128;
+const LITERAL_TERM = /^[\p{L}\p{N}_]+$/u;
+
+/** @type {Record<string, string[]>} */
+const allowedMechanicalParameters = {
+  "fenced-code-language": ["kind"],
+  "prohibited-terms": ["kind", "terms", "caseSensitive", "protectedTerms"],
+  "ste-dictionary-membership": ["kind"],
+  "ste-paragraph-length": ["kind"],
+  "ste-punctuation": ["kind"],
+  "ste-sentence-length": ["kind", "writingMode"],
+};
+
+/** @type {(value: unknown, allowEmpty: boolean) => string[] | undefined} */
+const literalTerms = (value, allowEmpty) => {
+  if (!Array.isArray(value) || (!allowEmpty && !value.length) || value.length > MAX_TERMS) {
+    return undefined;
+  }
+  /** @type {unknown[]} */
+  const terms = value;
+  if (
+    !terms.every((term) => matchesString(term)) ||
+    terms.some((term) => term.length > MAX_TERM_LENGTH || !LITERAL_TERM.test(term))
+  ) {
+    return undefined;
+  }
+  return terms;
+};
+
+/** @typedef {{ end: number, start: number }} TextRange */
+/** @typedef {{ endByte: number, endLine: number, startByte: number, startLine: number }} SourceRange */
+/** @typedef {{ character: string, language: string, length: number, openingEnd: number, start: number }} FenceOpening */
+/** @typedef {FenceOpening & { closed: boolean, end: number }} Fence */
+/** @typedef {TextRange & { kind: string }} Exclusion */
+/** @typedef {TextRange & { reason: string }} Uncertainty */
+/** @typedef {{ hyphenComponentCounts: number[] | null, sourceRange: SourceRange, status: "counted" | "insufficient_context", wordCount: number | null }} NounGroupEvidence */
+/**
+ * @template Context
+ * @typedef {{ headingPath: string[], id: string, sourceRange: SourceRange, ste: Context | undefined, text: string }} Paragraph
+ */
+
 // Bounded local criteria only. These checks do not certify full STE compliance.
 // No manifest-supplied executable expressions or regular expressions are accepted.
+/**
+ * @param {unknown} check - The manifest's mechanical criterion.
+ * @param {string} label - Its location in the manifest.
+ * @param {new (message: string) => Error} [ErrorType] - The caller's validation error constructor.
+ * @returns {{ kind: string, writingMode?: "procedural" | "descriptive", terms?: string[], protectedTerms?: string[], caseSensitive?: boolean }} A check restricted to the supported parameters.
+ */
 export function validateMechanicalCheck(check, label, ErrorType = Error) {
+  /** @type {(message: string) => never} */
   const reject = (message) => {
     throw new ErrorType(`${label}: ${message}`);
   };
-  if (!check || !hasObjectType(check) || Array.isArray(check)) {
+  if (!hasObjectType(check) || matchesNull(check) || Array.isArray(check)) {
     reject("must be an object");
   }
-  const kinds = {
-    "fenced-code-language": ["kind"],
-    "prohibited-terms": ["kind", "terms", "caseSensitive", "protectedTerms"],
-    "ste-punctuation": ["kind"],
-    "ste-sentence-length": ["kind", "writingMode"],
-    "ste-paragraph-length": ["kind"],
-    "ste-dictionary-membership": ["kind"],
-  };
-  if (!Object.hasOwn(kinds, check.kind)) {
+  const kind = "kind" in check ? check.kind : undefined;
+  if (!matchesString(kind) || !Object.hasOwn(allowedMechanicalParameters, kind)) {
     reject("unsupported mechanical kind");
   }
-  const allowed = kinds[check.kind];
+  const allowed = allowedMechanicalParameters[kind];
   if (Object.keys(check).some((key) => !allowed.includes(key))) {
     reject("unexpected parameter");
   }
-  if (check.kind === "ste-sentence-length") {
-    if (!["procedural", "descriptive"].includes(check.writingMode)) {
+  if (kind === "ste-sentence-length") {
+    const writingMode = "writingMode" in check ? check.writingMode : undefined;
+    if (writingMode !== "procedural" && writingMode !== "descriptive") {
       reject("writingMode must be procedural or descriptive");
     }
-    return { kind: check.kind, writingMode: check.writingMode };
+    return { kind, writingMode };
   }
-  if (check.kind === "prohibited-terms") {
-    if (
-      !Array.isArray(check.terms) ||
-      !check.terms.length ||
-      check.terms.length > 1000 ||
-      check.terms.some(
-        (term) => !matchesString(term) || term.length > 128 || !/^[\p{L}\p{N}_]+$/u.test(term),
-      )
-    ) {
+  if (kind === "prohibited-terms") {
+    const terms = literalTerms("terms" in check ? check.terms : undefined, false);
+    if (matchesUndefined(terms)) {
       reject(
         "terms must contain 1 through 1000 literal whole tokens (at most 128 characters each)",
       );
     }
-    if (!matchesUndefined(check.caseSensitive) && !matchesBoolean(check.caseSensitive)) {
+    const caseSensitive = "caseSensitive" in check ? check.caseSensitive : undefined;
+    if (!matchesUndefined(caseSensitive) && !matchesBoolean(caseSensitive)) {
       reject("caseSensitive must be boolean");
     }
-    if (
-      !matchesUndefined(check.protectedTerms) &&
-      (!Array.isArray(check.protectedTerms) ||
-        check.protectedTerms.length > 1000 ||
-        check.protectedTerms.some(
-          (term) => !matchesString(term) || term.length > 128 || !/^[\p{L}\p{N}_]+$/u.test(term),
-        ))
-    ) {
+    const protectedInput = "protectedTerms" in check ? check.protectedTerms : undefined;
+    const protectedTerms = matchesUndefined(protectedInput) ? [] : literalTerms(protectedInput, true);
+    if (matchesUndefined(protectedTerms)) {
       reject(
         "protectedTerms must be an array of literal whole tokens (at most 1000 tokens, 128 characters each)",
       );
     }
     return {
-      kind: check.kind,
-      terms: [...new Set(check.terms)],
-      protectedTerms: [...new Set(check.protectedTerms ?? [])],
-      caseSensitive: check.caseSensitive ?? false,
+      kind,
+      terms: [...new Set(terms)],
+      protectedTerms: [...new Set(protectedTerms)],
+      caseSensitive: caseSensitive ?? false,
     };
   }
-  return { kind: check.kind };
+  return { kind };
 }
 
+/**
+ * @param {string} markdown - The complete source document.
+ * @param {number} start - The first UTF-16 code unit of the span.
+ * @param {number} end - The exclusive UTF-16 end of the span.
+ * @returns {SourceRange} Line and UTF-8 byte offsets in the original document.
+ */
 export function sourceRange(markdown, start, end) {
   return {
     startLine: markdown.slice(0, start).split("\n").length,
@@ -87,8 +126,16 @@ export function sourceRange(markdown, start, end) {
   };
 }
 
+/**
+ * @template {{ text: string }} Group
+ * @param {string} markdown - The complete source document.
+ * @param {SourceRange} targetRange - The range in which to look for noun groups.
+ * @param {Group[]} [groups] - The caller's declarations and their literal text.
+ * @returns {Array<Group & NounGroupEvidence>} Evidence for matching declarations.
+ */
 export function nounGroupCounts(markdown, targetRange, groups = []) {
   const { visible, uncertainties } = inspectMarkdown(markdown);
+  /** @type {Array<Group & NounGroupEvidence>} */
   const selected = [];
   for (const group of groups) {
     let at = 0;
@@ -120,18 +167,30 @@ export function nounGroupCounts(markdown, targetRange, groups = []) {
 // Offsets remain UTF-16 source offsets until sourceRange converts them to UTF-8.
 // Conservative exclusions intentionally reduce coverage rather than claim that
 // Code, metadata, link destinations, or HTML meet a prose criterion.
+/**
+ * @param {string} markdown - The complete Markdown document.
+ * @returns {{ exclusions: Exclusion[], fences: Fence[], frontmatter: TextRange | null, uncertainties: Uncertainty[], visible: string }} Visible text and the source spans consulted to derive it.
+ */
 export function inspectMarkdown(markdown) {
+  /** @type {Exclusion[]} */
   const exclusions = [];
+  /** @type {Uncertainty[]} */
   const uncertainties = [];
+  /** @type {Fence[]} */
   const fences = [];
-  const exclude = (start, end, kind) => exclusions.push({ start, end, kind });
+  /** @type {(start: number, end: number, kind: string) => void} */
+  const exclude = (start, end, kind) => {
+    exclusions.push({ start, end, kind });
+  };
   const lines = [...markdown.matchAll(/[^\n]*(?:\n|$)/g)].filter((line) => line[0].length);
+  /** @type {TextRange | null} */
   let frontmatter = null;
   if (/^---\s*(?:\r?\n|$)/.test(markdown)) {
     const closing = lines.slice(1).find((line) => /^(?:---|\.\.\.)\s*$/.test(line[0].trimEnd()));
     frontmatter = { start: 0, end: closing ? closing.index + closing[0].length : markdown.length };
     exclude(frontmatter.start, frontmatter.end, "frontmatter");
   }
+  /** @type {FenceOpening | null} */
   let opening = null;
   for (const line of lines) {
     if (frontmatter && line.index < frontmatter.end) {
@@ -182,6 +241,7 @@ export function inspectMarkdown(markdown) {
   // Fences, or actual code depending on the container's indentation rules.
   // Keep uncertainty local to those blocks instead of silently dropping them
   // As indented code or tainting subsequent independent top-level content.
+  /** @type {number | null} */
   let listIndent = null;
   for (const line of lines) {
     if (frontmatter && line.index < frontmatter.end) {
@@ -274,10 +334,18 @@ export function inspectMarkdown(markdown) {
   return { visible: mask(), exclusions, fences, frontmatter, uncertainties };
 }
 
+/**
+ * @template Context
+ * @param {string} markdown - The complete Markdown document.
+ * @param {Array<{ headingPath: string[], id?: string, sourceRange: SourceRange, ste?: Context }>} sections - Sections eligible for paragraph checks.
+ * @returns {Paragraph<Context>[]} Whole paragraphs contained in those sections.
+ */
 export function paragraphUnits(markdown, sections) {
   const { fences, frontmatter } = inspectMarkdown(markdown);
   const lines = [...markdown.matchAll(/[^\n]*(?:\n|$)/g)].filter((line) => line[0].length);
+  /** @type {Paragraph<Context>[]} */
   const units = [];
+  /** @type {number | null} */
   let start = null;
   let end = 0;
   const flush = () => {

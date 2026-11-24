@@ -112,6 +112,10 @@ export function validateSteContext(value, label, ErrorType = Error) {
 
 // Section 2.2 counts hyphenated noun tokens as one word while limiting newly
 // Made hyphen groups to three components. This does not identify noun roles.
+/**
+ * @param {string} text - A declared noun group.
+ * @returns {{ hyphenComponentCounts: number[], wordCount: number } | null} Counts for forms the bounded tokenizer recognizes.
+ */
 export function countDeclaredNounGroup(text) {
   if (!/^[A-Za-z]+(?:-[A-Za-z]+)*(?: [A-Za-z]+(?:-[A-Za-z]+)*)*$/.test(text)) {
     return null;

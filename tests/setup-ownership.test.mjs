@@ -127,6 +127,7 @@ test("project uninstall refuses a receipt copied from another scope without chan
   }
 });
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Node's test runner owns the Promise for this top-level registration.
 test("uninstall leaves Orca's host-provided guides and their lock entries intact", async (t) => {
   const { root, uninstall } = await fixture(t);
   const names = ["orca-cli", "orchestration"];

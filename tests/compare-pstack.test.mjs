@@ -2,9 +2,11 @@ import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
 import { copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+// oxlint-disable-next-line rules/no-node-imports -- CI runs this CLI comparison through Node's built-in test runner.
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
+// oxlint-disable-next-line typescript/no-floating-promises -- Node's test runner owns the Promise for this top-level registration.
 test("a retired skill stays absent while every distributed skill keeps its notice", (t) => {
   const scratch = fileURLToPath(new URL("../tmp/", import.meta.url));
   mkdirSync(scratch, { recursive: true });
