@@ -24,8 +24,8 @@ export const drawRegions = function drawRegions(
   const lead = new Uint8Array(n);
   const looped = new Uint8Array(n);
   visitItems(found, (bug) => {
-    for (const i of seqOf(bug, index).slice(0, bug.loop)) {lead[i] = 1;}
-    for (const i of loopOf(bug, index)) {looped[i] = 1;}
+    visitItems(seqOf(bug, index).slice(0, bug.loop), (i) => {lead[i] = 1;});
+    visitItems(loopOf(bug, index), (i) => {looped[i] = 1;});
   });
   const loop = (j: number): boolean => R === 1 && pathSteps[j] === 1;
   const stays = (j: number): boolean => {
@@ -92,17 +92,17 @@ export const drawRegions = function drawRegions(
           `The view's state() returned ${state.path.join(" / ")} both as a state and as a parent state${name ? ` in ${name}` : ""}. Give that state a child name of its own.`,
         );}
       const rules = new Map<string, Rule>();
-      for (const i of state.members) {for (const rule of tla[i].breaks) {rules.set(ruleKey(rule), rule);}}
+      visitItems(state.members, (i) => {for (const rule of tla[i].breaks) {rules.set(ruleKey(rule), rule);}});
       state.breaks = [];
-      for (const rule of [...rules.values()].sort(
+      visitItems([...rules.values()].sort(
         (left, right) => byText(left.name, right.name) || byText(left.kind, right.kind),
-      )) {
+      ), (rule) => {
         let always = true;
         for (const i of state.members) {always &&= hasRule(tla[i].breaks, rule);}
         state.breaks.push({ rule, always });
-      }
+      });
       const groups = new Set<unknown>();
-      for (const i of state.members) {groups.add(group(i));}
+      visitItems(state.members, (i) => {groups.add(group(i));});
       state.group = groups.size === 1 ? [...groups][0] : undefined;
     });
     const others: number[] = [];
@@ -249,10 +249,10 @@ export const drawRegions = function drawRegions(
     const ps: ChartState[] = [];
     for (let r = 0; r < R; r++) {ps.push(objects[r][kinds[r][i]]);}
     let works = true;
-    for (const currentState of ps) {works &&= currentState.works;}
+    visitItems(ps, (currentState) => {works &&= currentState.works;});
     if (works) {hidden.push(ps);}
   });
-  visitItems(hidden, (ps) => {for (const currentState of ps) {currentState.works = false;}});
+  visitItems(hidden, (ps) => {visitItems(ps, (currentState) => {currentState.works = false;});});
   const paths: string[] = [];
   const loops: string[] = [];
   visitItems(found, (bug) => {

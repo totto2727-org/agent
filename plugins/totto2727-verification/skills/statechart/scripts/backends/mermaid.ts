@@ -223,30 +223,30 @@ export const mermaidLines = function mermaidLines(chart: Chart): string[] {
         const path = [...prefix, head];
         let leaf: ChartState | undefined;
         const inner: ChartState[] = [];
-        for (const currentState of under)
-          {if (currentState.path.length > path.length) {inner.push(currentState);}
-          else {leaf = currentState;}}
+        visitItems(under, (currentState) => {if (currentState.path.length > path.length) {inner.push(currentState);}
+          else {leaf = currentState;}});
         if (inner.length) {
           out.push(`${indent}state "${esc(head, true)}" as ${id(path)} {`);
           tree(path, `${indent  }  `, inner);
           const key = tupleKey(path);
-          for (const currentEdge of drawn)
-            {if (currentEdge.start && tupleKey(currentEdge.from) === key) {out.push(line(currentEdge, `${indent}  `));}}
+          visitItems(drawn, (currentEdge) => {if (currentEdge.start && tupleKey(currentEdge.from) === key) {out.push(line(currentEdge, `${indent}  `));}});
           out.push(`${indent}}`);
         } else if (leaf) {
           const sid = idOf(leaf.path);
           out.push(`${indent}${sid}: ${esc(head)}`);
           let mark: "breaks" | "mayBreak" | undefined =
             leaf.breaks.length && !leaf.works ? "mayBreak" : undefined;
-          if (mark) {for (const b of leaf.breaks) {if (b.always) {mark = "breaks";}}}
-          if (mark) {for (const b of leaf.breaks) {rules[mark].add(b.rule.name);}}
+          if (mark) {visitItems(leaf.breaks, (branch) => {if (branch.always) {mark = "breaks";}});}
+          if (mark) {
+            const ruleNames = rules[mark];
+            visitItems(leaf.breaks, (branch) => {ruleNames.add(branch.rule.name);});
+          }
           const trail = [leaf.lead && "bugPath", leaf.repeats && "repeats"];
           const color = matchesUndefined(leaf.group) ? undefined : chart.colors[String(leaf.group)];
-          for (const cls of [color, mark, ...trail])
-            {if (cls) {
+          visitItems([color, mark, ...trail], (cls) => {if (cls) {
               used.add(cls);
               marks.push(`  class ${sid} ${cls}`);
-            }}
+            }});
         }
       });
     };
@@ -260,7 +260,7 @@ export const mermaidLines = function mermaidLines(chart: Chart): string[] {
     visitItems(chart.regions.entries(), ([i, r]) => {
       if (i) {body.push("    --");}
       body.push(`    state "${esc(r.name, true)}" as r${i} {`);
-      for (const line of region(r)) {body.push(`    ${line}`);}
+      visitItems(region(r), (line) => {body.push(`    ${line}`);});
       body.push("    }");
     });
     body.push("  }");

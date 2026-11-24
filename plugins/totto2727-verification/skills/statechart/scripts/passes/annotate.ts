@@ -30,11 +30,11 @@ export const mark = function mark(
   visitItems(marks, ({ values, broken }) => {
     const id = find(values);
     const state = matchesUndefined(id) ? undefined : graph.states.get(id);
-    for (const name of broken) {
+    visitItems(broken, (name) => {
       const rule = must(byName, name);
       if (state) {state.breaks.push(rule);}
       else {past.set(stateKey(values), (past.get(stateKey(values)) ?? new Set()).add(rule));}
-    }
+    });
   });
   return past;
 };

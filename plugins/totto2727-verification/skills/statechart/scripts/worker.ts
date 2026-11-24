@@ -26,8 +26,7 @@ try {
   visitItems(files, ([name, parts]) => {
     const fd = fs.openSync(path.join(draft, name), "wx");
     try {
-      for (const part of parts)
-        {fs.writeSync(fd, isString(part) ? Buffer.from(part) : part);}
+      visitItems(parts, (part) => {fs.writeSync(fd, isString(part) ? Buffer.from(part) : part);});
       fs.writeSync(fd, "\n");
     } finally {
       fs.closeSync(fd);

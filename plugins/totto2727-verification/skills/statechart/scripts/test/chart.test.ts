@@ -54,7 +54,7 @@ const graphOf = (states: StateRow[], steps: StepRow[]) => {
   const graph: Graph = { states: new Map(), steps: [] };
   visitItems(states, ([id, vars, start, breaks = []]) => {
     const rules: Rule[] = [];
-    for (const name of breaks) {rules.push({ kind: "invariant", name });}
+    visitItems(breaks, (name) => {rules.push({ kind: "invariant", name });});
     graph.states.set(id, { vars, start: !!start, breaks: rules });
   });
   visitItems(steps, ([from, to, action]) => {graph.steps.push({ from, to, action });});
@@ -244,10 +244,10 @@ test("each corpus bug path is the shortest way to its rule", () => {
   visitItems(["DieHard", "MediaPlayer", "LoginParallel", "TwoPhase", "FirstRule"], (name) => {
     const graph = parseDot(fileLines(corpus(name, "graph.dot")));
     replay(name, graph);
-    for (const bug of bugs(graph)) {
+    visitItems(bugs(graph), (bug) => {
       paths[bug.rule.name] = [];
       for (const stepItem of bug.path) {paths[bug.rule.name].push(stepItem.action);}
-    }
+    });
   });
   assert.deepEqual(paths.NotSolved, [
     "FillBig",
@@ -458,14 +458,13 @@ const ab: View = { state: (v) => ({ A: `a${v.a}`, B: `b${v.b}` }) };
 const bit = (v: Vars): string => `${v.a}${v.b}${v.c}`;
 const xorStates: StateRow[] = [];
 const xorSteps: StepRow[] = [];
-visitItems([0, 1], (a) => {for (const b of [0, 1])
-    {for (const c of [0, 1]) {
+visitItems([0, 1], (a) => {visitItems([0, 1], (b) => {for (const c of [0, 1]) {
       const v = { a, b, c };
       xorStates.push([bit(v), v, a === 0]);
       if (a === 0 && b !== c) {xorSteps.push([bit(v), bit({ ...v, a: 1 }), "Go"]);}
       if (b === 0) {xorSteps.push([bit(v), bit({ ...v, b: 1 }), "FlipB"]);}
       if (c === 0) {xorSteps.push([bit(v), bit({ ...v, c: 1 }), "FlipC"]);}
-    }}});
+    }});});
 const truthGraphs: Record<string, [Graph, View]> = {
   starts: [
     graphOf(

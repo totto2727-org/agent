@@ -86,8 +86,7 @@ test("each pass imports only ir.ts", () => {
   const found = loads("passes");
   assert.ok(found.length > 0);
   visitItems(found, ([from, to]) => {assert.equal(to, "ir.ts", `${from} imports ${to}`);});
-  visitItems(files, (file) => {for (const to of typeImports(file))
-      {assert.equal(to, "ir.ts", `${file} imports types from ${to}`);}});
+  visitItems(files, (file) => {visitItems(typeImports(file), (to) => {assert.equal(to, "ir.ts", `${file} imports types from ${to}`);});});
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
@@ -118,9 +117,8 @@ test("no frontend or backend loads a node: module when imported, even through an
       .readdirSync(path.join(scripts, folder), { encoding: "utf8", recursive: true })
       .filter((fileName) => fileName.endsWith(".ts"));
     assert.ok(files.length > 0, folder);
-    for (const currentFile of files)
-      {for (const [, to] of loads(path.join(folder, currentFile)))
-        {assert.ok(!to.startsWith("node:"), `${folder}/${currentFile} reaches ${to}`);}}
+    visitItems(files, (currentFile) => {for (const [, to] of loads(path.join(folder, currentFile)))
+        {assert.ok(!to.startsWith("node:"), `${folder}/${currentFile} reaches ${to}`);}});
   });
 });
 

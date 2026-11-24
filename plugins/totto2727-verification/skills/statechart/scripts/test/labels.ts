@@ -465,17 +465,15 @@ const expected = function (chart: Chart): Want {
         const path = [...prefix, head];
         const inner: ChartState[] = [];
         let leaf: ChartState | undefined;
-        for (const currentState of under)
-          {if (currentState.path.length > path.length) {inner.push(currentState);}
-          else {leaf = currentState;}}
+        visitItems(under, (currentState) => {if (currentState.path.length > path.length) {inner.push(currentState);}
+          else {leaf = currentState;}});
         const node = id(region.name, path);
         nodes.set(node, { text: head, parent, group: inner.length > 0 });
         if (inner.length) {
           tree(path, node, inner);
           const key = JSON.stringify(path);
-          for (const currentEdge of drawn)
-            {if (currentEdge.start && JSON.stringify(currentEdge.from) === key)
-              {edges.push([`${node}_start`, id(region.name, currentEdge.to), currentEdge.label ?? ""]);}}
+          visitItems(drawn, (currentEdge) => {if (currentEdge.start && JSON.stringify(currentEdge.from) === key)
+              {edges.push([`${node}_start`, id(region.name, currentEdge.to), currentEdge.label ?? ""]);}});
         } else if (leaf?.group !== undefined) {used.add(chart.colors[String(leaf.group)]);}
       });
     };

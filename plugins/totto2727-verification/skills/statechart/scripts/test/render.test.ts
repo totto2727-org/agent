@@ -69,14 +69,13 @@ visitItems(charts, (chart) => {
   const name = path.relative(here, chart);
   const text = fs.readFileSync(chart, "utf8");
   const marks = [...text.matchAll(/^ {2}class (\w+) (\w+)$/gmu)];
-  for (const [, , mark] of marks) {classes.add(mark);}
+  visitItems(marks, ([, , mark]) => {classes.add(mark);});
 
   // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
   test(`${name} renders in Pele 1.9.0 with each class on its node`, () => {
     const { svg } = render(text);
     assert.match(svg, /^<svg /u);
-    for (const [, id, mark] of marks)
-      {assert.match(svg, new RegExp(`class="pele-node[^"]* ${mark}\\b[^"]*" data-id="${id}"`), id);}
+    visitItems(marks, ([, id, mark]) => {assert.match(svg, new RegExp(`class="pele-node[^"]* ${mark}\\b[^"]*" data-id="${id}"`), id);});
   });
 
   // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
@@ -140,13 +139,12 @@ test("an arrow into a parent from its only way in stays out of the parent's titl
   const crossings: string[] = [];
   visitItems(svg.matchAll(
     /<g class="pele-edge pele-transition" data-id="([^"]*)"><path d="([^"]*)"/g,
-  ), ([, id, d]) => {for (const bar of bars)
-      {if (
+  ), ([, id, d]) => {visitItems(bars, (bar) => {if (
         pathPoints(d).some(
           ([x, y]) => x > bar.left && x < bar.right && y > bar.top && y < bar.bottom,
         )
       )
-        {crossings.push(`${id} crosses the title bar of ${bar.id}`);}}});
+        {crossings.push(`${id} crosses the title bar of ${bar.id}`);}});});
   assert.deepEqual(crossings, []);
 });
 

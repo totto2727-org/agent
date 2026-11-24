@@ -107,7 +107,7 @@ visitItems(fs.readdirSync(corpus), (name) => {
     assert.equal(result.report, read(path.join(dir, "report.md")));
     assert.equal(read(path.join(result.out, "chart.mmd")), read(path.join(dir, "chart.mmd")));
     assert.deepEqual(result.files, ["chart.mmd", "report.md", "tlc.out", ...named(result.report)].sort());
-    for (const currentFile of result.files) {assert.doesNotMatch(read(path.join(result.out, currentFile)), /@!@!@/u, currentFile);}
+    visitItems(result.files, (currentFile) => {assert.doesNotMatch(read(path.join(result.out, currentFile)), /@!@!@/u, currentFile);});
     assert.match(result.configs.ChartRun, /^INVARIANT ChartMark$/mu);
     assert.match(result.configs.ChartRun, /^CONSTRAINT ChartBudget$/mu);
   });
@@ -128,9 +128,8 @@ visitItems(fs.readdirSync(corpus), (name) => {
   // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
   test(`${name} writes the committed chart and report from TLC's output with Windows line ends`, () => {
     const dir = copyCase(name, (d) => {
-      for (const f of fs.readdirSync(d))
-        {if (f.endsWith(".out"))
-          {fs.writeFileSync(path.join(d, f), asTlcPrintsOnWindows(read(path.join(d, f))));}}
+      visitItems(fs.readdirSync(d), (f) => {if (f.endsWith(".out"))
+          {fs.writeFileSync(path.join(d, f), asTlcPrintsOnWindows(read(path.join(d, f))));}});
     });
     const result = run(dir);
     assert.equal(result.stderr, "");
@@ -139,7 +138,7 @@ visitItems(fs.readdirSync(corpus), (name) => {
     assert.equal(result.status, plain === 0 ? 0 : ([11, 12, 13].includes(plain) ? 1 : 2));
     assert.equal(result.report, read(path.join(corpus, name, "report.md")));
     assert.equal(read(path.join(result.out, "chart.mmd")), read(path.join(corpus, name, "chart.mmd")));
-    for (const currentFile of result.files) {assert.doesNotMatch(read(path.join(result.out, currentFile)), /\r|@!@!@/u, currentFile);}
+    visitItems(result.files, (currentFile) => {assert.doesNotMatch(read(path.join(result.out, currentFile)), /\r|@!@!@/u, currentFile);});
   });
 });
 
@@ -239,14 +238,13 @@ test("the order of TLC's dump and its state IDs do not change the chart or the r
       const ids = new Map<string, string>();
       const id = (n: string): string | undefined => ids.get(n) ?? ids.set(n, String(9000 - ids.size * 17)).get(n);
       const lines: string[] = [];
-      for (const part of read(file).split("\n"))
-        {if (/^-?\d+ (?:\[|->)/u.test(part))
+      visitItems(read(file).split("\n"), (part) => {if (/^-?\d+ (?:\[|->)/u.test(part))
           {lines.push(
             part.replace(
               /^(-?\d+)(?: -> (-?\d+))?/u,
               (_: string, a: string, b: string | undefined) => id(a) + (b ? ` -> ${id(b)}` : ""),
             ),
-          );}}
+          );}});
       for (let i = lines.length - 1; i > 0; i--) {
         const j = Math.floor(random() * (i + 1));
         [lines[i], lines[j]] = [lines[j], lines[i]];

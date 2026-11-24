@@ -100,14 +100,14 @@ export const drawOrder = function drawOrder({ depth, nameRank }: Walk) {
 
 export const bugs = function bugs(graph: Graph, { ids, from, via, reached }: Walk = walk(graph)) {
   const ends = new Map<string, string>();
-  visitItems(graph.states, ([id, s]) => {for (const rule of s.ends ?? []) {ends.set(ruleKey(rule), id);}});
+  visitItems(graph.states, ([id, s]) => {visitItems(s.ends ?? [], (rule) => {ends.set(ruleKey(rule), id);});});
   const first = new Map<string, { rule: Rule; i: number }>();
   visitItems(reached, (i) => {
     const s = must(graph.states, ids[i]);
-    for (const rule of s.past ? s.ends : s.breaks) {
+    visitItems(s.past ? s.ends : s.breaks, (rule) => {
       const k = ruleKey(rule);
       if (!first.has(k) && (ends.get(k) ?? ids[i]) === ids[i]) {first.set(k, { rule, i });}
-    }
+    });
   });
   const found: Bug[] = [];
   visitItems(first.values(), ({ rule, i }) => {

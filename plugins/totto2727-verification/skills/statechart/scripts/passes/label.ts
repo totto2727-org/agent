@@ -82,7 +82,7 @@ export const asParents = function asParents(
   const parents = new Array<Shape>(shapes.length);
   for (let i = 0; i < shapes.length; i++) {
     const path: string[] = [];
-    visitItems(names, (currentName) => {for (const p of shapes[i][currentName]) {path.push(`${currentName} ${p}`);}});
+    visitItems(names, (currentName) => {visitItems(shapes[i][currentName], (p) => {path.push(`${currentName} ${p}`);});});
     parents[i] = shapeOf(path, tla[i].vars);
   }
   return { names: [""], shapes: parents, labels, group };
@@ -99,7 +99,7 @@ export const labelGraph = function labelGraph(
   const n = shapes.length;
   const m = stepLabels.length;
   const onPath = new Set<Step>();
-  visitItems(found, (bug) => {for (const currentStep of bug.path) {onPath.add(currentStep.step);}});
+  visitItems(found, (bug) => {visitItems(bug.path, (currentStep) => {onPath.add(currentStep.step);});});
   const pathStepIndex = new Map<Step, number>();
   if (onPath.size)
     {for (let j = 0; j < m; j++)
@@ -223,12 +223,12 @@ const tell = function <Id, B extends Told<Id>>(
   visitItems(found, (bug) => {
     const story: Story = [{ state: shapeAt(bug.start) }];
     let from: Id = bug.start;
-    for (const [k, p] of bug.path.entries()) {
+    visitItems(bug.path.entries(), ([k, p]) => {
       const label = labelAt(bug, k, from);
       const step = matchesNull(label) ? unlabeled(p.action, vars(from), vars(p.state), bug) : label;
       story.push({ step, state: shapeAt(p.state) });
       from = p.state;
-    }
+    });
     stories.set(bug, story);
   });
   return stories;

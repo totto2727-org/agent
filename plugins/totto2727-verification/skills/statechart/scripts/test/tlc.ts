@@ -33,7 +33,7 @@ const properties = function (cfg: string): string[] {
   visitItems(cfg.split("\n"), (line) => {
     section = (/^[A-Z_]+/u.exec(line))?.[0] ?? section;
     if (/^PROPERT(?:Y|IES)$/u.test(section))
-      {for (const word of line.trim().split(/\s+/u)) {if (word && word !== section) {names.push(word);}}}
+      {visitItems(line.trim().split(/\s+/u), (word) => {if (word && word !== section) {names.push(word);}});}
   });
   return names;
 };

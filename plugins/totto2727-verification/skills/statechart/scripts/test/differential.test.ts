@@ -368,7 +368,7 @@ const compilerAnswers = function (r: Run, c: Case) {
       );
     }
     if (line === "## Rules that hold")
-      {for (const name of lines[i + 1].split(", ")) {rules.set(name, { breaks: false });}}
+      {visitItems(lines[i + 1].split(", "), (name) => {rules.set(name, { breaks: false });});}
   });
   const states = /^TLC reached (\d+) states/mu.exec(r.stdout);
   return { status: r.status, states: states ? Number(states[1]) : r.stderr, rules };

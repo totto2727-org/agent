@@ -42,14 +42,15 @@ export const lift = function lift(chart: Chart): Chart {
   const regions: Region[] = [];
   visitItems(chart.regions, (region) => {
     const known = new Map<string[], number>();
-    for (const state of region.states) {known.set(state.path, known.size);}
+    visitItems(region.states, (state) => {known.set(state.path, known.size);});
     let numbers: Map<string, number> | undefined;
     const pathIndex = (path: string[]): number => {
       let i = known.get(path);
       if (!matchesUndefined(i)) {return i;}
       if (!numbers) {
-        numbers = new Map();
-        for (const state of region.states) {numbers.set(tupleKey(state.path), numbers.size);}
+        const indices = new Map<string, number>();
+        numbers = indices;
+        visitItems(region.states, (state) => {indices.set(tupleKey(state.path), indices.size);});
       }
       const k = tupleKey(path);
       i = numbers.get(k);
@@ -58,7 +59,7 @@ export const lift = function lift(chart: Chart): Chart {
       return i;
     };
     const merged = new Map<number | string, ChartStep>();
-    for (const currentStep of liftToParents(region.states, region.steps)) {
+    visitItems(liftToParents(region.states, region.steps), (currentStep) => {
       const f = pathIndex(currentStep.from);
       const t = pathIndex(currentStep.to);
       const k =
@@ -68,7 +69,7 @@ export const lift = function lift(chart: Chart): Chart {
       const prior = merged.get(k);
       if (prior) {prior.label += ` or ${currentStep.label}`;}
       else {merged.set(k, { ...currentStep });}
-    }
+    });
     regions.push({ ...region, steps: [...merged.values()] });
   });
   return { ...chart, regions };
