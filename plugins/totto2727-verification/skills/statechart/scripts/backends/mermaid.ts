@@ -5,91 +5,116 @@ const BLANK = /\p{White_Space}/u;
 const SAFE = /^[\p{L}\p{N} !'()+,\-./=?[\]"_|@{}:\\^%<>]$/u;
 const HAZARD =
   /:(?=:|$|\S*#)|\\(?=n)|%(?=%)|<(?=[\p{L}/!?])|_(?![\p{L}\p{N}])|(?<![\p{L}\p{N}])_/giu;
-const DIRECTION = /(direction)\s+(?=LR|RL|TB|BT)/gi;
-const DOUBLE_BRACKET = /\[(?=\[)/g;
-const C4 = /C4(?=Container|Component|Dynamic|Deployment)/g;
-const UNDRAWN = /[\0\x80-\x9f]/;
+const DIRECTION = /(direction)\s+(?=LR|RL|TB|BT)/giu;
+const DOUBLE_BRACKET = /\[(?=\[)/gu;
+const C4 = /C4(?=Container|Component|Dynamic|Deployment)/gu;
+const UNDRAWN = /[\0\x80-\x9F]/u;
 const REWRITTEN = ["ﬂ°", "¶ß"];
-const MARKER = /(?<=marker-end=)"/g;
-const firstOf = new Map<number, number>();
-for (const pair of REWRITTEN) {
-  const [first, second] = [...pair].map((c) => c.codePointAt(0) ?? 0);
-  firstOf.set(second, first);
-}
+const MARKER = /(?<=marker-end=)"/gu;
+const FIRST_CODE_UNIT = 0;
+const ASCII_LIMIT = 128;
+const FIRST_SURROGATE = 0xD8_00;
+const LAST_SURROGATE = 0xDF_FF;
+const REPLACEMENT = 0xFF_FD;
+const WORD_JOINER = 0x20_60;
+const NO_PREVIOUS_CHARACTER = -1;
+
+const firstOf = new Map<number, number>(
+  REWRITTEN.map((pair) => {
+    const [first, second] = [...pair].map((character) => character.codePointAt(FIRST_CODE_UNIT) ?? FIRST_CODE_UNIT);
+    return [second, first];
+  }),
+);
+
 const KEPT = 0;
 const BLANKED = 1;
 const DROPPED = 2;
 const CODED = 3;
-const JOINS = 4;
-const kindOf = (n: number) => {
-  const c = String.fromCodePoint(n);
-  const kind =
-    c === " "
-      ? KEPT
-      : BLANK.test(c)
-        ? BLANKED
-        : UNDRAWN.test(c)
-          ? DROPPED
-          : SAFE.test(c)
-            ? KEPT
-            : CODED;
-  return firstOf.has(n) ? kind | JOINS : kind;
+
+const kindOf = (codePoint: number): number => {
+  const character = String.fromCodePoint(codePoint);
+  if (character === " ") {
+    return KEPT;
+  }
+  if (BLANK.test(character)) {
+    return BLANKED;
+  }
+  if (UNDRAWN.test(character)) {
+    return DROPPED;
+  }
+  return SAFE.test(character) ? KEPT : CODED;
 };
-const ASCII = Uint8Array.from({ length: 128 }, (_, n) => kindOf(n));
+
+const ASCII = Uint8Array.from({ length: ASCII_LIMIT }, (_unused, codePoint) => kindOf(codePoint));
 const wide = new Map<number, number>();
-const kindAt = (n: number) => {
-  if (n < 128) {return ASCII[n];}
-  let kind = wide.get(n);
-  if (matchesUndefined(kind)) {wide.set(n, (kind = kindOf(n)));}
+const kindAt = (codePoint: number): number => {
+  if (codePoint < ASCII_LIMIT) {
+    return ASCII[codePoint];
+  }
+  const cached = wide.get(codePoint);
+  if (!matchesUndefined(cached)) {
+    return cached;
+  }
+  const kind = kindOf(codePoint);
+  wide.set(codePoint, kind);
   return kind;
 };
-const encode = (s: string, ref: (n: number) => string) => {
-  let out = "";
-  let run = 0;
-  let last = -1;
-  for (let i = 0; i < s.length;) {
-    let n = s.charCodeAt(i);
-    let width = 1;
-    if (n >= 0xD8_00 && n <= 0xDF_FF) {
-      const low = s.charCodeAt(i + 1);
-      if (n <= 0xDB_FF && low >= 0xDC_00 && low <= 0xDF_FF) {
-        n = 0x1_00_00 + ((n - 0xD8_00) << 10) + (low - 0xDC_00);
-        width = 2;
-      } else {n = 0xFF_FD;}
-    }
-    let kind = kindAt(n);
+
+const scalar = (character: string): number => {
+  const codePoint = character.codePointAt(FIRST_CODE_UNIT) ?? FIRST_CODE_UNIT;
+  return codePoint >= FIRST_SURROGATE && codePoint <= LAST_SURROGATE ? REPLACEMENT : codePoint;
+};
+
+const encode = (text: string, ref: (codePoint: number) => string): string => {
+  const position = {
+    end: FIRST_CODE_UNIT,
+    last: NO_PREVIOUS_CHARACTER,
+    output: "",
+    spanStart: FIRST_CODE_UNIT,
+  };
+  // oxlint-disable-next-line rules/no-for-loops -- Iterate Unicode characters without copying potentially long labels or losing their UTF-16 offsets.
+  for (const character of text) {
+    const offset = position.end;
+    position.end += character.length;
+    const codePoint = scalar(character);
+    const kind = kindAt(codePoint);
     if (kind === DROPPED) {
-      out += s.slice(run, i);
-      run = i + width;
+      position.output += text.slice(position.spanStart, offset);
+      position.spanStart = position.end;
     } else {
-      const joined = kind >= JOINS && firstOf.get(n) === last;
-      kind &= ~JOINS;
+      const joined = firstOf.get(codePoint) === position.last;
       if (joined || kind !== KEPT) {
-        out += s.slice(run, i);
-        if (joined) {out += ref(0x20_60);}
-        if (kind === KEPT) {run = i;}
-        else {
-          out += kind === BLANKED ? " " : ref(n);
-          run = i + width;
+        position.output += text.slice(position.spanStart, offset);
+        if (joined) {
+          position.output += ref(WORD_JOINER);
+        }
+        if (kind === KEPT) {
+          position.spanStart = offset;
+        } else {
+          position.output += kind === BLANKED ? " " : ref(codePoint);
+          position.spanStart = position.end;
         }
       }
-      last = n;
+      position.last = codePoint;
     }
-    i += width;
   }
-  return out + s.slice(run);
+  return position.output + text.slice(position.spanStart);
 };
-const code = (s: string, ref: (n: number) => string) =>
-  encode(s, ref)
-    .replace(MARKER, `${ref(0x20_60)}"`)
-    .replace(HAZARD, (c) => ref(c.charCodeAt(0)));
-const esc = (s: string, quoted = false) => {
-  const plain = code(s, (n) => `#${n};`);
+
+const code = (text: string, ref: (codePoint: number) => string): string =>
+  encode(text, ref)
+    .replaceAll(MARKER, `${ref(WORD_JOINER)}"`)
+    .replaceAll(HAZARD, (character) => ref(scalar(character)));
+
+const esc = (text: string, quoted = false): string => {
+  const plain = code(text, (codePoint) => `#${codePoint};`);
   const out = quoted ? plain.replaceAll('"', "#34;") : plain;
-  if (!out.trim()) {return "#32;";}
-  const turned = out.replace(DIRECTION, "$1#32;");
-  const opened = turned.includes("[[") ? turned.replace(DOUBLE_BRACKET, "#91;") : turned;
-  return opened.includes("C4") ? opened.replace(C4, "C#52;") : opened;
+  if (!out.trim()) {
+    return "#32;";
+  }
+  const turned = out.replaceAll(DIRECTION, "$1#32;");
+  const opened = turned.includes("[[") ? turned.replaceAll(DOUBLE_BRACKET, "#91;") : turned;
+  return opened.includes("C4") ? opened.replaceAll(C4, "C#52;") : opened;
 };
 
 const or = (names: Iterable<string>) => [...names].sort(byText).join(" or ");
