@@ -12,7 +12,7 @@ const PUNCT = new Map([
   [64, "@@"],
   [46, ".."],
 ]);
-const SPACE = /\s/;
+const SPACE = /\s/u;
 export const isSpace = (c: number) =>
   c === 32 || (c >= 9 && c <= 13) || (c > 127 && SPACE.test(String.fromCharCode(c)));
 const isDigit = (c: number) => c >= 48 && c <= 57;
@@ -46,8 +46,8 @@ export const tokenEnd = (s: string, i: number) => {
 export const unreadable = (text: string, pos: number) =>
   new Error(`cannot read TLA+ value at "${text.slice(pos, pos + 20)}"`);
 
-const INT = /^-?\d+$/;
-const NAME = /^\w*[A-Za-z]\w*$/;
+const INT = /^-?\d+$/u;
+const NAME = /^\w*[A-Za-z]\w*$/u;
 const UNESCAPED: { [c: string]: string } = {
   '"': '"',
   "\\": "\\",

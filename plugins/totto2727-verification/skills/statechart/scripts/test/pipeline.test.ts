@@ -207,8 +207,8 @@ test("the pipeline turns a hand-built graph into the out folder's files with no 
   const holds = compile(twoStates([]), noView);
   assert.equal(holds.exit, 0);
   assert.deepEqual([...holds.files.keys()], ["chart.mmd", "report.md", "tlc.out"]);
-  assert.match(holds.report, /^## Rules that hold\nSmall, Settles$/m);
-  assert.doesNotMatch(body(holds.files, "chart.mmd"), /breaks/);
+  assert.match(holds.report, /^## Rules that hold\nSmall, Settles$/mu);
+  assert.doesNotMatch(body(holds.files, "chart.mmd"), /breaks/u);
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
@@ -229,12 +229,12 @@ test("an invariant and a property with one name stay two rules", () => {
     return compile(result, noView).report;
   };
   const both = reportWithSmallProperty([small]);
-  assert.match(both, /^## Small breaks\nThe shortest path has 1 step:$/m);
+  assert.match(both, /^## Small breaks\nThe shortest path has 1 step:$/mu);
   assert.match(
     both,
-    /^## Small breaks\nTLC's counterexample is in tlc-Small\.out\. It has 1 step:$/m,
+    /^## Small breaks\nTLC's counterexample is in tlc-Small\.out\. It has 1 step:$/mu,
   );
-  assert.match(reportWithSmallProperty([]), /^## Rules that hold\nSmall$/m);
+  assert.match(reportWithSmallProperty([]), /^## Rules that hold\nSmall$/mu);
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
@@ -244,7 +244,7 @@ test("a PROPERTY that breaks with no path writes TLC's counterexample", () => {
   const { report, files } = compile(result, noView);
   assert.match(
     report,
-    /^## Settles breaks\nTLC found a counterexample\. It is in tlc-Settles\.out\.$/m,
+    /^## Settles breaks\nTLC found a counterexample\. It is in tlc-Settles\.out\.$/mu,
   );
   assert.equal(body(files, "tlc-Settles.out"), "State 1: <Initial predicate>\nx = 0\n");
 });
@@ -269,6 +269,6 @@ test("a run that does not check for deadlock never names CHECK_DEADLOCK", () => 
   invariant.spec.invariants = ["Small", "NoDeadlock"];
   for (const result of [invariant, twoStates([], "NoDeadlock")]) {
     result.rules = holding(result.spec);
-    assert.doesNotMatch(compile(result, noView).report, /CHECK_DEADLOCK/);
+    assert.doesNotMatch(compile(result, noView).report, /CHECK_DEADLOCK/u);
   }
 });

@@ -336,7 +336,7 @@ const plainAnswers = async function (dir: string, c: Case) {
       ),
     );}
   const states = plainTlc(dir, c, "states", ["CHECK_DEADLOCK FALSE"]).then((r) => {
-    const found = /([\d,]+) distinct states found/.exec(r.stdout);
+    const found = /([\d,]+) distinct states found/u.exec(r.stdout);
     if (r.status !== 0 || !found)
       {throw new Error(`plain TLC exited ${r.status}:\n${r.stdout}${r.stderr}`);}
     return Number(found[1].replaceAll(",", ""));
@@ -353,7 +353,7 @@ const compilerAnswers = function (r: Run, c: Case) {
   for (const [i, line] of lines.entries()) {
     const broken = /^## (\S+) breaks$/.exec(line);
     if (broken) {
-      const shortest = /^The shortest path has (\d+) steps?:$/.exec(lines[i + 1]);
+      const shortest = /^The shortest path has (\d+) steps?:$/u.exec(lines[i + 1]);
       rules.set(
         broken[1],
         broken[1] === c.property
@@ -364,7 +364,7 @@ const compilerAnswers = function (r: Run, c: Case) {
     if (line === "## Rules that hold")
       {for (const name of lines[i + 1].split(", ")) {rules.set(name, { breaks: false });}}
   }
-  const states = /^TLC reached (\d+) states/m.exec(r.stdout);
+  const states = /^TLC reached (\d+) states/mu.exec(r.stdout);
   return { status: r.status, states: states ? Number(states[1]) : r.stderr, rules };
 };
 

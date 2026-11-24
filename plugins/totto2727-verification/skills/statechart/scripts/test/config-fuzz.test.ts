@@ -76,7 +76,7 @@ const INSERTS = [
   "\\",
   '"a\\qb"',
 ];
-const NAME = /^\w*[A-Za-z]\w*$/;
+const NAME = /^\w*[A-Za-z]\w*$/u;
 const MODEL = [
   "CONSTANT",
   "CONSTRAINT",

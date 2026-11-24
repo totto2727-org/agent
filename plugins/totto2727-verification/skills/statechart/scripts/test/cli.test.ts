@@ -98,9 +98,9 @@ for (const name of fs.readdirSync(corpus)) {
     assert.equal(r.report, read(path.join(dir, "report.md")));
     assert.equal(read(path.join(r.out, "chart.mmd")), read(path.join(dir, "chart.mmd")));
     assert.deepEqual(r.files, ["chart.mmd", "report.md", "tlc.out", ...named(r.report)].sort());
-    for (const f of r.files) {assert.doesNotMatch(read(path.join(r.out, f)), /@!@!@/, f);}
-    assert.match(r.configs.ChartRun, /^INVARIANT ChartMark$/m);
-    assert.match(r.configs.ChartRun, /^CONSTRAINT ChartBudget$/m);
+    for (const f of r.files) {assert.doesNotMatch(read(path.join(r.out, f)), /@!@!@/u, f);}
+    assert.match(r.configs.ChartRun, /^INVARIANT ChartMark$/mu);
+    assert.match(r.configs.ChartRun, /^CONSTRAINT ChartBudget$/mu);
   });
 }
 
@@ -130,7 +130,7 @@ for (const name of fs.readdirSync(corpus)) {
     assert.equal(r.status, plain === 0 ? 0 : [11, 12, 13].includes(plain) ? 1 : 2);
     assert.equal(r.report, read(path.join(corpus, name, "report.md")));
     assert.equal(read(path.join(r.out, "chart.mmd")), read(path.join(corpus, name, "chart.mmd")));
-    for (const f of r.files) {assert.doesNotMatch(read(path.join(r.out, f)), /\r|@!@!@/, f);}
+    for (const f of r.files) {assert.doesNotMatch(read(path.join(r.out, f)), /\r|@!@!@/u, f);}
   });
 }
 
@@ -234,7 +234,7 @@ test("the order of TLC's dump and its state IDs do not change the chart or the r
         {if (/^-?\d+ (\[|->)/u.test(l))
           {lines.push(
             l.replace(
-              /^(-?\d+)(?: -> (-?\d+))?/,
+              /^(-?\d+)(?: -> (-?\d+))?/u,
               (_: string, a: string, b: string | undefined) => id(a) + (b ? ` -> ${id(b)}` : ""),
             ),
           );}}
@@ -559,10 +559,10 @@ test("a broken property is named in the report, and its TLC trace is in tlc-NAME
     });
     assert.equal(from.length, 1, p);
     assert.match(r.configs[from[0]], new RegExp(`^PROPERTY ${p}$`, "m"));
-    assert.match(out, /^TLC2 Version /);
-    assert.doesNotMatch(out, /@!@!@/);
+    assert.match(out, /^TLC2 Version /u);
+    assert.doesNotMatch(out, /@!@!@/u);
   }
-  assert.match(read(path.join(r.out, "tlc-QuietWhenStopped.out")), /^State 2: <YouTurnItUp /m);
+  assert.match(read(path.join(r.out, "tlc-QuietWhenStopped.out")), /^State 2: <YouTurnItUp /mu);
   assert.match(r.report, /^## Rules that hold\n.*\bEventuallyStops\b.*\bStaysTyped\b/m);
 });
 
@@ -574,16 +574,16 @@ test("TLC checks the rules and draws the chart with VIEW and SYMMETRY, and the r
   const r = run(dir);
   assert.equal(r.status, 1);
   const verdict = r.configs["verdict-1"];
-  assert.match(verdict, /^PROPERTY EventuallyStops$/m);
+  assert.match(verdict, /^PROPERTY EventuallyStops$/mu);
   for (const config of [verdict, r.configs.ChartRun]) {
-    assert.match(config, /^VIEW vars$/m);
-    assert.match(config, /^SYMMETRY Perms$/m);
+    assert.match(config, /^VIEW vars$/mu);
+    assert.match(config, /^SYMMETRY Perms$/mu);
   }
   assert.match(
     r.report,
-    /^With VIEW and SYMMETRY, TLC keeps one representative for each group of states that it counts as the same\. An arrow can lead to the representative rather than to the state that the step reaches\.$/m,
+    /^With VIEW and SYMMETRY, TLC keeps one representative for each group of states that it counts as the same\. An arrow can lead to the representative rather than to the state that the step reaches\.$/mu,
   );
-  assert.doesNotMatch(run(path.join(corpus, "MediaPlayer")).report, /representative/);
+  assert.doesNotMatch(run(path.join(corpus, "MediaPlayer")).report, /representative/u);
 });
 
 const overBudget = (file: string) =>
@@ -601,7 +601,7 @@ test("a check above the chart budget skips the drawing run and draws only the bu
   assert.ok(r.files.includes("chart.mmd"));
   assert.match(
     r.report,
-    /^TLC reached more states than the chart budget of 500, so the chart draws only the bug paths: 4 states and 3 arrows\.$/m,
+    /^TLC reached more states than the chart budget of 500, so the chart draws only the bug paths: 4 states and 3 arrows\.$/mu,
   );
   for (const rule of ["NotOne", "NotOneOrThree", "AlsoNotOne", "NoDeadlock"])
     {assert.match(r.report, new RegExp(`^## ${rule} breaks$`, "m"));}
@@ -616,9 +616,9 @@ test("a passing check above the chart budget writes no chart.mmd and gives the s
   assert.deepEqual(r.files, ["report.md", "tlc.out"]);
   assert.match(
     r.report,
-    /^TLC reached 1,234 states, more than the chart budget of 500, so the command wrote no chart\.mmd\.$/m,
+    /^TLC reached 1,234 states, more than the chart budget of 500, so the command wrote no chart\.mmd\.$/mu,
   );
-  assert.match(r.report, /^## Rules that hold\nTypeOK, NoDeadlock$/m);
+  assert.match(r.report, /^## Rules that hold\nTypeOK, NoDeadlock$/mu);
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
@@ -629,9 +629,9 @@ test("a property that INSTANCE actions break above the chart budget draws their 
   assert.equal(r.configs.ChartRun, undefined);
   assert.match(
     r.report,
-    /^1\. C!Up: 1\n2\. C!Up: 2\n3\. C!Back: 1\nThe run loops through "1" and "2" forever\.$/m,
+    /^1\. C!Up: 1\n2\. C!Up: 2\n3\. C!Back: 1\nThe run loops through "1" and "2" forever\.$/mu,
   );
-  assert.match(read(path.join(r.out, "chart.mmd")), /^  s\d+ --> s\d+: C!Back$/m);
+  assert.match(read(path.join(r.out, "chart.mmd")), /^  s\d+ --> s\d+: C!Back$/mu);
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
@@ -639,10 +639,10 @@ test("a drawing run that counts more states than the chart budget gives only the
   const dir = copyCase("FirstRule", (d) => overBudget(path.join(d, "ChartRun.out")));
   const r = run(dir);
   assert.equal(r.status, 1);
-  assert.match(r.configs.ChartRun, /^CONSTRAINT ChartBudget$/m);
+  assert.match(r.configs.ChartRun, /^CONSTRAINT ChartBudget$/mu);
   assert.match(
     r.report,
-    /^TLC reached more states than the chart budget of 500, so the chart draws only the bug paths: 4 states and 3 arrows\.$/m,
+    /^TLC reached more states than the chart budget of 500, so the chart draws only the bug paths: 4 states and 3 arrows\.$/mu,
   );
 });
 
@@ -650,12 +650,12 @@ test("a drawing run that counts more states than the chart budget gives only the
 test("a property with no temporal operator says TLC checked it only in the initial states", () => {
   const r = run(path.join(corpus, "Counter"));
   assert.equal(r.status, 0);
-  assert.match(r.report, /^## Rules that hold\nLow, StaysSmall\n/m);
+  assert.match(r.report, /^## Rules that hold\nLow, StaysSmall\n/mu);
   assert.match(
     r.report,
-    /^TLC checked Low only in the initial states, because it has no \[\], <>, or ~>\. List it as an INVARIANT to check every state\.$/m,
+    /^TLC checked Low only in the initial states, because it has no \[\], <>, or ~>\. List it as an INVARIANT to check every state\.$/mu,
   );
-  assert.doesNotMatch(r.report, /TLC checked StaysSmall/);
+  assert.doesNotMatch(r.report, /TLC checked StaysSmall/u);
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
@@ -668,16 +668,16 @@ test("a property that the config replaces with a state predicate gets the initia
   );
   const r = run(dir);
   assert.equal(r.status, 0);
-  assert.match(r.report, /^TLC checked StaysSmall only in the initial states, /m);
+  assert.match(r.report, /^TLC checked StaysSmall only in the initial states, /mu);
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a property that an extended module also defines as LOCAL takes the root definition's level", () => {
   const r = run(path.join(corpus, "Shadow"));
   assert.equal(r.status, 0);
-  assert.doesNotMatch(r.report, /TLC checked Shadow/);
-  assert.match(r.report, /^TLC checked Shade only in the initial states, /m);
-  assert.match(r.report, /^TLC checked Hold only in the initial states, /m);
+  assert.doesNotMatch(r.report, /TLC checked Shadow/u);
+  assert.match(r.report, /^TLC checked Shade only in the initial states, /mu);
+  assert.match(r.report, /^TLC checked Hold only in the initial states, /mu);
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
@@ -687,8 +687,8 @@ test("a property from an extended module gets the initial-states note too", () =
     fs.copyFileSync(path.join(d, "verdict-6.out"), path.join(d, "verdict-7.out"));
   });
   const r = run(dir);
-  assert.match(r.report, /^TLC checked TypeOK only in the initial states, /m);
-  assert.doesNotMatch(r.report, /TLC checked (EventuallyStops|StaysTyped)/);
+  assert.match(r.report, /^TLC checked TypeOK only in the initial states, /mu);
+  assert.doesNotMatch(r.report, /TLC checked (EventuallyStops|StaysTyped)/u);
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
@@ -716,10 +716,10 @@ test("a later verdict run that TLC cannot finish keeps the exit and leaves its r
   );
   const r = run(dir);
   assert.equal(r.status, 1);
-  assert.match(r.report, /^## NotThree breaks$/m);
+  assert.match(r.report, /^## NotThree breaks$/mu);
   assert.match(
     r.report,
-    /^## Rules not checked\nNoDeadlock\nTLC stopped with exit 150 before it checked this rule:$/m,
+    /^## Rules not checked\nNoDeadlock\nTLC stopped with exit 150 before it checked this rule:$/mu,
   );
 });
 
@@ -786,8 +786,8 @@ test("a step hidden by the view is not drawn, and the report counts it", () => {
     r.report,
     new RegExp(`^The view hides ${hidden} steps, so the chart does not draw them\\.$`, "m"),
   );
-  assert.doesNotMatch(read(path.join(r.out, "chart.mmd")), /a call comes in/);
-  assert.match(r.report, /^1\. you turn it up: Playback Stopped, Volume Loud$/m);
+  assert.doesNotMatch(read(path.join(r.out, "chart.mmd")), /a call comes in/u);
+  assert.match(r.report, /^1\. you turn it up: Playback Stopped, Volume Loud$/mu);
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
@@ -801,18 +801,18 @@ test("a view that hides a step of a bug path stops the command with exit 2", () 
   );
   const r = run(dir, { view });
   assert.equal(r.status, 2);
-  assert.match(r.stderr, /LoudWhenStopped/);
+  assert.match(r.stderr, /LoudWhenStopped/u);
   assert.deepEqual(r.files, []);
 });
 
 for (const [what, body, words] of [
-  ["state() returns a number", "export const state = (v) => 7;", /state\(\) returned 7/],
-  ["state() reads a missing variable", "export const state = (v) => `${v.nope}`;", /undefined/],
-  ["step() returns an empty label", 'export const step = () => "";', /step\(\) returned ""/],
+  ["state() returns a number", "export const state = (v) => 7;", /state\(\) returned 7/u],
+  ["state() reads a missing variable", "export const state = (v) => `${v.nope}`;", /undefined/u],
+  ["step() returns an empty label", 'export const step = () => "";', /step\(\) returned ""/u],
   [
     "group() names no color",
     'export const group = () => "Busy";\nexport const colors = {};',
-    /group\(\) returned "Busy"/,
+    /group\(\) returned "Busy"/u,
   ],
 ] satisfies [string, string, RegExp][]) {
   // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
@@ -840,12 +840,12 @@ for (const [what, body, words] of [
   [
     "gives a group a color outside the theme",
     'export const group = () => "Lost";\nexport const colors = { Lost: "red" };',
-    /^The view's colors give "Lost" the color "red"\. Give each group blue, orange, purple, yellow, teal, tan or pink\.\n$/,
+    /^The view's colors give "Lost" the color "red"\. Give each group blue, orange, purple, yellow, teal, tan or pink\.\n$/u,
   ],
   [
     "exports colors as a Map",
     'export const colors = new Map([["Busy", "blue"]]);',
-    /^The view's colors must be a plain object\.\n$/,
+    /^The view's colors must be a plain object\.\n$/u,
   ],
   [
     "exports group() but no colors",
@@ -857,7 +857,7 @@ for (const [what, body, words] of [
     "export const state = (v) => v.main;\nexport const steps = (a) => a;",
     /\bsteps\b[\s\S]*\bstep\b/,
   ],
-  ["has a default export", "export default { state: (v) => v.main };", /\bdefault\b/],
+  ["has a default export", "export default { state: (v) => v.main };", /\bdefault\b/u],
   ["exports colors as a string", 'export const colors = "blue";', /\bcolors\b[\s\S]*\bobject\b/],
   ["exports a number as its title", "export const title = 7;", /\btitle\b[\s\S]*\bstring\b/],
 ] satisfies [string, string, RegExp][]) {
@@ -927,7 +927,7 @@ test("a group that only a mixed chart state gets still needs a color", () => {
   );
   const r = run(path.join(corpus, "Login"), { view });
   assert.equal(r.status, 2);
-  assert.match(r.stderr, /group\(\) returned "Checking"/);
+  assert.match(r.stderr, /group\(\) returned "Checking"/u);
   assert.deepEqual(r.files, []);
 });
 
@@ -943,7 +943,7 @@ test("a view with a group in a theme color draws that color and names the group 
   assert.equal(r.stderr, "");
   assert.equal(r.status, 0);
   const chart = read(path.join(r.out, "chart.mmd"));
-  assert.match(chart, /^title: "Login"$/m);
+  assert.match(chart, /^title: "Login"$/mu);
   const id = chart.match(/^ {2}(s\d+): Signed in$/mu)?.[1];
   assert.match(chart, new RegExp(`^ {2}class ${id} teal$`, "m"));
   const legend = chart.match(/^ {4}(lg\d+): Done$/mu)?.[1];
@@ -985,7 +985,7 @@ for (const [what, c] of [
       status: 0,
       states: ["ab", "a", "b", "c", "d"],
       arrows: ["a start --> b", "ab --> a: Inc", "b --> c: Inc", "c --> d: Inc"],
-      says: /^TLC reached 4 states and 3 steps\. The chart draws 4 states and 3 arrows\.$/m,
+      says: /^TLC reached 4 states and 3 steps\. The chart draws 4 states and 3 arrows\.$/mu,
     },
   ],
   [
@@ -1008,7 +1008,7 @@ for (const [what, c] of [
         "S p --> R ab: Inc",
         "S p --> R a: Inc",
       ],
-      says: /^The regions chart lets R f, S p go to R a\0b, S r by Inc, which the model never does\. So the chart draws parent states in place of regions\.$/m,
+      says: /^The regions chart lets R f, S p go to R a\0b, S r by Inc, which the model never does\. So the chart draws parent states in place of regions\.$/mu,
     },
   ],
   [
@@ -1019,7 +1019,7 @@ for (const [what, c] of [
       status: 0,
       states: ["a\u0001b", "a", "b", "c"],
       arrows: ["a\u0001b --> a: Inc", "a --> b: Inc", "b --> c: Inc"],
-      says: /^TLC reached 4 states and 3 steps\. The chart draws 4 states and 3 arrows\.$/m,
+      says: /^TLC reached 4 states and 3 steps\. The chart draws 4 states and 3 arrows\.$/mu,
     },
   ],
   [
@@ -1030,7 +1030,7 @@ for (const [what, c] of [
       status: 0,
       states: ["a\u0001b", "a", "b", "c", "d"],
       arrows: ["a start --> b", "a\u0001b --> a: Inc", "b --> c: Inc", "c --> d: Inc"],
-      says: /^TLC reached 4 states and 3 steps\. The chart draws 4 states and 3 arrows\.$/m,
+      says: /^TLC reached 4 states and 3 steps\. The chart draws 4 states and 3 arrows\.$/mu,
     },
   ],
   [
@@ -1046,7 +1046,7 @@ for (const [what, c] of [
       status: 0,
       states: ["a\u0001b", "c", "d", "e", "p"],
       arrows: ["a\u0001b --> c: Inc", "c --> d: Inc", "d --> e: Inc"],
-      says: /^TLC reached 4 states and 3 steps\. The chart draws 5 states and 3 arrows\.$/m,
+      says: /^TLC reached 4 states and 3 steps\. The chart draws 5 states and 3 arrows\.$/mu,
     },
   ],
   [
@@ -1057,7 +1057,7 @@ for (const [what, c] of [
       status: 1,
       states: ["a", "b\u0002c", "d", "e"],
       arrows: ["a --> b\u0002c: Next", "b\u0002c --> d: Next", "d --> e: Next"],
-      says: /^## NotOne breaks\nThe shortest path has 1 step:\n0\. a\n1\. Next: b\cBc$/m,
+      says: /^## NotOne breaks\nThe shortest path has 1 step:\n0\. a\n1\. Next: b\cBc$/mu,
     },
   ],
   [
@@ -1068,7 +1068,7 @@ for (const [what, c] of [
       status: 1,
       states: ["a", "P", "b\u0002c", "d", "e"],
       arrows: ["P start --> b\u0002c", "a --> P: Next", "b\u0002c --> d: Next", "d --> e: Next"],
-      says: /^## NotOne breaks\nThe shortest path has 1 step:\n0\. a\n1\. Next: P \/ b\cBc$/m,
+      says: /^## NotOne breaks\nThe shortest path has 1 step:\n0\. a\n1\. Next: P \/ b\cBc$/mu,
     },
   ],
   [
@@ -1084,7 +1084,7 @@ for (const [what, c] of [
       status: 1,
       states: ["a", "b\u0002c", "d", "e", "p"],
       arrows: ["a --> b\u0002c: Next", "b\u0002c --> d: Next", "d --> e: Next"],
-      says: /^## NotOne breaks\nThe shortest path has 1 step:\n0\. R a, S p\n1\. Next: R b\cBc, S p$/m,
+      says: /^## NotOne breaks\nThe shortest path has 1 step:\n0\. R a, S p\n1\. Next: R b\cBc, S p$/mu,
     },
   ],
   [
@@ -1114,7 +1114,7 @@ for (const [what, c] of [
         "S p --> R X\u0003a: Go",
         "S p --> R X\u0003b: Go",
       ],
-      says: /^The regions chart lets R f, S p go to R a, S q by Go\cCX, which the model never does\. So the chart draws parent states in place of regions\.$/m,
+      says: /^The regions chart lets R f, S p go to R a, S q by Go\cCX, which the model never does\. So the chart draws parent states in place of regions\.$/mu,
     },
   ],
 ] satisfies [
@@ -1152,7 +1152,7 @@ for (const [what, args, words] of [
   [
     "a config that does not exist",
     ["--config", "Missing.cfg"],
-    /Cannot find the TLC config Missing\.cfg/,
+    /Cannot find the TLC config Missing\.cfg/u,
   ],
 ] satisfies [string, string[], RegExp][]) {
   // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
@@ -1183,7 +1183,7 @@ for (const [what, make, words] of [
       fs.writeFileSync(path.join(out, "report.md"), "# My quarterly report\n");
       fs.writeFileSync(path.join(out, "tlc-Build.out"), "build log\n");
     },
-    /is not empty\. It has \.bashrc\./,
+    /is not empty\. It has \.bashrc\./u,
   ],
   [
     "a folder that holds only a dotfile",
@@ -1191,23 +1191,23 @@ for (const [what, make, words] of [
       fs.mkdirSync(out);
       fs.writeFileSync(path.join(out, ".bashrc"), "export PATH\n");
     },
-    /is not empty\. It has \.bashrc\./,
+    /is not empty\. It has \.bashrc\./u,
   ],
   [
     "the folder of an earlier run",
     (out) =>
       assert.equal(run(path.join(corpus, "MediaPlayerProps"), { args: ["--out", out] }).status, 1),
-    /is not empty\. It has chart\.mmd\./,
+    /is not empty\. It has chart\.mmd\./u,
   ],
   [
     "a file",
     (out) => fs.writeFileSync(out, "keep me\n"),
-    /cannot be the output folder\. ENOTDIR: not a directory/,
+    /cannot be the output folder\. ENOTDIR: not a directory/u,
   ],
   [
     "a broken link",
     (out) => fs.symlinkSync(path.join(path.dirname(out), "gone"), out),
-    /cannot be the output folder\. It is a broken link\./,
+    /cannot be the output folder\. It is a broken link\./u,
   ],
 ] satisfies [string, (out: string) => void, RegExp][]) {
   // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
@@ -1219,7 +1219,7 @@ for (const [what, make, words] of [
     assert.equal(r.status, 2);
     assert.ok(r.stderr.includes(out), r.stderr);
     assert.match(r.stderr, words);
-    assert.match(r.stderr, /Pass --out with a new folder\.\n$/);
+    assert.match(r.stderr, /Pass --out with a new folder\.\n$/u);
     assert.deepEqual(r.configs, {});
     assert.deepEqual(contents(out), before);
   });
@@ -1262,22 +1262,22 @@ for (const [what, config, words] of [
   [
     "a CHECK_DEADLOCK value in lower case",
     "SPECIFICATION Spec\nINVARIANT TypeOK\nCHECK_DEADLOCK false\n",
-    /Login\.cfg at line 3\. It was expecting TRUE or FALSE, but did not find it\./,
+    /Login\.cfg at line 3\. It was expecting TRUE or FALSE, but did not find it\./u,
   ],
   [
     "an ALIAS line",
     "SPECIFICATION Spec\nINVARIANT TypeOK\nVIEW vars\nALIAS Pretty\n",
-    /Login\.cfg at line 4\. It was expecting a keyword, but did not find it\./,
+    /Login\.cfg at line 4\. It was expecting a keyword, but did not find it\./u,
   ],
   [
     "a comma between invariants",
     "SPECIFICATION Spec\nINVARIANT TypeOK, NeverLocked\n",
-    /Login\.cfg at line 2\. The invariant , specified in the configuration file is not defined in the specification\./,
+    /Login\.cfg at line 2\. The invariant , specified in the configuration file is not defined in the specification\./u,
   ],
   [
     "a keyword two times",
     "SPECIFICATION Spec\nINVARIANT TypeOK\nSPECIFICATION Spec\n",
-    /Login\.cfg at line 3\. The keyword SPECIFICATION appeared twice\./,
+    /Login\.cfg at line 3\. The keyword SPECIFICATION appeared twice\./u,
   ],
   [
     "a constant value that TLC cannot read",
@@ -1312,7 +1312,7 @@ for (const [what, config, words] of [
   [
     "a comma invariant before a CHECK_DEADLOCK value in lower case",
     "SPECIFICATION Spec\nINVARIANT ,\nCHECK_DEADLOCK false\n",
-    /Login\.cfg at line 3\. It was expecting TRUE or FALSE, but did not find it\./,
+    /Login\.cfg at line 3\. It was expecting TRUE or FALSE, but did not find it\./u,
   ],
   [
     "a comment that does not end",
@@ -1322,7 +1322,7 @@ for (const [what, config, words] of [
   [
     "CHECK_DEADLOCK FALSE in a comment that does not end",
     "INVARIANT TypeOK\nSPECIFICATION Spec\n(* CHECK_DEADLOCK FALSE\n",
-    /Login\.cfg at line 3\. A comment starts here and does not end\./,
+    /Login\.cfg at line 3\. A comment starts here and does not end\./u,
   ],
   [
     "a no-break space before CHECK_DEADLOCK FALSE",
@@ -1337,7 +1337,7 @@ for (const [what, config, words] of [
   [
     "a byte order mark",
     "\uFEFFSPECIFICATION Spec\nINVARIANT TypeOK\n",
-    /Login\.cfg at line 1\. The file starts with a byte order mark\. Save it as UTF-8 without one\.$/m,
+    /Login\.cfg at line 1\. The file starts with a byte order mark\. Save it as UTF-8 without one\.$/mu,
   ],
 ] satisfies [string, string, RegExp][]) {
   // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
@@ -1388,6 +1388,6 @@ test("TYPE and TYPE_CONSTRAINT are config keywords, as in TLC", () => {
   const r = run(dir);
   assert.equal(r.status, 0);
   assert.equal(r.report, read(path.join(corpus, "Login", "report.md")));
-  assert.match(r.configs.ChartRun, /^TYPE TypeOK$/m);
-  assert.match(r.configs.ChartRun, /^TYPE_CONSTRAINT TypeOK$/m);
+  assert.match(r.configs.ChartRun, /^TYPE TypeOK$/mu);
+  assert.match(r.configs.ChartRun, /^TYPE_CONSTRAINT TypeOK$/mu);
 });

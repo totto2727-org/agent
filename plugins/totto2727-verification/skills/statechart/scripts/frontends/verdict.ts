@@ -15,9 +15,9 @@ const NAMED = new Map<number, ["invariant" | "property", RegExp]>([
 ]);
 
 const DISTINCT = new Map<number, RegExp>([
-  [EC.TLC_INIT_GENERATED1, /(\d+) distinct states? generated/],
-  [EC.TLC_INIT_GENERATED2, /with (\d+) of them distinct/],
-  [EC.TLC_STATS, /(\d+) distinct states found/],
+  [EC.TLC_INIT_GENERATED1, /(\d+) distinct states? generated/u],
+  [EC.TLC_INIT_GENERATED2, /with (\d+) of them distinct/u],
+  [EC.TLC_STATS, /(\d+) distinct states found/u],
 ]);
 
 export function readVerdict(messages: Iterable<Part>) {
@@ -29,7 +29,7 @@ export function readVerdict(messages: Iterable<Part>) {
     const count = DISTINCT.get(m.code)?.exec(textOf(m));
     if (count) {distinct = Math.max(distinct, Number(count[1]));}
     if (m.code === EC.TLC_INIT_GENERATED1 || m.code === EC.TLC_INIT_GENERATED2)
-      {initial = Number(/(\d+) (?:distinct )?states? generated/.exec(textOf(m))?.[1] ?? 0);}
+      {initial = Number(/(\d+) (?:distinct )?states? generated/u.exec(textOf(m))?.[1] ?? 0);}
     if (broke) {continue;}
     if (m.code === EC.TLC_DEADLOCK_REACHED) {broke = { kind: "deadlock" };}
     else if (m.code === EC.TLC_TEMPORAL_PROPERTY_VIOLATED) {broke = { kind: "temporal" };}

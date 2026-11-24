@@ -7,7 +7,7 @@ export function readTrace(messages: Iterable<Part>): Trace {
   for (const m of messages) {
     if (isString(m)) {continue;}
     if (m.code === EC.TLC_STATE_PRINT3) {return { seq, loop: seq.length - 1 };}
-    const back = m.code === EC.TLC_BACK_TO_STATE && /^(\d+): Back to state: /.exec(textOf(m));
+    const back = m.code === EC.TLC_BACK_TO_STATE && /^(\d+): Back to state: /u.exec(textOf(m));
     if (back) {
       const loop = Number(back[1]) - 1;
       seq.push({ action: actionOf(m) ?? "", vars: seq[loop]?.vars });

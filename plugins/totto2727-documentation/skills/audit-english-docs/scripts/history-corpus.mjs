@@ -194,7 +194,7 @@ export async function prepareCorpus({
       { encoding: "utf8", maxBuffer: 16 * 1024 * 1024 },
     );
     requireValue(
-      sample.endLine <= page.split(/(?<=\n)/).length && page.trim().length > 0,
+      sample.endLine <= page.split(/(?<=\n)/u).length && page.trim().length > 0,
       `Source range exceeds page: ${sample.id}`,
     );
     const path = `${documentId}.md`;

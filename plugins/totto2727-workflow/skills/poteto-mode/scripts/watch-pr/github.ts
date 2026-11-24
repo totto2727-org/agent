@@ -346,8 +346,8 @@ const isBugbot = function (comment: T.ReviewComment | null): boolean {
 const passKey = function (comment: T.ReviewComment | null): string | null {
   if (matchesNull(comment)) {return null;}
   for (const pattern of [
-    /RUN_ID:\s*([a-zA-Z0-9_.:-]+)/,
-    /CURSOR_AUTOMATION_ID:\s*([a-zA-Z0-9_.:-]+)/,
+    /RUN_ID:\s*([a-zA-Z0-9_.:-]+)/u,
+    /CURSOR_AUTOMATION_ID:\s*([a-zA-Z0-9_.:-]+)/u,
   ]) {
     const match = pattern.exec(comment.body);
     if (match?.[1]) {return match[1];}

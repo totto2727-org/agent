@@ -117,7 +117,7 @@ export function validateSteContext(value, label, ErrorType = Error) {
  * @returns {{ hyphenComponentCounts: number[], wordCount: number } | null} Counts for forms the bounded tokenizer recognizes.
  */
 export function countDeclaredNounGroup(text) {
-  if (!/^[A-Za-z]+(?:-[A-Za-z]+)*(?: [A-Za-z]+(?:-[A-Za-z]+)*)*$/.test(text)) {
+  if (!/^[A-Za-z]+(?:-[A-Za-z]+)*(?: [A-Za-z]+(?:-[A-Za-z]+)*)*$/u.test(text)) {
     return null;
   }
   const words = text.split(" ");
@@ -247,8 +247,8 @@ export function analyzeSteProse(text, context = {}, { paragraph = false } = {}) 
   const characters = text.split("");
   const label =
     context.writingMode === "procedural"
-      ? /^\s*(?:WARNING|CAUTION|DANGER):[ \t]*/.exec(text)
-      : /^\s*(?:NOTE|NOTES):[ \t]*/.exec(text);
+      ? /^\s*(?:WARNING|CAUTION|DANGER):[ \t]*/u.exec(text)
+      : /^\s*(?:NOTE|NOTES):[ \t]*/u.exec(text);
   if (label) {
     for (let index = 0; index < label[0].length; index += 1) {
       if (!/[\r\n]/u.test(characters[index])) {
@@ -291,7 +291,7 @@ export function analyzeSteProse(text, context = {}, { paragraph = false } = {}) 
   }
   for (const match of current.matchAll(/\([^()]*\)/g)) {
     const inner = match[0].slice(1, -1);
-    const identifier = /^[A-Z0-9]+(?:[/-][A-Z0-9]+)*$/.test(inner);
+    const identifier = /^[A-Z0-9]+(?:[/-][A-Z0-9]+)*$/u.test(inner);
     const attached = match.index > 0 && /[\p{L}\p{N}]/u.test(current[match.index - 1]);
     if (attached) {
       warn(
@@ -360,7 +360,7 @@ export function analyzeSteProse(text, context = {}, { paragraph = false } = {}) 
       continue;
     }
     const tail = current.slice(match.index + match[0].length);
-    const gap = /^\s+/.exec(tail)?.[0] ?? "";
+    const gap = /^\s+/u.exec(tail)?.[0] ?? "";
     const unit = units.find(
       (candidate) =>
         tail.slice(gap.length).startsWith(candidate) &&
@@ -404,7 +404,7 @@ export function analyzeSteProse(text, context = {}, { paragraph = false } = {}) 
       "A colon outside a recognized vertical-list introduction requires contextual sentence parsing.",
     );
   }
-  if (/\b(?:NOTE|NOTES)\b/.test(current) && context.writingMode === "procedural") {
+  if (/\b(?:NOTE|NOTES)\b/u.test(current) && context.writingMode === "procedural") {
     warn("Notes in procedures use descriptive limits; supply a descriptive local target.");
   }
   /** @type {CountedSentence[]} */

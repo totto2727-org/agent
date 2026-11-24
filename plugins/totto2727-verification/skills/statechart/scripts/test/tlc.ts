@@ -10,7 +10,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const jar = process.env.TLA2TOOLS;
 export const skip = !jar && "set TLA2TOOLS to the path of tla2tools.jar to run TLC";
 
-const RULES = /^(INVARIANTS?|PROPERTY|PROPERTIES|CHECK_DEADLOCK)$/;
+const RULES = /^(INVARIANTS?|PROPERTY|PROPERTIES|CHECK_DEADLOCK)$/u;
 
 const exitClass = (status: number | null) =>
   status === 0 ? 0 : status === 11 || status === 12 || status === 13 ? 1 : 2;
@@ -106,9 +106,9 @@ export function agrees(module: string, files: { [name: string]: string[] }, cfg:
       exitClass(plain.status),
       `TLC says:\n${plain.out}\nThe command says:\n${shown}`,
     );
-    assert.doesNotMatch(shown, /Chart\w*Mark/);
+    assert.doesNotMatch(shown, /Chart\w*Mark/u);
     if (cli.status !== 2) {assert.equal(cli.stderr, "");}
-    if (!report) {assert.match(cli.stderr, /TLC could not check/);}
+    if (!report) {assert.match(cli.stderr, /TLC could not check/u);}
     if (cli.status === 2) {
       const error = plain.out.match(/^Error: .*$/m)?.[0];
       assert.ok(

@@ -25,8 +25,8 @@ export const CACHE_TTL_SECONDS = 2_592_000;
 export const CACHE_SKIP = "false";
 const CLOUDFLARE_API_ORIGIN = "https://api.cloudflare.com";
 const ACCOUNT_ID_PATTERN = /^[0-9a-f]{32}$/i;
-const GATEWAY_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]*$/;
-const HEADER_SAFE_PATTERN = /^[\x21-\x7e]+$/;
+const GATEWAY_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]*$/u;
+const HEADER_SAFE_PATTERN = /^[\x21-\x7e]+$/u;
 
 /** @type {(model: string) => boolean} */
 export const isNativeModel = (model) => model.startsWith("clef");
@@ -135,7 +135,7 @@ const invokeCurl = async function (config) {
 };
 
 const parseCurlOutput = function (stdout) {
-  const match = /\n(\d{3})\s*$/.exec(stdout);
+  const match = /\n(\d{3})\s*$/u.exec(stdout);
   if (!match) {
     return { status: null, body: stdout };
   }

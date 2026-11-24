@@ -47,7 +47,7 @@ for (const section of [
   SECTIONS.set(section.key, section);
   if (section.plural) {SECTIONS.set(section.plural, section);}
 }
-export const NAME = /^\w*[A-Za-z]\w*$/;
+export const NAME = /^\w*[A-Za-z]\w*$/u;
 const WORD = /\w+/y;
 const CONFIG_HOLDS =
   "A config can hold only names, numbers, strings, comments, and the symbols { } ( ) [ ] , = ! <-.";

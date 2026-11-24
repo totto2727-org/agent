@@ -2,8 +2,8 @@ import type { Message, Part } from "../ir.ts";
 import { linesOf, parseState } from "./dot.ts";
 import { isString } from "../ir.ts";
 
-const START = /@!@!@STARTMSG (\d+):(\d+) @!@!@$/;
-const END = /^@!@!@ENDMSG \d+ @!@!@$/;
+const START = /@!@!@STARTMSG (\d+):(\d+) @!@!@$/u;
+const END = /^@!@!@ENDMSG \d+ @!@!@$/u;
 
 const isCutMarker = (lastLine: string) => lastLine.startsWith("@!@!@");
 

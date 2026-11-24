@@ -98,7 +98,7 @@ test("an invariant named NoDeadlock and a deadlock break as two rules", { skip }
   const report = read(path.join(out, "report.md"));
   assert.match(
     report,
-    /^## NoDeadlock breaks\nThe shortest path has 1 step:\n0\. 0\n1\. Next: 1$/m,
+    /^## NoDeadlock breaks\nThe shortest path has 1 step:\n0\. 0\n1\. Next: 1$/mu,
   );
   assert.match(
     report,
@@ -253,7 +253,7 @@ test("a property that breaks on a loop draws the loop and reports it", { skip },
   assert.equal(r.status, 1);
   assert.match(
     read(path.join(out, "report.md")),
-    /^## Prop breaks\nTLC's counterexample is in tlc-Prop\.out\. It has 3 steps:\n0\. 0\n1\. Next: 1\n2\. Next: 2\n3\. Next: 0\nThe run loops through "0", "1" and "2" forever\.$/m,
+    /^## Prop breaks\nTLC's counterexample is in tlc-Prop\.out\. It has 3 steps:\n0\. 0\n1\. Next: 1\n2\. Next: 2\n3\. Next: 0\nThe run loops through "0", "1" and "2" forever\.$/mu,
   );
   assert.equal(read(path.join(out, "chart.mmd")).match(/^ {2}class s\d+ repeats$/gmu)?.length, 3);
 });
@@ -395,12 +395,12 @@ for (const [what, tla, where] of [
   [
     "an unknown name",
     ["---- MODULE Broken ----", "VARIABLE x", "Init == x = 0", "Next == x' = y", "===="],
-    /^line 4, col 14 to line 4, col 14 of module Broken\n+Unknown operator: `y'\.$/m,
+    /^line 4, col 14 to line 4, col 14 of module Broken\n+Unknown operator: `y'\.$/mu,
   ],
   [
     "a parse error",
     ["---- MODULE Broken ----", "VARIABLE x", "Init == x = = 0", "Next == x' = x", "===="],
-    /^Encountered "0" at line 3, column 15/m,
+    /^Encountered "0" at line 3, column 15/mu,
   ],
   [
     "twelve unknown names",
@@ -412,7 +412,7 @@ for (const [what, tla, where] of [
       "Next == x' = x",
       "====",
     ],
-    /^\*\*\* Errors: 12\n+line 4, col 7 to line 4, col 8 of module Broken\n+Unknown operator: `u0'\.$/m,
+    /^\*\*\* Errors: 12\n+line 4, col 7 to line 4, col 8 of module Broken\n+Unknown operator: `u0'\.$/mu,
   ],
 ] as const)
   // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
@@ -424,7 +424,7 @@ for (const [what, tla, where] of [
       await assert.rejects(check(`${base}.tla`, `${base}.cfg`), (error: Error) => {
         assert.match(error.message, /^SANY could not read .*Broken\.tla \(exit 1\):\n/);
         assert.match(error.message, where);
-        assert.doesNotMatch(error.message, /^\s+at tla2sany\./m);
+        assert.doesNotMatch(error.message, /^\s+at tla2sany\./mu);
         return true;
       });
     },
@@ -441,7 +441,7 @@ test(
     process.env.TMPDIR = tmp;
     try {
       await check(`${login}.tla`, `${login}.cfg`);
-      await assert.rejects(check(`${base}.tla`, `${base}.cfg`), /SANY could not read/);
+      await assert.rejects(check(`${base}.tla`, `${base}.cfg`), /SANY could not read/u);
     } finally {
       if (saved === undefined) {delete process.env.TMPDIR;}
       else {process.env.TMPDIR = saved;}

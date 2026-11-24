@@ -66,7 +66,7 @@ for (const chart of charts) {
   // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
   test(`${name} renders in Pele 1.9.0 with each class on its node`, () => {
     const { svg } = render(text);
-    assert.match(svg, /^<svg /);
+    assert.match(svg, /^<svg /u);
     for (const [, id, mark] of marks)
       {assert.match(svg, new RegExp(`class="pele-node[^"]* ${mark}\\b[^"]*" data-id="${id}"`), id);}
   });

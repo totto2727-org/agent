@@ -58,7 +58,7 @@ const readJson = (file, fallback) =>
   existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : fallback;
 const lock = () => readJson(lockPath, { skills: {} }).skills;
 const present = (p) => lstatSync(p, { throwIfNoEntry: false }) !== undefined;
-const safeName = (n) => typeof n === "string" && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(n);
+const safeName = (n) => typeof n === "string" && /^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(n);
 for (const p of [metadata, dest, lockPath, journal]) {
   requireThat(
     !present(p) || !lstatSync(p).isSymbolicLink(),
@@ -182,7 +182,7 @@ const uninstall = function () {
 };
 const ownNames = function (ref) {
   requireThat(
-    typeof ref === "string" && /^[a-zA-Z0-9][a-zA-Z0-9._/-]*$/.test(ref),
+    typeof ref === "string" && /^[a-zA-Z0-9][a-zA-Z0-9._/-]*$/u.test(ref),
     "Select a branch, tag, or commit with --ref, or install the bootstrap from a pinned source first.",
   );
   const dir = mkdtempSync(join(tmpdir(), "totto2727-setup-"));
@@ -224,7 +224,7 @@ const install = function () {
   const plan = [];
   for (const { repo, pin, names } of groups) {
     requireThat(
-      /^[\w.-]+\/[\w.-]+$/.test(repo) && /^[a-f0-9]{40}$/u.test(pin),
+      /^[\w.-]+\/[\w.-]+$/u.test(repo) && /^[a-f0-9]{40}$/u.test(pin),
       "Invalid source pin.",
     );
     const missing = [];

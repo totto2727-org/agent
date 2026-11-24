@@ -201,7 +201,7 @@ test("a state at a CONSTRAINT bound is no deadlock", { skip }, () => {
   );
   assert.equal(v.status, 0);
   assert.deepEqual(v.holds, ["NoDeadlock"]);
-  assert.doesNotMatch(v.chart, /^ {2}class s\d+ breaks$/m);
+  assert.doesNotMatch(v.chart, /^ {2}class s\d+ breaks$/mu);
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
@@ -228,7 +228,7 @@ test(
     assert.deepEqual(v.holds, ["NoDeadlock", "Small"]);
     assert.match(
       v.report,
-      /^TLC found no state that satisfies Init, so no state can break a rule\.$/m,
+      /^TLC found no state that satisfies Init, so no state can break a rule\.$/mu,
     );
   },
 );
@@ -260,7 +260,7 @@ test(
     assert.deepEqual(v.unchecked, ["Back", "NoDeadlock"]);
     assert.match(
       v.report,
-      /^After the first break, each TLC run stops at 100,000 distinct states\./m,
+      /^After the first break, each TLC run stops at 100,000 distinct states\./mu,
     );
   },
 );

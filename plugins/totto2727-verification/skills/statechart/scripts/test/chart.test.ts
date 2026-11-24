@@ -141,7 +141,7 @@ test("a value outside the grammar TLC prints is an error, never a guess", () => 
     "SUBSET {1}",
     "[S -> T]",
   ])
-    {assert.throws(() => parseValue(text), /cannot read TLA\+ value/, text);}
+    {assert.throws(() => parseValue(text), /cannot read TLA\+ value/u, text);}
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
@@ -307,7 +307,7 @@ test("a chart of only the bug paths words each one with the view, asked once for
   );
   assert.match(
     text,
-    /^TLC reached 1,234 states, more than the chart budget of 500, so the chart draws only the bug paths: 4 states and 3 arrows\.$/m,
+    /^TLC reached 1,234 states, more than the chart budget of 500, so the chart draws only the bug paths: 4 states and 3 arrows\.$/mu,
   );
   assert.ok(files.has("chart.mmd"));
   for (const rule of ["NotOne", "NotOneOrThree", "AlsoNotOne"])
@@ -450,7 +450,7 @@ test("a tagged line in the wrong shape is an error, not spec output", () => {
   ])
     {assert.throws(
       () => [...readMarks(readMessages(`${line}\n`), "chart")],
-      /TLC printed a mark that the command cannot read/,
+      /TLC printed a mark that the command cannot read/u,
       line,
     );}
 });
@@ -561,7 +561,7 @@ for (const [name, regions] of [
 test("the report says why regions cannot show a shared step that forks", () => {
   assert.match(
     draw(...truthGraphs.fork).report,
-    /^The regions chart lets A a0, B b0 go to A a1, B b2 by Sync, which the model never does\./m,
+    /^The regions chart lets A a0, B b0 go to A a1, B b2 by Sync, which the model never does\./mu,
   );
 });
 
@@ -580,8 +580,8 @@ const forkToBug = graphOf(
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a chart that draws parent states in place of regions still names each region in a bug path", () => {
   const { chart, report: text } = draw(forkToBug, ab);
-  assert.match(chart, /^ {2}state "A a2" as s\d+ \{$/m);
-  assert.match(text, /^0\. A a0, B b0\n1\. Sync: A a2, B b2$/m);
+  assert.match(chart, /^ {2}state "A a2" as s\d+ \{$/mu);
+  assert.match(text, /^0\. A a0, B b0\n1\. Sync: A a2, B b2$/mu);
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
@@ -600,9 +600,9 @@ test("the view answers once for each state and step, so a chart of parent states
     group: (v) => (answer(`group ${v.a}`) === "first" ? "Calm" : "Busy"),
     colors: { Calm: "blue", Busy: "orange" },
   });
-  assert.match(chart, /^ {2}state "A a2 first" as s\d+ \{$/m);
-  assert.doesNotMatch(chart, /later|orange/);
-  assert.match(text, /^0\. A a0 first, B b0\n1\. Sync first: A a2 first, B b2$/m);
+  assert.match(chart, /^ {2}state "A a2 first" as s\d+ \{$/mu);
+  assert.doesNotMatch(chart, /later|orange/u);
+  assert.match(text, /^0\. A a0 first, B b0\n1\. Sync first: A a2 first, B b2$/mu);
   assert.deepEqual(asked, {
     "group 0": 1,
     "group 1": 1,
@@ -668,11 +668,11 @@ test("a bug-path step that stays in one state is a loop in a flat chart only", (
     ],
   );
   const flat = draw(graph, { state: (v) => `x${v.x}` });
-  assert.match(flat.chart, /^ {2}(s\d+) --> \1: Tick$/m);
-  assert.doesNotMatch(flat.report, /does not draw/);
+  assert.match(flat.chart, /^ {2}(s\d+) --> \1: Tick$/mu);
+  assert.doesNotMatch(flat.report, /does not draw/u);
   const regions = draw(graph, { state: (v) => ({ X: `x${v.x}`, Z: "z" }) });
-  assert.doesNotMatch(regions.chart, /Tick/);
-  assert.match(regions.report, /^The chart does not draw 1 steps that stay in one chart state\.$/m);
+  assert.doesNotMatch(regions.chart, /Tick/u);
+  assert.match(regions.report, /^The chart does not draw 1 steps that stay in one chart state\.$/mu);
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
@@ -754,9 +754,9 @@ test("a label codes only the characters that Mermaid reads as syntax, so TLA+ va
     state: (v) => (v.n ? 'x: "1";\nnext' : "a <b> #2"),
     step: () => 'say: <<1, "a">> :> [k |-> {}] @@ 2..3',
   });
-  assert.match(chart, /^ {2}s\d+: a #60;b> #35;2$/m);
-  assert.match(chart, /^ {2}s\d+: x: "1"#59; next$/m);
-  assert.match(chart, /^ {2}s\d+ --> s\d+: say: <<1, "a">> :> \[k \|-> \{\}\] @@ 2\.\.3$/m);
+  assert.match(chart, /^ {2}s\d+: a #60;b> #35;2$/mu);
+  assert.match(chart, /^ {2}s\d+: x: "1"#59; next$/mu);
+  assert.match(chart, /^ {2}s\d+ --> s\d+: say: <<1, "a">> :> \[k \|-> \{\}\] @@ 2\.\.3$/mu);
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
@@ -772,10 +772,10 @@ test("a label with %% stays text and cannot open a Mermaid directive", () => {
     state: (v) => (v.n ? "%%{init: {}}%%" : "a %%{ b"),
     step: () => "%% go",
   });
-  assert.doesNotMatch(chart, /%%/);
-  assert.match(chart, /^ {2}s\d+: a #37;%\{ b$/m);
-  assert.match(chart, /^ {2}s\d+: #37;%\{init: \{\}\}#37;%$/m);
-  assert.match(chart, /^ {2}s\d+ --> s\d+: #37;% go$/m);
+  assert.doesNotMatch(chart, /%%/u);
+  assert.match(chart, /^ {2}s\d+: a #37;%\{ b$/mu);
+  assert.match(chart, /^ {2}s\d+: #37;%\{init: \{\}\}#37;%$/mu);
+  assert.match(chart, /^ {2}s\d+ --> s\d+: #37;% go$/mu);
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
@@ -794,10 +794,10 @@ test("each line break in a label or a colors key is a space, so it cannot start 
     colors: { Open: "blue", "Shut\r  s99: Ghost state": "pink" },
   });
   assert.doesNotMatch(chart, /[\r\v\f\u0085\u2028\u2029\t]/);
-  assert.match(chart, /^ {2}s\d+: b {9}c$/m);
-  assert.match(chart, /^ {2}s\d+ --> s\d+: go {3}s9: Ghost$/m);
-  assert.match(chart, /^ {4}lg1: Shut {3}s99: Ghost state$/m);
-  assert.doesNotMatch(chart, /^\s*s9{1,2}:/m);
+  assert.match(chart, /^ {2}s\d+: b {9}c$/mu);
+  assert.match(chart, /^ {2}s\d+ --> s\d+: go {3}s9: Ghost$/mu);
+  assert.match(chart, /^ {4}lg1: Shut {3}s99: Ghost state$/mu);
+  assert.doesNotMatch(chart, /^\s*s9{1,2}:/mu);
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
@@ -813,9 +813,9 @@ test("a label of only white space or with a lone surrogate still has text in the
     state: (v) => (v.n ? "a\ud800b" : "\t"),
     step: () => " ",
   });
-  assert.match(chart, /^ {2}s\d+: #32;$/m);
-  assert.match(chart, /^ {2}s\d+: a#65533;b$/m);
-  assert.match(chart, /^ {2}s\d+ --> s\d+: #32;$/m);
+  assert.match(chart, /^ {2}s\d+: #32;$/mu);
+  assert.match(chart, /^ {2}s\d+: a#65533;b$/mu);
+  assert.match(chart, /^ {2}s\d+ --> s\d+: #32;$/mu);
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
@@ -831,11 +831,11 @@ test("NUL and C1 controls in a label are left out, since a browser draws their c
     state: (v) => (v.n ? ["P\0\x80", "C\u00004Dynamic"] : "\0\x9f"),
     step: () => "a\0\x80b\x85c\x9fd",
   });
-  assert.doesNotMatch(chart, /[\0\x80-\x9f]|#0;|#1[2-5]\d;/);
-  assert.match(chart, /^ {2}s\d+: #32;$/m);
-  assert.match(chart, /^ {2}state "P" as s\d+ \{$/m);
-  assert.match(chart, /^ {4}s\d+: C#52;Dynamic$/m);
-  assert.match(chart, /^ {2}s\d+ --> s\d+: ab cd$/m);
+  assert.doesNotMatch(chart, /[\0\x80-\x9f]|#0;|#1[2-5]\d;/u);
+  assert.match(chart, /^ {2}s\d+: #32;$/mu);
+  assert.match(chart, /^ {2}state "P" as s\d+ \{$/mu);
+  assert.match(chart, /^ {4}s\d+: C#52;Dynamic$/mu);
+  assert.match(chart, /^ {2}s\d+ --> s\d+: ab cd$/mu);
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
@@ -871,9 +871,9 @@ test('a label puts a word joiner inside marker-end=", since Mermaid rewrites mar
     step: () => 'a="b" = "c"',
   });
   assert.match(chart, /^title: "marker-end=ﬂ°°8288¶ß\\"url\(aﬂ°°35¶ßb"$/m);
-  assert.match(chart, /^ {2}s\d+: marker-end=#8288;"url\(a#35;b$/m);
-  assert.match(chart, /^ {2}state "marker-end=#8288;#34;url\(p#35;q" as s\d+ \{$/m);
-  assert.match(chart, /^ {2}s\d+ --> s\d+: a="b" = "c"$/m);
+  assert.match(chart, /^ {2}s\d+: marker-end=#8288;"url\(a#35;b$/mu);
+  assert.match(chart, /^ {2}state "marker-end=#8288;#34;url\(p#35;q" as s\d+ \{$/mu);
+  assert.match(chart, /^ {2}s\d+ --> s\d+: a="b" = "c"$/mu);
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
@@ -888,8 +888,8 @@ test("a parent or region name with [[fork]], [[join]], or [[choice]] stays text"
   const parents = draw(nested, {
     state: (v) => [["a [[fork]]", "[[JOIN]]"][Number(v.n)], "In"],
   }).chart;
-  assert.match(parents, /^ {2}state "a #91;\[fork\]\]" as s\d+ \{$/m);
-  assert.match(parents, /^ {2}state "#91;\[JOIN\]\]" as s\d+ \{$/m);
+  assert.match(parents, /^ {2}state "a #91;\[fork\]\]" as s\d+ \{$/mu);
+  assert.match(parents, /^ {2}state "#91;\[JOIN\]\]" as s\d+ \{$/mu);
   const parallel = graphOf(
     [
       ["s0", { x: 0, y: 0 }, true],
@@ -900,8 +900,8 @@ test("a parent or region name with [[fork]], [[join]], or [[choice]] stays text"
   const regions = draw(parallel, {
     state: (v) => ({ "[[choice]]": `X${v.x}`, Other: `Y${v.y}` }),
   }).chart;
-  assert.match(regions, /^ {4}state "#91;\[choice\]\]" as r0 \{$/m);
-  assert.doesNotMatch(parents + regions, /\[\[/);
+  assert.match(regions, /^ {4}state "#91;\[choice\]\]" as r0 \{$/mu);
+  assert.doesNotMatch(parents + regions, /\[\[/u);
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
@@ -917,11 +917,11 @@ test("a label with C4Container, C4Component, C4Dynamic, or C4Deployment keeps th
     state: (v) => (v.n ? ["C4Component", "C4Deployment"] : "aC4Dynamic"),
     step: () => "C4Container C4Context",
   });
-  assert.doesNotMatch(chart, /C4(?:Container|Component|Dynamic|Deployment)/);
-  assert.match(chart, /^ {2}s\d+: aC#52;Dynamic$/m);
-  assert.match(chart, /^ {2}state "C#52;Component" as s\d+ \{$/m);
-  assert.match(chart, /^ {4}s\d+: C#52;Deployment$/m);
-  assert.match(chart, /^ {2}s\d+ --> s\d+: C#52;Container C4Context$/m);
+  assert.doesNotMatch(chart, /C4(?:Container|Component|Dynamic|Deployment)/u);
+  assert.match(chart, /^ {2}s\d+: aC#52;Dynamic$/mu);
+  assert.match(chart, /^ {2}state "C#52;Component" as s\d+ \{$/mu);
+  assert.match(chart, /^ {4}s\d+: C#52;Deployment$/mu);
+  assert.match(chart, /^ {2}s\d+ --> s\d+: C#52;Container C4Context$/mu);
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
@@ -934,9 +934,9 @@ test("a title with < cannot open an HTML tag that rewrites the chart's quotes", 
     [["s0", "s1", "Go"]],
   );
   const { chart } = draw(graph, { title: "<a=", state: (v) => ["P", `S${v.n}`] });
-  assert.doesNotMatch(chart, /</);
+  assert.doesNotMatch(chart, /</u);
   assert.match(chart, /^title: "ﬂ°°60¶ßa="$/m);
-  assert.match(chart, /^ {2}state "P" as s\d+ \{$/m);
+  assert.match(chart, /^ {2}state "P" as s\d+ \{$/mu);
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
@@ -955,8 +955,8 @@ test("the title writes each character outside the allow list in the form Mermaid
   assert.equal(title("ﬂ°°65¶ß"), '"ﬂﬂ°°8288¶ßﬂ°°176¶ßﬂ°°176¶ß65ﬂ°°182¶ßﬂ°°8288¶ßß"');
   assert.equal(title('a\0b\x80\n"c"'), '"ab \\"c\\""');
   const blank = draw(graph, { title: "\0\0", state }).chart;
-  assert.doesNotMatch(blank, /\0|^---$|^title:/m);
-  assert.match(blank, /^stateDiagram-v2$/m);
+  assert.doesNotMatch(blank, /\0|^---$|^title:/mu);
+  assert.match(blank, /^stateDiagram-v2$/mu);
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
@@ -985,11 +985,11 @@ test("labels write the space between direction and LR, RL, TB, or BT as #32;", (
     step: (a) => steps[a],
   });
   assert.doesNotMatch(chart, /direction\s+(?:LR|RL|TB|BT)/i);
-  assert.match(chart, /^ {2}s\d+: Facing direction#32;TB$/m);
-  assert.match(chart, /^ {2}s\d+: Redirection#32;lrx$/m);
-  assert.match(chart, /^ {2}s\d+: Up DIRECTION#32;BT$/m);
-  assert.match(chart, /^ {2}s\d+ --> s\d+: turn direction#32;LR$/m);
-  assert.match(chart, /^ {2}s\d+ --> s\d+: back direction#32;rl$/m);
+  assert.match(chart, /^ {2}s\d+: Facing direction#32;TB$/mu);
+  assert.match(chart, /^ {2}s\d+: Redirection#32;lrx$/mu);
+  assert.match(chart, /^ {2}s\d+: Up DIRECTION#32;BT$/mu);
+  assert.match(chart, /^ {2}s\d+ --> s\d+: turn direction#32;LR$/mu);
+  assert.match(chart, /^ {2}s\d+ --> s\d+: back direction#32;rl$/mu);
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
@@ -1003,13 +1003,13 @@ test("a view that cannot give a chart says what to change", () => {
   );
   assert.throws(
     () => draw(graph, { state: (v) => String(v.x).split(".") }),
-    /both as a state and as a parent state/,
+    /both as a state and as a parent state/u,
   );
   assert.throws(
     () => draw(graph, { state: (v) => (v.x === "A" ? { R: "x" } : { S: "y" }) }),
-    /Return the same regions for every state/,
+    /Return the same regions for every state/u,
   );
-  assert.throws(() => draw(graph, { state: () => [] }), /Return a string, an array of strings/);
+  assert.throws(() => draw(graph, { state: () => [] }), /Return a string, an array of strings/u);
 });
 
 const keyGraph = () =>
@@ -1061,10 +1061,10 @@ test("a view may hide a step inside a loop, but not a step out of it", () => {
   const loop: Bug = { rule: { kind: "property", name: "Opens" }, ...found };
   const state = (v: Vars) => `${v.pos}, key ${field(v.key, "on") ? "on" : "off"}`;
   const { report } = draw(graph, { state, step: (a) => (a === "Tick" ? null : a) }, [loop]);
-  assert.match(report, /^The run stops in "wait, key off" forever\.$/m);
+  assert.match(report, /^The run stops in "wait, key off" forever\.$/mu);
   assert.throws(
     () => draw(graph, { state, step: (a) => (a === "Back" ? null : a) }, [loop]),
-    /the step Back that changes pos\. It is on the path to the Opens bug or leaves its loop/,
+    /the step Back that changes pos\. It is on the path to the Opens bug or leaves its loop/u,
   );
 });
 
@@ -1102,7 +1102,7 @@ test("a loop that passes one state twice names it once", () => {
     stutters: false,
   };
   const { report } = draw(graph, { state: (v) => v.pos }, [loop]);
-  assert.match(report, /^The run loops through "a", "b" and "c" forever\.$/m);
+  assert.match(report, /^The run loops through "a", "b" and "c" forever\.$/mu);
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
@@ -1113,7 +1113,7 @@ test("a chart that draws a way out of a loop that the loop cannot take stops the
   const loop: Bug = { rule: { kind: "property", name: "Opens" }, ...found };
   assert.throws(
     () => draw(graph, { state: (v) => v.pos }, [loop]),
-    /draws the step Open out of wait, but the Opens loop cannot take it there/,
+    /draws the step Open out of wait, but the Opens loop cannot take it there/u,
   );
   const { chart } = draw(
     graph,
@@ -1140,9 +1140,9 @@ test("a region named __proto__ is a region like any other", () => {
   const { chart } = draw(graph, {
     state: (v): unknown => JSON.parse(`{"__proto__": "X${v.x}", "Other": "Y${v.y}"}`),
   });
-  assert.match(chart, /^ {4}state "#95;#95;proto#95;#95;" as r0 \{$/m);
-  assert.match(chart, /^ {6}s0 --> s1: GoX \[when Y0\]$/m);
-  assert.match(chart, /^ {4}state "Other" as r1 \{$/m);
+  assert.match(chart, /^ {4}state "#95;#95;proto#95;#95;" as r0 \{$/mu);
+  assert.match(chart, /^ {6}s0 --> s1: GoX \[when Y0\]$/mu);
+  assert.match(chart, /^ {4}state "Other" as r1 \{$/mu);
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
@@ -1176,7 +1176,7 @@ test("a group named like an Object method still needs its own color", () => {
   const graph = graphOf([["s0", { x: 0 }, true]], []);
   assert.throws(
     () => draw(graph, checkView({ group: () => "toString", colors: {} }, inspect)),
-    /group\(\) returned "toString"/,
+    /group\(\) returned "toString"/u,
   );
 });
 
@@ -1190,12 +1190,12 @@ test("a message writes each value the way JavaScript shows it", () => {
         { colors: { Lost: NaN, Far: Infinity, Big: 7n, Boxed: new String("blue"), Loop: loop } },
         inspect,
       ),
-    /"Lost" the color NaN, "Far" the color Infinity, "Big" the color 7n, "Boxed" the color \[String: 'blue'\] and "Loop" the color <ref \*1> \{ self: \[Circular \*1\] \}\./,
+    /"Lost" the color NaN, "Far" the color Infinity, "Big" the color 7n, "Boxed" the color \[String: 'blue'\] and "Loop" the color <ref \*1> \{ self: \[Circular \*1\] \}\./u,
   );
   const graph = graphOf([["s0", { x: 0 }, true]], []);
   assert.throws(
     () => draw(graph, checkView({ group: () => NaN, colors: {} }, inspect)),
-    /group\(\) returned NaN,/,
+    /group\(\) returned NaN,/u,
   );
 });
 
@@ -1230,18 +1230,18 @@ test("the chart uses the colors that checkView read once from the view's own key
     { group: changes, colors: changed },
   ]) {
     const { chart } = draw(graph, checkView(view, inspect));
-    assert.match(chart, /^ {2}class s\d+ blue$/m);
-    assert.doesNotMatch(chart, /\bbreaks\b/);
+    assert.match(chart, /^ {2}class s\d+ blue$/mu);
+    assert.doesNotMatch(chart, /\bbreaks\b/u);
   }
   const hidden = Object.defineProperty({}, "Busy", { value: "breaks" });
   assert.throws(
     () => draw(graph, checkView({ group: () => "Busy", colors: hidden }, inspect)),
-    /group\(\) returned "Busy", which colors does not name/,
+    /group\(\) returned "Busy", which colors does not name/u,
   );
   const key = Symbol("Busy");
   assert.throws(
     () => draw(graph, checkView({ group: () => key, colors: { [key]: "breaks" } }, inspect)),
-    /group\(\) returned Symbol\(Busy\), which colors does not name/,
+    /group\(\) returned Symbol\(Busy\), which colors does not name/u,
   );
 });
 
@@ -1259,7 +1259,7 @@ test("a chart state with mixed groups gets no color, even when colors names unde
     group: (v) => (v.x ? "B" : "A"),
     colors: { A: "blue", B: "teal", undefined: "pink" },
   };
-  assert.doesNotMatch(draw(graph, view).chart, /^ {2}class /m);
+  assert.doesNotMatch(draw(graph, view).chart, /^ {2}class /mu);
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
@@ -1277,7 +1277,7 @@ test("a graph of 10,000 states draws in seconds with no view", () => {
   const start = performance.now();
   const { chart, report: text } = draw(graphOf(states, steps), {});
   const seconds = (performance.now() - start) / 1000;
-  assert.match(text, /^The shortest path has 198 steps:$/m);
+  assert.match(text, /^The shortest path has 198 steps:$/mu);
   assert.equal(chart.match(/^ {2}s\d+: /gmu)?.length, n * n);
   assert.ok(seconds < 5, `drawing took ${seconds.toFixed(1)} s`);
 });

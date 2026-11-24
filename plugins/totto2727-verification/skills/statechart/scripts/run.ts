@@ -49,7 +49,7 @@ const TLC_TOOL =
   "http:tla2tools[url=https://github.com/tlaplus/tlaplus/releases/download/v1.7.4/tla2tools.jar,checksum=sha256:936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88]@1.7.4";
 const JAVA_TOOL = "java@temurin-25";
 export const PINNED_FLAGS = ["-workers", "1", "-fp", "0", "-lncheck", "final"];
-const SANY_ERRORS = /^\*\*\* ?(?:Errors|Abort messages|Parse Error)/m;
+const SANY_ERRORS = /^\*\*\* ?(?:Errors|Abort messages|Parse Error)/mu;
 
 type ChildResult = {
   status: number | null;

@@ -187,8 +187,8 @@ export function inspectMarkdown(markdown) {
   const lines = [...markdown.matchAll(/[^\n]*(?:\n|$)/g)].filter((line) => line[0].length);
   /** @type {TextRange | null} */
   let frontmatter = null;
-  if (/^---\s*(?:\r?\n|$)/.test(markdown)) {
-    const closing = lines.slice(1).find((line) => /^(?:---|\.\.\.)\s*$/.test(line[0].trimEnd()));
+  if (/^---\s*(?:\r?\n|$)/u.test(markdown)) {
+    const closing = lines.slice(1).find((line) => /^(?:---|\.\.\.)\s*$/u.test(line[0].trimEnd()));
     frontmatter = { start: 0, end: closing ? closing.index + closing[0].length : markdown.length };
     exclude(frontmatter.start, frontmatter.end, "frontmatter");
   }
@@ -199,7 +199,7 @@ export function inspectMarkdown(markdown) {
       continue;
     }
     if (opening) {
-      const close = /^ {0,3}(`{3,}|~{3,})\s*$/.exec(line[0]);
+      const close = /^ {0,3}(`{3,}|~{3,})\s*$/u.exec(line[0]);
       if (close && close[1][0] === opening.character && close[1].length >= opening.length) {
         const end = line.index + line[0].length;
         fences.push({ ...opening, end, closed: true });
@@ -229,7 +229,7 @@ export function inspectMarkdown(markdown) {
     (line) =>
       (!frontmatter || line.index >= frontmatter.end) &&
       !fences.some((fence) => line.index >= fence.start && line.index < fence.end) &&
-      /^ {0,3}(?:>\s*|(?:[-+*]|\d+[.)])\s+)(?:>\s*)*(?:`{3,}|~{3,})/.test(line[0]),
+      /^ {0,3}(?:>\s*|(?:[-+*]|\d+[.)])\s+)(?:>\s*)*(?:`{3,}|~{3,})/u.test(line[0]),
   );
   if (containerFence) {
     uncertainties.push({
@@ -258,11 +258,11 @@ export function inspectMarkdown(markdown) {
     if (fence && line.index !== fence.start) {
       continue;
     }
-    if (/^[ \t\r\n]*$/.test(line[0])) {
+    if (/^[ \t\r\n]*$/u.test(line[0])) {
       continue;
     }
-    const indentation = /^[ \t]*/.exec(line[0])[0].replaceAll("\t", "    ").length;
-    const listMarker = /^[ \t]*(?:[-+*]|\d+[.)])[ \t]+/.test(line[0]);
+    const indentation = /^[ \t]*/u.exec(line[0])[0].replaceAll("\t", "    ").length;
+    const listMarker = /^[ \t]*(?:[-+*]|\d+[.)])[ \t]+/u.test(line[0]);
     if (listMarker) {
       listIndent = matchesNull(listIndent) ? indentation : Math.min(listIndent, indentation);
       continue;
@@ -399,9 +399,9 @@ export function paragraphUnits(markdown, sections) {
       }
       continue;
     }
-    if (/^\s*$/.test(line[0]) || /^ {0,3}#{1,6}\s/u.test(line[0])) {
+    if (/^\s*$/u.test(line[0]) || /^ {0,3}#{1,6}\s/u.test(line[0])) {
       flush();
-      if (/^\s*$/.test(line[0]) || /^ {0,3}#{1,6}\s/u.test(line[0])) {
+      if (/^\s*$/u.test(line[0]) || /^ {0,3}#{1,6}\s/u.test(line[0])) {
         continue;
       }
     }
@@ -575,7 +575,7 @@ function runSteMechanical(check, markdown, targetRange, context) {
       continue;
     }
     applicable = true;
-    const structural = /^(?: {0,3}>| {0,3}\|| {0,3}\[| {0,3}(?:=+|-+)\s*$)/m.test(text);
+    const structural = /^(?: {0,3}>| {0,3}\|| {0,3}\[| {0,3}(?:=+|-+)\s*$)/mu.test(text);
     if (structural) {
       warning(
         "Unsupported block quote, table, reference, or setext/container structure requires contextual parsing.",
@@ -705,7 +705,7 @@ function runSteMechanical(check, markdown, targetRange, context) {
     if (structural) {
       localWarnings.push({ reason: "Unsupported prose structure.", start: 0, end: text.length });
     }
-    if (context.writingMode === "descriptive" && /^\s*(?:WARNING|CAUTION|DANGER)\s*:/m.test(text)) {
+    if (context.writingMode === "descriptive" && /^\s*(?:WARNING|CAUTION|DANGER)\s*:/mu.test(text)) {
       localWarnings.push({
         reason:
           "Safety instructions obey the procedural 20-word limit even in descriptive material. Supply a procedural local target.",
@@ -738,7 +738,7 @@ function runSteMechanical(check, markdown, targetRange, context) {
           analyses = [
             { text: prefix.replace(/:(\s*)$/u, ".$1"), offset: 0, fragment: false },
             ...listLines.map((line) => {
-              const marker = /^ {0,3}(?:[-+*]|\d+[.)])\s+/.exec(line[0])[0];
+              const marker = /^ {0,3}(?:[-+*]|\d+[.)])\s+/u.exec(line[0])[0];
               return {
                 text: line[0].slice(marker.length),
                 offset: line.index + marker.length,
@@ -750,7 +750,7 @@ function runSteMechanical(check, markdown, targetRange, context) {
           // Simple numbered work steps are separate units. Other lists need the 8.4 introduction.
           const steps =
             !prefix.trim() &&
-            listLines.every((line) => /^ {0,3}\d+[.)]\s+/.test(line[0])) &&
+            listLines.every((line) => /^ {0,3}\d+[.)]\s+/u.test(line[0])) &&
             listLines.every(
               (line, index) =>
                 !text
@@ -759,7 +759,7 @@ function runSteMechanical(check, markdown, targetRange, context) {
             );
           if (steps) {
             analyses = listLines.map((line) => {
-              const marker = /^ {0,3}\d+[.)]\s+/.exec(line[0])[0];
+              const marker = /^ {0,3}\d+[.)]\s+/u.exec(line[0])[0];
               return {
                 text: line[0].slice(marker.length),
                 offset: line.index + marker.length,
