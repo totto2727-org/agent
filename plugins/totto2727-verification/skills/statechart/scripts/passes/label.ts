@@ -10,7 +10,7 @@ const shapeOf = (shape: unknown, vars: Vars): Shape => {
       `The view's state() returned ${JSON.stringify(shape) ?? "undefined"} for the state ${stateText(vars)}. Return a string, an array of strings, or an object of those.`,
     );
   };
-  const path = (p: unknown) => {
+  const path = (p: unknown): string[] => {
     const labels: string[] = [];
     Iterator.from([p].flat()).forEach((l) => {
       if (!isLabel(l)) {fail();}

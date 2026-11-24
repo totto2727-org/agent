@@ -110,11 +110,11 @@ const mulberry32 = function (seed: number) {
 };
 
 const generate = function (random: () => number) {
-  const int = (n: number) => Math.floor(random() * n);
+  const int = (n: number): number => Math.floor(random() * n);
   const pick = <T>(list: T[]) => list[int(list.length)];
   const section = (key: string) => {
     const out = [{ gap: pick(BREAKS), text: key }];
-    const add = (text: string) => out.push({ gap: pick(SPACES), text });
+    const add = (text: string): number => out.push({ gap: pick(SPACES), text });
     if (key === "CHECK_DEADLOCK") {add(pick(["TRUE", "FALSE"]));}
     else if (ONE_NAME.includes(key)) {add(pick(NAMES));}
     else if (!key.startsWith("CONSTANT")) {for (let n = 1 + int(3); n--;) {add(pick(NAMES));}}
@@ -173,7 +173,7 @@ const readInTlc = function (files: string[], jar: string) {
   return readings;
 };
 
-const passesTlcStartChecks = function (reading: Reading) {
+const passesTlcStartChecks = function (reading: Reading): boolean {
   if (reading.error) {return false;}
   const table = tableOf(reading);
   for (const key of ["INVARIANT", "PROPERTY", "CONSTRAINT", "ACTION_CONSTRAINT"]) {

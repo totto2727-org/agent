@@ -53,7 +53,7 @@ const STRING = fc.constantFrom(
 );
 const values = (value: fc.Arbitrary<string>, maxLength = 4) =>
   fc.uniqueArray(value, { minLength: 1, maxLength });
-const tuple = (items: string[]) => `<<${items.join(", ")}>>`;
+const tuple = (items: string[]): string => `<<${items.join(", ")}>>`;
 
 type Domain = string[] | { modelValues: number };
 const DOMAIN: fc.Arbitrary<Domain> = fc.oneof(
@@ -129,7 +129,7 @@ type Case = {
   property?: string;
 };
 
-const configOf = (c: Case) => {
+const configOf = (c: Case): string => {
   const cfg = [...c.base];
   if (c.invariants.length) {cfg.push(`INVARIANTS ${c.invariants.join(" ")}`);}
   if (!c.deadlock) {cfg.push("CHECK_DEADLOCK FALSE");}
@@ -137,7 +137,7 @@ const configOf = (c: Case) => {
   return `${cfg.join("\n")}\n`;
 };
 
-function viewOf(v: NonNullable<Model["view"]>, vars: string[], actions: string[]) {
+function viewOf(v: NonNullable<Model["view"]>, vars: string[], actions: string[]): string {
   const json = JSON.stringify;
   const state = {
     string: `pick(VARS.map((n) => v[n]), 0)`,
@@ -175,17 +175,17 @@ function viewOf(v: NonNullable<Model["view"]>, vars: string[], actions: string[]
 
 const caseOf = function (m: Model): Case {
   let next = 0;
-  const name = () => m.names[next++];
+  const name = (): string => m.names[next++];
   const vars = m.vars.map(name);
   const domains = m.vars.map(({ domain }) =>
     Array.isArray(domain) ? domain : Array.from({ length: domain.modelValues }, name),
   );
   const modelValues = m.vars.flatMap(({ domain }, k) => (Array.isArray(domain) ? [] : domains[k]));
-  const value = (v: number, i: number) =>
+  const value = (v: number, i: number): string =>
     domains[v % vars.length][i % domains[v % vars.length].length];
-  const atom = ({ v, i, not }: Atom) =>
+  const atom = ({ v, i, not }: Atom): string =>
     `${vars[v % vars.length]} ${not ? "#" : "="} ${value(v, i)}`;
-  const set = (v: number, is: number[]) =>
+  const set = (v: number, is: number[]): string =>
     `{${[...new Set(is.map((i) => value(v, i)))].join(", ")}}`;
   const defs = [`vars == <<${vars.join(", ")}>>`];
   defs.push(`Init == ${vars.map((x, k) => `${x} \\in ${set(k, m.vars[k].init)}`).join(" /\\ ")}`);
@@ -366,7 +366,7 @@ const compilerAnswers = function (r: Run, c: Case) {
   return { status: r.status, states: states ? Number(states[1]) : r.stderr, rules };
 };
 
-const answer = async function (c: Case) {
+const answer = async function (c: Case): Promise<string> {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "statechart-differential-"));
   try {
     fs.writeFileSync(path.join(dir, `${c.module}.tla`), c.tla);
@@ -414,10 +414,10 @@ test(
   },
 );
 
-const moduleText = (name: string, ...lines: string[]) =>
+const moduleText = (name: string, ...lines: string[]): string =>
   [`---- MODULE ${name} ----`, ...lines, "====", ""].join("\n");
 
-const counting = (print: string) =>
+const counting = (print: string): string =>
   moduleText(
     "Count",
     "EXTENDS Naturals, TLC",

@@ -24,7 +24,7 @@ type XmlNode = { tag: string; text: string; children: XmlNode[] };
 
 const ENTITIES: { [name: string]: string } = { amp: "&", apos: "'", gt: ">", lt: "<", quot: '"' };
 
-const decode = (text: string) =>
+const decode = (text: string): string =>
   text.replace(/&(#x?)?(\w+);/g, (_, number: string | undefined, name: string) =>
     number
       ? String.fromCodePoint(Number.parseInt(name, number === "#x" ? 16 : 10))
@@ -50,7 +50,7 @@ const parseXml = function (xml: string) {
 };
 
 const child = (node: XmlNode | undefined, tag: string) => node?.children.find((currentChild) => currentChild.tag === tag);
-const textOf = (node: XmlNode | undefined, tag: string) => child(node, tag)?.text ?? "";
+const textOf = (node: XmlNode | undefined, tag: string): string => child(node, tag)?.text ?? "";
 
 export type Sany = {
   variables: string[];

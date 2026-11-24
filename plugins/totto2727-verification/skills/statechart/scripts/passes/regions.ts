@@ -27,8 +27,8 @@ export function drawRegions(
     for (const i of seqOf(b, index).slice(0, b.loop)) {lead[i] = 1;}
     for (const i of loopOf(b, index)) {looped[i] = 1;}
   });
-  const loop = (j: number) => R === 1 && pathSteps[j] === 1;
-  const stays = (j: number) => {
+  const loop = (j: number): boolean => R === 1 && pathSteps[j] === 1;
+  const stays = (j: number): boolean => {
     for (let r = 0; r < R; r++) {if (kinds[r][from[j]] !== kinds[r][to[j]]) {return false;}}
     return true;
   };
@@ -107,20 +107,20 @@ export function drawRegions(
     });
     const others: number[] = [];
     for (let o = 0; o < R; o++) {if (o !== r) {others.push(o);}}
-    const tuple = (i: number) => {
+    const tuple = (i: number): string[] => {
       const t: string[] = [];
       Iterator.from(others).forEach((o) => {t.push(keys[o][i]);});
       return t;
     };
     const two = others.length === 1;
-    const words = (vs: Iterable<string>) => {
+    const words = (vs: Iterable<string>): string => {
       const texts: string[] = [];
       Iterator.from(vs).forEach((v) => {texts.push(unkey(v).join(" / "));});
       return texts.sort(byText).join(two ? " or " : ", ");
     };
-    const is = (o: number, vs: Set<string>) =>
+    const is = (o: number, vs: Set<string>): string =>
       two ? `when ${words(vs)}` : `${names[o]} is ${vs.size > 1 ? "one of " : ""}${words(vs)}`;
-    const isNot = (o: number, vs: string[]) =>
+    const isNot = (o: number, vs: string[]): string =>
       two
         ? `unless ${words(vs)}`
         : `${names[o]} is ${vs.length > 1 ? "none of" : "not"} ${words(vs)}`;
@@ -161,7 +161,7 @@ export function drawRegions(
       }
       const ok = new Set<string>();
       Iterator.from(move.group).forEach((j) => {ok.add(tupleKey(tuple(from[j])));});
-      const takes = (t: string[]) => ok.has(tupleKey(t));
+      const takes = (t: string[]): boolean => ok.has(tupleKey(t));
       let seen = seenAt.get(move.f);
       if (!seen) {
         const uniqueTuples: string[][] = [];
@@ -194,7 +194,7 @@ export function drawRegions(
         and.push(taken);
         or.push(only);
       }
-      const fits = (condition: Condition) => {
+      const fits = (condition: Condition): boolean => {
         for (const t of seen) {if (holds(condition, t) !== takes(t)) {return false;}}
         return true;
       };

@@ -64,7 +64,7 @@ export function checkView(
   view: Readonly<{ [name: string]: unknown }>,
   inspect: Inspect,
 ): CheckedView {
-  const literal = (v: unknown) =>
+  const literal = (v: unknown): string =>
     isString(v) ? JSON.stringify(v) : inspect(v, { breakLength: Infinity });
   const extra: string[] = [];
   Object.keys(view).forEach((name) => {if (!VIEW_EXPORTS.includes(name)) {extra.push(name);}});

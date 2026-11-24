@@ -23,7 +23,7 @@ function* inParts(lines: string[]) {
   }
 }
 
-const shortestFirst = (a: { path: unknown[] }, b: { path: unknown[] }) =>
+const shortestFirst = (a: { path: unknown[] }, b: { path: unknown[] }): number =>
   a.path.length - b.path.length;
 
 export function project(graph: Graph, walked: Walk, view: View, found: Bug[]) {

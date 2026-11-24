@@ -15,11 +15,11 @@ const RULES = /^(INVARIANTS?|PROPERTY|PROPERTIES|CHECK_DEADLOCK)$/u;
 const exitClass = (status: number | null) =>
   status === 0 ? 0 : status === 11 || status === 12 || status === 13 ? 1 : 2;
 
-const stepsIn = (text: string) =>
+const stepsIn = (text: string): number =>
   Math.max((text.match(/^State \d+: (?!Stuttering$)/gm)?.length ?? 0) - 1, 0) +
   (text.match(/^Back to state \d+: </gmu)?.length ?? 0);
 
-const properties = function (cfg: string) {
+const properties = function (cfg: string): string[] {
   const names: string[] = [];
   let section = "";
   Iterator.from(cfg.split("\n")).forEach((line) => {
@@ -63,7 +63,7 @@ const tlc = function (dir: string, module: string, cfg: string) {
   return { status: r.status, out, broke, steps: stepsIn(out) };
 };
 
-const alone = function (cfg: string, rule: string) {
+const alone = function (cfg: string, rule: string): string {
   const lines: string[] = [];
   let section = "";
   Iterator.from(cfg.split("\n")).forEach((line) => {
@@ -131,7 +131,7 @@ export function agrees(module: string, files: { [name: string]: string[] }, cfg:
       if (/^Semantic processing of module ChartBound$/mu.test(text)) {bounded.add(rule);}
       breaks.set(rule, stepsIn(text));
     });
-    const list = (title: string) =>
+    const list = (title: string): string[] =>
       report
         .match(new RegExp(`^## ${title}\\n(.*)$`, "m"))?.[1]
         .split(", ")

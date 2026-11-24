@@ -5,7 +5,7 @@ import { isString } from "../ir.ts";
 const START = /@!@!@STARTMSG (\d+):(\d+) @!@!@$/u;
 const END = /^@!@!@ENDMSG \d+ @!@!@$/u;
 
-const isCutMarker = (lastLine: string) => lastLine.startsWith("@!@!@");
+const isCutMarker = (lastLine: string): boolean => lastLine.startsWith("@!@!@");
 
 const cutMessage = function (open: Message[]) {
   for (let i = open.length - 1; i > 0 && !open[i].body.length; i--) {open[i - 1].body.pop();}
@@ -39,10 +39,10 @@ export function* readMessages(tlcOut: string | Iterable<string>): Generator<Part
   if (cut) {yield cut;}
 }
 
-export const textOf = ({ body }: Message) =>
+export const textOf = ({ body }: Message): string =>
   body.filter((part) => isString(part)).join("\n");
 
-export const actionOf = (m: Message) =>
+export const actionOf = (m: Message): string | undefined =>
   /^\d+: (?:Back to state: )?<([^\s>]+)/.exec(textOf(m))?.[1];
 
 export const messageState = (m: Message) => {

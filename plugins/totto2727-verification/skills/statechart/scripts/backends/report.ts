@@ -11,7 +11,7 @@ const stepsOf = (story: Story) => {
   return path;
 };
 
-const forever = (loop: { state: string }[], stutters: boolean | undefined) => {
+const forever = (loop: { state: string }[], stutters: boolean | undefined): string => {
   const quoted = new Set<string>();
   Iterator.from(loop).forEach((p) => {quoted.add(`"${p.state}"`);});
   const runs = [...quoted];
@@ -21,7 +21,7 @@ const forever = (loop: { state: string }[], stutters: boolean | undefined) => {
     : `The run loops through ${list(runs)} forever.`;
 };
 
-const fenced = (text: string) => ["```", text, "```"].join("\n");
+const fenced = (text: string): string => ["```", text, "```"].join("\n");
 
 export function report(
   {
@@ -46,7 +46,7 @@ export function report(
   found: Bug[],
   chart: Chart | undefined,
   stories: Map<Bug, Story>,
-) {
+): string {
   let size = 0;
   let arrows = 0;
   Iterator.from(chart?.regions ?? []).forEach((r) => {
@@ -61,7 +61,7 @@ export function report(
     else if (currentState.past) {past++;}
   });
   Iterator.from(graph.steps).forEach((currentStep) => {if (must(graph.states, currentStep.to).past) {pastSteps++;}});
-  const includes = (n: number) =>
+  const includes = (n: number): string =>
     chart ? `, and the chart includes ${n === 1 ? "it" : "them"}` : "";
   const out = [
     `# ${spec.module}`,

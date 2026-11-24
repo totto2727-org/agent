@@ -44,7 +44,7 @@ export function lift(chart: Chart): Chart {
     const known = new Map<string[], number>();
     for (const state of region.states) {known.set(state.path, known.size);}
     let numbers: Map<string, number> | undefined;
-    const pathIndex = (path: string[]) => {
+    const pathIndex = (path: string[]): number => {
       let i = known.get(path);
       if (!matchesUndefined(i)) {return i;}
       if (!numbers) {

@@ -117,7 +117,7 @@ const esc = (text: string, quoted = false): string => {
   return opened.includes("C4") ? opened.replaceAll(C4, "C#52;") : opened;
 };
 
-const or = (names: Iterable<string>) => [...names].sort(byText).join(" or ");
+const or = (names: Iterable<string>): string => [...names].sort(byText).join(" or ");
 
 interface Edge {
   from: string[];
@@ -190,16 +190,16 @@ const MARK_STYLES = {
   mayBreak: "fill:#fff3e6,stroke:#e8730c,stroke-width:2.5px,color:#b85a06",
 };
 
-export function mermaidLines(chart: Chart) {
+export function mermaidLines(chart: Chart): string[] {
   let next = 0;
   const marks: string[] = [];
   const used = new Set<string>();
   const rules = { breaks: new Set<string>(), mayBreak: new Set<string>() };
-  const region = (r: Region) => {
+  const region = (r: Region): string[] => {
     const out: string[] = [];
     const topIds = new Map<string, string>();
     const nestedIds = new Map<string, string>();
-    const id = (path: string[]) => {
+    const id = (path: string[]): string => {
       const top = path.length === 1;
       const named = top ? topIds : nestedIds;
       const k = top ? path[0] : tupleKey(path);
@@ -208,15 +208,15 @@ export function mermaidLines(chart: Chart) {
       return s;
     };
     const known = new Map<string[], string>();
-    const idOf = (path: string[]) => {
+    const idOf = (path: string[]): string => {
       let s = known.get(path);
       if (matchesUndefined(s)) {known.set(path, (s = id(path)));}
       return s;
     };
     const drawn = drawnEdges(r);
-    const line = (e: Edge, indent: string) =>
+    const line = (e: Edge, indent: string): string =>
       `${indent}${e.start ? "[*]" : idOf(e.from)} --> ${idOf(e.to)}${matchesUndefined(e.label) ? "" : `: ${esc(e.label)}`}`;
-    const tree = (prefix: string[], indent: string, below: ChartState[]) => {
+    const tree = (prefix: string[], indent: string, below: ChartState[]): void => {
       const heads = new Map<string, ChartState[]>();
       Iterator.from(below).forEach((s) => {append(heads, s.path[prefix.length], s);});
       Iterator.from(heads).forEach(([head, under]) => {
@@ -290,4 +290,4 @@ export function mermaidLines(chart: Chart) {
   return lines;
 }
 
-export const mermaid = (chart: Chart) => mermaidLines(chart).join("\n");
+export const mermaid = (chart: Chart): string => mermaidLines(chart).join("\n");

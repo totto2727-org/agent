@@ -194,14 +194,14 @@ const BAD_COLORS: unknown[] = [
 
 const random = (seed: number) => {
   let a = seed >>> 0;
-  const next = () => {
+  const next = (): number => {
     a = (a + 0x6D_2B_79_F5) >>> 0;
     let t = a;
     t = Math.imul(t ^ (t >>> 15), t | 1);
     t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
     return ((t ^ (t >>> 14)) >>> 0) / 4_294_967_296;
   };
-  const int = (n: number) => Math.floor(next() * n);
+  const int = (n: number): number => Math.floor(next() * n);
   return {
     int,
     range: (lo: number, hi: number) => lo + int(hi - lo + 1),
@@ -212,7 +212,7 @@ const random = (seed: number) => {
 
 type Random = ReturnType<typeof random>;
 
-const label = (r: Random) => {
+const label = (r: Random): string => {
   let s = "";
   for (let n = r.range(1, 4); n > 0; n--) {
     const k = r.int(13);
@@ -253,7 +253,7 @@ type Case = Shape &
 
 const generate = function (r: Random): Case {
   const labels: string[] = [];
-  const slot = () => labels.push(label(r)) - 1;
+  const slot = (): number => labels.push(label(r)) - 1;
   const k = r.int(10);
   const mode = k < 4 ? "flat" : k < 7 ? "parents" : "regions";
   const n = r.range(2, 4);
@@ -328,14 +328,14 @@ const build = function (c: Case, labels: string[]) {
   return { graph: { states, steps }, view };
 };
 
-const visible = (s: string) =>
+const visible = (s: string): string =>
   s
     .toWellFormed()
     .replace(/(?![\t-\r\x85])[\p{Cc}\u200b-\u200f\u202a-\u202e\u2060-\u2069\ufeff]/gu, "")
     .replace(/\p{White_Space}+/gu, " ")
     .trim();
-const wrapped = (s: string) => visible(s).replaceAll(" ", "");
-const titled = (want: Want) => /[^\0\x80-\x84\x86-\x9f]/.test(want.title ?? "");
+const wrapped = (s: string): string => visible(s).replaceAll(" ", "");
+const titled = (want: Want): boolean => /[^\0\x80-\x84\x86-\x9f]/.test(want.title ?? "");
 const NAMED: { [name: string]: string } = {
   quot: '"',
   lt: "<",
@@ -345,24 +345,24 @@ const NAMED: { [name: string]: string } = {
   nbsp: "\u00a0",
 };
 const WINDOWS_1252 = "€\x81‚ƒ„…†‡ˆ‰Š‹Œ\x8dŽ\x8f\x90‘’“”•–—˜™š›œ\x9džŸ";
-const fromRef = (n: number) => {
+const fromRef = (n: number): string => {
   if (n === 0 || n > 0x10_FF_FF || (n >= 0xD8_00 && n <= 0xDF_FF)) {return "\ufffd";}
   if (n >= 0x80 && n <= 0x9F) {return WINDOWS_1252[n - 0x80];}
   return String.fromCodePoint(n);
 };
-const fromMermaid = (s: string) =>
+const fromMermaid = (s: string): string =>
   s.replace(/ﬂ°°(\d+)¶ß|ﬂ°(\w+)¶ß/g, (_, d, n) =>
     d ? fromRef(Number(d)) : (NAMED[n] ?? `&${n};`),
   );
-const decoded = (s: string) =>
+const decoded = (s: string): string =>
   s
     .replace(/ﬂ°°/g, "&#")
     .replace(/ﬂ°/g, "&")
     .replace(/¶ß/g, ";");
 const MARKER_END = /marker-end="url\([\d+./:=?A-Za-z-]*?#/g;
-const rewritten = (s: string) =>
+const rewritten = (s: string): boolean =>
   /ﬂ°|¶ß/.test(s) || s.replace(MARKER_END, 'marker-end="url(#') !== s;
-const fromSvg = (s: string) =>
+const fromSvg = (s: string): string =>
   s
     .replace(/<\/tspan>\s*<tspan[^>]*>/g, " ")
     .replace(/<[^>]*>/g, "")
@@ -384,7 +384,7 @@ const expected = function (chart: Chart): Want {
   const nodes = new Map<string, Node>();
   const edges: string[][] = [];
   const ids = new Map<string, string>();
-  const id = (region: string, path: string[]) => {
+  const id = (region: string, path: string[]): string => {
     const key = JSON.stringify([region, path]);
     const found = ids.get(key) ?? `s${ids.size}`;
     ids.set(key, found);
@@ -398,7 +398,7 @@ const expected = function (chart: Chart): Want {
     const wrap = multi ? `r${i}` : null;
     if (wrap) {nodes.set(wrap, { text: region.name, parent: "all", group: true });}
     const drawn = drawnEdges(region);
-    const tree = (prefix: string[], parent: string | null, below: ChartState[]) => {
+    const tree = (prefix: string[], parent: string | null, below: ChartState[]): void => {
       const heads = new Map<string, ChartState[]>();
       Iterator.from(below).forEach((s) => {
         const head = s.path[prefix.length];
@@ -436,13 +436,13 @@ const expected = function (chart: Chart): Want {
   return { nodes, edges, direction: multi ? "LR" : "TB", title: chart.title };
 };
 
-const edgeKeys = (edges: string[][], withLabels: boolean) => {
+const edgeKeys = (edges: string[][], withLabels: boolean): string => {
   const keys: string[] = [];
   Iterator.from(edges).forEach(([from, to, text]) => {keys.push(withLabels ? `${from} ${to} ${visible(text)}` : `${from} ${to}`);});
   return keys.sort().join("\n");
 };
 
-const readMermaid = async function (text: string, want: Want, { mermaid, html }: Tools, problems: string[]) {
+const readMermaid = async function (text: string, want: Want, { mermaid, html }: Tools, problems: string[]): Promise<void> {
   let data;
   try {
     data = (await mermaid.mermaidAPI.getDiagramFromText(text)).db.getData();
@@ -509,7 +509,7 @@ const readMermaid = async function (text: string, want: Want, { mermaid, html }:
       );}});
 };
 
-const readPele = function (text: string, want: Want, render: Render, problems: string[]) {
+const readPele = function (text: string, want: Want, render: Render, problems: string[]): void {
   let svg: string;
   try {
     ({ svg } = render(text));
@@ -593,7 +593,7 @@ const check = async function (c: Case, labels: string[], tools: Tools): Promise<
   return { text, problems };
 };
 
-const kind = (problem: string) => problem.slice(0, problem.indexOf(":"));
+const kind = (problem: string): string => problem.slice(0, problem.indexOf(":"));
 
 export async function fuzz({
   seed,

@@ -13,11 +13,11 @@ import { readMessages } from "../frontends/messages.ts";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const corpus = path.join(here, "corpus");
 const skip = !process.env.TLA2TOOLS && "set TLA2TOOLS to the path of tla2tools.jar to run TLC";
-const read = (file: string) => fs.readFileSync(file, "utf8");
-const maybe = (file: string) => (fs.existsSync(file) ? read(file) : "");
-const plain = (text: string) => [...plainText(readMessages(text))].join("");
+const read = (file: string): string => fs.readFileSync(file, "utf8");
+const maybe = (file: string): string => (fs.existsSync(file) ? read(file) : "");
+const plain = (text: string): string => [...plainText(readMessages(text))].join("");
 
-const steady = (text: string) =>
+const steady = (text: string): string =>
   text
     .replace(/"chart-[0-9a-f]{32}"/gu, '"chart"')
     .replace(/\bfp \d+ and seed -?\d+/g, "fp _ and seed _")

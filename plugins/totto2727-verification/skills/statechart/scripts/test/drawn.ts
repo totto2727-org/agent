@@ -1,4 +1,4 @@
-const shown = (text: string) => text.replace(/#(\d+);/gu, (_, n) => String.fromCodePoint(Number(n)));
+const shown = (text: string): string => text.replace(/#(\d+);/gu, (_, n) => String.fromCodePoint(Number(n)));
 
 export const drawn = (chart: string) => {
   const names = new Map<string, string>();

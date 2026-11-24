@@ -258,7 +258,7 @@ export const PART = 1 << 24;
 
 export const byText = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 
-export const list = (items: string[], and = "and") =>
+export const list = (items: string[], and = "and"): string =>
   items.length < 2 ? items.join("") : `${items.slice(0, -1).join(", ")} ${and} ${items.at(-1)}`;
 
 const ESCAPES: { [c: string]: string } = {
@@ -269,9 +269,9 @@ const ESCAPES: { [c: string]: string } = {
   "\r": "\\r",
   "\f": "\\f",
 };
-const quote = (s: string) => `"${s.replace(/["\\\n\t\r\f]/g, (c) => ESCAPES[c])}"`;
+const quote = (s: string): string => `"${s.replace(/["\\\n\t\r\f]/g, (c) => ESCAPES[c])}"`;
 
-const joined = (items: Value[], sep: string) => {
+const joined = (items: Value[], sep: string): string => {
   let s = "";
   for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {s += (itemIndex ? sep : "") + show(items[itemIndex]);}
   return s;
@@ -318,13 +318,13 @@ export const must = <K, V>(map: ReadonlyMap<K, V>, key: K): V => {
   return value;
 };
 
-export const append = <K, V>(groups: Map<K, V[]>, key: K, item: V) => {
+export const append = <K, V>(groups: Map<K, V[]>, key: K, item: V): void => {
   const group = groups.get(key);
   if (group) {group.push(item);}
   else {groups.set(key, [item]);}
 };
 
-export const seqOf = (bug: Bug, index: ReadonlyMap<string, number>) => {
+export const seqOf = (bug: Bug, index: ReadonlyMap<string, number>): number[] => {
   const seq = [must(index, bug.start)];
   Iterator.from(bug.path).forEach((p) => {seq.push(must(index, p.state));});
   return seq;
@@ -333,7 +333,7 @@ export const seqOf = (bug: Bug, index: ReadonlyMap<string, number>) => {
 export const loopOf = (bug: Bug, index: ReadonlyMap<string, number>) =>
   new Set(matchesUndefined(bug.loop) ? [] : seqOf(bug, index).slice(bug.loop));
 
-export const defaultState = (vars: Vars) => {
+export const defaultState = (vars: Vars): string => {
   const entries = Object.entries(vars);
   if (entries.length === 1) {return show(entries[0][1]);}
   const parts: string[] = [];
@@ -341,7 +341,7 @@ export const defaultState = (vars: Vars) => {
   return parts.join(" ");
 };
 
-export const stateText = (vars: Vars) => {
+export const stateText = (vars: Vars): string => {
   const parts: string[] = [];
   Object.entries(vars).forEach(([k, v]) => {parts.push(`${k} = ${show(v)}`);});
   return parts.join(" /\\ ");
@@ -368,14 +368,14 @@ export const sortBy = (items: Int32Array, keys: Int32Array[]) => {
   return items;
 };
 
-export const tupleKey = (parts: unknown[]) => JSON.stringify(parts);
-export const unkey = (k: string) => {
+export const tupleKey = (parts: unknown[]): string => JSON.stringify(parts);
+export const unkey = (k: string): string[] => {
   const parts: unknown = JSON.parse(k);
   if (!isStrings(parts)) {throw new Error(`The chart cannot read the key ${k}.`);}
   return parts;
 };
 
-export function holds(condition: Condition, others: string[]) {
+export function holds(condition: Condition, others: string[]): boolean {
   switch (condition.kind) {
     case "and": {
       for (let j = 0; j < others.length; j++)
@@ -393,21 +393,21 @@ export function holds(condition: Condition, others: string[]) {
   }
 }
 
-export const ruleKey = (rule: Rule) => tupleKey([rule.kind, rule.name]);
+export const ruleKey = (rule: Rule): string => tupleKey([rule.kind, rule.name]);
 
-export const hasRule = (rules: Rule[], rule: Rule) => {
+export const hasRule = (rules: Rule[], rule: Rule): boolean => {
   for (const currentRule of rules) {if (currentRule.kind === rule.kind && currentRule.name === rule.name) {return true;}}
   return false;
 };
 
-const ascending = (keys: string[]) => {
+const ascending = (keys: string[]): boolean => {
   for (let keyIndex = 1; keyIndex < keys.length; keyIndex++) {if (keys[keyIndex - 1] > keys[keyIndex]) {return false;}}
   return true;
 };
 
-const span = (lo: number, hi: number) => (hi > lo ? `${lo}..${hi}` : String(lo));
+const span = (lo: number, hi: number): string => (hi > lo ? `${lo}..${hi}` : String(lo));
 
-const setKey = (members: Value[]) => {
+const setKey = (members: Value[]): string => {
   const ints: number[] = [];
   let others: string[] = [];
   Iterator.from(members).forEach((m) => {if (typeof m === "number") {ints.push(m);}
@@ -430,7 +430,7 @@ const setKey = (members: Value[]) => {
   return `${s  }}`;
 };
 
-const functionKey = ({ keys, values }: { keys: Value[]; values: Value[] }) => {
+const functionKey = ({ keys, values }: { keys: Value[]; values: Value[] }): string => {
   const order: number[] = [];
   const keyTexts: string[] = [];
   let ints = 0;
@@ -439,7 +439,7 @@ const functionKey = ({ keys, values }: { keys: Value[]; values: Value[] }) => {
     keyTexts.push(key(keys[keyIndex]));
     if (typeof keys[keyIndex] === "number") {ints++;}
   }
-  const rank = (i: number) => (typeof keys[i] === "number" ? (keys[i] as number) : Infinity);
+  const rank = (i: number): number => (typeof keys[i] === "number" ? (keys[i] as number) : Infinity);
   order.sort((a, b) => rank(a) - rank(b) || byText(keyTexts[a], keyTexts[b]) || a - b);
   let tuple = ints === keys.length;
   for (let i = 0; tuple && i < order.length; i++) {tuple = keys[order[i]] === i + 1;}
@@ -481,7 +481,7 @@ export const key = (v: Value): string => {
   return k;
 };
 
-export const stateKey = (values: Value[]) => {
+export const stateKey = (values: Value[]): string => {
   let k = "";
   for (let valueIndex = 0; valueIndex < values.length; valueIndex++) {k += (valueIndex ? "," : "") + key(values[valueIndex]);}
   return k;
@@ -553,7 +553,7 @@ const deadlockRule = ({ invariants, properties }: Spec): Rule => ({
       : "NoDeadlock",
 });
 
-export const hasSection = ({ written }: Spec, ...keys: string[]) => {
+export const hasSection = ({ written }: Spec, ...keys: string[]): boolean => {
   for (const s of written) {if (keys.includes(s.key)) {return true;}}
   return false;
 };

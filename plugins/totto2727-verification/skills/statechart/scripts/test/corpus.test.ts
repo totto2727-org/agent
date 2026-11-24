@@ -11,7 +11,7 @@ import { check, PINNED_FLAGS } from "../run.ts";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const corpus = path.join(here, "corpus");
 const skip = !process.env.TLA2TOOLS && "set TLA2TOOLS to the path of tla2tools.jar to run TLC";
-const read = (file: string) => fs.readFileSync(file, "utf8");
+const read = (file: string): string => fs.readFileSync(file, "utf8");
 
 Iterator.from(fs.readdirSync(corpus)).forEach((name) => {
   // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
@@ -106,14 +106,14 @@ test("an invariant named NoDeadlock and a deadlock break as two rules", { skip }
   );
 });
 
-const writeSpec = (name: string, tla: string[], cfg: string) => {
+const writeSpec = (name: string, tla: string[], cfg: string): string => {
   const base = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "statechart-corpus-")), name);
   fs.writeFileSync(`${base}.tla`, `${tla.join("\n")}\n`);
   fs.writeFileSync(`${base}.cfg`, cfg);
   return base;
 };
 const login = path.join(corpus, "Login", "Login");
-const broken = () =>
+const broken = (): string =>
   writeSpec(
     "Broken",
     ["---- MODULE Broken ----", "VARIABLE x", "Init == x = 0", "Next == x' = y", "===="],
@@ -142,7 +142,7 @@ const plainTlc = (base: string) => {
   };
 };
 
-const counter = (name: string, before: string[], variables: string[]) => [
+const counter = (name: string, before: string[], variables: string[]): string[] => [
   ...before,
   `---- MODULE ${name} ----`,
   "EXTENDS Naturals",

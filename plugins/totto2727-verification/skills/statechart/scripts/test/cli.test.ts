@@ -14,7 +14,7 @@ import { drawn } from "./drawn.ts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const corpus = path.join(here, "corpus");
-const read = (file: string) => fs.readFileSync(file, "utf8");
+const read = (file: string): string => fs.readFileSync(file, "utf8");
 
 const run = function (
   dir: string,
@@ -72,14 +72,14 @@ const run = function (
   };
 };
 
-const copyCase = function (name: string, edit: (dir: string) => void = () => {}) {
+const copyCase = function (name: string, edit: (dir: string) => void = () => {}): string {
   const dir = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "statechart-case-")), name);
   fs.cpSync(path.join(corpus, name), dir, { recursive: true });
   edit(dir);
   return dir;
 };
 
-const named = (report: string) => {
+const named = (report: string): string[] => {
   const files: string[] = [];
   Iterator.from(report.matchAll(/\btlc-\w+\.out\b/g)).forEach(([file]) => {if (!files.includes(file)) {files.push(file);}});
   return files;
@@ -103,7 +103,7 @@ Iterator.from(fs.readdirSync(corpus)).forEach((name) => {
   });
 });
 
-const asTlcPrintsOnWindows = function (text: string) {
+const asTlcPrintsOnWindows = function (text: string): string {
   const lines = text.split("\n");
   let depth = 0;
   for (let i = 0; i < lines.length - 1; i++) {
@@ -135,7 +135,7 @@ Iterator.from(fs.readdirSync(corpus)).forEach((name) => {
 
 const launcher = path.join(here, "../statechart");
 
-const launcherTools = () => {
+const launcherTools = (): string => {
   const bin = fs.mkdtempSync(path.join(os.tmpdir(), "statechart-bin-"));
   Iterator.from(["dirname", "readlink", "sed"]).forEach((tool) => {
     const found = spawnSync("sh", ["-c", `command -v ${tool}`], { encoding: "utf8" });
@@ -144,7 +144,7 @@ const launcherTools = () => {
   return bin;
 };
 
-const linkedLauncher = () => {
+const linkedLauncher = (): string => {
   const links = fs.mkdtempSync(path.join(os.tmpdir(), "statechart-links-"));
   const [first, second] = [path.join(links, "a"), path.join(links, "b")];
   fs.mkdirSync(first);
@@ -171,7 +171,7 @@ Iterator.from([
   });
 });
 
-const unsetNode = () => {
+const unsetNode = (): string => {
   const bin = launcherTools();
   fs.writeFileSync(
     path.join(bin, "node"),
@@ -222,12 +222,12 @@ Iterator.from([
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("the order of TLC's dump and its state IDs do not change the chart or the report", () => {
   let seed = 7;
-  const random = () => (seed = (seed * 48_271) % 2_147_483_647) / 2_147_483_647;
+  const random = (): number => (seed = (seed * 48_271) % 2_147_483_647) / 2_147_483_647;
   Iterator.from(["DieHard", "LoginParallel", "TwoPhase"]).forEach((name) => {
     const dir = copyCase(name, (d) => {
       const file = path.join(d, "graph.dot");
       const ids = new Map<string, string>();
-      const id = (n: string) => ids.get(n) ?? ids.set(n, String(9000 - ids.size * 17)).get(n);
+      const id = (n: string): string | undefined => ids.get(n) ?? ids.set(n, String(9000 - ids.size * 17)).get(n);
       const lines: string[] = [];
       for (const part of read(file).split("\n"))
         {if (/^-?\d+ (?:\[|->)/u.test(part))
@@ -310,7 +310,7 @@ const signalWhile = async function <T extends { dir: string; reached: (parent: s
   return phase;
 };
 
-const assertGone = async function (pid: number) {
+const assertGone = async function (pid: number): Promise<void> {
   for (let i = 0; ; i++) {
     let code: string | undefined;
     try {
@@ -331,16 +331,16 @@ const assertGone = async function (pid: number) {
   }
 };
 
-const assertEmpty = async function (dir: string) {
+const assertEmpty = async function (dir: string): Promise<void> {
   for (let i = 0; i < 250 && fs.readdirSync(dir).length; i++) {await sleep(20);}
   assert.deepEqual(fs.readdirSync(dir), []);
 };
 
-const gridCase = function (n: number) {
+const gridCase = function (n: number): string {
   const dir = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "statechart-case-")), "Grid");
   fs.cpSync(path.join(here, "grid"), dir, { recursive: true });
   Iterator.from(["ChartRun.out", "verdict-1.out"]).forEach((run) => {fs.copyFileSync(path.join(corpus, "Login", run), path.join(dir, run));});
-  const id = (x: number, y: number) => String(1_000_000 + x * n + y);
+  const id = (x: number, y: number): string => String(1_000_000 + x * n + y);
   const lines = ["strict digraph DiskGraph {"];
   for (let x = 0; x < n; x++)
     {for (let y = 0; y < n; y++) {
@@ -585,7 +585,7 @@ test("TLC checks the rules and draws the chart with VIEW and SYMMETRY, and the r
   assert.doesNotMatch(run(path.join(corpus, "MediaPlayer")).report, /representative/u);
 });
 
-const overBudget = (file: string) =>
+const overBudget = (file: string): void =>
   fs.writeFileSync(file, read(file).replace(/\b\d+( distinct states found)/g, "1234$1"));
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
@@ -822,7 +822,7 @@ Iterator.from([
   });
 });
 
-const writeView = (body: string) => {
+const writeView = (body: string): string => {
   const view = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "statechart-view-")), "view.mjs");
   fs.writeFileSync(view, body);
   return view;
@@ -947,9 +947,9 @@ test("a view with a group in a theme color draws that color and names the group 
   assert.match(chart, new RegExp(`^ {2}class ${legend} teal$`, "m"));
 });
 
-const byX = (labels: unknown[]) => `export const state = (v) => ${JSON.stringify(labels)}[v.x];\n`;
+const byX = (labels: unknown[]): string => `export const state = (v) => ${JSON.stringify(labels)}[v.x];\n`;
 
-const fanOut = (n: number) => {
+const fanOut = (n: number): string => {
   const lines = ["strict digraph DiskGraph {", '0 [label="x = 0",style = filled]'];
   for (let i = 1; i <= n; i++)
     {lines.push(
@@ -1169,7 +1169,7 @@ const contents = (p: string) => {
   Iterator.from(fs.readdirSync(p)).forEach((f) => {files[f] = read(path.join(p, f));});
   return files;
 };
-const newPath = () => path.join(fs.mkdtempSync(path.join(os.tmpdir(), "statechart-out-")), "out");
+const newPath = (): string => path.join(fs.mkdtempSync(path.join(os.tmpdir(), "statechart-out-")), "out");
 
 Iterator.from([
   [

@@ -74,7 +74,7 @@ const runChild = (file: string, args: string[], options: { cwd: string; env: Nod
     );
   });
 
-export const messageOf = (error: unknown) =>
+export const messageOf = (error: unknown): string =>
   typeof error === "object" &&
   !matchesNull(error) &&
   "message" in error &&
@@ -148,7 +148,7 @@ const runToFiles = (
       Iterator.from(fds).forEach((fd) => {fs.closeSync(fd);});
     }
     let error: Error | undefined;
-    const settle = (code: number | null) =>
+    const settle = (code: number | null): void =>
       resolve({
         status: error ? null : code,
         stdout: files[0],
@@ -189,7 +189,7 @@ const findTlc = async function (cwd: string) {
 const exitClass = (status: number | null) =>
   status === 0 ? 0 : status === 11 || status === 12 || status === 13 ? 1 : 2;
 
-const tail = (r: FileResult) => {
+const tail = (r: FileResult): string => {
   if (r.error) {return r.error.message;}
   const kept: string[] = [];
   let size = 0;
@@ -201,7 +201,7 @@ const tail = (r: FileResult) => {
   return kept.join("").trim().split("\n").slice(-30).join("\n");
 };
 
-const firstLines = (text: string) => {
+const firstLines = (text: string): string => {
   const lines = text.trim().split("\n");
   if (lines.length > 40) {lines.splice(40, Infinity, `... ${lines.length - 40} more lines`);}
   return lines.join("\n");
@@ -220,14 +220,14 @@ const stopOf = (r: FileResult): Stop => {
   return { status: r.status, message: firstLines([...plainText(errors)].join("")) };
 };
 
-const sanyErrors = (r: FileResult) => {
+const sanyErrors = (r: FileResult): string | undefined => {
   if (r.error) {return undefined;}
   const text = [...plainText(messagesOf(r.output))].join("");
   const at = text.search(SANY_ERRORS);
   return at === -1 ? undefined : firstLines(text.slice(at));
 };
 
-const names = (rules: Rule[], kind: Rule["kind"]) => {
+const names = (rules: Rule[], kind: Rule["kind"]): string[] => {
   const found: string[] = [];
   Iterator.from(rules).forEach((rule) => {if (rule.kind === kind) {found.push(rule.name);}});
   return found;
@@ -258,7 +258,7 @@ export async function check(specFile: string, configFile: string): Promise<Check
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "statechart-"));
   try {
     const tlc = await findTlc(dir);
-    const config = (name: string, sections: ConfigSection[], extra: string[]) => {
+    const config = (name: string, sections: ConfigSection[], extra: string[]): string[] => {
       fs.writeFileSync(path.join(dir, `${name}.cfg`), configText(sections, extra));
       return [`-metadir`, path.join(dir, `meta-${name}`), "-config", path.join(dir, `${name}.cfg`)];
     };

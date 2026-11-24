@@ -3,7 +3,7 @@ import type { Graph, Lasso, Mark, Past, PathStep, Rule, Step, Trace, TraceState,
 
 export const finder = (graph: Graph, names: string[]) => {
   let ids: Map<string, string> | undefined;
-  const find = (values: Value[]) => {
+  const find = (values: Value[]): string | undefined => {
     if (!ids) {
       const index = new Map<string, string>();
       ids = index;
@@ -39,7 +39,7 @@ export function mark(
   return past;
 }
 
-export function deadEnds(graph: Graph, rule: Rule) {
+export function deadEnds(graph: Graph, rule: Rule): void {
   const from = new Set<string>();
   Iterator.from(graph.steps).forEach((currentStep) => {from.add(currentStep.from);});
   Iterator.from(graph.states).forEach(([id, s]) => {if (!s.past && !from.has(id)) {s.breaks.push(rule);}});
@@ -53,12 +53,12 @@ export function addPast(
   past: Past,
   excludes: boolean,
   find = finder(graph, names),
-) {
+): void {
   const trace = findTrace(counterexample, names, rule, find);
   const end = trace.length - 1;
   const from = trace[end - 1]?.id;
   const action = trace[end].action;
-  const taken = (to: string | undefined) => {
+  const taken = (to: string | undefined): boolean => {
     for (const currentStep of graph.steps)
       {if (currentStep.from === from && currentStep.to === to && currentStep.action === action) {return true;}}
     return false;

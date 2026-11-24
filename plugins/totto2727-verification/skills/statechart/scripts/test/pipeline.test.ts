@@ -13,7 +13,7 @@ import { compile } from "../pipeline.ts";
 
 const scripts = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-const sources = (target: string) => {
+const sources = (target: string): string[] => {
   const full = path.join(scripts, target);
   if (!fs.statSync(full).isDirectory()) {return [target];}
   return fs
@@ -40,21 +40,21 @@ const loads = (...targets: string[]) => {
   const out = execFileSync(process.execPath, ["--input-type=module", "-e", RECORD, ...urls], {
     encoding: "utf8",
   });
-  const name = (url: string) =>
+  const name = (url: string): string =>
     url.startsWith("file:") ? path.relative(scripts, fileURLToPath(url)) : url;
   return (JSON.parse(out) as string[][]).map(([from, to]) => [name(from), name(to)]);
 };
 
 const COMMENT =
   /("(?:[^"\\\n]|\\[\s\S])*"|'(?:[^'\\\n]|\\[\s\S])*'|`(?:[^`\\]|\\[\s\S])*`)|\/\/[^\n]*|\/\*[\s\S]*?\*\//g;
-const codeOf = (file: string) =>
+const codeOf = (file: string): string =>
   fs.readFileSync(path.join(scripts, file), "utf8").replace(COMMENT, (_, text) => text ?? " ");
 
 const RUNTIME =
   /\b(?:process|require|globalThis|global|Deno|Bun|Buffer|setImmediate|clearImmediate|fetch)\b|\bimport\s*\(/g;
 const TYPE_IMPORT =
   /\b(?:import|export)\s+type\b\s*(?:[\w$]+|\*(?:\s*as\s+[\w$]+)?|\{[^}]*\})\s*from\s*["']([^"']*)["']/g;
-const typeImports = (file: string) =>
+const typeImports = (file: string): string[] =>
   Array.from(codeOf(file).matchAll(TYPE_IMPORT), (m) => path.join(path.dirname(file), m[1]));
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
@@ -162,7 +162,7 @@ const twoStates = (breaks: Rule[], property = "Settles"): CheckResult => ({
   messages: [{ code: EC.TLC_FINISHED, level: LEVEL.NONE, body: ["Finished in 394ms at (T)"] }],
 });
 
-const body = (files: Map<string, Iterable<string | Uint8Array>>, name: string) => {
+const body = (files: Map<string, Iterable<string | Uint8Array>>, name: string): string => {
   let text = "";
   Iterator.from(files.get(name) ?? []).forEach((part) => {text += typeof part === "string" ? part : new TextDecoder().decode(part);});
   return text;
@@ -209,7 +209,7 @@ test("the pipeline turns a hand-built graph into the out folder's files with no 
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("an invariant and a property with one name stay two rules", () => {
-  const reportWithSmallProperty = (breaks: Rule[]) => {
+  const reportWithSmallProperty = (breaks: Rule[]): string => {
     const result = twoStates(breaks);
     const step = result.graph.steps[0];
     result.spec.properties = ["Small"];
@@ -247,7 +247,7 @@ test("a PROPERTY that breaks with no path writes TLC's counterexample", () => {
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a rule named NoDeadlock leaves the deadlock rule a name of its own", () => {
-  const holds = (result: CheckResult) => {
+  const holds = (result: CheckResult): string | undefined => {
     result.spec.deadlock = true;
     result.rules = holding(result.spec);
     return compile(result, noView).report.match(/^## Rules that hold\n(.*)$/m)?.[1];

@@ -2,7 +2,7 @@ import type { Graph, State, Step, Value, Vars } from '../ir.ts';
 import { parseValue } from "./value.ts";
 import { isString, matchesUndefined } from "../ir.ts";
 
-const unescapeDot = (s: string) => {
+const unescapeDot = (s: string): string => {
   let i = s.indexOf("\\");
   if (i === -1) {return s;}
   let out = "";
@@ -36,7 +36,7 @@ export const parseState = (label: string, parsed = new Map<string, [string, Valu
 
 export type Lines = string | Iterable<string>;
 
-export const splitLines = (text: string) =>
+export const splitLines = (text: string): string[] =>
   (text.endsWith("\r") ? text.slice(0, -1) : text).split(/\r?\n/u);
 
 export const linesOf = (input: Lines) => (isString(input) ? splitLines(input) : input);
@@ -46,7 +46,7 @@ export function parseDot(input: Lines): Graph {
   const steps = new Map<string, Step>();
   const parsed = new Map<string, [string, Value]>();
   const owned = new Map<string, string>();
-  const own = (s: string) => {
+  const own = (s: string): string => {
     let copy = owned.get(s);
     if (matchesUndefined(copy)) {owned.set((copy = String(JSON.parse(JSON.stringify(s)))), copy);}
     return copy;

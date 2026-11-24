@@ -44,7 +44,7 @@ if (record) {
           all[i - 1] === "-metadir" || all[i - 2] === "-dump" ? `${a}-plain` : a,
         ),
     );}
-  const shown = (text: string) =>
+  const shown = (text: string): string =>
     wantsPlainText ? [...plainText(readMessages(text))].join("") : text;
   process.stdout.write(shown(r.stdout));
   process.stderr.write(shown(r.stderr));
@@ -52,7 +52,7 @@ if (record) {
 }
 
 if (!replay) {throw new Error("Set STATECHART_RECORD or STATECHART_REPLAY to a folder.");}
-const file = (ext: string) => path.join(replay, `${name}${ext}`);
+const file = (ext: string): string => path.join(replay, `${name}${ext}`);
 if (dump && fs.existsSync(path.join(replay, "graph.dot")))
   {fs.copyFileSync(path.join(replay, "graph.dot"), dump);}
 const tag = fs.existsSync("ChartRun.tla")

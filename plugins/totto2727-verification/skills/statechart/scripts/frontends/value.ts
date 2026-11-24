@@ -13,14 +13,14 @@ const PUNCT = new Map([
   [46, ".."],
 ]);
 const SPACE = /\s/u;
-export const isSpace = (c: number) =>
+export const isSpace = (c: number): boolean =>
   c === 32 || (c >= 9 && c <= 13) || (c > 127 && SPACE.test(String.fromCharCode(c)));
-const isDigit = (c: number) => c >= 48 && c <= 57;
-const isWord = (c: number) =>
+const isDigit = (c: number): boolean => c >= 48 && c <= 57;
+const isWord = (c: number): boolean =>
   isDigit(c) || (c >= 65 && c <= 90) || (c >= 97 && c <= 122) || c === 95;
 const isLineEnd = (c: number) => c === 10 || c === 13 || c === 0x20_28 || c === 0x20_29;
 
-export const tokenEnd = (s: string, i: number) => {
+export const tokenEnd = (s: string, i: number): number => {
   const c = s.charCodeAt(i);
   if (c === 34) {
     for (let j = i + 1; j < s.length; j++) {
@@ -80,8 +80,8 @@ export function parseValue(text: string): Value {
   const fail = (): never => {
     throw unreadable(text, i < starts.length ? starts[Math.max(i - 1, 0)] : text.length);
   };
-  const next = () => (i < tokens.length ? tokens[i++] : fail());
-  const eat = (t: string) => {
+  const next = (): string => (i < tokens.length ? tokens[i++] : fail());
+  const eat = (t: string): void => {
     if (next() !== t) {fail();}
   };
   const items = <T>(close: string, item: () => T) => {
@@ -97,7 +97,7 @@ export function parseValue(text: string): Value {
       if (t !== ",") {fail();}
     }
   };
-  const string = (t: string) => {
+  const string = (t: string): string => {
     let s = "";
     for (let j = 1, from = 1; ;) {
       const k = t.indexOf("\\", j);

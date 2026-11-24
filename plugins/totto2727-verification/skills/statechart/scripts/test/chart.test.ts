@@ -28,7 +28,7 @@ import { fileLines } from "../run.ts";
 import { drawn } from "./drawn.ts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const corpus = (name: string, file: string) => path.join(here, "corpus", name, file);
+const corpus = (name: string, file: string): string => path.join(here, "corpus", name, file);
 
 const corpusSpec = (name: string) => {
   const configFile = corpus(name, `${name}.cfg`);
@@ -145,7 +145,7 @@ test("a value outside the grammar TLC prints is an error, never a guess", () => 
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a label prints each value in TLA+, so values that TLC tells apart look apart", () => {
-  const shown = (text: string) => show(parseValue(text));
+  const shown = (text: string): string => show(parseValue(text));
   Iterator.from([
     '"A"',
     "A",
@@ -199,7 +199,7 @@ test("equal TLA+ values share one key and unequal ones do not, as TLC compares t
   Iterator.from(apart).forEach(([a, b]) => {assert.notEqual(key(parseValue(a)), key(parseValue(b)), `${a} # ${b}`);});
 });
 
-const replay = function (name: string, graph: Graph) {
+const replay = function (name: string, graph: Graph): void {
   const spec = corpusSpec(name);
   const names = spec.variables;
   const rules = stateRules(spec);
@@ -274,7 +274,7 @@ test("a chart of only the bug paths words each one with the view, asked once for
         {paths.push(drawn.bug(rule, readCounterexample(messages)));}});
   }
   const asked: { [question: string]: number } = {};
-  const count = (question: string) => (asked[question] = (asked[question] ?? 0) + 1);
+  const count = (question: string): number => (asked[question] = (asked[question] ?? 0) + 1);
   const view: View = {
     state: (v) => {
       count(`state ${v.x}`);
@@ -324,7 +324,7 @@ test("a chart of only the bug paths words each one with the view, asked once for
 test("the graph that parseDot returns keeps none of the text it read", () => {
   v8.setFlagsFromString("--expose-gc");
   const gc: () => void = vm.runInNewContext("gc");
-  const heapUsed = () => {
+  const heapUsed = (): number => {
     gc();
     gc();
     return process.memoryUsage().heapUsed;
@@ -448,7 +448,7 @@ test("a tagged line in the wrong shape is an error, not spec output", () => {
 });
 
 const ab: View = { state: (v) => ({ A: `a${v.a}`, B: `b${v.b}` }) };
-const bit = (v: Vars) => `${v.a}${v.b}${v.c}`;
+const bit = (v: Vars): string => `${v.a}${v.b}${v.c}`;
 const xorStates: StateRow[] = [];
 const xorSteps: StepRow[] = [];
 Iterator.from([0, 1]).forEach((a) => {for (const b of [0, 1])
@@ -941,8 +941,8 @@ test("the title writes each character outside the allow list in the form Mermaid
     ],
     [["s0", "s1", "Go"]],
   );
-  const state = (v: Vars) => `S${v.n}`;
-  const title = (t: string) =>
+  const state = (v: Vars): string => `S${v.n}`;
+  const title = (t: string): string | undefined =>
     draw(graph, { title: t, state }).chart.match(/^---\ntitle: (.*)\n---\n/)?.[1];
   assert.equal(title("Queue<T> for AT&T"), '"Queueﬂ°°60¶ßT> for ATﬂ°°38¶ßT"');
   assert.equal(title("ﬂ°°65¶ß"), '"ﬂﬂ°°8288¶ßﬂ°°176¶ßﬂ°°176¶ß65ﬂ°°182¶ßﬂ°°8288¶ßß"');
@@ -1051,7 +1051,7 @@ test("a view may hide a step inside a loop, but not a step out of it", () => {
   const found = lasso(graph, keyTrace(), ["pos", "key"]);
   assert.ok(found);
   const loop: Bug = { rule: { kind: "property", name: "Opens" }, ...found };
-  const state = (v: Vars) => `${v.pos}, key ${field(v.key, "on") ? "on" : "off"}`;
+  const state = (v: Vars): string => `${v.pos}, key ${field(v.key, "on") ? "on" : "off"}`;
   const { report } = draw(graph, { state, step: (a) => (a === "Tick" ? null : a) }, [loop]);
   assert.match(report, /^The run stops in "wait, key off" forever\.$/mu);
   assert.throws(
@@ -1212,7 +1212,7 @@ test("the chart uses the colors that checkView read once from the view's own key
     },
   };
   const changed = { Busy: "blue" };
-  const changes = () => {
+  const changes = (): string => {
     changed.Busy = "breaks";
     return "Busy";
   };

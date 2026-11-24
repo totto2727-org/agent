@@ -5,7 +5,7 @@ export function pathGraph(names: string[]) {
   const graph: Graph = { states: new Map(), steps: [] };
   const ids = new Map<string, string>();
   const taken = new Map<string, Step>();
-  const idOf = (vars: Vars | undefined, start: boolean) => {
+  const idOf = (vars: Vars | undefined, start: boolean): string => {
     if (!vars) {throw new Error("TLC's trace has a state with no values.");}
     const k = stateKey(names.map((name) => vars[name]));
     let id = ids.get(k);

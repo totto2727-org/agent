@@ -19,7 +19,7 @@ const late = [
   "InDomain == f[x] = 0",
   "====",
 ];
-const lateCfg = (mode: string, rules: string) =>
+const lateCfg = (mode: string, rules: string): string =>
   `CONSTANT Mode = "${mode}"\nINIT Init\nNEXT Next\nINVARIANTS ${rules}\n`;
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
@@ -47,7 +47,7 @@ test("a rule that breaks before a step fails to evaluate breaks", { skip }, () =
   });
 });
 
-const warnPath = (next: string) => [
+const warnPath = (next: string): string[] => [
   "---- MODULE WarnPath ----",
   "EXTENDS Naturals",
   "VARIABLES x",

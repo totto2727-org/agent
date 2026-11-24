@@ -51,7 +51,7 @@ export const NAME = /^\w*[A-Za-z]\w*$/u;
 const WORD = /\w+/y;
 const CONFIG_HOLDS =
   "A config can hold only names, numbers, strings, comments, and the symbols { } ( ) [ ] , = ! <-.";
-const shown = (c: string) => {
+const shown = (c: string): string => {
   const code = c.codePointAt(0) ?? 0;
   const hex = `U+${code.toString(16).toUpperCase().padStart(4, "0")}`;
   if (code < 0x20 || code === 0x7F) {return hex;}
@@ -67,13 +67,13 @@ const tokenizeConfig = function (text: string, cannot: (line: number, words: str
   let line = 1;
   let last = 1;
   let i = 0;
-  const skip = (to: number) => {
+  const skip = (to: number): void => {
     for (; i < to; i++) {
       last = line;
       if (text[i] === "\n" || (text[i] === "\r" && text[i + 1] !== "\n")) {line++;}
     }
   };
-  const push = (image: string) => {
+  const push = (image: string): void => {
     tokens.push({ image, line });
     skip(i + image.length);
   };
@@ -156,7 +156,7 @@ export function readConfig({ file, text }: { file: string; text: string }): Conf
   const next = () => tokens[at++] ?? eof;
   let deferred: Error | undefined;
   const defer = (error: Error) => (deferred ??= error);
-  const defined = (t: Token, undefinedNoun: string | undefined) => {
+  const defined = (t: Token, undefinedNoun: string | undefined): void => {
     if (!NAME.test(t.image))
       {defer(
         refuse(
@@ -165,7 +165,7 @@ export function readConfig({ file, text }: { file: string; text: string }): Conf
         ),
       );}
   };
-  const name = (t: Token, what: string) => {
+  const name = (t: Token, what: string): void => {
     if (SECTIONS.has(t.image))
       {defer(cannot(t.line, `TLC would read the keyword ${t.image} as ${what}.`));}
     else if (!NAME.test(t.image))
@@ -189,7 +189,7 @@ export function readConfig({ file, text }: { file: string; text: string }): Conf
         ),
       );}
   };
-  const constant = (t: Token, loc: number) => {
+  const constant = (t: Token, loc: number): void => {
     name(t, "a constant name");
     for (t = next(); t.image === "!"; t = next()) {name((t = next()), "a constant name");}
     if (t.image === "<-") {
