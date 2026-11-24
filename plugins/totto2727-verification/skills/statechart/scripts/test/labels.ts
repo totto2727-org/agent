@@ -173,6 +173,7 @@ const OTHER = [
   "\x1B",
   "\u0000",
 ];
+const NON_STRING_COLOR = 7;
 const BAD_COLORS: unknown[] = [
   "pink\n  s99: Ghost state",
   "blue\r\nclassDef x fill:#f00",
@@ -188,55 +189,79 @@ const BAD_COLORS: unknown[] = [
   "toString",
   "",
   null,
-  7,
+  NON_STRING_COLOR,
   ["blue"],
 ];
 
+// Mulberry32 mixes a 32-bit state. Keep the step and shifts stable for replayable failures.
+const UINT32_SHIFT = 0;
+const UINT32_RANGE = 4_294_967_296;
+const STATE_INCREMENT = 0x6D_2B_79_F5;
+const FIRST_MIX_SHIFT = 15;
+const FIRST_MIX_MASK = 1;
+const SECOND_MIX_SHIFT = 7;
+const SECOND_MIX_MASK = 61;
+const FINAL_MIX_SHIFT = 14;
+const INCLUSIVE_RANGE = 1;
+
 const random = (seed: number) => {
-  let a = seed >>> 0;
+  // oxlint-disable-next-line rules/no-let -- Each call advances the seeded generator before returning a sample.
+  let state = seed >>> UINT32_SHIFT;
   const next = (): number => {
-    a = (a + 0x6D_2B_79_F5) >>> 0;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4_294_967_296;
+    state = (state + STATE_INCREMENT) >>> UINT32_SHIFT;
+    const firstMix = Math.imul(state ^ (state >>> FIRST_MIX_SHIFT), state | FIRST_MIX_MASK);
+    const secondMix = firstMix ^ (firstMix + Math.imul(firstMix ^ (firstMix >>> SECOND_MIX_SHIFT), firstMix | SECOND_MIX_MASK));
+    return ((secondMix ^ (secondMix >>> FINAL_MIX_SHIFT)) >>> UINT32_SHIFT) / UINT32_RANGE;
   };
-  const int = (n: number): number => Math.floor(next() * n);
+  const int = (upperBound: number): number => Math.floor(next() * upperBound);
   return {
+    chance: (probability: number) => next() < probability,
     int,
-    range: (lo: number, hi: number) => lo + int(hi - lo + 1),
-    chance: (p: number) => next() < p,
-    pick: <T>(items: Readonly<T[]>) => items[int(items.length)],
+    pick: <Item>(items: ReadonlyArray<Item>) => items[int(items.length)],
+    range: (lower: number, upper: number) => lower + int(upper - lower + INCLUSIVE_RANGE),
   };
 };
 
 type Random = ReturnType<typeof random>;
 
-const label = (r: Random): string => {
-  let s = "";
-  for (let n = r.range(1, 4); n > 0; n--) {
-    const k = r.int(13);
-    if (k < 4) {s += r.pick(WORDS);}
-    else if (k < 7) {s += r.pick(SYNTAX);}
-    else if (k < 9) {s += r.pick(SPACE);}
-    else if (k < 11) {s += r.pick(OTHER);}
-    else {s += String.fromCharCode(32 + r.int(95));}
-  }
-  return s;
+const FRAGMENTS_MIN = 1;
+const FRAGMENTS_MAX = 4;
+const LABEL_CHOICES = 13;
+const WORD_BOUND = 4;
+const SYNTAX_BOUND = 7;
+const SPACE_BOUND = 9;
+const OTHER_BOUND = 11;
+const FIRST_PRINTABLE_ASCII = 32;
+const PRINTABLE_ASCII_COUNT = 95;
+
+const labelFragment = (randomizer: Random): string | undefined => {
+  const choice = randomizer.int(LABEL_CHOICES);
+  if (choice < WORD_BOUND) {return randomizer.pick(WORDS);}
+  if (choice < SYNTAX_BOUND) {return randomizer.pick(SYNTAX);}
+  if (choice < SPACE_BOUND) {return randomizer.pick(SPACE);}
+  if (choice < OTHER_BOUND) {return randomizer.pick(OTHER);}
+  return String.fromCharCode(FIRST_PRINTABLE_ASCII + randomizer.int(PRINTABLE_ASCII_COUNT));
 };
 
-const color = (r: Random) => {
-  if (r.chance(0.85)) {return r.pick(THEME);}
-  const k = r.int(3);
-  if (k === 0) {return r.pick(BAD_COLORS);}
-  if (k === 1) {return r.pick(THEME) + r.pick(SPACE) + label(r);}
-  return label(r);
+const several = <Item>(count: number, make: () => Item): Item[] =>
+  Array.from({ length: count }, () => make());
+
+const label = (randomizer: Random): string => {
+  const count = randomizer.range(FRAGMENTS_MIN, FRAGMENTS_MAX);
+  return several(count, () => String(labelFragment(randomizer))).join("");
 };
 
-const several = <T>(n: number, make: () => T) => {
-  const out: T[] = [];
-  for (let i = 0; i < n; i++) {out.push(make());}
-  return out;
+const THEME_CHANCE = 0.85;
+const OTHER_COLOR_CHOICES = 3;
+const INVALID_COLOR_CHOICE = 0;
+const COMPOSITE_COLOR_CHOICE = 1;
+
+const color = (randomizer: Random): unknown => {
+  if (randomizer.chance(THEME_CHANCE)) {return randomizer.pick(THEME);}
+  const choice = randomizer.int(OTHER_COLOR_CHOICES);
+  if (choice === INVALID_COLOR_CHOICE) {return randomizer.pick(BAD_COLORS);}
+  if (choice === COMPOSITE_COLOR_CHOICE) {return randomizer.pick(THEME) + randomizer.pick(SPACE) + label(randomizer);}
+  return label(randomizer);
 };
 
 type Shape =
@@ -251,12 +276,33 @@ type Groups =
 type Case = Shape &
   Groups & { n: number; labels: string[]; actions: number[]; steps: number[][]; title?: number };
 
-const generate = function (r: Random): Case {
+const SHAPE_CHOICES = 10;
+const FLAT_SHAPE_BOUND = 4;
+const PARENT_SHAPE_BOUND = 7;
+const MIN_STATES = 2;
+const MAX_STATES = 4;
+const REGION_POOL_SIZE = 2;
+const TWO_PARENTS_CHANCE = 0.5;
+const HAS_PARENT_CHANCE = 0.75;
+const NO_PARENT = -1;
+const MIN_ACTIONS = 1;
+const MAX_ACTIONS = 3;
+const MIN_STEPS = 1;
+const MAX_STEPS = 5;
+const HAS_GROUPS_CHANCE = 0.4;
+const MIN_GROUPS = 1;
+const MAX_GROUPS = 2;
+const MEMBER_OF_GROUP_CHANCE = 0.8;
+const NO_GROUP = -1;
+const HAS_TITLE_CHANCE = 0.3;
+const PUSHED_LABEL_POSITION = 1;
+
+const generate = function (randomizer: Random): Case {
   const labels: string[] = [];
-  const slot = (): number => labels.push(label(r)) - 1;
-  const k = r.int(10);
-  const mode = k < 4 ? "flat" : (k < 7 ? "parents" : "regions");
-  const n = r.range(2, 4);
+  const slot = (): number => labels.push(label(randomizer)) - PUSHED_LABEL_POSITION;
+  const choice = randomizer.int(SHAPE_CHOICES);
+  const mode = choice < FLAT_SHAPE_BOUND ? "flat" : (choice < PARENT_SHAPE_BOUND ? "parents" : "regions");
+  const stateCount = randomizer.range(MIN_STATES, MAX_STATES);
   let shape: Shape;
   if (mode === "regions") {
     shape = {
@@ -266,27 +312,27 @@ const generate = function (r: Random): Case {
         [slot(), slot()],
         [slot(), slot()],
       ],
-      values: several(n, () => [r.int(2), r.int(2)]),
+      values: several(stateCount, () => [randomizer.int(REGION_POOL_SIZE), randomizer.int(REGION_POOL_SIZE)]),
     };
   } else {
-    const leaf = several(n, slot);
+    const leaf = several(stateCount, slot);
     if (mode === "parents") {
-      const parents = r.chance(0.5) ? [slot(), slot()] : [slot()];
-      const parentOf = several(n, () => (r.chance(0.75) ? r.int(parents.length) : -1));
+      const parents = randomizer.chance(TWO_PARENTS_CHANCE) ? [slot(), slot()] : [slot()];
+      const parentOf = several(stateCount, () => (randomizer.chance(HAS_PARENT_CHANCE) ? randomizer.int(parents.length) : NO_PARENT));
       shape = { mode, leaf, parents, parentOf };
     } else {shape = { mode, leaf };}
   }
-  const actions = several(r.range(1, 3), slot);
-  const steps = several(r.range(1, 5), () => [r.int(n), r.int(n), r.int(actions.length)]);
+  const actions = several(randomizer.range(MIN_ACTIONS, MAX_ACTIONS), slot);
+  const steps = several(randomizer.range(MIN_STEPS, MAX_STEPS), () => [randomizer.int(stateCount), randomizer.int(stateCount), randomizer.int(actions.length)]);
   let groups: Groups = {};
-  if (r.chance(0.4)) {
-    const named = several(r.range(1, 2), slot);
-    const colors = several(named.length, () => color(r));
-    const groupOf = several(n, () => (r.chance(0.8) ? r.int(named.length) : -1));
+  if (randomizer.chance(HAS_GROUPS_CHANCE)) {
+    const named = several(randomizer.range(MIN_GROUPS, MAX_GROUPS), slot);
+    const colors = several(named.length, () => color(randomizer));
+    const groupOf = several(stateCount, () => (randomizer.chance(MEMBER_OF_GROUP_CHANCE) ? randomizer.int(named.length) : NO_GROUP));
     groups = { groups: named, colors, groupOf };
   }
-  const title = r.chance(0.3) ? slot() : undefined;
-  return { ...shape, ...groups, n, labels, actions, steps, title };
+  const title = randomizer.chance(HAS_TITLE_CHANCE) ? slot() : undefined;
+  return { ...shape, ...groups, n: stateCount, labels, actions, steps, title };
 };
 
 type RawView = {
@@ -331,44 +377,53 @@ const build = function (c: Case, labels: string[]) {
 const visible = (s: string): string =>
   s
     .toWellFormed()
-    .replaceAll(/(?![\t-\r\x85])[\p{Cc}\u200B-\u200F\u202A-\u202E\u2060-\u2069\uFEFF]/gu, "")
+    .replaceAll(/(?![\t-\r\u0085])[\p{Cc}\u200B-\u200F\u202A-\u202E\u2060-\u2069\uFEFF]/gu, "")
     .replaceAll(/\p{White_Space}+/gu, " ")
     .trim();
 const wrapped = (s: string): string => visible(s).replaceAll(" ", "");
-const titled = (want: Want): boolean => /[^\0\x80-\x84\x86-\x9F]/.test(want.title ?? "");
+const titled = (want: Want): boolean => /[^\u0000\u0080-\u0084\u0086-\u009F]/u.test(want.title ?? "");
 const NAMED: Record<string, string> = {
-  quot: '"',
-  lt: "<",
-  gt: ">",
   amp: "&",
   apos: "'",
+  gt: ">",
+  lt: "<",
   nbsp: "\u00A0",
+  quot: '"',
 };
-const WINDOWS_1252 = "€\x81‚ƒ„…†‡ˆ‰Š‹Œ\x8DŽ\x8F\x90‘’“”•–—˜™š›œ\x9DžŸ";
-const fromRef = (n: number): string => {
-  if (n === 0 || n > 0x10_FF_FF || (n >= 0xD8_00 && n <= 0xDF_FF)) {return "\uFFFD";}
-  if (n >= 0x80 && n <= 0x9F) {return WINDOWS_1252[n - 0x80];}
-  return String.fromCodePoint(n);
+const WINDOWS_1252 = "€\u0081‚ƒ„…†‡ˆ‰Š‹Œ\u008DŽ\u008F\u0090‘’“”•–—˜™š›œ\u009DžŸ";
+const NUL = 0;
+const MAX_CODE_POINT = 0x10_FF_FF;
+const FIRST_SURROGATE = 0xD8_00;
+const LAST_SURROGATE = 0xDF_FF;
+const FIRST_C1_CONTROL = 0x80;
+const LAST_C1_CONTROL = 0x9F;
+const HEX_RADIX = 16;
+
+const fromRef = (codePoint: number): string => {
+  if (codePoint === NUL || codePoint > MAX_CODE_POINT || (codePoint >= FIRST_SURROGATE && codePoint <= LAST_SURROGATE)) {return "\uFFFD";}
+  if (codePoint >= FIRST_C1_CONTROL && codePoint <= LAST_C1_CONTROL) {return WINDOWS_1252[codePoint - FIRST_C1_CONTROL];}
+  return String.fromCodePoint(codePoint);
 };
-const fromMermaid = (s: string): string =>
-  s.replaceAll(/ﬂ°°(\d+)¶ß|ﬂ°(\w+)¶ß/g, (_, d, n) =>
-    d ? fromRef(Number(d)) : (NAMED[n] ?? `&${n};`),
-  );
+const fromMermaid = (text: string): string =>
+  text.replaceAll(/ﬂ°°(?<decimal>\d+)¶ß|ﬂ°(?<named>\w+)¶ß/gu, (_match: string, decimal?: string, named?: string) => {
+    const reference = named ?? "";
+    return decimal ? fromRef(Number(decimal)) : (NAMED[reference] ?? `&${reference};`);
+  });
 const decoded = (s: string): string =>
   s
     .replaceAll('ﬂ°°', "&#")
     .replaceAll('ﬂ°', "&")
     .replaceAll('¶ß', ";");
-const MARKER_END = /marker-end="url\([\d+./:=?A-Za-z-]*?#/g;
+const MARKER_END = /marker-end="url\([\d+./:=?A-Za-z-]*?#/gu;
 const rewritten = (s: string): boolean =>
-  /ﬂ°|¶ß/.test(s) || s.replaceAll(MARKER_END, 'marker-end="url(#') !== s;
-const fromSvg = (s: string): string =>
-  s
-    .replaceAll(/<\/tspan>\s*<tspan[^>]*>/g, " ")
-    .replaceAll(/<[^>]*>/g, "")
-    .replaceAll(/&#x([0-9a-f]+);/gi, (_, h) => fromRef(Number.parseInt(h, 16)))
-    .replaceAll(/&#(\d+);/gu, (_, d) => fromRef(Number(d)))
-    .replaceAll(/&(quot|lt|gt|apos|nbsp);/g, (_, n) => NAMED[n])
+  /ﬂ°|¶ß/u.test(s) || s.replaceAll(MARKER_END, 'marker-end="url(#') !== s;
+const fromSvg = (text: string): string =>
+  text
+    .replaceAll(/<\/tspan>\s*<tspan[^>]*>/gu, " ")
+    .replaceAll(/<[^>]*>/gu, "")
+    .replaceAll(/&#x(?<hex>[0-9a-f]+);/giu, (_match: string, hex: string) => fromRef(Number.parseInt(hex, HEX_RADIX)))
+    .replaceAll(/&#(?<decimal>\d+);/gu, (_match: string, decimal: string) => fromRef(Number(decimal)))
+    .replaceAll(/&(?<named>quot|lt|gt|apos|nbsp);/gu, (_match: string, named: string) => NAMED[named])
     .replaceAll('&amp;', "&");
 
 type Node = { text: string; parent: string | null; group: boolean };
