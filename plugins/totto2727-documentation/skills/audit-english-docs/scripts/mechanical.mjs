@@ -157,6 +157,81 @@ export const sourceRange = function sourceRange(markdown, start, end) {
   };
 };
 
+/** @typedef {(start: number, end: number, kind: string) => void} RecordExclusion */
+
+const FIRST_RUN = 0;
+const NEXT_RUN = 1;
+const NO_CLOSING_RUN = -1;
+
+/** @type {(markdown: string, exclusions: Exclusion[]) => () => string} */
+const masking = (markdown, exclusions) => {
+  const lineBreaks = [...markdown.matchAll(/[\r\n]/gu)];
+  return () => {
+    const characters = markdown.split("");
+    exclusions.forEach(({ start, end }) => {
+      characters.fill(" ", start, end);
+    });
+    lineBreaks.forEach((lineBreak) => {
+      const [character] = lineBreak;
+      characters[lineBreak.index] = character;
+    });
+    return characters.join("");
+  };
+};
+
+/** @type {(visible: string, exclude: RecordExclusion) => void} */
+const excludeCodeSpans = (visible, exclude) => {
+  // Code spans close at the next run of the same delimiter width, across newlines.
+  const runs = [...visible.matchAll(/`+/gu)];
+  const cursor = { index: FIRST_RUN };
+  while (cursor.index < runs.length) {
+    const { index } = cursor;
+    const opening = runs[index];
+    const closing = runs.findIndex(
+      (other, position) => position > index && other[0].length === opening[0].length,
+    );
+    cursor.index = (closing === NO_CLOSING_RUN ? index : closing) + NEXT_RUN;
+    if (closing !== NO_CLOSING_RUN) {
+      const end = runs[closing];
+      exclude(opening.index, end.index + end[0].length, "inline-code");
+    }
+  }
+};
+
+/** @type {[pattern: RegExp, kind: string][]} */
+const MARKUP_PHASES = [
+  [
+    // oxlint-disable-next-line eslint/require-unicode-regexp -- Keep ASCII case folding for HTML tag names and their closing backreferences.
+    /<(?<tag>script|pre|style|textarea)\b[^>]*>[\s\S]*?(?:<\/\k<tag>\s*>|$)/gi,
+    "html-block",
+  ],
+  [
+    // oxlint-disable-next-line eslint/require-unicode-regexp -- Unicode case folding would accept extra characters in this fixed HTML block name list.
+    /^ {0,3}<\/?(?:address|article|aside|blockquote|details|div|dl|fieldset|figure|footer|form|h[1-6]|header|hr|li|main|nav|ol|p|section|table|ul)\b[^\n]*[\s\S]*?(?=\n[ \t]*\r?\n|(?![\s\S]))/gim,
+    "html-block",
+  ],
+  [
+    // Paired HTML and comments are excluded with their contents.
+    /<!--[\s\S]*?(?:-->|$)|<(?<tag>[A-Za-z][\w:-]*)\b[^>]*>[\s\S]*?<\/\k<tag>\s*>|<[^>\n]+>/gu,
+    "html",
+  ],
+  [
+    /(?:[A-Za-z][A-Za-z0-9+.-]*:\/\/|mailto:|www\.)[^\s<>]+|\]\([^\n]*?\)|^ {0,3}\[[^\]\n]+\]:[^\n]*|\{#[^}\n]+\}\s*$/gmu,
+    "url-or-markup",
+  ],
+  [/^ {4}[^\n]+|^\t[^\n]+/gmu, "indented-code"],
+];
+
+/** @type {(mask: () => string, exclude: RecordExclusion) => void} */
+const excludeMarkup = (mask, exclude) => {
+  MARKUP_PHASES.forEach(([pattern, kind]) => {
+    // Mask each phase before the next one considers overlapping source.
+    [...mask().matchAll(pattern)].forEach((match) => {
+      exclude(match.index, match.index + match[0].length, kind);
+    });
+  });
+};
+
 // Offsets remain UTF-16 source offsets until sourceRange converts them to UTF-8.
 // Conservative exclusions intentionally reduce coverage rather than claim that
 // Code, metadata, link destinations, or HTML meet a prose criterion.
@@ -171,7 +246,7 @@ export const inspectMarkdown = function inspectMarkdown(markdown) {
   const uncertainties = [];
   /** @type {Fence[]} */
   const fences = [];
-  /** @type {(start: number, end: number, kind: string) => void} */
+  /** @type {RecordExclusion} */
   const exclude = (start, end, kind) => {
     exclusions.push({ start, end, kind });
   };
@@ -273,65 +348,10 @@ export const inspectMarkdown = function inspectMarkdown(markdown) {
       listIndent = null;
     }
   });
-  const mask = () => {
-    const characters = markdown.split("");
-    Iterator.from(exclusions).forEach(({ start, end }) => {
-      for (let index = start; index < end; index += 1) {
-        if (characters[index] !== "\n" && characters[index] !== "\r") {
-          characters[index] = " ";
-        }
-      }
-    });
-    return characters.join("");
-  };
-  let visible = mask();
-  // Match code spans with exactly the same delimiter length, including newlines.
-  const runs = [...visible.matchAll(/`+/gu)];
-  for (let index = 0; index < runs.length; index += 1) {
-    const run = runs[index];
-    const closing = runs.findIndex(
-      (other, otherIndex) => otherIndex > index && other[0].length === run[0].length,
-    );
-    if (closing !== -1) {
-      exclude(run.index, runs[closing].index + runs[closing][0].length, "inline-code");
-      index = closing;
-    }
-  }
-  visible = mask();
-  Iterator.from(
-    visible.matchAll(/<(script|pre|style|textarea)\b[^>]*>[\s\S]*?(?:<\/\1\s*>|$)/gi),
-  ).forEach((match) => {
-    exclude(match.index, match.index + match[0].length, "html-block");
-  });
-  visible = mask();
-  Iterator.from(
-    visible.matchAll(
-      /^ {0,3}<\/?(?:address|article|aside|blockquote|details|div|dl|fieldset|figure|footer|form|h[1-6]|header|hr|li|main|nav|ol|p|section|table|ul)\b[^\n]*[\s\S]*?(?=\n[ \t]*\r?\n|(?![\s\S]))/gim,
-    ),
-  ).forEach((match) => {
-    exclude(match.index, match.index + match[0].length, "html-block");
-  });
-  visible = mask();
-  // HTML comments and paired HTML elements are excluded in full, not just tags.
-  Iterator.from(
-    visible.matchAll(
-      /<!--[\s\S]*?(?:-->|$)|<([A-Za-z][\w:-]*)\b[^>]*>[\s\S]*?<\/\1\s*>|<[^>\n]+>/g,
-    ),
-  ).forEach((match) => {
-    exclude(match.index, match.index + match[0].length, "html");
-  });
-  visible = mask();
-  Iterator.from(
-    visible.matchAll(
-      /(?:[A-Za-z][A-Za-z0-9+.-]*:\/\/|mailto:|www\.)[^\s<>]+|\]\([^\n]*?\)|^ {0,3}\[[^\]\n]+\]:[^\n]*|\{#[^}\n]+\}\s*$/gm,
-    ),
-  ).forEach((match) => {
-    exclude(match.index, match.index + match[0].length, "url-or-markup");
-  });
-  visible = mask();
-  Iterator.from(visible.matchAll(/^ {4}[^\n]+|^\t[^\n]+/gm)).forEach((match) => {
-    exclude(match.index, match.index + match[0].length, "indented-code");
-  });
+  const mask = masking(markdown, exclusions);
+  excludeCodeSpans(mask(), exclude);
+  excludeMarkup(mask, exclude);
+  // oxlint-disable-next-line eslint/sort-keys -- Keep the existing order of the public inspection record.
   return { visible: mask(), exclusions, fences, frontmatter, uncertainties };
 };
 
