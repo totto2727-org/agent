@@ -350,11 +350,11 @@ export interface WatchClock {
   observedAt(): string;
   sleep(seconds: number): Promise<void>;
 }
-export interface RunDependencies {
-  readonly reader: T.GitHubReader;
-  readonly clock: WatchClock;
-  readonly emit: (verdict: T.ProgressVerdict) => void;
-}
+export type RunDependencies = Readonly<{
+  reader: T.GitHubReader;
+  clock: WatchClock;
+  emit: (verdict: T.ProgressVerdict) => void;
+}>;
 const deadlinePassed = (
   started: number,
   options: T.PollingOptions,
@@ -535,15 +535,15 @@ export type QueueWork =
       remaining: T.NonEmpty<T.PrContext>;
     }>
   | Readonly<{ kind: "frontier-poll"; frontier: T.PrContext }>;
-export interface QueueState {
-  readonly queue: T.NonEmpty<T.PrContext>;
-  readonly snapshots: ReadonlyMap<T.PrNumber, T.PrSnapshot>;
-  readonly work: QueueWork | null;
-  readonly nextSweepAt: number;
-  readonly frontier: T.PrContext | null;
-  readonly lastWaitKey: string | null;
-  readonly startedAt: number;
-}
+export type QueueState = Readonly<{
+  queue: T.NonEmpty<T.PrContext>;
+  snapshots: ReadonlyMap<T.PrNumber, T.PrSnapshot>;
+  work: QueueWork | null;
+  nextSweepAt: number;
+  frontier: T.PrContext | null;
+  lastWaitKey: string | null;
+  startedAt: number;
+}>;
 export const createQueueState = (
   queue: T.NonEmpty<T.PrContext>,
   now: number
@@ -579,10 +579,10 @@ export const planQueue = function planQueue(state: QueueState, now: number): Que
     ? state
     : { ...state, work: { kind: "frontier-poll", frontier } };
 };
-export interface QueueSnapshotResult {
-  readonly state: QueueState;
-  readonly completedSweepRows: T.NonEmpty<T.PrSnapshot> | null;
-}
+export type QueueSnapshotResult = Readonly<{
+  state: QueueState;
+  completedSweepRows: T.NonEmpty<T.PrSnapshot> | null;
+}>;
 export const applyQueueSnapshot = function applyQueueSnapshot(
   state: QueueState,
   snapshot: T.PrSnapshot,

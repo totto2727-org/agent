@@ -15,17 +15,17 @@ import type {
 import { parsePrNumber } from "./types.ts";
 import { matchesUndefined } from "./native-predicates.ts";
 
-export interface FakeReaderOptions {
-  readonly facts?: Partial<Omit<PullRequestFacts, "context">>;
-  readonly fastPath?: ChecksFastPath;
-  readonly rollupPages?: Readonly<RollupPage[]>;
-  readonly threads?: Readonly<ReviewThread[]>;
-  readonly threadPages?: Readonly<ReviewThreadPage[]>;
-  readonly commitRollups?: Readonly<CommitRollup[]>;
-  readonly openPullRequests?: Readonly<OpenPullRequest[]>;
-  readonly origin?: Repository | null;
-  readonly current?: PrContext;
-}
+export type FakeReaderOptions = Readonly<{
+  facts?: Partial<Omit<PullRequestFacts, "context">>;
+  fastPath?: ChecksFastPath;
+  rollupPages?: Readonly<RollupPage[]>;
+  threads?: Readonly<ReviewThread[]>;
+  threadPages?: Readonly<ReviewThreadPage[]>;
+  commitRollups?: Readonly<CommitRollup[]>;
+  openPullRequests?: Readonly<OpenPullRequest[]>;
+  origin?: Repository | null;
+  current?: PrContext;
+}>;
 
 const toRawThread = function (thread: ReviewThread): RawReviewThread {
   return { id: thread.id, firstComment: thread.firstComment, resolved: false };
