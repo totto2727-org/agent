@@ -21,6 +21,22 @@ const execute = promisify(execFile);
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const defaultSpec = resolve(scriptDirectory, "../references/history-corpus.json");
 const defaultRules = resolve(scriptDirectory, "../references/rules.json");
+const minimumTextLength = 1;
+const noEntries = 0;
+const singleAnswer = 1;
+const firstSourceLine = 1;
+const firstSampleId = 1;
+const sampleIdWidth = 4;
+const gitOutputLimit = 16_777_216;
+const defaultThreshold = 0.8;
+const minimumProbability = 0;
+const maximumProbability = 1;
+const jsonIndent = 2;
+const corpusVersion = 1;
+const optionPrefix = "--";
+const optionFields = 2;
+const optionValueOffset = 1;
+const firstCliArgument = 2;
 /** @type {Readonly<["pass", "fail", "not_applicable", "insufficient_context"]>} */
 const choices = ["pass", "fail", "not_applicable", "insufficient_context"];
 /** @typedef {(typeof choices)[number]} PredictedChoice */
@@ -38,8 +54,11 @@ const requireValue = function (condition, message) {
 
 /** @type {(value: unknown) => value is string} */
 const nonempty = function (value) {
-  return matchesString(value) && value.trim().length > 0;
+  return matchesString(value) && value.trim().length >= minimumTextLength;
 };
+
+/** @type {(entries: unknown[]) => boolean} */
+const hasEntries = (entries) => entries.length > noEntries;
 
 /** @param {unknown} value - The candidate JSON record. */
 const record = function (value) {
@@ -91,7 +110,7 @@ const readIdentity = (sample, { ids, families }) => {
 const readSource = (value, path) => {
   const { revision } = value;
   requireValue(
-    matchesString(revision) && /^(?:[a-f\d]{40}|[a-f\d]{64})$/i.test(revision),
+    matchesString(revision) && /^(?:[a-f\d]{40}|[a-f\d]{64})$/iu.test(revision),
     "Each revision must be a full Git object ID",
   );
   requireValue(
@@ -102,7 +121,7 @@ const readSource = (value, path) => {
   );
   const startLine = Number.isInteger(value.startLine) ? Number(value.startLine) : Number.NaN;
   const endLine = Number.isInteger(value.endLine) ? Number(value.endLine) : Number.NaN;
-  requireValue(startLine > 0 && endLine >= startLine, "Invalid source line range");
+  requireValue(startLine >= firstSourceLine && endLine >= startLine, "Invalid source line range");
   return { endLine, revision, startLine };
 };
 
@@ -114,7 +133,7 @@ const readLabels = (sample) => {
   const ruleIds = asArray(sample.ruleIds);
   requireValue(
     !matchesUndefined(ruleIds) &&
-      ruleIds.length > 0 &&
+      hasEntries(ruleIds) &&
       ruleIds.every(nonempty) &&
       new Set(ruleIds).size === ruleIds.length,
     "Sample ruleIds must be unique non-empty strings",
@@ -143,7 +162,7 @@ const readLabels = (sample) => {
 /** @type {(raw: unknown) => CorpusSample[]} */
 const validateSamples = (raw) => {
   const samples = asArray(raw) ?? asArray(asRecord(raw)?.samples);
-  requireValue(!matchesUndefined(samples) && samples.length > 0, "Corpus must contain samples");
+  requireValue(!matchesUndefined(samples) && hasEntries(samples), "Corpus must contain samples");
   /** @type {CorpusGroups} */
   const groups = { families: new Map(), ids: new Set() };
   return samples.map((rawSample) => {
@@ -184,10 +203,10 @@ export async function prepareCorpus({
   const selected = samples
     .map((sample, index) => ({
       sample,
-      documentId: `sample-${String(index + 1).padStart(4, "0")}`,
+      documentId: `sample-${String(index + firstSampleId).padStart(sampleIdWidth, "0")}`,
     }))
     .filter(({ sample }) => split === "all" || sample.split === split);
-  requireValue(selected.length > 0, "No samples selected");
+  requireValue(hasEntries(selected), "No samples selected");
   const documents = [];
   const labels = [];
   const pages = [];
@@ -206,10 +225,10 @@ export async function prepareCorpus({
         "--no-textconv",
         `${sample.revision}:${sample.path}`,
       ],
-      { encoding: "utf8", maxBuffer: 16 * 1024 * 1024 },
+      { encoding: "utf8", maxBuffer: gitOutputLimit },
     );
     requireValue(
-      sample.endLine <= page.split(/(?<=\n)/u).length && page.trim().length > 0,
+      sample.endLine <= page.split(/(?<=\n)/u).length && nonempty(page),
       `Source range exceeds page: ${sample.id}`,
     );
     const path = `${documentId}.md`;
@@ -238,20 +257,28 @@ export async function prepareCorpus({
   const manifest = {
     rulesFile: resolve(rulesPath),
     model: "typesafe/jev",
-    threshold: 0.8,
+    threshold: defaultThreshold,
     documents,
   };
-  const labelFile = { version: 1, samples: labels };
+  const labelFile = { version: corpusVersion, samples: labels };
   await mkdir(outputDir, { recursive: true });
   for (const { path, page } of pages) {
     await writeFile(resolve(outputDir, path), page, { flag: "wx" });
   }
-  await writeFile(resolve(outputDir, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`, {
-    flag: "wx",
-  });
-  await writeFile(resolve(outputDir, "labels.json"), `${JSON.stringify(labelFile, null, 2)}\n`, {
-    flag: "wx",
-  });
+  await writeFile(
+    resolve(outputDir, "manifest.json"),
+    `${JSON.stringify(manifest, undefined, jsonIndent)}\n`,
+    {
+      flag: "wx",
+    },
+  );
+  await writeFile(
+    resolve(outputDir, "labels.json"),
+    `${JSON.stringify(labelFile, undefined, jsonIndent)}\n`,
+    {
+      flag: "wx",
+    },
+  );
   return { manifest, labels: labelFile };
 }
 
@@ -309,7 +336,10 @@ const scoreCompletedAnswer = (row, answer, threshold) => {
   const choice = choices.find((option) => option === answer?.choice);
   const providedConfidence = answer?.confidence;
   const confidence = Number.isFinite(providedConfidence) ? Number(providedConfidence) : Number.NaN;
-  if (matchesUndefined(choice) || !(confidence >= 0 && confidence <= 1)) {
+  if (
+    matchesUndefined(choice) ||
+    !(confidence >= minimumProbability && confidence <= maximumProbability)
+  ) {
     row.reason = "malformed_answer";
     return;
   }
@@ -337,10 +367,12 @@ export function scoreReport(report, labels) {
   const evaluations = asArray(sourceReport?.evaluations);
   requireValue(!matchesUndefined(evaluations), "Report must contain evaluations");
   const samples = validateSamples(labels);
-  const reportedThreshold = sourceReport?.threshold ?? 0.8;
+  const reportedThreshold = sourceReport?.threshold ?? defaultThreshold;
   const threshold = Number.isFinite(reportedThreshold) ? Number(reportedThreshold) : Number.NaN;
   requireValue(
-    Number.isFinite(threshold) && threshold >= 0 && threshold <= 1,
+    Number.isFinite(threshold) &&
+      threshold >= minimumProbability &&
+      threshold <= maximumProbability,
     "Invalid report threshold",
   );
   /** @type {Map<string, ScoringTarget>} */
@@ -446,24 +478,24 @@ export function scoreReport(report, labels) {
       expected: Object.hasOwn(sample.expected, ruleId) ? sample.expected[ruleId] : null,
       outcome: "infrastructureError",
     };
-    if (matches.length === 0) {
+    if (!hasEntries(matches)) {
       row.reason = "missing";
-      missing += 1;
-    } else if (matches.length > 1) {
+      missing += singleAnswer;
+    } else if (matches.length > singleAnswer) {
       row.reason = "duplicate_question";
-      duplicates += matches.length - 1;
+      duplicates += matches.length - singleAnswer;
     } else {
       const { evaluation, answers } = matches[0];
       if (evaluation.status !== "complete") {
         row.reason = evaluation.status === "error" ? "evaluation_error" : "not_evaluated";
-      } else if (answers.length === 1) {
+      } else if (answers.length === singleAnswer) {
         scoreCompletedAnswer(row, answers[0], threshold);
       } else {
-        row.reason = answers.length === 0 ? "missing" : "duplicate_answer";
-        if (answers.length === 0) {
-          missing += 1;
+        row.reason = hasEntries(answers) ? "duplicate_answer" : "missing";
+        if (!hasEntries(answers)) {
+          missing += singleAnswer;
         } else {
-          duplicates += answers.length - 1;
+          duplicates += answers.length - singleAnswer;
         }
       }
     }
@@ -484,18 +516,18 @@ export function scoreReport(report, labels) {
     });
   });
   return {
-    version: 1,
+    version: corpusVersion,
     positiveClass: "fail",
     threshold,
     coverage: {
       expected: expected.size,
       labeled: rows.filter((row) => !matchesNull(row.expected)).length,
       exploratory: rows.filter((row) => matchesNull(row.expected)).length,
-      matched: [...expected.values()].filter((target) => target.matches.length > 0).length,
+      matched: [...expected.values()].filter((target) => hasEntries(target.matches)).length,
       missing,
       duplicates,
       unexpected: issues.length,
-      exact: missing === 0 && duplicates === 0 && issues.length === 0,
+      exact: missing === noEntries && duplicates === noEntries && !hasEntries(issues),
     },
     totals,
     perRule: Object.fromEntries(perRule),
@@ -510,7 +542,7 @@ export async function scoreCorpus({ reportPath, labelsPath, outputPath }) {
   const report = JSON.parse(await readFile(reportPath, "utf8"));
   const labels = JSON.parse(await readFile(labelsPath, "utf8"));
   const result = scoreReport(report, labels);
-  await writeFile(outputPath, `${JSON.stringify(result, null, 2)}\n`, { flag: "wx" });
+  await writeFile(outputPath, `${JSON.stringify(result, undefined, jsonIndent)}\n`, { flag: "wx" });
   return result;
 }
 
@@ -527,14 +559,18 @@ export function parseArguments(argv) {
       : new Set(["report", "labels", "output"]);
   /** @type {Record<string, string>} */
   const options = {};
-  for (let index = 0; index < argumentsList.length; index += 2) {
+  for (let index = 0; index < argumentsList.length; index += optionFields) {
     const flags = argumentsList[index];
     const flag = matchesString(flags) ? flags : "";
-    const value = argumentsList[index + 1];
-    requireValue(flag.startsWith("--") && allowed.has(flag.slice(2)), `Unknown argument: ${flag}`);
-    requireValue(nonempty(value) && !value.startsWith("--"), `Missing value for ${flag}`);
-    requireValue(matchesUndefined(options[flag.slice(2)]), `Duplicate argument: ${flag}`);
-    options[flag.slice(2)] = value;
+    const value = argumentsList[index + optionValueOffset];
+    const flagName = flag.slice(optionPrefix.length);
+    requireValue(
+      flag.startsWith(optionPrefix) && allowed.has(flagName),
+      `Unknown argument: ${flag}`,
+    );
+    requireValue(nonempty(value) && !value.startsWith(optionPrefix), `Missing value for ${flag}`);
+    requireValue(matchesUndefined(options[flagName]), `Duplicate argument: ${flag}`);
+    options[flagName] = value;
   }
   Iterator.from(
     command === "prepare" ? ["repository", "output-dir"] : ["report", "labels", "output"],
@@ -546,7 +582,7 @@ export function parseArguments(argv) {
 
 const main = async function () {
   try {
-    const { command, options } = parseArguments(process.argv.slice(2));
+    const { command, options } = parseArguments(process.argv.slice(firstCliArgument));
     if (command === "prepare") {
       await prepareCorpus({
         repository: options.repository,
@@ -561,7 +597,7 @@ const main = async function () {
         labelsPath: options.labels,
         outputPath: options.output,
       });
-      if (!result.coverage.exact || result.totals.infrastructureError > 0) {
+      if (!result.coverage.exact || result.totals.infrastructureError > noEntries) {
         process.exitCode = 1;
       }
     }
