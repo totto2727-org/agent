@@ -1,5 +1,5 @@
-import { checked, isString, list, matchesNull, matchesUndefined, visitItems } from '../ir.ts';
-import type { CheckedView, Value, Vars } from '../ir.ts';
+import { checked, isString, list, matchesNull, matchesUndefined, visitItems } from '#statechart/ir.ts';
+import type { CheckedView, Value, Vars } from '#statechart/ir.ts';
 
 type Json = boolean | number | string | Json[] | { [key: string]: Json };
 

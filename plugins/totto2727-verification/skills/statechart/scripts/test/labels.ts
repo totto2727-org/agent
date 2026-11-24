@@ -1,10 +1,10 @@
 import { inspect } from "node:util";
-import { drawnEdges, mermaid as chartText } from "../backends/mermaid.ts";
-import { checkView } from "../frontends/view.ts";
-import type { Chart, ChartState, State, Step, View } from "../ir.ts";
-import { walk } from "../passes/reach.ts";
-import { project } from "../pipeline.ts";
-import { visitItems } from "../ir.ts";
+import { drawnEdges, mermaid as chartText } from "#statechart/backends/mermaid.ts";
+import { checkView } from "#statechart/frontends/view.ts";
+import type { Chart, ChartState, State, Step, View } from "#statechart/ir.ts";
+import { walk } from "#statechart/passes/reach.ts";
+import { project } from "#statechart/pipeline.ts";
+import { visitItems } from "#statechart/ir.ts";
 
 export type Render = (text: string) => { svg: string };
 

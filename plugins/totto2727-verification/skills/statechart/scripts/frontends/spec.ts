@@ -1,6 +1,6 @@
-import type { Config, ConfigSection, Spec } from "../ir.ts";
+import type { Config, ConfigSection, Spec } from "#statechart/ir.ts";
 import { NAME } from "./config.ts";
-import { matchesUndefined, visitItems } from "../ir.ts";
+import { matchesUndefined, visitItems } from "#statechart/ir.ts";
 
 export type Checks = Pick<Spec, "invariants" | "properties" | "deadlock" | "written">;
 

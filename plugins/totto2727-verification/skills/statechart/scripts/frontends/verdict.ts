@@ -1,5 +1,5 @@
-import { EC, isString, visitItems } from '../ir.ts';
-import type { Part } from '../ir.ts';
+import { EC, isString, visitItems } from '#statechart/ir.ts';
+import type { Part } from '#statechart/ir.ts';
 import { textOf } from "./messages.ts";
 
 export type Break =

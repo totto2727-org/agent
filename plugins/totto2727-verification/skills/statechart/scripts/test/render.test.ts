@@ -8,13 +8,13 @@ import path from "node:path";
 // oxlint-disable-next-line rules/no-node-imports, vitest/no-import-node-test -- Statechart runs these fixtures with Node's test runner as part of the standalone skill.
 import { before, test } from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { mermaid as chartText } from "../backends/mermaid.ts";
-import type { Graph } from "../ir.ts";
-import { walk } from "../passes/reach.ts";
-import { project } from "../pipeline.ts";
+import { mermaid as chartText } from "#statechart/backends/mermaid.ts";
+import type { Graph } from "#statechart/ir.ts";
+import { walk } from "#statechart/passes/reach.ts";
+import { project } from "#statechart/pipeline.ts";
 import { fuzz } from './labels.ts';
 import type { Html, Mermaid, Render } from './labels.ts';
-import { visitItems } from "../ir.ts";
+import { visitItems } from "#statechart/ir.ts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const charts = [

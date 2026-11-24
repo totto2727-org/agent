@@ -1,5 +1,5 @@
-import { CHECK_DEADLOCK, matchesUndefined, visitItems } from '../ir.ts';
-import type { Config } from '../ir.ts';
+import { CHECK_DEADLOCK, matchesUndefined, visitItems } from '#statechart/ir.ts';
+import type { Config } from '#statechart/ir.ts';
 
 type ListField = "invariants" | "properties" | "constraints" | "actionConstraints";
 type Section = {

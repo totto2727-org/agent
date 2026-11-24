@@ -1,5 +1,5 @@
-import { byText, count, defaultState, matchesUndefined, must, ruleKey, sortBy, visitItems } from '../ir.ts';
-import type { Bug, Graph, PathStep, Rule, State, Walk } from '../ir.ts';
+import { byText, count, defaultState, matchesUndefined, must, ruleKey, sortBy, visitItems } from '#statechart/ir.ts';
+import type { Bug, Graph, PathStep, Rule, State, Walk } from '#statechart/ir.ts';
 
 export function walk(graph: Graph): Walk {
   const ids: string[] = [];

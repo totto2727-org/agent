@@ -1,5 +1,5 @@
-import { append, byText, hasRule, holds, loopOf, matchesUndefined, must, ruleKey, seqOf, tupleKey, unkey, visitItems } from '../ir.ts';
-import type { Arrow, Bug, Chart, ChartState, ChartStep, Condition, Labels, Region, Rule, View, Walk } from '../ir.ts';
+import { append, byText, hasRule, holds, loopOf, matchesUndefined, must, ruleKey, seqOf, tupleKey, unkey, visitItems } from '#statechart/ir.ts';
+import type { Arrow, Bug, Chart, ChartState, ChartStep, Condition, Labels, Region, Rule, View, Walk } from '#statechart/ir.ts';
 
 const anyRest: Condition = { kind: "and", otherKeys: [] };
 

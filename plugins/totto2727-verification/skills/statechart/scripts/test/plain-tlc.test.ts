@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 // oxlint-disable-next-line rules/no-node-imports, vitest/no-import-node-test -- Statechart runs these fixtures with Node's test runner as part of the standalone skill.
 import { test } from "node:test";
 import { agrees, skip } from "./tlc.ts";
-import { visitItems } from "../ir.ts";
+import { visitItems } from "#statechart/ir.ts";
 
 const late = [
   "---- MODULE Late ----",

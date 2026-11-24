@@ -7,11 +7,11 @@ import path from "node:path";
 // oxlint-disable-next-line rules/no-node-imports, vitest/no-import-node-test -- Statechart runs these fixtures with Node's test runner as part of the standalone skill.
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { configText } from "../backends/cfg.ts";
-import { readConfig } from "../frontends/config.ts";
-import { readChecks } from '../frontends/spec.ts';
-import type { Checks } from '../frontends/spec.ts';
-import { visitItems } from "../ir.ts";
+import { configText } from "#statechart/backends/cfg.ts";
+import { readConfig } from "#statechart/frontends/config.ts";
+import { readChecks } from '#statechart/frontends/spec.ts';
+import type { Checks } from '#statechart/frontends/spec.ts';
+import { visitItems } from "#statechart/ir.ts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const skip = !process.env.TLA2TOOLS && "set TLA2TOOLS to the path of tla2tools.jar to run TLC";

@@ -1,5 +1,5 @@
-import { findLoop, findTrace, hasRule, matchesUndefined, must, pastState, stateKey, valuesOf, visitItems } from '../ir.ts';
-import type { Graph, Lasso, Mark, Past, PathStep, Rule, Step, Trace, TraceState, Value } from '../ir.ts';
+import { findLoop, findTrace, hasRule, matchesUndefined, must, pastState, stateKey, valuesOf, visitItems } from '#statechart/ir.ts';
+import type { Graph, Lasso, Mark, Past, PathStep, Rule, Step, Trace, TraceState, Value } from '#statechart/ir.ts';
 
 export const finder = (graph: Graph, names: string[]) => {
   let ids: Map<string, string> | undefined;

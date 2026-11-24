@@ -1,5 +1,5 @@
-import type { Value } from "../ir.ts";
-import { matchesUndefined, visitItems } from "../ir.ts";
+import type { Value } from "#statechart/ir.ts";
+import { matchesUndefined, visitItems } from "#statechart/ir.ts";
 
 export const BRACKET = new Int8Array(128);
 visitItems("<{[(", (c) => {BRACKET[c.charCodeAt(0)] = 1;});

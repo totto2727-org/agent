@@ -1,5 +1,5 @@
-import { isRecord, isString, key, list, loopOf, matchesNull, matchesUndefined, must, sortBy, stateText, tupleKey, visitItems } from '../ir.ts';
-import type { Answers, Bug, Graph, Hidden, Labels, Rule, Shape, Step, Story, Vars, View, Walk } from '../ir.ts';
+import { isRecord, isString, key, list, loopOf, matchesNull, matchesUndefined, must, sortBy, stateText, tupleKey, visitItems } from '#statechart/ir.ts';
+import type { Answers, Bug, Graph, Hidden, Labels, Rule, Shape, Step, Story, Vars, View, Walk } from '#statechart/ir.ts';
 
 const isLabel = (l: unknown): l is string =>
   isString(l) && l !== "" && !/\bundefined\b|\bNaN\b|\[object Object\]/u.test(l);

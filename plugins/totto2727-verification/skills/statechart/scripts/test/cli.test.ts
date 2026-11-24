@@ -9,10 +9,10 @@ import path from "node:path";
 import { test } from "node:test";
 import { setTimeout as sleep } from "node:timers/promises";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { plainText } from "../backends/plain-text.ts";
-import { readMessages } from "../frontends/messages.ts";
+import { plainText } from "#statechart/backends/plain-text.ts";
+import { readMessages } from "#statechart/frontends/messages.ts";
 import { drawn } from "./drawn.ts";
-import { visitItems } from "../ir.ts";
+import { visitItems } from "#statechart/ir.ts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const corpus = path.join(here, "corpus");

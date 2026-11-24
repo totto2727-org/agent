@@ -1,5 +1,5 @@
-import { EC, isString, matchesUndefined, memo, visitItems } from '../ir.ts';
-import type { Mark, Part, TraceState, Value } from '../ir.ts';
+import { EC, isString, matchesUndefined, memo, visitItems } from '#statechart/ir.ts';
+import type { Mark, Part, TraceState, Value } from '#statechart/ir.ts';
 import { actionOf, messageState } from "./messages.ts";
 import { BRACKET, isSpace, parseValue, tokenEnd, unreadable } from "./value.ts";
 

@@ -1,5 +1,5 @@
-import { EC, LEVEL, PART, isString } from '../ir.ts';
-import type { Message, Part } from '../ir.ts';
+import { EC, LEVEL, PART, isString } from '#statechart/ir.ts';
+import type { Message, Part } from '#statechart/ir.ts';
 
 const PREFIX: Record<number, string> = {
   [LEVEL.ERROR]: "Error: ",

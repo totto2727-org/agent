@@ -7,8 +7,8 @@ import path from "node:path";
 // oxlint-disable-next-line rules/no-node-imports, vitest/no-import-node-test -- Statechart runs these fixtures with Node's test runner as part of the standalone skill.
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { check, PINNED_FLAGS } from "../run.ts";
-import { visitItems } from "../ir.ts";
+import { check, PINNED_FLAGS } from "#statechart/run.ts";
+import { visitItems } from "#statechart/ir.ts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const corpus = path.join(here, "corpus");

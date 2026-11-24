@@ -1,5 +1,5 @@
-import { append, byText, matchesUndefined, tupleKey, visitItems } from '../ir.ts';
-import type { Chart, ChartState, Region } from '../ir.ts';
+import { append, byText, matchesUndefined, tupleKey, visitItems } from '#statechart/ir.ts';
+import type { Chart, ChartState, Region } from '#statechart/ir.ts';
 
 const BLANK = /\p{White_Space}/u;
 const SAFE = /^[\p{L}\p{N} !'()+,\-./=?[\]"_|@{}:\\^%<>]$/u;

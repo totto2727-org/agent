@@ -1,5 +1,5 @@
-import { CHART_STATES, RERUN_STATES, visitItems } from '../ir.ts';
-import type { ConfigSection, Spec } from '../ir.ts';
+import { CHART_STATES, RERUN_STATES, visitItems } from '#statechart/ir.ts';
+import type { ConfigSection, Spec } from '#statechart/ir.ts';
 
 export function configText(sections: ConfigSection[], extra: string[]): string {
   const lines: string[] = [];

@@ -1,4 +1,4 @@
-import { visitItems } from "../ir.ts";
+import { visitItems } from "#statechart/ir.ts";
 
 const shown = (text: string): string => text.replaceAll(/#(\d+);/gu, (_, n) => String.fromCodePoint(Number(n)));
 

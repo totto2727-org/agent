@@ -2,15 +2,17 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
+// oxlint-disable-next-line rules/no-node-imports -- Node resolves type-only imports from each file for the dependency boundary test.
+import { createRequire } from "node:module";
 import path from "node:path";
 // oxlint-disable-next-line rules/no-node-imports, vitest/no-import-node-test -- Statechart runs these fixtures with Node's test runner as part of the standalone skill.
 import { test } from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { inspect } from "node:util";
-import { checkView } from "../frontends/view.ts";
-import { EC, LEVEL, stateRules, visitItems } from '../ir.ts';
-import type { CheckResult, Rule, Spec, Verdict } from '../ir.ts';
-import { compile } from "../pipeline.ts";
+import { checkView } from "#statechart/frontends/view.ts";
+import { EC, LEVEL, stateRules, visitItems } from '#statechart/ir.ts';
+import type { CheckResult, Rule, Spec, Verdict } from '#statechart/ir.ts';
+import { compile } from "#statechart/pipeline.ts";
 
 const scripts = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -55,8 +57,13 @@ const RUNTIME =
   /\b(?:process|require|globalThis|global|Deno|Bun|Buffer|setImmediate|clearImmediate|fetch)\b|\bimport\s*\(/g;
 const TYPE_IMPORT =
   /\b(?:import|export)\s+type\b\s*(?:[\w$]+|\*(?:\s*as\s+[\w$]+)?|\{[^}]*\})\s*from\s*["']([^"']*)["']/g;
-const typeImports = (file: string): string[] =>
-  Array.from(codeOf(file).matchAll(TYPE_IMPORT), (match) => path.join(path.dirname(file), match[1]));
+const typeImports = (file: string): string[] => {
+  const resolveFromFile = createRequire(path.join(scripts, file)).resolve;
+  return Array.from(codeOf(file).matchAll(TYPE_IMPORT), (match) => {
+    const resolved = resolveFromFile(match[1]);
+    return path.isAbsolute(resolved) ? path.relative(scripts, resolved) : resolved;
+  });
+};
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("ir.ts imports nothing", () => {

@@ -1,5 +1,5 @@
-import { append, matchesUndefined, must, tupleKey, unkey, visitItems } from '../ir.ts';
-import type { Chart, ChartState, ChartStep, Region } from '../ir.ts';
+import { append, matchesUndefined, must, tupleKey, unkey, visitItems } from '#statechart/ir.ts';
+import type { Chart, ChartState, ChartStep, Region } from '#statechart/ir.ts';
 
 export function liftToParents(states: ChartState[], steps: ChartStep[]) {
   const depths = new Map<string, number>();

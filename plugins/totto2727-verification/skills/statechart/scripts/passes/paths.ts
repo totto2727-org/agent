@@ -1,5 +1,5 @@
-import { hasRule, matchesUndefined, must, stateKey } from '../ir.ts';
-import type { Bug, Graph, Lasso, PathStep, Rule, Step, Trace, TraceState, Vars } from '../ir.ts';
+import { hasRule, matchesUndefined, must, stateKey } from '#statechart/ir.ts';
+import type { Bug, Graph, Lasso, PathStep, Rule, Step, Trace, TraceState, Vars } from '#statechart/ir.ts';
 
 export function pathGraph(names: string[]) {
   const graph: Graph = { states: new Map(), steps: [] };

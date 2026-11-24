@@ -1,7 +1,7 @@
 // oxlint-disable-next-line import/no-relative-parent-imports -- The standalone skill loads the adjacent IR module without an alias resolver.
-import { append, holds, matchesUndefined, tupleKey, unkey } from "../ir.ts";
+import { append, holds, matchesUndefined, tupleKey, unkey } from "#statechart/ir.ts";
 // oxlint-disable-next-line import/no-relative-parent-imports -- Share the pipeline's IR types within the standalone skill.
-import type { Arrow, Labels, Region, Walk } from "../ir.ts";
+import type { Arrow, Labels, Region, Walk } from "#statechart/ir.ts";
 
 interface Move {
   from: string[];

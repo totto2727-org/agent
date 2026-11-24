@@ -1,5 +1,5 @@
-import { EC, isString, matchesUndefined } from '../ir.ts';
-import type { Part, Trace } from '../ir.ts';
+import { EC, isString, matchesUndefined } from '#statechart/ir.ts';
+import type { Part, Trace } from '#statechart/ir.ts';
 import { actionOf, messageState, textOf } from "./messages.ts";
 
 export function readTrace(messages: Iterable<Part>): Trace {

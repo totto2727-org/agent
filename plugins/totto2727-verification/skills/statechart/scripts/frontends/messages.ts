@@ -1,6 +1,6 @@
-import type { Message, Part } from "../ir.ts";
+import type { Message, Part } from "#statechart/ir.ts";
 import { linesOf, parseState } from "./dot.ts";
-import { isString } from "../ir.ts";
+import { isString } from "#statechart/ir.ts";
 
 const START = /@!@!@STARTMSG (\d+):(\d+) @!@!@$/u;
 const END = /^@!@!@ENDMSG \d+ @!@!@$/u;

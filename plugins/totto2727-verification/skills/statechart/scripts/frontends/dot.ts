@@ -1,6 +1,6 @@
-import type { Graph, State, Step, Value, Vars } from '../ir.ts';
+import type { Graph, State, Step, Value, Vars } from '#statechart/ir.ts';
 import { parseValue } from "./value.ts";
-import { isString, matchesUndefined, visitItems } from "../ir.ts";
+import { isString, matchesUndefined, visitItems } from "#statechart/ir.ts";
 
 const unescapeDot = (s: string): string => {
   let i = s.indexOf("\\");

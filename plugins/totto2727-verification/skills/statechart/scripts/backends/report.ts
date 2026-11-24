@@ -1,5 +1,5 @@
-import { CHART_STATES, RERUN_STATES, hasSection, list, matchesUndefined, must, ruleKey, visitItems } from '../ir.ts';
-import type { Bug, Chart, Graph, Property, Spec, Stop, Story, Verdict } from '../ir.ts';
+import { CHART_STATES, RERUN_STATES, hasSection, list, matchesUndefined, must, ruleKey, visitItems } from '#statechart/ir.ts';
+import type { Bug, Chart, Graph, Property, Spec, Stop, Story, Verdict } from '#statechart/ir.ts';
 
 const stepsOf = (story: Story) => {
   const path: { step?: string; state: string }[] = [];

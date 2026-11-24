@@ -5,8 +5,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { PINNED_FLAGS } from "../run.ts";
-import { visitItems } from "../ir.ts";
+import { PINNED_FLAGS } from "#statechart/run.ts";
+import { visitItems } from "#statechart/ir.ts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const jar = process.env.TLA2TOOLS;
