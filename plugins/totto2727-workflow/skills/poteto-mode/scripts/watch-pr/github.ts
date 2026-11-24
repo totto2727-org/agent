@@ -35,26 +35,29 @@ export class ChecksUnavailable extends WatcherQueryError {
     this.name = "ChecksUnavailable";
   }
 }
-const firstLine = (value: string): string =>
-  value.trim().split(/\r?\n/u, 1)[0]?.slice(0, 240) ?? "";
-const run = function (argv: Readonly<[string, ...string[]]>): Promise<CommandResult> {
-  return new Promise((resolve, reject) => {
-    const child = spawn(argv[0], argv.slice(1), {
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-    let stdout = "";
-    let stderr = "";
-    child.stdout.setEncoding("utf8");
-    child.stderr.setEncoding("utf8");
-    child.stdout.on("data", (chunk: string) => {
-      stdout += chunk;
-    });
-    child.stderr.on("data", (chunk: string) => {
-      stderr += chunk;
-    });
-    child.on("error", reject);
-    child.on("close", (code) => resolve({ code: code ?? -1, stdout, stderr }));
+const FIRST_LINE_ONLY = 1;
+const LINE_START = 0;
+const COMMAND_DETAIL_WIDTH = 240;
+const SUCCESS_EXIT = 0;
+const SIGNAL_EXIT = -1;
+const firstLine = (value: string): string => {
+  const [line = ""] = value.trim().split(/\r?\n/u, FIRST_LINE_ONLY);
+  return line.slice(LINE_START, COMMAND_DETAIL_WIDTH);
+};
+const run = async function ([file, ...args]: Readonly<[string, ...string[]]>): Promise<CommandResult> {
+  const { promise, reject, resolve } = Promise.withResolvers<CommandResult>();
+  const child = spawn(file, args, { stdio: ["ignore", "pipe", "pipe"] });
+  const stdout: string[] = [];
+  const stderr: string[] = [];
+  child.stdout.setEncoding("utf8");
+  child.stderr.setEncoding("utf8");
+  child.stdout.on("data", (chunk: string) => {stdout.push(chunk);});
+  child.stderr.on("data", (chunk: string) => {stderr.push(chunk);});
+  child.on("error", reject);
+  child.on("close", (code) => {
+    resolve({ code: code ?? SIGNAL_EXIT, stdout: stdout.join(""), stderr: stderr.join("") });
   });
+  return promise;
 };
 const parseJson = function (text: string, label: string): unknown {
   try {
@@ -69,7 +72,7 @@ const parseJson = function (text: string, label: string): unknown {
 };
 const runJson = async function (argv: Readonly<[string, ...string[]]>): Promise<unknown> {
   const result = await run(argv);
-  if (result.code !== 0)
+  if (result.code !== SUCCESS_EXIT)
     {throw new WatcherQueryError({
       kind: "command-exit",
       retryable: true,
@@ -105,13 +108,14 @@ const record = (value: unknown, path: string): Record<string, unknown> =>
 const list = (value: unknown, path: string): Readonly<unknown[]> =>
   Array.isArray(value) ? value : missing(path, value);
 const at = function (value: unknown, path: Readonly<string[]>): unknown {
-  let current = value;
-  visitItems(path, (key) => {
-    const object = record(current, path.join("."));
-    if (!(key in object)) {missing(path.join("."));}
-    current = object[key];
-  });
-  return current;
+  const label = path.join(".");
+  const descend = (current: unknown, [key, ...rest]: Readonly<string[]>): unknown => {
+    if (matchesUndefined(key)) {return current;}
+    const object = record(current, label);
+    if (!(key in object)) {missing(label);}
+    return descend(object[key], rest);
+  };
+  return descend(value, path);
 };
 const string = (value: unknown, path: string): string =>
   isString(value) ? value : missing(path, value);
@@ -119,20 +123,19 @@ const boolean = (value: unknown, path: string): boolean =>
   isBoolean(value) ? value : missing(path, value);
 const optionalString = (value: unknown, path: string): string | null =>
   matchesNull(value) ? null : string(value, path);
-const enumValue = function <const V extends Readonly<string[]>>(
+const enumValue = function <const Member extends string>(
   value: unknown,
-  values: V,
+  values: Readonly<Member[]>,
   path: string
-): V[number] {
-  if (isString(value))
-    {for (const candidate of values) {if (candidate === value) {return candidate;}}}
-  return missing(path, value);
+): Member {
+  const match = isString(value) ? values.find((candidate) => candidate === value) : undefined;
+  return match ?? missing(path, value);
 };
-const nullableEnum = <const V extends Readonly<string[]>>(
+const nullableEnum = <const Member extends string>(
   value: unknown,
-  values: V,
+  values: Readonly<Member[]>,
   path: string
-): V[number] | null => (matchesNull(value) ? null : enumValue(value, values, path));
+): Member | null => (matchesNull(value) ? null : enumValue(value, values, path));
 const MERGE_STATES = [
   "BEHIND",
   "BLOCKED",
@@ -165,28 +168,31 @@ const reviewDecision = (value: unknown): T.ReviewDecision =>
     REVIEW_DECISIONS,
     "pull request.reviewDecision"
   );
+const SCP_GITHUB_PREFIX = "git@github.com:";
+const SSH_GITHUB_PREFIX = "ssh://git@github.com/";
+const HTTPS_GITHUB_PREFIX = "https://github.com/";
+const REPOSITORY_PATH_PARTS = 2;
+const PULL_PATH_PARTS = 4;
+const PULL_PATH_SEGMENT = 2;
+const PULL_NUMBER_SEGMENT = 3;
+
+const normalizeRemote = (value: string): string => {
+  const trimmed = value.trim();
+  const prefix = [SCP_GITHUB_PREFIX, SSH_GITHUB_PREFIX].find((candidate) => trimmed.startsWith(candidate));
+  return matchesUndefined(prefix) ? trimmed : `${HTTPS_GITHUB_PREFIX}${trimmed.slice(prefix.length)}`;
+};
+const isCanonicalGitHub = (url: URL): boolean =>
+  url.protocol === "https:" && url.hostname === "github.com" &&
+  !url.port && !url.username && !url.password && !url.search && !url.hash;
+
 const parseRemote = function (value: string): T.Repository | null {
-  let normalized = value.trim();
-  if (normalized.startsWith("git@github.com:"))
-    {normalized = `https://github.com/${normalized.slice(15)}`;}
-  if (normalized.startsWith("ssh://git@github.com/"))
-    {normalized = `https://github.com/${normalized.slice(21)}`;}
   try {
-    const url = new URL(normalized);
+    const url = new URL(normalizeRemote(value));
     const parts = url.pathname
       .replace(/\.git$/u, "")
       .split("/")
       .filter(Boolean);
-    if (
-      url.protocol !== "https:" ||
-      url.hostname !== "github.com" ||
-      url.port ||
-      url.username ||
-      url.password ||
-      url.search ||
-      url.hash ||
-      parts.length !== 2
-    )
+    if (!isCanonicalGitHub(url) || parts.length !== REPOSITORY_PATH_PARTS)
       {return null;}
     return { owner: parts[0], repo: parts[1] };
   } catch {
@@ -197,22 +203,12 @@ const parsePrUrl = function (value: string): T.PrContext {
   try {
     const url = new URL(value);
     const parts = url.pathname.split("/").filter(Boolean);
-    if (
-      url.protocol !== "https:" ||
-      url.hostname !== "github.com" ||
-      url.port ||
-      url.username ||
-      url.password ||
-      url.search ||
-      url.hash ||
-      parts.length !== 4 ||
-      parts[2] !== "pull"
-    )
+    if (!isCanonicalGitHub(url) || parts.length !== PULL_PATH_PARTS || parts[PULL_PATH_SEGMENT] !== "pull")
       {throw new Error("not a canonical GitHub pull URL");}
     return {
       owner: parts[0],
       repo: parts[1],
-      number: parsePrNumber(Number(parts[3])),
+      number: parsePrNumber(Number(parts[PULL_NUMBER_SEGMENT])),
     };
   } catch (error) {
     throw new WatcherQueryError({
