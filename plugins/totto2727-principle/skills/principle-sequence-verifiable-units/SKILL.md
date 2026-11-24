@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 # Sequence work into verifiable units
 
-Start with the smallest working end-to-end version. Verify it before extending it, and preserve working behavior at each step.
+Start with the smallest working end-to-end version and preserve working behavior as you extend it.
 
 Order work as small units that each end in a state you can check, and do not advance until the current one is green.
 

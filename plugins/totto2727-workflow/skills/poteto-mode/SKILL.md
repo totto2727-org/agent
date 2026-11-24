@@ -19,6 +19,8 @@ For a substantial task, open the matching playbook below and track its applicabl
 | Coordinate extended work                      | [Autonomous run](playbooks/autonomous-run.md), [independent queue](playbooks/autopilot-full.md), or [dependent stack](playbooks/autopilot-stack.md)  |
 | Pause, resume, or remove completed workspaces | [Pause safely](playbooks/pause-safely.md), [session pickup](playbooks/session-pickup.md), or [worktree cleanup](playbooks/worktree-cleanup.md)       |
 
+For a README, AGENTS.md, or ADR, use [technical-writing](../technical-writing/SKILL.md) ([source](https://github.com/totto2727-org/agent/blob/main/plugins/totto2727-documentation/skills/technical-writing/SKILL.md)). If substantial work fits no playbook, use [figure-it-out](../figure-it-out/SKILL.md) ([source](https://github.com/totto2727-org/agent/blob/main/plugins/totto2727-engineering/skills/figure-it-out/SKILL.md)).
+
 ## Execution
 
 Use the repository's verification workflow. For a defect, capture the failure first. For a design choice, run the smallest experiment that distinguishes the alternatives. For a behavior change, exercise the affected interface after editing. Inspect the final diff, including work you delegated.
