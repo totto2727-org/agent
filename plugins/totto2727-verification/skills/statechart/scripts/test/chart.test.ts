@@ -1,3 +1,4 @@
+// oxlint-disable-next-line rules/no-node-imports -- Statechart's Node suite uses native assertions for chart and subprocess results.
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";

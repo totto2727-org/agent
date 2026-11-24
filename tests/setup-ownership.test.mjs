@@ -1,3 +1,4 @@
+// oxlint-disable-next-line rules/no-node-imports -- The workspace's Node suite uses native assertions for the installed script's outputs and failures.
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import {
