@@ -25,6 +25,10 @@ export class WatcherQueryError extends Error {
     this.failure = failure;
   }
 }
+
+export const errorMessage = (error: unknown): string =>
+  // oxlint-disable-next-line rules/no-instanceof-error, rules/no-error-property-access -- The standalone watcher preserves native errors and its fallback for non-Error throws.
+  error instanceof Error ? error.message : String(error);
 export class ChecksUnavailable extends WatcherQueryError {
   public constructor(detail: string) {
     super({ kind: "checks-unavailable", retryable: true, detail });
@@ -59,7 +63,7 @@ const parseJson = function (text: string, label: string): unknown {
     throw new WatcherQueryError({
       kind: "json-parse",
       retryable: true,
-      detail: `${label}: ${error instanceof Error ? error.message : String(error)}`,
+      detail: `${label}: ${errorMessage(error)}`,
     });
   }
 };
@@ -215,7 +219,7 @@ const parsePrUrl = function (value: string): T.PrContext {
       kind: "invalid-context-url",
       retryable: false,
       rawValue: value,
-      detail: `could not infer owner/repo from PR URL: ${value} (${error instanceof Error ? error.message : String(error)})`,
+      detail: `could not infer owner/repo from PR URL: ${value} (${errorMessage(error)})`,
     });
   }
 };

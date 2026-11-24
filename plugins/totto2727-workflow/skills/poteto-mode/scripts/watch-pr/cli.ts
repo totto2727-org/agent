@@ -1,51 +1,68 @@
+// oxlint-disable-next-line rules/no-node-imports -- The standalone watcher waits between polls using Bun's native timer.
 import { setTimeout as delay } from "node:timers/promises";
+// oxlint-disable-next-line rules/no-node-imports -- Parse the same switches in the standalone watcher on its supported Bun versions.
 import { parseArgs as parseOptions } from "node:util";
-import { GhGitHubReader, WatcherQueryError, discoverStack, resolveContext } from "./github.ts";
+import { GhGitHubReader, WatcherQueryError, discoverStack, errorMessage, resolveContext } from "./github.ts";
 import { runQueued, runSimple, statusQueryVerdict, verdictFactory } from './policy.ts';
 import type { WatchClock } from './policy.ts';
 import { renderJson, renderPretty } from "./render.ts";
-import type * as T from "./types.ts";
+import type * as Watch from "./types.ts";
 import { nonEmpty, parsePrNumber } from "./types.ts";
 import { matchesNull, matchesUndefined } from "./native-predicates.ts";
 
-export interface CliOptions {
-  readonly owner: string | null;
-  readonly repo: string | null;
-  readonly pr: T.PrNumber | null;
-  readonly mode: T.WatchMode;
-  readonly stackPrs: Readonly<T.PrNumber[]>;
-  readonly statusOnly: boolean;
-  readonly pretty: boolean;
-  readonly polling: T.PollingOptions;
-}
+export type CliOptions = Readonly<{
+  owner: string | null;
+  repo: string | null;
+  pr: Watch.PrNumber | null;
+  mode: Watch.WatchMode;
+  stackPrs: Readonly<Watch.PrNumber[]>;
+  statusOnly: boolean;
+  pretty: boolean;
+  polling: Watch.PollingOptions;
+}>;
+const NONNEGATIVE_MINIMUM = 0;
+const MILLISECONDS_PER_SECOND = 1000;
+const PROCESS_ARGUMENT_START = 2;
+const FIRST_STACK_PR = 0;
+const FIRST_QUERY_ATTEMPT = 1;
+const EXIT_SUCCESS = 0;
+const EXIT_USAGE = 64;
+// oxlint-disable-next-line unicorn/no-null -- Absent values in the existing CLI option shape use null.
+const UNSUPPLIED = null;
+
+const usageError = (message: string): never => {
+  // oxlint-disable-next-line rules/require-tagged-error -- Keep native Error messages and constructors for CLI usage failures.
+  throw new Error(message);
+};
+
 const positiveNumber = function (value: string, option: string): number {
   const parsed = Number(value);
-  if (!Number.isFinite(parsed) || parsed <= 0)
-    {throw new Error(`${option}: ${value} must be greater than zero`);}
+  if (!Number.isFinite(parsed) || parsed <= NONNEGATIVE_MINIMUM)
+    {usageError(`${option}: ${value} must be greater than zero`);}
   return parsed;
 };
 const nonNegativeNumber = function (value: string): number {
   const parsed = Number(value);
-  if (!Number.isFinite(parsed) || parsed < 0) {throw new Error("must be zero or greater");}
+  if (!Number.isFinite(parsed) || parsed < NONNEGATIVE_MINIMUM) {usageError("must be zero or greater");}
   return parsed;
 };
 const positiveInteger = function (value: string): number {
   const parsed = Number(value);
-  if (!Number.isInteger(parsed) || parsed <= 0) {throw new Error("must be a positive integer");}
+  if (!Number.isInteger(parsed) || parsed <= NONNEGATIVE_MINIMUM) {usageError("must be a positive integer");}
   return parsed;
 };
-const prNumber = function (value: string): T.PrNumber {
+const prNumber = function (value: string): Watch.PrNumber {
   try {
     return parsePrNumber(Number(value.replace(/^#/u, "")));
   } catch {
-    throw new Error("must be a positive integer");
+    return usageError("must be a positive integer");
   }
 };
-const stackPrList = function (value: string): T.NonEmpty<T.PrNumber> {
+const stackPrList = function (value: string): Watch.NonEmpty<Watch.PrNumber> {
   const numbers = value.split(",").map((part) => prNumber(part.trim()));
-  if (new Set(numbers).size !== numbers.length) {throw new Error("contains a duplicate PR");}
+  if (new Set(numbers).size !== numbers.length) {usageError("contains a duplicate PR");}
   const parsed = nonEmpty(numbers);
-  if (matchesNull(parsed)) {throw new Error("cannot be empty");}
+  if (matchesNull(parsed)) {return usageError("cannot be empty");}
   return parsed;
 };
 const usage = [
@@ -57,36 +74,41 @@ const usage = [
 ].join("\n");
 export const parseArgs = function parseArgs(argv: Readonly<string[]>): CliOptions {
   const { values: raw } = parseOptions({
-    args: [...argv],
-    strict: true,
     allowPositionals: false,
+    args: [...argv],
     options: {
-      owner: { type: "string" },
-      repo: { type: "string" },
-      pr: { type: "string" },
-      stack: { type: "boolean" },
-      "queued-stack": { type: "boolean" },
-      "stack-prs": { type: "string" },
+      "allow-draft": { type: "boolean" },
       interval: { type: "string" },
+      "max-query-errors": { type: "string" },
+      owner: { type: "string" },
+      pr: { type: "string" },
+      pretty: { type: "boolean" },
+      "queued-stack": { type: "boolean" },
+      repo: { type: "string" },
+      stack: { type: "boolean" },
+      "stack-prs": { type: "string" },
+      "status-only": { type: "boolean" },
       "sweep-interval": { type: "string" },
       timeout: { type: "string" },
-      "max-query-errors": { type: "string" },
-      "status-only": { type: "boolean" },
-      "allow-draft": { type: "boolean" },
-      pretty: { type: "boolean" },
     },
+    strict: true,
   });
-  if (raw.stack && raw["queued-stack"]) {throw new Error("--stack conflicts with --queued-stack");}
-  if (!matchesUndefined(raw["stack-prs"]) && !raw["queued-stack"])
-    {throw new Error("--stack-prs requires --queued-stack");}
+  const stack = raw.stack ?? false;
+  const queuedStack = raw["queued-stack"] ?? false;
+  if (stack && queuedStack) {usageError("--stack conflicts with --queued-stack");}
+  if (!matchesUndefined(raw["stack-prs"]) && !queuedStack)
+    {usageError("--stack-prs requires --queued-stack");}
+  const classicMode = stack ? "stack" : "single";
+  // oxlint-disable-next-line eslint/sort-keys -- Preserve the exported parser's option field order.
   return {
-    owner: raw.owner ?? null,
-    repo: raw.repo ?? null,
-    pr: matchesUndefined(raw.pr) ? null : prNumber(raw.pr),
-    mode: raw["queued-stack"] ? "queued-stack" : (raw.stack ? "stack" : "single"),
+    owner: raw.owner ?? UNSUPPLIED,
+    repo: raw.repo ?? UNSUPPLIED,
+    pr: matchesUndefined(raw.pr) ? UNSUPPLIED : prNumber(raw.pr),
+    mode: queuedStack ? "queued-stack" : classicMode,
     stackPrs: matchesUndefined(raw["stack-prs"]) ? [] : stackPrList(raw["stack-prs"]),
     statusOnly: raw["status-only"] ?? false,
     pretty: raw.pretty ?? false,
+    // oxlint-disable-next-line eslint/sort-keys -- Preserve the exported parser's polling field order and validation order.
     polling: {
       interval: positiveNumber(raw.interval ?? "60", "--interval"),
       sweepInterval: positiveNumber(raw["sweep-interval"] ?? "300", "--sweep-interval"),
@@ -96,78 +118,96 @@ export const parseArgs = function parseArgs(argv: Readonly<string[]>): CliOption
     },
   };
 };
-export interface CliRuntime {
-  readonly reader: T.GitHubReader;
-  readonly clock: WatchClock;
-  readonly stdout: (value: string) => void;
-  readonly stderr: (value: string) => void;
-}
+export type CliRuntime = Readonly<{
+  reader: Watch.GitHubReader;
+  clock: WatchClock;
+  stdout: (value: string) => void;
+  stderr: (value: string) => void;
+}>;
 const realRuntime = function (): CliRuntime {
   return {
-    reader: new GhGitHubReader(),
     clock: {
-      now: () => performance.now() / 1000,
+      now: () => performance.now() / MILLISECONDS_PER_SECOND,
       // oxlint-disable-next-line rules/no-js-date -- The review observation protocol records the current wall-clock time as ISO 8601.
       observedAt: () => new Date().toISOString(),
       sleep: async (seconds) => {
-        await delay(seconds * 1000);
+        await delay(seconds * MILLISECONDS_PER_SECOND);
       },
     },
-    stdout: (value) => process.stdout.write(value),
-    stderr: (value) => process.stderr.write(value),
+    reader: new GhGitHubReader(),
+    stderr: (value) => {process.stderr.write(value);},
+    stdout: (value) => {process.stdout.write(value);},
   };
 };
+
+type OptionsResult = { options: CliOptions } | { error: unknown };
+const readOptions = (argv: Readonly<string[]>): OptionsResult => {
+  try {
+    return { options: parseArgs(argv) };
+  } catch (error) {
+    return { error };
+  }
+};
+
+type ContextResult = { contexts: Watch.NonEmpty<Watch.PrContext> } | { error: WatcherQueryError };
+const queryContexts = async (runtime: CliRuntime, options: CliOptions): Promise<ContextResult> => {
+  try {
+    const seed = await resolveContext({
+      owner: options.owner,
+      pr: options.pr ?? options.stackPrs.at(FIRST_STACK_PR) ?? UNSUPPLIED,
+      reader: runtime.reader,
+      repo: options.repo,
+    });
+    const explicitStack = nonEmpty(options.stackPrs.map((number) => ({ ...seed, number })));
+    const contexts = explicitStack ?? (options.mode === "single" ? [seed] : await discoverStack(runtime.reader, seed));
+    return { contexts };
+  } catch (error) {
+    if (!(error instanceof WatcherQueryError)) {throw error;}
+    return { error };
+  }
+};
+
+const renderVerdict = (pretty: boolean, verdict: Watch.WatcherVerdict): string =>
+  pretty ? renderPretty(verdict) : renderJson(verdict);
+
+const watchContexts = async (
+  runtime: CliRuntime,
+  options: CliOptions,
+  contexts: Watch.NonEmpty<Watch.PrContext>,
+): Promise<Watch.TerminalVerdict> => {
+  const emit = (verdict: Watch.ProgressVerdict): void => {
+    runtime.stdout(renderVerdict(options.pretty, verdict));
+  };
+  const dependencies = { clock: runtime.clock, emit, reader: runtime.reader };
+  if (options.mode === "queued-stack" && !options.statusOnly) {
+    return runQueued({ contexts, dependencies, options: options.polling });
+  }
+  return runSimple({ contexts, dependencies, mode: options.mode, options: options.polling, statusOnly: options.statusOnly });
+};
+
+const watch = async (runtime: CliRuntime, options: CliOptions): Promise<number> => {
+  const resolution = await queryContexts(runtime, options);
+  const verdict = "error" in resolution
+    ? statusQueryVerdict(verdictFactory(runtime.clock, options.mode), FIRST_QUERY_ATTEMPT, resolution.error.failure)
+    : await watchContexts(runtime, options, resolution.contexts);
+  runtime.stdout(renderVerdict(options.pretty, verdict));
+  return verdict.exitCode;
+};
+
 export const main = async function main(
   argv: Readonly<string[]>,
   runtime: CliRuntime = realRuntime(),
 ): Promise<number> {
   if (argv.includes("--help") || argv.includes("-h")) {
     runtime.stdout(`${usage}\n`);
-    return 0;
+    return EXIT_SUCCESS;
   }
-  let options: CliOptions;
-  try {
-    options = parseArgs(argv);
-  } catch (error) {
-    runtime.stderr(`error: ${error instanceof Error ? error.message : String(error)}\n`);
-    return 64;
+  const parsed = readOptions(argv);
+  if ("error" in parsed) {
+    runtime.stderr(`error: ${errorMessage(parsed.error)}\n`);
+    return EXIT_USAGE;
   }
-  const render = options.pretty ? renderPretty : renderJson;
-  const emit = (verdict: T.ProgressVerdict): void => runtime.stdout(render(verdict));
-  let contexts: T.NonEmpty<T.PrContext>;
-  try {
-    const seed = await resolveContext({
-      reader: runtime.reader,
-      owner: options.owner,
-      repo: options.repo,
-      pr: options.pr ?? options.stackPrs[0] ?? null,
-    });
-    contexts =
-      nonEmpty(options.stackPrs.map((number) => ({ ...seed, number }))) ??
-      (options.mode === "single" ? [seed] : await discoverStack(runtime.reader, seed));
-  } catch (error) {
-    if (!(error instanceof WatcherQueryError)) {throw error;}
-    const verdict = statusQueryVerdict(
-      verdictFactory(runtime.clock, options.mode),
-      1,
-      error.failure,
-    );
-    runtime.stdout(render(verdict));
-    return verdict.exitCode;
-  }
-  const dependencies = { reader: runtime.reader, clock: runtime.clock, emit };
-  const verdict =
-    options.mode === "queued-stack" && !options.statusOnly
-      ? await runQueued({ dependencies, contexts, options: options.polling })
-      : await runSimple({
-          dependencies,
-          contexts,
-          mode: options.mode,
-          statusOnly: options.statusOnly,
-          options: options.polling,
-        });
-  runtime.stdout(render(verdict));
-  return verdict.exitCode;
+  return watch(runtime, parsed.options);
 };
 
-if (import.meta.main) {process.exitCode = await main(process.argv.slice(2));}
+if (import.meta.main) {process.exitCode = await main(process.argv.slice(PROCESS_ARGUMENT_START));}
