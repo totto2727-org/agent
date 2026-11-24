@@ -228,8 +228,8 @@ describe("closed enum parsing", () => {
       if (!(error instanceof WatcherQueryError)) {throw error;}
       expect(error.failure).toMatchObject({
         kind: "missing-key",
-        retryable: true,
         rawValue: '"FUTURE_STATE"',
+        retryable: true,
       });
     }
   });
@@ -501,7 +501,7 @@ printf '%s\\n' '[{"number":42,"headRefName":"feature","baseRefName":"main","isCr
       expect(child.error).toBeUndefined();
       expect(child.status).toBe(0);
       expect(JSON.parse(child.stdout)).toEqual([
-        { number: 42, headRefName: "feature", baseRefName: "main", isCrossRepository: true },
+        { baseRefName: "main", headRefName: "feature", isCrossRepository: true, number: 42 },
       ]);
     } finally {
       rmSync(directory, { force: true, recursive: true });

@@ -678,10 +678,10 @@ describe("documentation quality evaluator public pipeline", () => {
     ]);
     const state = { evidence: {} };
     const questions = { q: { type: "choice" } };
-    expect(payloadFor("clef", state, questions)).toStrictEqual({ model: "clef", state, questions });
+    expect(payloadFor("clef", state, questions)).toStrictEqual({ model: "clef", questions, state });
     expect(payloadFor("typesafe/jev", state, questions)).toStrictEqual({
+      input: { questions, state },
       model: "typesafe/jev",
-      input: { state, questions },
     });
   });
 

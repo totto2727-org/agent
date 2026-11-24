@@ -225,12 +225,12 @@ describe("mechanical checks for Issue 9 through the real public CLI", () => {
       const selected = nounGroups(result);
       expect(selected).toHaveLength(1);
       expect(selected[0]).toMatchObject({
-        text,
-        status: "counted",
-        wordCount,
         hyphenComponentCounts,
         kind: "multi-word",
         source: "Original local role claim.",
+        status: "counted",
+        text,
+        wordCount,
       });
       expect(JSON.stringify(selected)).not.toContain("UNMATCHED-GROUP-SOURCE");
       expect(firstEvaluation(result).questions[0].instructions).toContain(
@@ -308,8 +308,8 @@ describe("mechanical checks for Issue 9 through the real public CLI", () => {
       });
       expect(answersOf(result)[0]).toMatchObject({
         choice: exitCodeChoice,
+        counts: [{ limit, wordCount: count }],
         reviewRequired: false,
-        counts: [{ wordCount: count, limit }],
       });
       expect(result.exitCode).toBe(exitCode);
     },
@@ -340,8 +340,8 @@ describe("mechanical checks for Issue 9 through the real public CLI", () => {
     });
     expect(answersOf(result)[0]).toMatchObject({
       choice,
+      counts: [{ limit: 6, sentenceCount: count }],
       reviewRequired: false,
-      counts: [{ sentenceCount: count, limit: 6 }],
     });
   });
 

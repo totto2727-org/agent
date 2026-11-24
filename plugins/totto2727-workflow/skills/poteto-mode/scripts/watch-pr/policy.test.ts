@@ -86,8 +86,8 @@ describe("readiness truth table", () => {
     if (snapshot.kind !== "open") {throw new Error("expected open snapshot");}
     expect(snapshot.ci.kind).toBe("ci-github-rejected");
     expect(classifyPr(snapshot)).toMatchObject({
-      kind: "blocker",
       blocker: { kind: "failing-checks" },
+      kind: "blocker",
     });
   });
 });
@@ -171,8 +171,8 @@ it("scans stacks tier-major so an upstack conflict outranks frontier CI", async 
   });
   const decision = selectTierMajorStackDecision([frontier, upstack]);
   expect(decision).toMatchObject({
-    kind: "blocker",
     blocker: { kind: "merge-conflicts", pr: { number: 11 } },
+    kind: "blocker",
   });
 });
 
@@ -193,8 +193,8 @@ it("attributes a stack wait to the PR whose checks are pending, not the bottom",
   });
   const decision = selectTierMajorStackDecision([readyBottom, pendingUpstack]);
   expect(decision).toMatchObject({
-    kind: "waiting",
     frontier: { number: 21 },
+    kind: "waiting",
     pending: [{ name: "upstack-build" }],
   });
 });
@@ -218,8 +218,8 @@ it("waits on a draft while checks are pending, then reports the draft gate", asy
     allowDraft: false,
   });
   expect(classifyPr(settled)).toMatchObject({
-    kind: "blocker",
     blocker: { kind: "merge-gate", reason: "draft-pr" },
+    kind: "blocker",
   });
 });
 

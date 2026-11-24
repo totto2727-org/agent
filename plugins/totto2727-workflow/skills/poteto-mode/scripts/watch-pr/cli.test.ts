@@ -35,20 +35,20 @@ const testRuntime = function (reader: GitHubReader): Readonly<{
 describe("parseArgs", () => {
   it("uses the specified defaults", () => {
     expect(parseArgs([])).toMatchObject({
-      owner: null,
-      repo: null,
-      pr: null,
       mode: "single",
-      stackPrs: [],
-      statusOnly: false,
-      pretty: false,
+      owner: null,
       polling: {
+        allowDraft: false,
         interval: 60,
+        maxQueryErrors: 5,
         sweepInterval: 300,
         timeout: 0,
-        maxQueryErrors: 5,
-        allowDraft: false,
       },
+      pr: null,
+      pretty: false,
+      repo: null,
+      stackPrs: [],
+      statusOnly: false,
     });
   });
 
@@ -73,11 +73,11 @@ describe("parseArgs", () => {
     expect(parsed.mode).toBe("queued-stack");
     expect(parsed.stackPrs.map(Number)).toEqual([10, 11, 12]);
     expect(parsed.polling).toEqual({
+      allowDraft: true,
       interval: 2.5,
+      maxQueryErrors: 3,
       sweepInterval: 30,
       timeout: 0,
-      maxQueryErrors: 3,
-      allowDraft: true,
     });
     expect(parsed.pretty).toBe(true);
   });
@@ -221,10 +221,10 @@ describe("main", () => {
     expect(harness.stdout).toHaveLength(1);
     const verdict: unknown = JSON.parse(harness.stdout[0]);
     expect(verdict).toMatchObject({
-      kind: "STATUS",
-      terminal: true,
       exitCode: 0,
+      kind: "STATUS",
       mode: "queued-stack",
+      terminal: true,
     });
     expect(harness.stdout[0]).not.toContain('"kind":"QUEUE"');
   });
@@ -243,12 +243,12 @@ describe("main", () => {
     expect(code).toBe(4);
     expect(harness.stdout).toHaveLength(1);
     expect(JSON.parse(harness.stdout[0])).toMatchObject({
-      kind: "BLOCKER",
-      exitCode: 4,
       blocker: {
-        kind: "failing-checks",
         ci: { kind: "ci-github-rejected" },
+        kind: "failing-checks",
       },
+      exitCode: 4,
+      kind: "BLOCKER",
     });
   });
 
