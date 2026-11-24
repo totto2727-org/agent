@@ -387,7 +387,7 @@ const answer = async function (c: Case) {
     const refused =
       c.view !== undefined &&
       viewed.status === 2 &&
-      /^(The view's |The chart draws the step )/u.test(viewed.stderr);
+      /^(?:The view's |The chart draws the step )/u.test(viewed.stderr);
     const compiled = refused ? await compile([]) : viewed;
     assert.deepEqual(compilerAnswers(compiled, c), plain);
     return compiled.stdout;

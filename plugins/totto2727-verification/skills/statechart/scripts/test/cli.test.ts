@@ -231,7 +231,7 @@ test("the order of TLC's dump and its state IDs do not change the chart or the r
       const id = (n: string) => ids.get(n) ?? ids.set(n, String(9000 - ids.size * 17)).get(n);
       const lines: string[] = [];
       for (const l of read(file).split("\n"))
-        {if (/^-?\d+ (\[|->)/u.test(l))
+        {if (/^-?\d+ (?:\[|->)/u.test(l))
           {lines.push(
             l.replace(
               /^(-?\d+)(?: -> (-?\d+))?/u,
@@ -688,7 +688,7 @@ test("a property from an extended module gets the initial-states note too", () =
   });
   const r = run(dir);
   assert.match(r.report, /^TLC checked TypeOK only in the initial states, /mu);
-  assert.doesNotMatch(r.report, /TLC checked (EventuallyStops|StaysTyped)/u);
+  assert.doesNotMatch(r.report, /TLC checked (?:EventuallyStops|StaysTyped)/u);
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.

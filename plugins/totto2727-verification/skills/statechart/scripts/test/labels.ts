@@ -526,7 +526,7 @@ const readPele = function (text: string, want: Want, render: Render, problems: s
   for (const m of svg.matchAll(
     /<g class="pele-(?:node|cluster) ([^"]*)" data-id="([^"]*)"[^>]*>([\s\S]*?)<\/g>/g,
   )) {
-    if (/state-(start|end)/u.test(m[1])) {continue;}
+    if (/state-(?:start|end)/u.test(m[1])) {continue;}
     const regexMatch = m[3].match(/<text[^>]*>([\s\S]*?)<\/text>/);
     drawn.set(m[2], regexMatch ? fromSvg(regexMatch[1]) : "");
   }
@@ -586,7 +586,7 @@ const check = async function (c: Case, labels: string[], tools: Tools): Promise<
     text = chartText(chart);
   } catch (error) {
     if (!(error instanceof Error)) {throw error;}
-    if (/^The view's (state|step)\(\) returned /u.test(error.message))
+    if (/^The view's (?:state|step)\(\) returned /u.test(error.message))
       {return { refused: true, problems: [] };}
     return { problems: [`skill-throws: ${error.constructor.name}: ${error.message}`] };
   }

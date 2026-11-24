@@ -44,7 +44,7 @@ for (const name of fs.readdirSync(corpus)) {
     assert.equal(r.stderr, "");
     if (process.env.STATECHART_UPDATE) {
       for (const f of fs.readdirSync(dir))
-        {if (/\.(out|exit|dot|mmd|md)$/u.test(f)) {fs.rmSync(path.join(dir, f));}}
+        {if (/\.(?:out|exit|dot|mmd|md)$/u.test(f)) {fs.rmSync(path.join(dir, f));}}
       for (const f of fs.readdirSync(tlc)) {fs.copyFileSync(path.join(tlc, f), path.join(dir, f));}
       for (const f of ["chart.mmd", "report.md"])
         {fs.copyFileSync(path.join(out, f), path.join(dir, f));}
@@ -102,7 +102,7 @@ test("an invariant named NoDeadlock and a deadlock break as two rules", { skip }
   );
   assert.match(
     report,
-    /^## CHECK_DEADLOCK breaks\nThe shortest path has 3 steps:\n(.*\n){3}3\. Next: 3$/m,
+    /^## CHECK_DEADLOCK breaks\nThe shortest path has 3 steps:\n(?:.*\n){3}3\. Next: 3$/m,
   );
 });
 
@@ -293,7 +293,7 @@ test(
     assert.equal(r.status, 1);
     assert.match(
       read(path.join(out, "report.md")),
-      /^## Prop breaks\nTLC's counterexample is in tlc-Prop\.out\. It has 17 steps:\n0\. 0\n1\. Deep: 1\n(.*\n){14}16\. Turn: 16\n17\. Back: 15\nThe run loops through "15" and "16" forever\.$/m,
+      /^## Prop breaks\nTLC's counterexample is in tlc-Prop\.out\. It has 17 steps:\n0\. 0\n1\. Deep: 1\n(?:.*\n){14}16\. Turn: 16\n17\. Back: 15\nThe run loops through "15" and "16" forever\.$/m,
     );
   },
 );

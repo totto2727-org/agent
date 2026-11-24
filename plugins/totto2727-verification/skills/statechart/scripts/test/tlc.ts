@@ -24,7 +24,7 @@ const properties = function (cfg: string) {
   let section = "";
   for (const line of cfg.split("\n")) {
     section = line.match(/^[A-Z_]+/u)?.[0] ?? section;
-    if (/^PROPERT(Y|IES)$/u.test(section))
+    if (/^PROPERT(?:Y|IES)$/u.test(section))
       {for (const word of line.trim().split(/\s+/u)) {if (word && word !== section) {names.push(word);}}}
   }
   return names;

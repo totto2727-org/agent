@@ -181,7 +181,7 @@ export function readConfig({ file, text }: { file: string; text: string }): Conf
       if (t.image !== "}") {throw refuse(t.line, "It was expecting }, but did not find it.");}
     } else if (SECTIONS.has(t.image))
       {defer(cannot(t.line, `TLC would read the keyword ${t.image} as a value.`));}
-    else if (!NAME.test(t.image) && !/^(\d+|".*")$/.test(t.image))
+    else if (!NAME.test(t.image) && !/^(?:\d+|".*")$/.test(t.image))
       {defer(
         cannot(
           t.line,
