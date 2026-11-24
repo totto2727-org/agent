@@ -10,7 +10,7 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 // oxlint-disable-next-line rules/no-node-imports -- Await the native subprocess and preserve its exit status in these tests.
 import { promisify } from "node:util";
-import { afterEach, describe, expect, test } from "vitest";
+import { afterEach, assert, describe, expect, test } from "vitest";
 
 import {
   MODELS,
@@ -32,7 +32,7 @@ import {
   sourceRange,
   validateMechanicalCheck,
 } from "./mechanical.mjs";
-import { matchesUndefined } from "./native-predicates.mjs";
+import { matchesNull, matchesUndefined } from "./native-predicates.mjs";
 
 const execute = promisify(execFile);
 const script = fileURLToPath(new URL("evaluate.mjs", import.meta.url));
@@ -40,6 +40,15 @@ const script = fileURLToPath(new URL("evaluate.mjs", import.meta.url));
 /** @typedef {{ directory: string }} MockDirectory */
 /** @typedef {{ cacheStatus?: string, exitCode?: number, mode?: string, ray?: string, statusSequence?: string }} MockOptions */
 /** @typedef {{ argv: string[], config: string, headers: string[], payload: Record<string, unknown>, url: string }} MockCall */
+/** @typedef {Awaited<ReturnType<typeof evaluate>>} EvaluationReport */
+/** @typedef {EvaluationReport["evaluations"][number]} Evaluation */
+/** @typedef {Pick<Evaluation, "answers" | "questions"> & { cache: NonNullable<Evaluation["cache"]> }} CachedEvaluation */
+/** @typedef {{ endLine: number, headingPath?: string[], id?: string, startLine: number }} FixtureRange */
+/** @typedef {{ audience: string, id: string, path: string, purpose: string, ruleIds?: string[], sections?: FixtureRange[], sourceLanguage?: string, ste?: Record<string, unknown> }} FixtureDocument */
+/** @typedef {{ documents: FixtureDocument[], rules?: Record<string, unknown>[], rulesFile?: string }} FixtureManifest */
+/** @typedef {{ secondAudience?: string, secondRuleIds?: string[], model?: string }} DuplicateOptions */
+/** @typedef {{ approved: boolean, forms: string[], meaning: string, partOfSpeech: string, word: string }} VocabularyEntry */
+/** @typedef {{ entries: VocabularyEntry[], issue: number, source: string, technicalTerms?: { category: number, kind: string, source: string, text: string }[] }} FixtureVocabulary */
 
 const ACCOUNT_ID = "0123456789abcdef0123456789abcdef";
 const API_KEY = "test-gateway-key";
@@ -50,7 +59,33 @@ const CREDENTIALS = {
   CLOUDFLARE_AI_GATEWAY_ID: GATEWAY_ID,
 };
 
+/** @type {string[]} */
 const temporaryDirectories = [];
+
+/** @type {(file: string) => Promise<FixtureManifest>} */
+const readFixtureManifest = async (file) => {
+  const manifest = object(JSON.parse(await readFile(file, "utf8")), "fixture manifest");
+  assert(Array.isArray(manifest.documents), "Fixture manifest needs its document list.");
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- This test reads and mutates the manifests its fixture writers own.
+  return /** @type {FixtureManifest} */ (manifest);
+};
+
+/** @type {(file: string) => Promise<EvaluationReport>} */
+const readEvaluationReport = async (file) => {
+  const report = object(JSON.parse(await readFile(file, "utf8")), "evaluation report");
+  assert(Array.isArray(report.evaluations), "Evaluator output needs its evaluation list.");
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Individual tests assert the emitted fields after checking the report envelope here.
+  return /** @type {EvaluationReport} */ (report);
+};
+
+/** @type {(fragment: string) => unknown} */
+const containingText = (fragment) => expect.stringContaining(fragment);
+
+/** @type {(pattern: RegExp) => unknown} */
+const matchingText = (pattern) => expect.stringMatching(pattern);
+
+/** @type {(values: unknown[]) => unknown} */
+const containingValues = (values) => expect.arrayContaining(values);
 
 // The evaluator must not send a request-level retry override, so the Gateway's
 // Own configured retry policy stays in effect.
@@ -107,7 +142,7 @@ const dictionaryFixture = async function ({ complete = false, vocabulary = true 
     resolve(paths.directory, "guide.md"),
     "Check the panel.\n\n# Elsewhere\n\nUnrelated evidence.\n",
   );
-  const manifest = JSON.parse(await readFile(paths.manifestPath, "utf8"));
+  const manifest = await readFixtureManifest(paths.manifestPath);
   manifest.rules = [
     {
       id: "dictionary-context",
@@ -121,6 +156,7 @@ const dictionaryFixture = async function ({ complete = false, vocabulary = true 
   manifest.documents[0].ruleIds = ["dictionary-context"];
   manifest.documents[0].sections = [{ startLine: 1, endLine: 1 }];
   manifest.documents[0].ste = vocabulary ? { vocabularyFile: "private-vocabulary.json" } : {};
+  /** @type {(word: string, meaning: string) => VocabularyEntry} */
   const entry = (word, meaning) => ({
     word,
     approved: true,
@@ -128,6 +164,7 @@ const dictionaryFixture = async function ({ complete = false, vocabulary = true 
     meaning,
     forms: [],
   });
+  /** @type {FixtureVocabulary} */
   const data = {
     issue: 9,
     source: "Original bounded source declaration for tests, not STE dictionary data.",
@@ -146,6 +183,7 @@ const dictionaryFixture = async function ({ complete = false, vocabulary = true 
   return { ...paths, data };
 };
 
+/** @param {DuplicateOptions} [options] - Overrides for the second copy of the fixture. */
 const duplicateFixture = async function ({
   model = "clef-flash",
   secondAudience,
@@ -157,6 +195,7 @@ const duplicateFixture = async function ({
     resolve(directory, "guide.md"),
     "# Start\n\nUse the tool.\n\n## Details\n\nMore detail.\n",
   );
+  /** @type {(id: string, overrides?: Partial<FixtureDocument>) => FixtureDocument} */
   const document = (id, overrides = {}) => ({
     id,
     path: "guide.md",
@@ -204,15 +243,33 @@ const duplicateFixture = async function ({
   return { directory, manifestPath, outputPath: resolve(directory, "report.json") };
 };
 
-const evaluationOf = function (report, documentId, scope, sectionId = null) {
-  return report.evaluations.find(
+/** @type {(report: EvaluationReport, documentId: string, scope: Evaluation["scope"], sectionId?: string | null) => CachedEvaluation} */
+const cachedEvaluationOf = function (report, documentId, scope, sectionId = null) {
+  const entry = report.evaluations.find(
     (entry) =>
       entry.documentId === documentId &&
       entry.scope === scope &&
       (sectionId === null || entry.section?.id === sectionId),
   );
+  assert(!matchesUndefined(entry), `Missing evaluation for ${documentId} (${scope}).`);
+  const { answers, cache, questions } = entry;
+  assert(!matchesNull(cache), `Missing request cache for ${documentId} (${scope}).`);
+  return { answers, cache, questions };
 };
 
+/** @type {(answer: Evaluation["answers"][number] | import("./mechanical.mjs").MechanicalResult) => import("./mechanical.mjs").Coverage} */
+const mechanicalCoverage = (answer) => {
+  assert("coverage" in answer, "Mechanical answer needs its coverage.");
+  return answer.coverage;
+};
+
+/** @type {(entry: Evaluation) => string} */
+const evaluationFailure = (entry) => {
+  assert("error" in entry, "Failed evaluation needs its diagnostic.");
+  return text(entry.error, "evaluation failure");
+};
+
+/** @type {(report: EvaluationReport) => void} */
 const assertAnswerIdentities = function (report) {
   Iterator.from(report.evaluations).forEach((entry) => {
     const ids = new Set(entry.questions.map((question) => question.id));
@@ -399,7 +456,7 @@ const cleanupFixtures = async () => {
   await Promise.all(
     temporaryDirectories
       .splice(0)
-      .map((directory) => rm(directory, { force: true, recursive: true })),
+      .map(async (directory) => rm(directory, { force: true, recursive: true })),
   );
 };
 
@@ -412,9 +469,11 @@ describe("private dictionary evidence boundaries", () => {
       resolve(paths.directory, "guide.md"),
       "Check the upper status panel and panel (upper) assembly.\n",
     );
-    const manifest = JSON.parse(await readFile(paths.manifestPath, "utf8"));
-    delete manifest.rules[0].requiresDictionaryEntries;
-    manifest.rules[0].requiresNounGroupCounts = true;
+    const manifest = await readFixtureManifest(paths.manifestPath);
+    const rule = manifest.rules?.[0];
+    assert(!matchesUndefined(rule), "Dictionary fixture needs its first rule.");
+    delete rule.requiresDictionaryEntries;
+    rule.requiresNounGroupCounts = true;
     manifest.documents[0].ste = {
       nounGroups: [
         { text: "upper status panel", kind: "multi-word", source: "Original local role claim." },
@@ -426,7 +485,7 @@ describe("private dictionary evidence boundaries", () => {
       ],
     };
     await writeFile(paths.manifestPath, JSON.stringify(manifest));
-    const { result: report, calls } = await withMock(paths, {}, () =>
+    const { result: report, calls } = await withMock(paths, {}, async () =>
       evaluate({ ...paths, environment: CREDENTIALS }),
     );
     expect(calls).toHaveLength(1);
@@ -465,7 +524,7 @@ describe("private dictionary evidence boundaries", () => {
       resolve(paths.directory, "private-vocabulary.json"),
       JSON.stringify(paths.data),
     );
-    const { result: report, calls } = await withMock(paths, {}, () =>
+    const { result: report, calls } = await withMock(paths, {}, async () =>
       evaluate({ ...paths, environment: CREDENTIALS }),
     );
     expect(calls).toHaveLength(1);
@@ -516,7 +575,7 @@ describe("private dictionary evidence boundaries", () => {
 
   test("sends only target-matched records, no private path or unrelated records, and rejects an unsupported model pass", async () => {
     const paths = await dictionaryFixture();
-    const { result: report, calls } = await withMock(paths, {}, () =>
+    const { result: report, calls } = await withMock(paths, {}, async () =>
       evaluate({ ...paths, environment: CREDENTIALS }),
     );
     expect(calls).toHaveLength(1);
@@ -562,14 +621,14 @@ describe("private dictionary evidence boundaries", () => {
         confidence: 0.94,
         probabilities: { fail: 0.03, insufficient_context: 0.01, not_applicable: 0, pass: 0.96 },
       },
-      reason: expect.stringContaining("model pass"),
+      reason: containingText("model pass"),
       reviewRequired: true,
     });
   });
 
   test("retains a calibrated contextual model result when every local token has declared evidence", async () => {
     const paths = await dictionaryFixture({ complete: true });
-    const { result: report } = await withMock(paths, {}, () =>
+    const { result: report } = await withMock(paths, {}, async () =>
       evaluate({ ...paths, environment: CREDENTIALS }),
     );
     expect(report.evaluations[0].answers[0]).toMatchObject({
@@ -775,7 +834,7 @@ describe("documentation quality evaluator public pipeline", () => {
 
   test("posts the native shape to the clef endpoint without leaking labels", async () => {
     const paths = await fixture();
-    const { result: report, calls } = await withMock(paths, {}, () =>
+    const { result: report, calls } = await withMock(paths, {}, async () =>
       evaluate({
         manifestPath: paths.manifestPath,
         outputPath: paths.outputPath,
@@ -792,7 +851,7 @@ describe("documentation quality evaluator public pipeline", () => {
         `Authorization: Bearer ${API_KEY}`,
         `cf-aig-gateway-id: ${GATEWAY_ID}`,
         "Content-Type: application/json",
-        expect.stringMatching(/^cf-aig-cache-key: decision-v1-[0-9a-f]{64}$/u),
+        matchingText(/^cf-aig-cache-key: decision-v1-[0-9a-f]{64}$/u),
         "cf-aig-cache-ttl: 2592000",
         "cf-aig-skip-cache: false",
       ],
@@ -824,7 +883,7 @@ describe("documentation quality evaluator public pipeline", () => {
     expect(requests).toStrictEqual([expectedRequest, expectedRequest, expectedRequest]);
 
     const cache = {
-      key: expect.stringMatching(/^decision-v1-[0-9a-f]{64}$/u),
+      key: matchingText(/^decision-v1-[0-9a-f]{64}$/u),
       ray: "mock-ray-0001",
       reused: false,
       status: "MISS",
@@ -843,7 +902,7 @@ describe("documentation quality evaluator public pipeline", () => {
       retryOverride: configLines.some((line) => line.startsWith('header = "cf-aig-max-attempts:')),
     }).toStrictEqual({
       cacheKeys: 1,
-      lines: expect.arrayContaining([
+      lines: containingValues([
         'request = "POST"',
         "fail-with-body",
         "connect-timeout = 10",
@@ -862,7 +921,7 @@ describe("documentation quality evaluator public pipeline", () => {
 
   test("posts the universal Jev shape to the shared run endpoint", async () => {
     const paths = await fixture({ model: "typesafe/jev" });
-    const { result: report, calls } = await withMock(paths, {}, () =>
+    const { result: report, calls } = await withMock(paths, {}, async () =>
       evaluate({
         manifestPath: paths.manifestPath,
         outputPath: paths.outputPath,
@@ -873,12 +932,12 @@ describe("documentation quality evaluator public pipeline", () => {
     expect(report.reviewRequired).toBe(false);
     expect(report.evaluations.every((entry) => entry.model === "jev-1.13.0")).toBe(true);
     const expectedRequest = {
-      headers: expect.arrayContaining([
+      headers: containingValues([
         `Authorization: Bearer ${API_KEY}`,
         `cf-aig-gateway-id: ${GATEWAY_ID}`,
         "cf-aig-cache-ttl: 2592000",
         "cf-aig-skip-cache: false",
-        expect.stringMatching(/^cf-aig-cache-key: decision-v1-[0-9a-f]{64}$/u),
+        matchingText(/^cf-aig-cache-key: decision-v1-[0-9a-f]{64}$/u),
       ]),
       inputKeys: ["state", "questions"],
       model: "typesafe/jev",
@@ -900,7 +959,7 @@ describe("documentation quality evaluator public pipeline", () => {
   test.each(MODELS)("adds cache headers to every model request (%s)", async (model) => {
     expect.hasAssertions();
     const paths = await fixture({ model });
-    const { result: report, calls } = await withMock(paths, {}, () =>
+    const { result: report, calls } = await withMock(paths, {}, async () =>
       evaluate({
         manifestPath: paths.manifestPath,
         outputPath: paths.outputPath,
@@ -922,13 +981,16 @@ describe("documentation quality evaluator public pipeline", () => {
 
   test("does not retry transient failures and makes one client attempt per logical request", async () => {
     const paths = await fixture();
-    const { result: report, calls } = await withMock(paths, { statusSequence: "503,200" }, () =>
-      evaluate({
-        manifestPath: paths.manifestPath,
-        outputPath: paths.outputPath,
-        concurrency: 1,
-        environment: CREDENTIALS,
-      }),
+    const { result: report, calls } = await withMock(
+      paths,
+      { statusSequence: "503,200" },
+      async () =>
+        evaluate({
+          manifestPath: paths.manifestPath,
+          outputPath: paths.outputPath,
+          concurrency: 1,
+          environment: CREDENTIALS,
+        }),
     );
     expect(report).toMatchObject({ attentionRequired: true, requestCount: 3 });
     // The evaluator makes no client-side retry and sends no retry override, so
@@ -942,7 +1004,7 @@ describe("documentation quality evaluator public pipeline", () => {
     // An error; the later distinct requests observe the mocked 200.
     expect(report.evaluations[0]).toMatchObject({
       answers: [],
-      error: expect.stringContaining("HTTP 503"),
+      error: containingText("HTTP 503"),
       status: "error",
     });
     expect(report.evaluations.slice(1).every((entry) => entry.status === "complete")).toBe(true);
@@ -955,7 +1017,7 @@ describe("documentation quality evaluator public pipeline", () => {
       const { result: report, calls } = await withMock(
         paths,
         { statusSequence: String(status) },
-        () =>
+        async () =>
           evaluate({
             manifestPath: paths.manifestPath,
             outputPath: paths.outputPath,
@@ -976,7 +1038,7 @@ describe("documentation quality evaluator public pipeline", () => {
     const { result: report, calls } = await withMock(
       paths,
       { statusSequence: "200", exitCode: 28 },
-      () =>
+      async () =>
         evaluate({
           manifestPath: paths.manifestPath,
           outputPath: paths.outputPath,
@@ -988,9 +1050,9 @@ describe("documentation quality evaluator public pipeline", () => {
     expect(calls).toHaveLength(3);
     expect(calls.filter(hasRetryOverride)).toHaveLength(0);
     expect(report.evaluations.every((entry) => entry.status === "error")).toBe(true);
-    const { error } = report.evaluations[0];
+    const failure = text(report.evaluations[0].error, "transport failure");
     expect(
-      ["transport failed", "28"].filter((fragment) => !error.includes(fragment)),
+      ["transport failed", "28"].filter((fragment) => !failure.includes(fragment)),
     ).toStrictEqual([]);
   });
 
@@ -1001,7 +1063,7 @@ describe("documentation quality evaluator public pipeline", () => {
       const { result: report, calls } = await withMock(
         paths,
         { statusSequence: String(status) },
-        () =>
+        async () =>
           evaluate({
             manifestPath: paths.manifestPath,
             outputPath: paths.outputPath,
@@ -1016,16 +1078,14 @@ describe("documentation quality evaluator public pipeline", () => {
       });
       expect(
         calls.map((call) => ({ retryOverride: hasRetryOverride(call), url: call.url })),
-      ).toStrictEqual([
-        { retryOverride: false, url: expect.stringContaining("@cf/cloudflare/clef-flash") },
-      ]);
-      const error = expect.stringContaining(`HTTP ${status}`);
+      ).toStrictEqual([{ retryOverride: false, url: containingText("@cf/cloudflare/clef-flash") }]);
+      const error = containingText(`HTTP ${status}`);
       expect(report.evaluations).toMatchObject([
         { answers: [], error, status: "error" },
         { error, status: "skipped" },
         { error, status: "skipped" },
       ]);
-      const written = JSON.parse(await readFile(paths.outputPath, "utf8"));
+      const written = await readEvaluationReport(paths.outputPath);
       expect({
         evaluationCount: written.evaluations.length,
         reviewRequired: written.reviewRequired,
@@ -1035,7 +1095,7 @@ describe("documentation quality evaluator public pipeline", () => {
 
   test("rejects a nonzero curl exit even when stdout carries a valid 200 response", async () => {
     const paths = await fixture();
-    const { result: report, calls } = await withMock(paths, { exitCode: 28 }, () =>
+    const { result: report, calls } = await withMock(paths, { exitCode: 28 }, async () =>
       evaluate({
         manifestPath: paths.manifestPath,
         outputPath: paths.outputPath,
@@ -1046,9 +1106,9 @@ describe("documentation quality evaluator public pipeline", () => {
     expect(report).toMatchObject({ attentionRequired: true, requestCount: 3 });
     expect(calls).toHaveLength(3);
     expect(report.evaluations.every((entry) => entry.status === "error")).toBe(true);
-    const { error } = report.evaluations[0];
+    const failure = text(report.evaluations[0].error, "transport failure");
     expect(
-      ["transport failed", "28"].filter((fragment) => !error.includes(fragment)),
+      ["transport failed", "28"].filter((fragment) => !failure.includes(fragment)),
     ).toStrictEqual([]);
   });
 
@@ -1074,7 +1134,7 @@ describe("documentation quality evaluator public pipeline", () => {
     } finally {
       mock.restore();
     }
-    const report = JSON.parse(await readFile(paths.outputPath, "utf8"));
+    const report = await readEvaluationReport(paths.outputPath);
     expect(report).toMatchObject({
       attentionRequired: true,
       dryRun: false,
@@ -1087,7 +1147,7 @@ describe("documentation quality evaluator public pipeline", () => {
 
   test("records a non-retryable bad status as an evaluation error", async () => {
     const paths = await fixture();
-    const { result: report, calls } = await withMock(paths, { statusSequence: "400" }, () =>
+    const { result: report, calls } = await withMock(paths, { statusSequence: "400" }, async () =>
       evaluate({
         manifestPath: paths.manifestPath,
         outputPath: paths.outputPath,
@@ -1104,7 +1164,7 @@ describe("documentation quality evaluator public pipeline", () => {
 
   test("writes a review-required report when the response answers are malformed", async () => {
     const paths = await fixture();
-    const { result: report } = await withMock(paths, { mode: "malformed" }, () =>
+    const { result: report } = await withMock(paths, { mode: "malformed" }, async () =>
       evaluate({
         manifestPath: paths.manifestPath,
         outputPath: paths.outputPath,
@@ -1113,23 +1173,26 @@ describe("documentation quality evaluator public pipeline", () => {
     );
     expect(report.reviewRequired).toBe(true);
     expect(report.evaluations.every((entry) => entry.status === "error")).toBe(true);
-    expect(JSON.parse(await readFile(paths.outputPath, "utf8")).evaluations).toHaveLength(3);
+    expect((await readEvaluationReport(paths.outputPath)).evaluations).toHaveLength(3);
   });
 
   test("rejects an unsuccessful request and an incomplete Jev job", async () => {
     const nativePaths = await fixture();
-    const { result: nativeReport } = await withMock(nativePaths, { mode: "native-failed" }, () =>
-      evaluate({
-        manifestPath: nativePaths.manifestPath,
-        outputPath: nativePaths.outputPath,
-        environment: CREDENTIALS,
-      }),
+    const { result: nativeReport } = await withMock(
+      nativePaths,
+      { mode: "native-failed" },
+      async () =>
+        evaluate({
+          manifestPath: nativePaths.manifestPath,
+          outputPath: nativePaths.outputPath,
+          environment: CREDENTIALS,
+        }),
     );
     expect(nativeReport.evaluations.every((entry) => entry.status === "error")).toBe(true);
     expect(nativeReport.evaluations[0].error).toContain("unsuccessful");
 
     const jevPaths = await fixture({ model: "typesafe/jev" });
-    const { result: jevReport } = await withMock(jevPaths, { mode: "wrapper-failed" }, () =>
+    const { result: jevReport } = await withMock(jevPaths, { mode: "wrapper-failed" }, async () =>
       evaluate({
         manifestPath: jevPaths.manifestPath,
         outputPath: jevPaths.outputPath,
@@ -1185,7 +1248,7 @@ describe("documentation quality evaluator public pipeline", () => {
 
   test("resolves an exclusive rulesFile relative to the manifest", async () => {
     const paths = await fixture();
-    const manifest = JSON.parse(await readFile(paths.manifestPath, "utf8"));
+    const manifest = await readFixtureManifest(paths.manifestPath);
     await writeFile(resolve(paths.directory, "rules.json"), JSON.stringify(manifest.rules));
     delete manifest.rules;
     manifest.rulesFile = "rules.json";
@@ -1201,7 +1264,7 @@ describe("documentation quality evaluator public pipeline", () => {
 
   test("derives explicit sections from source ranges and rejects an empty list", async () => {
     const paths = await fixture();
-    const manifest = JSON.parse(await readFile(paths.manifestPath, "utf8"));
+    const manifest = await readFixtureManifest(paths.manifestPath);
     manifest.documents[0].sections = [
       { id: "detail", startLine: 5, endLine: 10, headingPath: ["Start", "Details"] },
     ];
@@ -1247,7 +1310,7 @@ describe("documentation quality evaluator public pipeline", () => {
     const base = { url, gatewayId: GATEWAY_ID, apiKey: API_KEY, body };
     const key = cacheFingerprint(base);
     expect({ key, leakedApiKey: key.includes(API_KEY) }).toStrictEqual({
-      key: expect.stringMatching(/^decision-v1-[0-9a-f]{64}$/u),
+      key: matchingText(/^decision-v1-[0-9a-f]{64}$/u),
       leakedApiKey: false,
     });
     // Canonical key ordering makes equivalent bodies fingerprint identically.
@@ -1303,7 +1366,7 @@ describe("documentation quality evaluator public pipeline", () => {
 
   test("shares one request across concurrent equivalent evaluations and maps distinct report IDs", async () => {
     const paths = await duplicateFixture();
-    const { result: report, calls } = await withMock(paths, {}, () =>
+    const { result: report, calls } = await withMock(paths, {}, async () =>
       evaluate({
         manifestPath: paths.manifestPath,
         outputPath: paths.outputPath,
@@ -1330,8 +1393,8 @@ describe("documentation quality evaluator public pipeline", () => {
     });
     assertAnswerIdentities(report);
 
-    const sectionA = evaluationOf(report, "guide-a", "section", "section-1");
-    const sectionB = evaluationOf(report, "guide-b", "section", "section-1");
+    const sectionA = cachedEvaluationOf(report, "guide-a", "section", "section-1");
+    const sectionB = cachedEvaluationOf(report, "guide-b", "section", "section-1");
     expect(sectionA.cache.key).toBe(sectionB.cache.key);
     expect([sectionA.cache.reused, sectionB.cache.reused]).toStrictEqual([false, true]);
     expect([sectionA.answers[0].questionId, sectionB.answers[0].questionId]).toStrictEqual([
@@ -1343,7 +1406,7 @@ describe("documentation quality evaluator public pipeline", () => {
 
   test("reuses resolved promises for sequential duplicates without another request", async () => {
     const paths = await duplicateFixture();
-    const { result: report, calls } = await withMock(paths, {}, () =>
+    const { result: report, calls } = await withMock(paths, {}, async () =>
       evaluate({
         manifestPath: paths.manifestPath,
         outputPath: paths.outputPath,
@@ -1363,7 +1426,7 @@ describe("documentation quality evaluator public pipeline", () => {
 
   test("shares failed outcomes for duplicates without a second attempt", async () => {
     const paths = await duplicateFixture();
-    const { result: report, calls } = await withMock(paths, { statusSequence: "503" }, () =>
+    const { result: report, calls } = await withMock(paths, { statusSequence: "503" }, async () =>
       evaluate({
         manifestPath: paths.manifestPath,
         outputPath: paths.outputPath,
@@ -1373,7 +1436,9 @@ describe("documentation quality evaluator public pipeline", () => {
     );
     expect([report.requestCount, calls.length, report.evaluations.length]).toStrictEqual([3, 3, 6]);
     expect(report.evaluations.every((entry) => entry.status === "error")).toBe(true);
-    expect(report.evaluations.every((entry) => entry.error.includes("HTTP 503"))).toBe(true);
+    expect(report.evaluations.every((entry) => evaluationFailure(entry).includes("HTTP 503"))).toBe(
+      true,
+    );
     expect(report.evaluations.every((entry) => entry.answers.length === 0)).toBe(true);
   });
 
@@ -1382,7 +1447,7 @@ describe("documentation quality evaluator public pipeline", () => {
     const { result: report, calls } = await withMock(
       paths,
       { mode: "malformed", cacheStatus: "MISS", ray: "mock-ray-4242" },
-      () =>
+      async () =>
         evaluate({
           manifestPath: paths.manifestPath,
           outputPath: paths.outputPath,
@@ -1392,7 +1457,7 @@ describe("documentation quality evaluator public pipeline", () => {
     );
     expect([report.requestCount, calls.length, report.evaluations.length]).toStrictEqual([3, 3, 6]);
     expect(report.evaluations.every((entry) => entry.status === "error")).toBe(true);
-    expect(new Set(report.evaluations.map((entry) => entry.error)).size).toBe(1);
+    expect(new Set(report.evaluations.map((entry) => evaluationFailure(entry))).size).toBe(1);
     expect(report.evaluations.filter((entry) => entry.cache.reused)).toHaveLength(3);
     // Validation failures keep the cache evidence from the actual response headers.
     expect(
@@ -1402,7 +1467,7 @@ describe("documentation quality evaluator public pipeline", () => {
 
   test("keeps decision cache keys stable across runs independent of run-wide report IDs", async () => {
     const paths = await fixture();
-    const manifest = JSON.parse(await readFile(paths.manifestPath, "utf8"));
+    const manifest = await readFixtureManifest(paths.manifestPath);
     await writeFile(
       resolve(paths.directory, "intro.md"),
       "# Intro\n\nIntro text.\n\n## Sub\n\nMore.\n",
@@ -1419,7 +1484,7 @@ describe("documentation quality evaluator public pipeline", () => {
       paths.manifestPath,
       JSON.stringify({ ...manifest, documents: [manifest.documents[0]] }),
     );
-    const { result: runA, calls: callsA } = await withMock(paths, {}, () =>
+    const { result: runA, calls: callsA } = await withMock(paths, {}, async () =>
       evaluate({
         manifestPath: paths.manifestPath,
         outputPath: paths.outputPath,
@@ -1432,7 +1497,7 @@ describe("documentation quality evaluator public pipeline", () => {
       paths.manifestPath,
       JSON.stringify({ ...manifest, documents: [intro, manifest.documents[0]] }),
     );
-    const { result: runB, calls: callsB } = await withMock(paths, {}, () =>
+    const { result: runB, calls: callsB } = await withMock(paths, {}, async () =>
       evaluate({
         manifestPath: paths.manifestPath,
         outputPath: paths.outputPath,
@@ -1443,8 +1508,8 @@ describe("documentation quality evaluator public pipeline", () => {
 
     const runBCalls = callsB.slice(callsA.length);
     expect([callsA.length, runBCalls.length]).toStrictEqual([3, 6]);
-    const guideA = evaluationOf(runA, "guide", "section", "section-1");
-    const guideB = evaluationOf(runB, "guide", "section", "section-1");
+    const guideA = cachedEvaluationOf(runA, "guide", "section", "section-1");
+    const guideB = cachedEvaluationOf(runB, "guide", "section", "section-1");
     expect(guideA.cache.key).toBe(guideB.cache.key);
     // Report identities differ because the leading document shifts the run-wide counter.
     expect([guideA.questions[0].id, guideB.questions[0].id]).toStrictEqual([
@@ -1460,40 +1525,46 @@ describe("documentation quality evaluator public pipeline", () => {
 
   test("does not share cache entries for meaningful evidence changes", async () => {
     const evidencePaths = await duplicateFixture({ secondAudience: "An experienced operator." });
-    const { result: evidenceReport, calls: evidenceCalls } = await withMock(evidencePaths, {}, () =>
-      evaluate({
-        manifestPath: evidencePaths.manifestPath,
-        outputPath: evidencePaths.outputPath,
-        concurrency: 4,
-        environment: CREDENTIALS,
-      }),
+    const { result: evidenceReport, calls: evidenceCalls } = await withMock(
+      evidencePaths,
+      {},
+      async () =>
+        evaluate({
+          manifestPath: evidencePaths.manifestPath,
+          outputPath: evidencePaths.outputPath,
+          concurrency: 4,
+          environment: CREDENTIALS,
+        }),
     );
     expect(evidenceCalls).toHaveLength(6);
     expect(evidenceReport.requestCount).toBe(6);
     expect(evidenceReport.evaluations.some((entry) => entry.cache.reused)).toBe(false);
-    expect(evaluationOf(evidenceReport, "guide-a", "section", "section-1").cache.key).not.toBe(
-      evaluationOf(evidenceReport, "guide-b", "section", "section-1").cache.key,
-    );
+    expect(
+      cachedEvaluationOf(evidenceReport, "guide-a", "section", "section-1").cache.key,
+    ).not.toBe(cachedEvaluationOf(evidenceReport, "guide-b", "section", "section-1").cache.key);
   });
 
   test("does not share cache entries for distinct section criteria", async () => {
     const criteriaPaths = await duplicateFixture({ secondRuleIds: ["strict", "flow"] });
-    const { result: criteriaReport, calls: criteriaCalls } = await withMock(criteriaPaths, {}, () =>
-      evaluate({
-        manifestPath: criteriaPaths.manifestPath,
-        outputPath: criteriaPaths.outputPath,
-        concurrency: 4,
-        environment: CREDENTIALS,
-      }),
+    const { result: criteriaReport, calls: criteriaCalls } = await withMock(
+      criteriaPaths,
+      {},
+      async () =>
+        evaluate({
+          manifestPath: criteriaPaths.manifestPath,
+          outputPath: criteriaPaths.outputPath,
+          concurrency: 4,
+          environment: CREDENTIALS,
+        }),
     );
     // Each document has two distinct section units plus one page unit. The
     // Section criteria differ between documents, so only the page request is
     // Shared: four section requests plus one page request.
     expect([criteriaCalls.length, criteriaReport.requestCount]).toStrictEqual([5, 5]);
-    const sectionA = evaluationOf(criteriaReport, "guide-a", "section", "section-1");
-    const sectionB = evaluationOf(criteriaReport, "guide-b", "section", "section-1");
-    const pageA = evaluationOf(criteriaReport, "guide-a", "page");
-    const pageB = evaluationOf(criteriaReport, "guide-b", "page");
+    const sectionA = cachedEvaluationOf(criteriaReport, "guide-a", "section", "section-1");
+    const sectionB = cachedEvaluationOf(criteriaReport, "guide-b", "section", "section-1");
+    const pageA = cachedEvaluationOf(criteriaReport, "guide-a", "page");
+    const pageB = cachedEvaluationOf(criteriaReport, "guide-b", "page");
     expect(sectionA.cache.key).not.toBe(sectionB.cache.key);
     expect(pageA.cache.key).toBe(pageB.cache.key);
     expect([pageA.cache.reused, pageB.cache.reused]).toStrictEqual([false, true]);
@@ -1501,7 +1572,7 @@ describe("documentation quality evaluator public pipeline", () => {
 
   test("records the mocked cache status header without claiming a real hit", async () => {
     const paths = await fixture();
-    const { result: report } = await withMock(paths, { cacheStatus: "HIT" }, () =>
+    const { result: report } = await withMock(paths, { cacheStatus: "HIT" }, async () =>
       evaluate({
         manifestPath: paths.manifestPath,
         outputPath: paths.outputPath,
@@ -1536,7 +1607,7 @@ const localFixture = async function ({
   ...overrides
 } = {}) {
   const paths = await fixture();
-  const previous = JSON.parse(await readFile(paths.manifestPath, "utf8"));
+  const previous = await readFixtureManifest(paths.manifestPath);
   await writeFile(resolve(paths.directory, "guide.md"), markdown);
   const manifest = {
     documents: previous.documents.map(({ ruleIds: _ruleIds, ...document }) => document),
@@ -1592,7 +1663,7 @@ describe("local mechanical and semantic engine boundaries", () => {
             { env: environment },
           ),
         ).rejects.toMatchObject({ code: 1 });
-        return JSON.parse(await readFile(paths.outputPath, "utf8"));
+        return readEvaluationReport(paths.outputPath);
       });
       expect(calls).toStrictEqual([]);
       expect(report).toMatchObject({
@@ -1608,7 +1679,7 @@ describe("local mechanical and semantic engine boundaries", () => {
         reviewRequired: true,
       });
       expect(
-        report.evaluations[0].answers[0].coverage.parserWarnings.some((warning) =>
+        mechanicalCoverage(report.evaluations[0].answers[0]).parserWarnings.some((warning) =>
           warning.reason.includes("Indented list continuation"),
         ),
       ).toBe(true);
@@ -1638,9 +1709,11 @@ describe("local mechanical and semantic engine boundaries", () => {
       ["pass", "pass"],
     ]);
     Iterator.from(report.evaluations[1].answers).forEach((answer) => {
-      expect(answer.coverage.parserWarnings).toStrictEqual([]);
+      expect(mechanicalCoverage(answer).parserWarnings).toStrictEqual([]);
     });
-    expect(report.evaluations[0].answers[0].coverage.parserWarnings[0].sourceRange).toMatchObject({
+    expect(
+      mechanicalCoverage(report.evaluations[0].answers[0]).parserWarnings[0].sourceRange,
+    ).toMatchObject({
       endLine: 5,
       startLine: 5,
     });
@@ -1676,7 +1749,7 @@ describe("local mechanical and semantic engine boundaries", () => {
           },
         ],
       });
-      const { result: error, calls } = await withMock(paths, {}, () =>
+      const { result: error, calls } = await withMock(paths, {}, async () =>
         execute(process.execPath, [
           script,
           "--manifest",
@@ -1737,7 +1810,7 @@ describe("local mechanical and semantic engine boundaries", () => {
         },
       ],
     });
-    const { result: error, calls } = await withMock(paths, {}, () =>
+    const { result: error, calls } = await withMock(paths, {}, async () =>
       execute(process.execPath, [
         script,
         "--manifest",
@@ -1777,7 +1850,7 @@ describe("local mechanical and semantic engine boundaries", () => {
             { env: environment },
           ),
         ).rejects.toMatchObject({ code: 1 });
-        return JSON.parse(await readFile(paths.outputPath, "utf8"));
+        return readEvaluationReport(paths.outputPath);
       });
       expect(calls).toStrictEqual([]);
       expect(report).toMatchObject({
@@ -1815,7 +1888,7 @@ describe("local mechanical and semantic engine boundaries", () => {
           [script, "--manifest", paths.manifestPath, "--output", paths.outputPath, ...cliFlags],
           { env: environment },
         );
-        return JSON.parse(await readFile(paths.outputPath, "utf8"));
+        return readEvaluationReport(paths.outputPath);
       });
       expect(calls).toStrictEqual([]);
       expect(report).toMatchObject({
@@ -1867,7 +1940,7 @@ describe("local mechanical and semantic engine boundaries", () => {
           { env: environment },
         ),
       ).rejects.toMatchObject({ code: 1 });
-      return JSON.parse(await readFile(paths.outputPath, "utf8"));
+      return readEvaluationReport(paths.outputPath);
     });
     expect(calls).toStrictEqual([]);
     expect(report).toMatchObject({
@@ -1892,7 +1965,7 @@ describe("local mechanical and semantic engine boundaries", () => {
         { ...lexicalRule, scope: "page", check: { kind: "prohibited-terms", terms: ["bad"] } },
       ],
     });
-    const { result: report, calls } = await withMock(paths, {}, () =>
+    const { result: report, calls } = await withMock(paths, {}, async () =>
       evaluate({ ...paths, mechanicalOnly: true, environment: {} }),
     );
     expect(calls).toStrictEqual([]);
@@ -1915,7 +1988,7 @@ describe("local mechanical and semantic engine boundaries", () => {
       excludesContent: answer.coverage.excluded.length > 0,
     }).toStrictEqual({
       choice: "not_applicable",
-      claim: expect.stringContaining("not STE dictionary or full STE compliance"),
+      claim: containingText("not STE dictionary or full STE compliance"),
       excludesContent: true,
     });
   });
@@ -1946,7 +2019,7 @@ describe("local mechanical and semantic engine boundaries", () => {
       ],
     });
     await writeFile(resolve(paths.directory, "other.md"), "# Other\n\nOther-page-secret.\n");
-    const { result: report, calls } = await withMock(paths, {}, () =>
+    const { result: report, calls } = await withMock(paths, {}, async () =>
       evaluate({ ...paths, environment: CREDENTIALS }),
     );
     expect(report.evaluations.some((entry) => entry.engine === "mechanical")).toBe(true);
@@ -2026,7 +2099,7 @@ describe("local mechanical and semantic engine boundaries", () => {
       ],
       model: "clef",
     });
-    const { result: report } = await withMock(paths, {}, () =>
+    const { result: report } = await withMock(paths, {}, async () =>
       evaluate({ ...paths, environment: CREDENTIALS }),
     );
     expect(report).toMatchObject({
@@ -2057,7 +2130,7 @@ describe("local mechanical and semantic engine boundaries", () => {
         },
       ],
     });
-    const { result: report } = await withMock(paths, { mode: "abstain" }, () =>
+    const { result: report } = await withMock(paths, { mode: "abstain" }, async () =>
       evaluate({ ...paths, environment: CREDENTIALS }),
     );
     expect(report).toMatchObject({ failed: true, incomplete: true, reviewRequired: true });
@@ -2302,7 +2375,7 @@ describe("local mechanical and semantic engine boundaries", () => {
           findings: [],
           reviewRequired: true,
         });
-        expect(answer.coverage.parserWarnings).toHaveLength(1);
+        expect(mechanicalCoverage(answer).parserWarnings).toHaveLength(1);
       });
     },
   );
