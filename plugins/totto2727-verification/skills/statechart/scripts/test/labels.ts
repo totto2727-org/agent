@@ -454,8 +454,8 @@ const readMermaid = async function (text: string, want: Want, { mermaid, html }:
   const byId = new Map<string | undefined, MermaidNode>();
   Iterator.from(data.nodes).forEach((n) => {byId.set(n.id, n);});
   let count = 0;
-  for (const n of data.nodes) {
-    if (n.shape === "divider" || n.shape === "stateStart" || n.shape === "stateEnd") {continue;}
+  Iterator.from(data.nodes).forEach((n) => {
+    if (n.shape === "divider" || n.shape === "stateStart" || n.shape === "stateEnd") {return;}
     count++;
     let parent = byId.get(n.parentId);
     while (parent?.shape === "divider") {parent = byId.get(parent.parentId);}
@@ -473,7 +473,7 @@ const readMermaid = async function (text: string, want: Want, { mermaid, html }:
       );}
     if (n.isGroup && n.dir && n.dir !== "TB")
       {problems.push(`mermaid-direction: ${n.id} runs ${n.dir}`);}
-  }
+  });
   if (count !== want.nodes.size)
     {problems.push(`mermaid-nodes: ${count} nodes for ${want.nodes.size}`);}
   if ((data.direction ?? "TB") !== want.direction)
@@ -519,13 +519,13 @@ const readPele = function (text: string, want: Want, render: Render, problems: s
     return;
   }
   const drawn = new Map<string, string>();
-  for (const m of svg.matchAll(
+  Iterator.from(svg.matchAll(
     /<g class="pele-(?:node|cluster) ([^"]*)" data-id="([^"]*)"[^>]*>([\s\S]*?)<\/g>/g,
-  )) {
-    if (/state-(?:start|end)/u.test(m[1])) {continue;}
+  )).forEach((m) => {
+    if (/state-(?:start|end)/u.test(m[1])) {return;}
     const regexMatch = m[3].match(/<text[^>]*>([\s\S]*?)<\/text>/);
     drawn.set(m[2], regexMatch ? fromSvg(regexMatch[1]) : "");
-  }
+  });
   if (drawn.size !== want.nodes.size)
     {problems.push(`pele-nodes: ${drawn.size} nodes for ${want.nodes.size}`);}
   Iterator.from(want.nodes).forEach(([node, w]) => {

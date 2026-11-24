@@ -230,7 +230,7 @@ test(
       cases.push({ i, text, mutated, skill, file, written });
     }
     const tlc = readInTlc(files, String(process.env.TLA2TOOLS));
-    for (const { i, text, mutated, skill, file, written } of cases) {
+    Iterator.from(cases).forEach(({ i, text, mutated, skill, file, written }) => {
       const want = tlc.get(file);
       assert.ok(want, `TLC printed nothing for config ${i}`);
       const where = `config ${i} of seed ${SEED}: ${JSON.stringify(text)}\nTLC reads ${JSON.stringify(want)}`;
@@ -242,7 +242,7 @@ test(
             mutated && skill.message.startsWith("The command cannot read"),
             `${skill.message}\n${where}`,
           );}
-        continue;
+        return;
       }
       assert.ok(passesTlcStartChecks(want), `The skill reads ${where}`);
       assert.deepEqual(
@@ -260,6 +260,6 @@ test(
         },
         where,
       );
-    }
+    });
   },
 );

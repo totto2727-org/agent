@@ -51,7 +51,7 @@ export function parseDot(input: Lines): Graph {
     if (matchesUndefined(copy)) {owned.set((copy = String(JSON.parse(JSON.stringify(s)))), copy);}
     return copy;
   };
-  for (const line of linesOf(input)) {
+  Iterator.from(linesOf(input)).forEach((line) => {
     const edge = /^(-?\d+) -> (-?\d+) \[label="([^"]*)"/.exec(line);
     if (edge) {
       steps.set(edge.slice(1).join(" "), {
@@ -59,7 +59,7 @@ export function parseDot(input: Lines): Graph {
         to: own(edge[2]),
         action: own(edge[3]),
       });
-      continue;
+      return;
     }
     const node = /^(-?\d+) \[label="((?:[^"\\]|\\.)*)"(,style = filled)?/.exec(line);
     if (node)
@@ -68,7 +68,7 @@ export function parseDot(input: Lines): Graph {
         start: !!node[3],
         breaks: [],
       });}
-  }
+  });
   Iterator.from(steps.values()).forEach((loose) => {if (!states.has(loose.from) || !states.has(loose.to))
       {throw new Error(
         `The TLC graph dump has a step ${loose.action} to or from a state that it does not list.`,

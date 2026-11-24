@@ -347,14 +347,14 @@ export function scoreReport(report, labels) {
         });
       }
     });
-    for (const question of evaluation.questions) {
+    Iterator.from(evaluation.questions).forEach((question) => {
       if (!nonempty(question?.id) || ambiguousIds.has(question.id)) {
         issues.push({
           kind: "ambiguous_question_id",
           documentId: evaluation.documentId,
           questionId: question?.id,
         });
-        continue;
+        return;
       }
       const target = expected.get(key(evaluation.documentId, question?.rule?.id));
       if (
@@ -370,14 +370,14 @@ export function scoreReport(report, labels) {
           documentId: evaluation.documentId,
           questionId: question?.id,
         });
-        continue;
+        return;
       }
       target.matches.push({
         evaluation,
         question,
         answers: answers.filter((answer) => answer?.questionId === question.id),
       });
-    }
+    });
   }
   const rows = [];
   let missing = 0;

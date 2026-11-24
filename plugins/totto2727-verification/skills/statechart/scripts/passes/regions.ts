@@ -127,10 +127,10 @@ export function drawRegions(
     const moves: RegionMove[] = [];
     const pairs = new Map<number, RegionMove>();
     const size = sizes[r];
-    for (const j of sorted) {
+    Iterator.from(sorted).forEach((j) => {
       const f = kind[from[j]];
       const t = kind[to[j]];
-      if (f === t && !loop(j)) {continue;}
+      if (f === t && !loop(j)) {return;}
       const text = drawnLabels[j];
       const pair = position[f] * size + position[t];
       let move = pairs.get(pair);
@@ -141,7 +141,7 @@ export function drawRegions(
         moves.push(move);
       }
       if (R > 1) {move.group.push(j);}
-    }
+    });
     const tuplesAt = new Map<number, number[]>();
     const seenAt = new Map<number, string[][]>();
     if (R > 1) {Iterator.from(order).forEach((i) => {append(tuplesAt, kind[i], i);});}
@@ -164,15 +164,16 @@ export function drawRegions(
       const takes = (t: string[]) => ok.has(tupleKey(t));
       let seen = seenAt.get(move.f);
       if (!seen) {
-        seen = [];
+        const uniqueTuples: string[][] = [];
+        seen = uniqueTuples;
         const seenKeys = new Set<string>();
-        for (const i of must(tuplesAt, move.f)) {
+        Iterator.from(must(tuplesAt, move.f)).forEach((i) => {
           const t = tuple(i);
           const k = tupleKey(t);
-          if (seenKeys.has(k)) {continue;}
+          if (seenKeys.has(k)) {return;}
           seenKeys.add(k);
-          seen.push(t);
-        }
+          uniqueTuples.push(t);
+        });
         seenAt.set(move.f, seen);
       }
       const all: Set<string>[] = [];

@@ -80,8 +80,8 @@ export function* readMarks(messages: Iterable<Part>, tag: string): Generator<Mar
 
 export function readCounterexample(messages: Iterable<Part>) {
   const trace: TraceState[] = [];
-  for (const m of messages) {
-    if (isString(m)) {continue;}
+  Iterator.from(messages).forEach((m) => {
+    if (isString(m)) {return;}
     const action = m.code === EC.TLC_STATE_PRINT2 ? actionOf(m) : undefined;
     if (!matchesUndefined(action)) {trace.push({ action, vars: messageState(m) });}
     else if (
@@ -89,6 +89,6 @@ export function readCounterexample(messages: Iterable<Part>) {
       m.code === EC.TLC_PROPERTY_VIOLATED_INITIAL
     )
       {trace.push({ action: "", vars: messageState(m) });}
-  }
+  });
   return trace;
 }

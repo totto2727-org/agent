@@ -389,12 +389,12 @@ export function buildReviewThreads(
 ): Readonly<T.ReviewThread[]> {
   const keys = new Set<string>();
   let keyless = false;
-  for (const thread of threads) {
-    if (!isBugbot(thread.firstComment)) {continue;}
+  Iterator.from(threads).forEach((thread) => {
+    if (!isBugbot(thread.firstComment)) {return;}
     const key = passKey(thread.firstComment);
     if (matchesNull(key)) {keyless = true;}
     else {keys.add(key);}
-  }
+  });
   const passes = keys.size > 0 ? keys.size : keyless ? 1 : 0;
   return threads
     .filter((thread) => !thread.resolved)
@@ -681,10 +681,10 @@ export function orderStack(
     open.filter((pr) => !pr.isCrossRepository).map((pr) => [pr.headRefName, pr])
   );
   const children = new Map<string, T.OpenPullRequest[]>();
-  for (const pr of open) {
-    if (pr.isCrossRepository) {continue;}
+  Iterator.from(open).forEach((pr) => {
+    if (pr.isCrossRepository) {return;}
     children.set(pr.baseRefName, [...(children.get(pr.baseRefName) ?? []), pr]);
-  }
+  });
   Iterator.from(children.values()).forEach((values) => {values.sort((a, b) => a.number - b.number);});
   const start = byNumber.get(context.number);
   if (matchesUndefined(start)) {return [context];}
@@ -703,13 +703,13 @@ export function orderStack(
   const up: T.OpenPullRequest[] = [];
   const visit = (parent: T.OpenPullRequest): void => {
     if (parent.isCrossRepository) {return;}
-    for (const child of children.get(parent.headRefName) ?? []) {
-      if (child.isCrossRepository) {continue;}
-      if (seen.has(child.number)) {continue;}
+    Iterator.from(children.get(parent.headRefName) ?? []).forEach((child) => {
+      if (child.isCrossRepository) {return;}
+      if (seen.has(child.number)) {return;}
       seen.add(child.number);
       up.push(child);
       visit(child);
-    }
+    });
   };
   visit(start);
   return (

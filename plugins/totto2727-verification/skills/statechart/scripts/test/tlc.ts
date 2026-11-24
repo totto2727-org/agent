@@ -119,18 +119,18 @@ export function agrees(module: string, files: { [name: string]: string[] }, cfg:
 
     const breaks = new Map<string, number>();
     const bounded = new Set<string>();
-    for (const [, rule, body] of report.matchAll(/^## (\S+) breaks\n(.*)$/gm)) {
+    Iterator.from(report.matchAll(/^## (\S+) breaks\n(.*)$/gm)).forEach(([, rule, body]) => {
       const said = body.match(/has (\d+) steps?:/u)?.[1];
       const file = body.match(/ is in (tlc-\S+\.out)\./)?.[1];
       if (!file) {
         breaks.set(rule, Number(said));
-        continue;
+        return;
       }
       const text = fs.readFileSync(path.join(out, file), "utf8");
       if (said) {assert.equal(Number(said), stepsIn(text), rule);}
       if (/^Semantic processing of module ChartBound$/mu.test(text)) {bounded.add(rule);}
       breaks.set(rule, stepsIn(text));
-    }
+    });
     const list = (title: string) =>
       report
         .match(new RegExp(`^## ${title}\\n(.*)$`, "m"))?.[1]

@@ -21,10 +21,10 @@ const owners = new Map();
 const retiredSkills = new Set(
   Array.from(record.matchAll(/^Retired upstream skill: `([^`]+)`/gmu), ([, name]) => name),
 );
-for (const pkg of readdirSync(join(root, "plugins"))) {
+Iterator.from(readdirSync(join(root, "plugins"))).forEach((pkg) => {
   const dir = join(root, "plugins", pkg, "skills");
   if (!existsSync(dir)) {
-    continue;
+    return;
   }
   for (const skill of readdirSync(dir)) {
     if (!existsSync(join(dir, skill, "SKILL.md"))) {
@@ -35,7 +35,7 @@ for (const pkg of readdirSync(join(root, "plugins"))) {
     }
     owners.set(skill, join(dir, skill));
   }
-}
+});
 let identical = 0;
 Iterator.from(retiredSkills).forEach((skill) => {
   if (owners.has(skill)) throw new Error(`Retired upstream skill still shipped: ${skill}`);
@@ -47,49 +47,51 @@ const retired = new Set(
 );
 let removed = 0;
 const skills = new Set();
-for (const row of git("ls-tree", "-rz", base, "--", "skills").split("\0").filter(Boolean)) {
-  const [header, path] = row.split("\t");
-  const [mode, , blob] = header.split(" ");
-  const [, skill, ...tail] = path.split("/");
-  skills.add(skill);
-  if (retiredSkills.has(skill)) continue;
-  const dir = owners.get(skill);
-  const file = dir && join(dir, ...tail);
-  if (retired.delete(path)) {
-    if (file && existsSync(file)) {
-      throw new Error(`Documented retirement still shipped: ${path}`);
+Iterator.from(git("ls-tree", "-rz", base, "--", "skills").split("\0").filter(Boolean)).forEach(
+  (row) => {
+    const [header, path] = row.split("\t");
+    const [mode, , blob] = header.split(" ");
+    const [, skill, ...tail] = path.split("/");
+    skills.add(skill);
+    if (retiredSkills.has(skill)) return;
+    const dir = owners.get(skill);
+    const file = dir && join(dir, ...tail);
+    if (retired.delete(path)) {
+      if (file && existsSync(file)) {
+        throw new Error(`Documented retirement still shipped: ${path}`);
+      }
+      removed++;
+      return;
     }
-    removed++;
-    continue;
-  }
-  if (!file || !existsSync(file)) {
-    missing.push(path);
-    continue;
-  }
-  const bytes = readFileSync(file);
-  const hash = createHash("sha1").update(`blob ${bytes.length}\0`).update(bytes).digest("hex");
-  const executable = Boolean(statSync(file).mode & 0o111);
-  if (hash === blob && executable === (mode === "100755")) {
-    identical++;
-  } else {
-    changed++;
-    console.log(`Adapted: ${path}`);
-  }
-}
+    if (!file || !existsSync(file)) {
+      missing.push(path);
+      return;
+    }
+    const bytes = readFileSync(file);
+    const hash = createHash("sha1").update(`blob ${bytes.length}\0`).update(bytes).digest("hex");
+    const executable = Boolean(statSync(file).mode & 0o111);
+    if (hash === blob && executable === (mode === "100755")) {
+      identical++;
+    } else {
+      changed++;
+      console.log(`Adapted: ${path}`);
+    }
+  },
+);
 const license = git("show", `${base}:LICENSE`);
 Iterator.from(retiredSkills).forEach((original) => {
   if (!skills.has(original)) throw new Error(`Unknown retired upstream skill: ${original}`);
 });
-for (const skill of skills) {
+Iterator.from(skills).forEach((skill) => {
   if (retiredSkills.has(skill)) {
-    continue;
+    return;
   }
   const dir = owners.get(skill);
   const file = dir && join(dir, "LICENSE");
   if (!file || !existsSync(file) || readFileSync(file, "utf8") !== license) {
     missing.push(`MIT notice: ${skill}`);
   }
-}
+});
 Iterator.from(missing).forEach((path) => {
   console.error(`Missing: ${path}`);
 });

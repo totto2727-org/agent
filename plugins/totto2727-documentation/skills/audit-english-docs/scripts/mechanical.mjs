@@ -194,9 +194,9 @@ export function inspectMarkdown(markdown) {
   }
   /** @type {FenceOpening | null} */
   let opening = null;
-  for (const line of lines) {
+  Iterator.from(lines).forEach((line) => {
     if (frontmatter && line.index < frontmatter.end) {
-      continue;
+      return;
     }
     if (opening) {
       const close = /^ {0,3}(`{3,}|~{3,})\s*$/u.exec(line[0]);
@@ -218,7 +218,7 @@ export function inspectMarkdown(markdown) {
         };
       }
     }
-  }
+  });
   if (opening) {
     fences.push({ ...opening, end: markdown.length, closed: false });
     exclude(opening.start, markdown.length, "fenced-code");
@@ -245,27 +245,27 @@ export function inspectMarkdown(markdown) {
   // As indented code or tainting subsequent independent top-level content.
   /** @type {number | null} */
   let listIndent = null;
-  for (const line of lines) {
+  Iterator.from(lines).forEach((line) => {
     if (frontmatter && line.index < frontmatter.end) {
-      continue;
+      return;
     }
     if (uncertainties.some((range) => line.index >= range.start && line.index < range.end)) {
-      continue;
+      return;
     }
     const fence = fences.find(
       (candidate) => line.index >= candidate.start && line.index < candidate.end,
     );
     if (fence && line.index !== fence.start) {
-      continue;
+      return;
     }
     if (/^[ \t\r\n]*$/u.test(line[0])) {
-      continue;
+      return;
     }
     const indentation = /^[ \t]*/u.exec(line[0])[0].replaceAll("\t", "    ").length;
     const listMarker = /^[ \t]*(?:[-+*]|\d+[.)])[ \t]+/u.test(line[0]);
     if (listMarker) {
       listIndent = matchesNull(listIndent) ? indentation : Math.min(listIndent, indentation);
-      continue;
+      return;
     }
     if (!matchesNull(listIndent) && indentation > listIndent) {
       const end = fence?.end ?? line.index + line[0].length;
@@ -279,7 +279,7 @@ export function inspectMarkdown(markdown) {
     } else {
       listIndent = null;
     }
-  }
+  });
   const mask = () => {
     const characters = markdown.split("");
     Iterator.from(exclusions).forEach(({ start, end }) => {
@@ -389,9 +389,9 @@ export function paragraphUnits(markdown, sections) {
     }
     start = null;
   };
-  for (const line of lines) {
+  Iterator.from(lines).forEach((line) => {
     if (frontmatter && line.index < frontmatter.end) {
-      continue;
+      return;
     }
     const fence = fences.find(
       (candidate) => line.index >= candidate.start && line.index < candidate.end,
@@ -403,17 +403,17 @@ export function paragraphUnits(markdown, sections) {
         end = fence.end;
         flush();
       }
-      continue;
+      return;
     }
     if (/^\s*$/u.test(line[0]) || /^ {0,3}#{1,6}\s/u.test(line[0])) {
       flush();
       if (/^\s*$/u.test(line[0]) || /^ {0,3}#{1,6}\s/u.test(line[0])) {
-        continue;
+        return;
       }
     }
     start ??= line.index;
     end = line.index + line[0].length;
-  }
+  });
   flush();
   return units;
 }
@@ -516,12 +516,12 @@ function runSteMechanical(check, markdown, targetRange, context) {
           " ".repeat(match.length),
         );
       }
-      for (const group of context.wordGroups ?? []) {
+      Iterator.from(context.wordGroups ?? []).forEach((group) => {
         if (!["quoted", "title", "proper-noun", "formula"].includes(group.category)) {
-          continue;
+          return;
         }
         prose = prose.replaceAll(group.text, " ".repeat(group.text.length));
-      }
+      });
       if (/["“”‘’]/.test(prose)) {
         warning(
           "Unbalanced quotation marks make punctuation ownership uncertain.",
@@ -561,12 +561,12 @@ function runSteMechanical(check, markdown, targetRange, context) {
         ]),
       ].sort((a, b) => b.length - a.length);
       let consumed = 0;
-      for (const match of text.matchAll(/[\p{L}\p{N}]+(?:[-'][\p{L}\p{N}]+)*/gu)) {
+      Iterator.from(text.matchAll(/[\p{L}\p{N}]+(?:[-'][\p{L}\p{N}]+)*/gu)).forEach((match) => {
         if (match.index < consumed) {
-          continue;
+          return;
         }
         if (/^[0-9]+$/u.test(match[0])) {
-          continue;
+          return;
         }
         const form = forms.find(
           (candidate) =>
@@ -606,7 +606,7 @@ function runSteMechanical(check, markdown, targetRange, context) {
             start + match.index + term.length,
           ),
         });
-      }
+      });
       warning(
         "Literal dictionary/inflection membership candidates do not establish contextual meaning, part of speech, or permitted technical noun/verb use (rules 1.1 through 1.4).",
         unit.sourceRange,
@@ -791,12 +791,12 @@ export function runMechanical(check, markdown, targetRange, context = {}) {
   const findings = [];
   let applicable = false;
   if (check.kind === "fenced-code-language") {
-    for (const fence of fences) {
+    Iterator.from(fences).forEach((fence) => {
       if (uncertainties.some((range) => fence.start < range.end && fence.end > range.start)) {
-        continue;
+        return;
       }
       if (!within(fence.start, fence.end)) {
-        continue;
+        return;
       }
       applicable = true;
       if (!fence.closed) {
@@ -812,14 +812,14 @@ export function runMechanical(check, markdown, targetRange, context = {}) {
           sourceRange: sourceRange(markdown, fence.start, fence.openingEnd),
         });
       }
-    }
+    });
   } else {
     const normalize = (term) => (check.caseSensitive ? term : term.toLowerCase());
     const prohibited = new Set(check.terms.map(normalize));
     const protectedTerms = new Set((check.protectedTerms ?? []).map(normalize));
-    for (const token of visible.matchAll(/[\p{L}\p{N}_]+/gu)) {
+    Iterator.from(visible.matchAll(/[\p{L}\p{N}_]+/gu)).forEach((token) => {
       if (!within(token.index, token.index + token[0].length)) {
-        continue;
+        return;
       }
       applicable = true;
       if (prohibited.has(normalize(token[0])) && !protectedTerms.has(normalize(token[0]))) {
@@ -830,7 +830,7 @@ export function runMechanical(check, markdown, targetRange, context = {}) {
           sourceRange: sourceRange(markdown, token.index, token.index + token[0].length),
         });
       }
-    }
+    });
   }
   const parserWarnings = uncertainties
     .filter(({ start, end }) => {

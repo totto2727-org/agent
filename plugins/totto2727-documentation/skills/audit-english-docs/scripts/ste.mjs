@@ -289,7 +289,7 @@ export function analyzeSteProse(text, context = {}, { paragraph = false } = {}) 
   if (/\([^()]*\([^)]*\)/.test(current)) {
     warn("Nested parentheses require contextual parsing.");
   }
-  for (const match of current.matchAll(/\([^()]*\)/g)) {
+  Iterator.from(current.matchAll(/\([^()]*\)/g)).forEach((match) => {
     const inner = match[0].slice(1, -1);
     const identifier = /^[A-Z0-9]+(?:[/-][A-Z0-9]+)*$/u.test(inner);
     const attached = match.index > 0 && /[\p{L}\p{N}]/u.test(current[match.index - 1]);
@@ -299,7 +299,7 @@ export function analyzeSteProse(text, context = {}, { paragraph = false } = {}) 
         match.index,
         match.index + match[0].length,
       );
-      continue;
+      return;
     }
     if (!identifier) {
       if (paragraph) {
@@ -327,7 +327,7 @@ export function analyzeSteProse(text, context = {}, { paragraph = false } = {}) 
       );
     }
     collapse(characters, match.index, match.index + match[0].length);
-  }
+  });
   current = characters.join("");
   if (/[()]/u.test(current)) {
     warn("Unbalanced or nested parentheses require contextual parsing.");
@@ -355,9 +355,9 @@ export function analyzeSteProse(text, context = {}, { paragraph = false } = {}) 
     ]),
   ].sort((a, b) => b.length - a.length);
   current = characters.join("");
-  for (const match of current.matchAll(/[+-]?\d+(?:,\d{3})*(?:\.\d+)?/g)) {
+  Iterator.from(current.matchAll(/[+-]?\d+(?:,\d{3})*(?:\.\d+)?/g)).forEach((match) => {
     if (!boundary(current, match.index - 1) || !boundary(current, match.index + match[0].length)) {
-      continue;
+      return;
     }
     const tail = current.slice(match.index + match[0].length);
     const gap = /^\s+/u.exec(tail)?.[0] ?? "";
@@ -378,7 +378,7 @@ export function analyzeSteProse(text, context = {}, { paragraph = false } = {}) 
         );
       }
     }
-  }
+  });
   current = characters.join("");
   if (!paragraph && /\b(?:hundred|thousand|million|billion)\b/i.test(current)) {
     warn("Multi-word written numbers require a declared number group.");

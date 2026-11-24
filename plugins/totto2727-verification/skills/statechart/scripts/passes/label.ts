@@ -184,19 +184,19 @@ export function labelGraph(
   const together = new Set<string>();
   Iterator.from(byLabel).forEach(([text, { sets }]) => {if (sets.size) {together.add(text);}});
   const notes: string[] = [];
-  for (const [text, entry] of byLabel) {
+  Iterator.from(byLabel).forEach(([text, entry]) => {
     const changed: string[] = [];
     for (let r = 0; r < R; r++) {if (entry.changed[r]) {changed.push(names[r]);}}
-    if (changed.length < 2) {continue;}
+    if (changed.length < 2) {return;}
     if (!together.has(text)) {
       notes.push(`The step ${text} changes only one of ${list(changed)} at a time.`);
-      continue;
+      return;
     }
     const sets = [...entry.sets];
     notes.push(
       `The step ${text} changes ${sets.length > 1 ? `${sets.join(", or ")},` : sets[0]} at the same time.`,
     );
-  }
+  });
   return {
     ...answers,
     drawnLabels,

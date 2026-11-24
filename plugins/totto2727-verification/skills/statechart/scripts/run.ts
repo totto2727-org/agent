@@ -385,15 +385,15 @@ export async function check(specFile: string, configFile: string): Promise<Check
     const initialOnly = initialOnlyProperties(sany, spec);
     const propertiesWith = (bugOf: (trace: Trace) => Lasso | undefined) => {
       const properties: Property[] = [];
-      for (const rule of all) {
-        if (rule.kind !== "property") {continue;}
+      Iterator.from(all).forEach((rule) => {
+        if (rule.kind !== "property") {return;}
         const v = must(verdicts, ruleKey(rule));
         properties.push({
           ...v,
           bug: v.outcome === "broken" && v.messages ? bugOf(readTrace(v.messages)) : undefined,
           initialOnly: initialOnly.has(rule.name),
         });
-      }
+      });
       return properties;
     };
     if (exit === 2) {throw failed(judged.first);}
@@ -431,7 +431,7 @@ export async function check(specFile: string, configFile: string): Promise<Check
         const marks = only(readMarks(readMessages(fileLines(drawn.stdout)), tag), broken);
         const past = mark(graph, marks, spec.variables, rules, find);
         const excludes = hasSection(spec, "ACTION_CONSTRAINT");
-        for (const rule of rules) {
+        Iterator.from(rules).forEach((rule) => {
           const { outcome, messages } = must(verdicts, ruleKey(rule));
           if (
             rule.kind === "deadlock" &&
@@ -440,14 +440,14 @@ export async function check(specFile: string, configFile: string): Promise<Check
             !hasSection(spec, "CONSTRAINT", "ACTION_CONSTRAINT")
           )
             {deadEnds(graph, rule);}
-          if (outcome !== "broken" || !messages) {continue;}
+          if (outcome !== "broken" || !messages) {return;}
           const counterexample = readCounterexample(messages);
           if (
             !drawing ||
             lasso(graph, { seq: counterexample, loop: undefined }, spec.variables, find)
           )
             {addPast(graph, counterexample, spec.variables, rule, past, excludes, find);}
-        }
+        });
         const properties = propertiesWith((trace) => lasso(graph, trace, spec.variables, find));
         return {
           ...common,

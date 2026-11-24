@@ -24,18 +24,18 @@ export function readVerdict(messages: Iterable<Part>) {
   let broke: Break | undefined;
   let distinct = 0;
   let initial = 0;
-  for (const m of messages) {
-    if (isString(m)) {continue;}
+  Iterator.from(messages).forEach((m) => {
+    if (isString(m)) {return;}
     const count = DISTINCT.get(m.code)?.exec(textOf(m));
     if (count) {distinct = Math.max(distinct, Number(count[1]));}
     if (m.code === EC.TLC_INIT_GENERATED1 || m.code === EC.TLC_INIT_GENERATED2)
       {initial = Number(/(\d+) (?:distinct )?states? generated/u.exec(textOf(m))?.[1] ?? 0);}
-    if (broke) {continue;}
+    if (broke) {return;}
     if (m.code === EC.TLC_DEADLOCK_REACHED) {broke = { kind: "deadlock" };}
     else if (m.code === EC.TLC_TEMPORAL_PROPERTY_VIOLATED) {broke = { kind: "temporal" };}
     const named = NAMED.get(m.code);
     const name = named?.[1].exec(textOf(m))?.[1];
     if (named && name) {broke = { kind: named[0], name };}
-  }
+  });
   return { broke, distinct, initial };
 }

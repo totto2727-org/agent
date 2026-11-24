@@ -68,16 +68,16 @@ export function readSany(xml: string): Sany {
   Iterator.from(symbols.values()).forEach((node) => {if (node.tag === "ModuleNode" && textOf(node, "uniquename") === root) {module = node;}});
   const definitions = new Map<string, XmlNode>();
   const variables: { uid: number; name: string }[] = [];
-  for (const ref of module?.children ?? []) {
-    if (ref.tag !== "OpDeclNodeRef" && ref.tag !== "UserDefinedOpKindRef") {continue;}
+  Iterator.from(module?.children ?? []).forEach((ref) => {
+    if (ref.tag !== "OpDeclNodeRef" && ref.tag !== "UserDefinedOpKindRef") {return;}
     const uid = textOf(ref, "UID");
     const node = symbols.get(uid);
-    if (!node) {continue;}
+    if (!node) {return;}
     const name = textOf(node, "uniquename");
     definitions.set(name, node);
     if (node.tag === "OpDeclNode" && textOf(node, "kind") === VARIABLE_KIND)
       {variables.push({ uid: Number(uid), name });}
-  }
+  });
   variables.sort((a, b) => a.uid - b.uid);
   return { variables: variables.map((v) => v.name), definitions };
 }
