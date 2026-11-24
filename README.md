@@ -8,6 +8,7 @@ Choose a plugin for the task you are doing. Each [Agent Plugins 1.0.0](https://a
 - **Choose a narrower workflow:** use `totto2727-engineering` for design and parallel reviews, `totto2727-verification` for executable checks or statecharts, and `totto2727-communication` for explanations and recaps.
 - **Decide whether to reuse a library or prototype alternatives:** use [principle-exhaust-the-design-space](plugins/totto2727-principle/skills/principle-exhaust-the-design-space/SKILL.md).
 - **Write a README, audit English documentation, or review a skill:** use `technical-writing`, `audit-english-docs`, or `review-skill` in `totto2727-documentation`.
+- **Look up a design decision:** `totto2727-knowledge` covers task graphs and caching, recurring job semantics, and where Git ignore patterns belong.
 - **Use connected services or research a source:** use `totto2727-external-information`. Use `totto2727-tools` to manage the skill collection.
 - **Apply totto2727's personal preferences:** opt into [`totto2727-profile`](plugins/totto2727-profile/skills/totto2727-profile/SKILL.md). A target worktree's root `PROFILE.local.md` overrides individual defaults. The other plugins do not require this profile.
 
@@ -88,15 +89,23 @@ Design alternatives, engineering reviews, parallel work, and evidence-based corr
 
 Monid/TinyFish research, cost-aware Cloudflare AI inference and typed Decision Models, plus OpenConnector for Projektor, Context7, Browser Run, and GitHub.
 
-| Skill                                                                                   | Refers to                                                                  |
-| --------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| [cloudflare-ai](plugins/totto2727-external-information/skills/cloudflare-ai/SKILL.md)   | `decision-model`                                                           |
-| [decision-model](plugins/totto2727-external-information/skills/decision-model/SKILL.md) | `cloudflare-ai`                                                            |
-| [doc-search](plugins/totto2727-external-information/skills/doc-search/SKILL.md)         | `open-connector`, `web-search`                                             |
-| [monid](plugins/totto2727-external-information/skills/monid/SKILL.md)                   | None                                                                       |
-| [open-connector](plugins/totto2727-external-information/skills/open-connector/SKILL.md) | None                                                                       |
-| [projektor](plugins/totto2727-external-information/skills/projektor/SKILL.md)           | `open-connector`                                                           |
-| [web-search](plugins/totto2727-external-information/skills/web-search/SKILL.md)         | `cloudflare-ai`, `decision-model`, `doc-search`, `monid`, `open-connector` |
+| Skill                                                                                   | Refers to                                       |
+| --------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| [cloudflare-ai](plugins/totto2727-external-information/skills/cloudflare-ai/SKILL.md)   | `decision-model`                                |
+| [decision-model](plugins/totto2727-external-information/skills/decision-model/SKILL.md) | `cloudflare-ai`                                 |
+| [doc-search](plugins/totto2727-external-information/skills/doc-search/SKILL.md)         | `web-search`                                    |
+| [projektor](plugins/totto2727-external-information/skills/projektor/SKILL.md)           | None                                            |
+| [web-search](plugins/totto2727-external-information/skills/web-search/SKILL.md)         | `cloudflare-ai`, `decision-model`, `doc-search` |
+
+### [totto2727-knowledge](plugins/totto2727-knowledge/plugin.json)
+
+Decision guides for task graphs, recurring jobs, and Git ignore scopes.
+
+| Skill                                                                                | Refers to      |
+| ------------------------------------------------------------------------------------ | -------------- |
+| [git-excludes](plugins/totto2727-knowledge/skills/git-excludes/SKILL.md)             | None           |
+| [scheduling](plugins/totto2727-knowledge/skills/scheduling/SKILL.md)                 | None           |
+| [task-orchestration](plugins/totto2727-knowledge/skills/task-orchestration/SKILL.md) | `git-excludes` |
 
 ### [totto2727-principle](plugins/totto2727-principle/plugin.json)
 
@@ -133,9 +142,9 @@ pstack principles for design, implementation, and verification.
 
 Optional personal defaults for totto2727's Git identity, delivery, and local workspace.
 
-| Skill                                                                            | Refers to                                                                        |
-| -------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| [totto2727-profile](plugins/totto2727-profile/skills/totto2727-profile/SKILL.md) | `doc-search`, `open-connector`, `projektor`, `visual-explainer-ja`, `web-search` |
+| Skill                                                                            | Refers to                                                                      |
+| -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| [totto2727-profile](plugins/totto2727-profile/skills/totto2727-profile/SKILL.md) | `doc-search`, `git-excludes`, `projektor`, `visual-explainer-ja`, `web-search` |
 
 ### [totto2727-tools](plugins/totto2727-tools/plugin.json)
 

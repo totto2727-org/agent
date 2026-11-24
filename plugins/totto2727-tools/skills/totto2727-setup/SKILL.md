@@ -42,4 +42,4 @@ A bootstrap installed separately in step 2 is deliberately not owned by the subs
 
 [The dependency manifest](dependencies.json) records the upstream sources and the skills that use them. Install only the named skills, not every sibling in their repositories. Installing a diagnostic guide does not install its linter or change a project's lint preset. The [Vite+ guide](https://viteplus.dev/guide/) is documentation, not another skill dependency.
 
-[Orca](https://orca.dev/) and the [oo CLI](https://github.com/oomol-lab/oo-cli) supply their own skills automatically. They are outside this setup's install and removal scope. The [Monid reference](https://monid.ai/SKILL.md) does not replace the collection's identically named local guidance.
+[Orca](https://orca.dev/) and the [oo CLI](https://github.com/oomol-lab/oo-cli) supply their own skills automatically. They are outside this setup's install and removal scope. Use the [official Monid skill](https://monid.ai/SKILL.md) directly for its CLI; this collection does not install a namesake wrapper.

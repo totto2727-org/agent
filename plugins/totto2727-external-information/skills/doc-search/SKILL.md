@@ -9,7 +9,7 @@ description: >-
 Look up library and framework documentation through Context7 Actions in OpenConnector.
 Execute Context7 directly through OOMOL/OpenConnector, never through Monid, including when its connection is unavailable or a request fails.
 The web-search fallback below retrieves official sources with other services; it does not reroute Context7 through Monid.
-Use [open-connector](../open-connector/SKILL.md) for the official `oo` CLI reference.
+Use the host-provided [oo skill](https://github.com/oomol-lab/oo-cli/blob/main/contrib/skills/shared/oo/SKILL.md) for the CLI reference.
 Do not silently select another account or gateway.
 Do not install the Context7 CLI or configure a direct Context7 API key locally.
 The user manages the Context7 connection inside OpenConnector.

@@ -11,8 +11,8 @@ Keep complete command responses and link inventories on disk, and bring only tas
 
 ## Dependencies and Routing
 
-- Use [monid](../monid/SKILL.md) for Monid operations.
-- Use [open-connector](../open-connector/SKILL.md) for Cloudflare Browser Run.
+- Use the installed [official Monid skill](https://monid.ai/SKILL.md) for Monid operations.
+- Use the host-provided [oo skill](https://github.com/oomol-lab/oo-cli/blob/main/contrib/skills/shared/oo/SKILL.md) for Cloudflare Browser Run.
   **Context7 and Cloudflare Browser Run must execute directly through OOMOL/OpenConnector and must never use Monid**, including as a fallback for missing connections or failed calls.
   Context7 library lookup belongs to [doc-search](../doc-search/SKILL.md), not Monid discovery.
 - If a required skill cannot run, report the blocker and follow the failure rules below; do not bypass its gateway requirements.

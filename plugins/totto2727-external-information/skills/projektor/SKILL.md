@@ -9,7 +9,7 @@ description: >-
 This guide serves agents that operate Projektor tasks through a configured connection.
 Use the installed `oo` CLI through OOMOL OpenConnector.
 Do not require a separate Projektor CLI or a direct backend token.
-Follow [open-connector](../open-connector/SKILL.md) for CLI setup, command documentation, and connection failures.
+Use the host-provided [oo skill](https://github.com/oomol-lab/oo-cli/blob/main/contrib/skills/shared/oo/SKILL.md) for CLI usage and connection failures.
 Assume that the connection is configured and run the requested operation without a connection precheck.
 Do not inspect local secrets or configuration before execution.
 
