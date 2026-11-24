@@ -388,8 +388,8 @@ describe("private dictionary evidence boundaries", () => {
       choice: "insufficient_context",
       confidence: 0,
       origin: "evidence-guard",
-      reviewRequired: true,
       providerAnswer: { choice: "pass", confidence: 0.94, probabilities: { pass: 0.96 } },
+      reviewRequired: true,
     });
     expect(report.evaluations[0].answers[0].reason).toContain("machine counts");
   });
@@ -436,20 +436,20 @@ describe("private dictionary evidence boundaries", () => {
       JSON.stringify(paths.data),
     );
     const report = await evaluate({ ...paths, environment: {} });
-    expect(report).toMatchObject({ requestCount: 0, reviewRequired: true, incomplete: true });
+    expect(report).toMatchObject({ incomplete: true, requestCount: 0, reviewRequired: true });
     expect(report.evaluations[0]).toMatchObject({
-      status: "deferred",
       answers: [{ choice: "insufficient_context" }],
+      status: "deferred",
     });
   });
 
   it("defers dictionary-dependent judgments without matched entries and without credentials or requests", async () => {
     const paths = await dictionaryFixture({ vocabulary: false });
     const report = await evaluate({ ...paths, environment: {} });
-    expect(report).toMatchObject({ requestCount: 0, incomplete: true, reviewRequired: true });
+    expect(report).toMatchObject({ incomplete: true, requestCount: 0, reviewRequired: true });
     expect(report.evaluations[0]).toMatchObject({
-      status: "deferred",
       answers: [{ choice: "insufficient_context", reviewRequired: true }],
+      status: "deferred",
     });
     expect(report.evaluations[0].reason).toContain("Required dictionary entries");
   });
@@ -464,18 +464,18 @@ describe("private dictionary evidence boundaries", () => {
     const selected = payload.state.evidence.local.dictionaryCandidates;
     expect(selected).toMatchObject({ issue: 9, source: paths.data.source });
     expect(selected.candidates[0]).toMatchObject({
-      term: "Check",
       membership: "approved-form",
       records: [
         {
-          word: "check",
           approved: true,
-          partOfSpeech: "synthetic",
-          meaning: "Selected local meaning.",
           listedForms: ["check"],
+          meaning: "Selected local meaning.",
+          partOfSpeech: "synthetic",
+          word: "check",
         },
       ],
-      sourceRange: { startLine: 1, endLine: 1, startByte: 0, endByte: 5 },
+      sourceRange: { endByte: 5, endLine: 1, startByte: 0, startLine: 1 },
+      term: "Check",
     });
     expect(JSON.stringify(selected)).not.toContain("UNMATCHED-PRIVATE-MEANING");
     expect(JSON.stringify(payload)).not.toContain("private-vocabulary.json");
@@ -484,12 +484,12 @@ describe("private dictionary evidence boundaries", () => {
       choice: "insufficient_context",
       confidence: 0,
       origin: "evidence-guard",
-      reviewRequired: true,
       providerAnswer: {
         choice: "pass",
         confidence: 0.94,
-        probabilities: { pass: 0.96, fail: 0.03, not_applicable: 0, insufficient_context: 0.01 },
+        probabilities: { fail: 0.03, insufficient_context: 0.01, not_applicable: 0, pass: 0.96 },
       },
+      reviewRequired: true,
     });
     expect(report.evaluations[0].answers[0].reason).toContain("model pass");
   });
@@ -716,7 +716,7 @@ describe("documentation quality evaluator public pipeline", () => {
     expect(report.reviewRequired).toBe(false);
     expect(report.requestCount).toBe(3);
     expect(report.evaluations).toHaveLength(3);
-    expect(report.evaluations.at(-1)).toMatchObject({ scope: "page", model: "clef-flash" });
+    expect(report.evaluations.at(-1)).toMatchObject({ model: "clef-flash", scope: "page" });
     expect(calls).toHaveLength(3);
     for (const call of calls) {
       expect(call.url).toBe(
@@ -842,7 +842,7 @@ describe("documentation quality evaluator public pipeline", () => {
     expect(calls.filter(hasRetryOverride)).toHaveLength(0);
     // The first logical request observes the mocked 503 once and is reported as
     // An error; the later distinct requests observe the mocked 200.
-    expect(report.evaluations[0]).toMatchObject({ status: "error", answers: [] });
+    expect(report.evaluations[0]).toMatchObject({ answers: [], status: "error" });
     expect(report.evaluations[0].error).toContain("HTTP 503");
     expect(report.evaluations.slice(1).every((entry) => entry.status === "complete")).toBe(true);
     expect(report.attentionRequired).toBe(true);
@@ -913,7 +913,7 @@ describe("documentation quality evaluator public pipeline", () => {
       expect(hasRetryOverride(calls[0])).toBe(false);
       expect(report.reviewRequired).toBe(true);
       expect(report.attentionRequired).toBe(true);
-      expect(report.evaluations[0]).toMatchObject({ status: "error", answers: [] });
+      expect(report.evaluations[0]).toMatchObject({ answers: [], status: "error" });
       expect(report.evaluations[0].error).toContain(`HTTP ${status}`);
       expect(report.evaluations.slice(1)).toHaveLength(2);
       expect(report.evaluations.slice(1).every((entry) => entry.status === "skipped")).toBe(true);
@@ -968,10 +968,10 @@ describe("documentation quality evaluator public pipeline", () => {
     }
     const report = JSON.parse(await readFile(paths.outputPath, "utf8"));
     expect(report).toMatchObject({
-      requestCount: 1,
-      reviewRequired: true,
       attentionRequired: true,
       dryRun: false,
+      requestCount: 1,
+      reviewRequired: true,
     });
     expect(report.evaluations[0].status).toBe("error");
     expect(report.evaluations[1].status).toBe("skipped");
@@ -1071,7 +1071,7 @@ describe("documentation quality evaluator public pipeline", () => {
       dryRun: true,
       environment: {},
     });
-    expect(report).toMatchObject({ dryRun: true, reviewRequired: false, requestCount: 0 });
+    expect(report).toMatchObject({ dryRun: true, requestCount: 0, reviewRequired: false });
     expect(report.evaluations.every((entry) => entry.status === "dry_run")).toBe(true);
   });
 
@@ -1106,7 +1106,7 @@ describe("documentation quality evaluator public pipeline", () => {
     });
     expect(report.evaluations[0].section).toMatchObject({
       id: "detail",
-      sourceRange: { startLine: 5, endLine: 10 },
+      sourceRange: { endLine: 10, startLine: 5 },
     });
     manifest.documents[0].sections = [];
     await writeFile(paths.manifestPath, JSON.stringify(manifest));
@@ -1468,11 +1468,11 @@ describe("local mechanical and semantic engine boundaries", () => {
       });
       expect(calls).toEqual([]);
       expect(report).toMatchObject({
-        requestCount: 0,
+        attentionRequired: true,
         failed: false,
         incomplete: true,
+        requestCount: 0,
         reviewRequired: true,
-        attentionRequired: true,
       });
       expect(report.evaluations[0].answers[0]).toMatchObject({
         choice: "insufficient_context",
@@ -1512,8 +1512,8 @@ describe("local mechanical and semantic engine boundaries", () => {
       expect(answer.coverage.parserWarnings).toEqual([]);
     }
     expect(report.evaluations[0].answers[0].coverage.parserWarnings[0].sourceRange).toMatchObject({
-      startLine: 5,
       endLine: 5,
+      startLine: 5,
     });
   });
 
@@ -1648,10 +1648,10 @@ describe("local mechanical and semantic engine boundaries", () => {
       });
       expect(calls).toEqual([]);
       expect(report).toMatchObject({
-        requestCount: 0,
+        attentionRequired: true,
         failed: true,
         incomplete: false,
-        attentionRequired: true,
+        requestCount: 0,
       });
       expect(report.evaluations[0].answers[0]).toMatchObject({
         choice: "fail",
@@ -1690,16 +1690,16 @@ describe("local mechanical and semantic engine boundaries", () => {
       });
       expect(calls).toEqual([]);
       expect(report).toMatchObject({
-        requestCount: 0,
-        model: null,
-        threshold: null,
         attentionRequired: false,
         failed: false,
+        model: null,
+        requestCount: 0,
+        threshold: null,
       });
       expect(report.evaluations[0]).toMatchObject({
+        answers: [{ choice: "pass", findings: [] }],
         engine: "mechanical",
         status: "complete",
-        answers: [{ choice: "pass", findings: [] }],
       });
       expect(report.evaluations[0].questions[0].rule.source).toEqual(fenceRule.source);
     },
@@ -1741,16 +1741,16 @@ describe("local mechanical and semantic engine boundaries", () => {
     });
     expect(calls).toEqual([]);
     expect(report).toMatchObject({
-      requestCount: 0,
+      attentionRequired: true,
       failed: false,
       incomplete: true,
-      reviewRequired: true,
-      attentionRequired: true,
       questionCount: 2,
+      requestCount: 0,
+      reviewRequired: true,
     });
     expect(report.evaluations.find((entry) => entry.engine === "decision")).toMatchObject({
-      status: "deferred",
       answers: [{ choice: "insufficient_context", deferred: true, reviewRequired: true }],
+      status: "deferred",
     });
   });
 
@@ -1770,7 +1770,7 @@ describe("local mechanical and semantic engine boundaries", () => {
     const [fence, lexical] = report.evaluations[0].answers;
     expect(fence).toMatchObject({
       choice: "fail",
-      findings: [{ sourceRange: { startLine: 3, endLine: 3, startByte: 9, endByte: 12 } }],
+      findings: [{ sourceRange: { endByte: 12, endLine: 3, startByte: 9, startLine: 3 } }],
     });
     expect(lexical.choice).toBe("pass");
     const excludedOnly = "```js\nbad();\n```\n<div>bad</div>\n";
@@ -1855,10 +1855,10 @@ describe("local mechanical and semantic engine boundaries", () => {
       evaluate({ ...paths, environment: CREDENTIALS }),
     );
     expect(report).toMatchObject({
-      threshold: null,
-      thresholdStatus: "uncalibrated",
       failed: false,
       reviewRequired: true,
+      threshold: null,
+      thresholdStatus: "uncalibrated",
     });
     expect(report.evaluations[0].answers[0]).toMatchObject({
       choice: "pass",
@@ -1887,12 +1887,12 @@ describe("local mechanical and semantic engine boundaries", () => {
     );
     expect(report).toMatchObject({ failed: true, incomplete: true, reviewRequired: true });
     expect(report.evaluations.find((entry) => entry.engine === "decision")).toMatchObject({
-      status: "complete",
       answers: [{ choice: "insufficient_context", reviewRequired: true }],
+      status: "complete",
     });
     expect(report.evaluations.find((entry) => entry.engine === "mechanical")).toMatchObject({
-      status: "complete",
       answers: [{ choice: "fail" }],
+      status: "complete",
     });
   });
 
@@ -1998,7 +1998,10 @@ describe("local mechanical and semantic engine boundaries", () => {
       documents: [{ id: "d", path: "d.md", purpose: "p", audience: "a" }],
     };
     expect(() =>
-      validateManifest({ ...base, rules: [{ ...fenceRule, source: { data: "x".repeat(50_000) } }] }),
+      validateManifest({
+        ...base,
+        rules: [{ ...fenceRule, source: { data: "x".repeat(50_000) } }],
+      }),
     ).toThrow("exceeds");
     expect(() =>
       validateManifest({ ...base, rules: [{ ...fenceRule, source: { value: () => "code" } }] }),
@@ -2039,7 +2042,7 @@ describe("local mechanical and semantic engine boundaries", () => {
     }
     const answer = runMechanical(lexicalRule.check, markdown, units[0].sourceRange);
     expect(answer.findings).toMatchObject([
-      { term: "bad", sourceRange: { startLine: 6, endLine: 6 } },
+      { sourceRange: { endLine: 6, startLine: 6 }, term: "bad" },
     ]);
     const finding = answer.findings[0];
     expect(
@@ -2096,8 +2099,8 @@ describe("local mechanical and semantic engine boundaries", () => {
     const report = await evaluate({ ...paths, mechanicalOnly: true, environment: {} });
     expect(report.questionCount).toBe(1);
     expect(report.evaluations[0]).toMatchObject({
-      status: "deferred",
       reason: "No paragraph target is available.",
+      status: "deferred",
     });
   });
 
@@ -2109,8 +2112,8 @@ describe("local mechanical and semantic engine boundaries", () => {
         const answer = runMechanical(check, markdown, sourceRange(markdown, 0, markdown.length));
         expect(answer).toMatchObject({
           choice: "insufficient_context",
-          reviewRequired: true,
           findings: [],
+          reviewRequired: true,
         });
         expect(answer.coverage.parserWarnings).toHaveLength(1);
       }
@@ -2121,10 +2124,10 @@ describe("local mechanical and semantic engine boundaries", () => {
     const paths = await localFixture({ markdown: "# Empty\n", rules: [lexicalRule] });
     const report = await evaluate({ ...paths, environment: {} });
     expect(report).toMatchObject({
-      requestCount: 0,
-      incomplete: true,
       attentionRequired: true,
       failed: false,
+      incomplete: true,
+      requestCount: 0,
     });
     expect(report.evaluations[0].answers[0].choice).toBe("not_applicable");
   });

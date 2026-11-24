@@ -113,8 +113,8 @@ test("TLA+ values reach the view as the skill says: sequences from 1, sets as ar
   assert.deepEqual(seen("{}"), []);
   assert.deepEqual(seen("-1..2"), [-1, 0, 1, 2]);
   assert.deepEqual(seen('[ok |-> TRUE, msg |-> "say \\"hi\\""]'), {
-    ok: true,
     msg: 'say "hi"',
+    ok: true,
   });
   assert.deepEqual(seen("[]"), {});
   assert.deepEqual(seen('(r1 :> "working" @@ r2 :> "aborted")'), {
@@ -317,12 +317,12 @@ test("a chart of only the bug paths words each one with the view, asked once for
     );}
   assert.deepEqual(asked, {
     "state 0": 1,
-    "step 0 to 1": 1,
     "state 1": 1,
-    "step 1 to 2": 1,
     "state 2": 1,
-    "step 2 to 3": 1,
     "state 3": 1,
+    "step 0 to 1": 1,
+    "step 1 to 2": 1,
+    "step 2 to 3": 1,
   });
 });
 
@@ -418,7 +418,7 @@ test("a line that the spec prints in the shape of a mark is spec output, not a m
   ].join("\n");
   assert.deepEqual(
     [...readMarks(readMessages(out), "chart-0123")],
-    [{ values: [3], broken: ["Bad"] }],
+    [{ broken: ["Bad"], values: [3] }],
   );
 });
 
@@ -604,14 +604,14 @@ test("the view answers once for each state and step, so a chart of parent states
   assert.doesNotMatch(chart, /later|orange/);
   assert.match(text, /^0\. A a0 first, B b0\n1\. Sync first: A a2 first, B b2$/m);
   assert.deepEqual(asked, {
+    "group 0": 1,
+    "group 1": 1,
+    "group 2": 1,
     "state 0": 1,
     "state 1": 1,
     "state 2": 1,
     "step 0 to 1": 1,
     "step 0 to 2": 1,
-    "group 0": 1,
-    "group 1": 1,
-    "group 2": 1,
   });
 });
 

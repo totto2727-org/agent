@@ -92,7 +92,9 @@ export function validateMechanicalCheck(check, label, ErrorType = Error) {
       reject("caseSensitive must be boolean");
     }
     const protectedInput = "protectedTerms" in check ? check.protectedTerms : undefined;
-    const protectedTerms = matchesUndefined(protectedInput) ? [] : literalTerms(protectedInput, true);
+    const protectedTerms = matchesUndefined(protectedInput)
+      ? []
+      : literalTerms(protectedInput, true);
     if (matchesUndefined(protectedTerms)) {
       reject(
         "protectedTerms must be an array of literal whole tokens (at most 1000 tokens, 128 characters each)",

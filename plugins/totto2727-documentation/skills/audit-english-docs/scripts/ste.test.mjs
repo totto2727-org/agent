@@ -167,9 +167,9 @@ describe("Issue 9 mechanical checks through the real public CLI", () => {
       },
     });
     expect(result.report.evaluations[0].state.evidence.local.nounGroupCounts[0]).toMatchObject({
-      wordCount: 4,
       hyphenComponentCounts: [1, 1, 1, 1],
       status: "counted",
+      wordCount: 4,
     });
   });
 
@@ -231,8 +231,8 @@ describe("Issue 9 mechanical checks through the real public CLI", () => {
     const missing = await cli("# Procedure\n\nCheck the panel.\n", { ste: {} });
     expect(missing.answers[0]).toMatchObject({
       choice: "insufficient_context",
-      reviewRequired: true,
       counts: [],
+      reviewRequired: true,
     });
   });
 
@@ -278,8 +278,8 @@ describe("Issue 9 mechanical checks through the real public CLI", () => {
     });
     expect(result.answers[0]).toMatchObject({
       choice: "insufficient_context",
-      reviewRequired: true,
       counts: [],
+      reviewRequired: true,
     });
   });
 
@@ -298,8 +298,8 @@ describe("Issue 9 mechanical checks through the real public CLI", () => {
     });
     expect(result.answers[0]).toMatchObject({
       choice: "insufficient_context",
-      reviewRequired: true,
       counts: [],
+      reviewRequired: true,
     });
   });
 
@@ -319,11 +319,11 @@ describe("Issue 9 mechanical checks through the real public CLI", () => {
     });
     expect(result.answers[0]).toMatchObject({
       choice: "pass",
-      reviewRequired: false,
       counts: [{ wordCount: 7 }],
+      reviewRequired: false,
     });
     expect(result.answers[0].coverage.declaredWordGroups).toEqual([
-      { text: "North River Works", category: "proper-noun" },
+      { category: "proper-noun", text: "North River Works" },
     ]);
   });
 
@@ -331,8 +331,8 @@ describe("Issue 9 mechanical checks through the real public CLI", () => {
     const result = await cli("Check the No. 2 panel at 11 a.m. today.");
     expect(result.answers[0]).toMatchObject({
       choice: "pass",
-      reviewRequired: false,
       counts: [{ wordCount: 7 }],
+      reviewRequired: false,
     });
   });
 
@@ -355,8 +355,8 @@ describe("Issue 9 mechanical checks through the real public CLI", () => {
     const result = await cli(markdown);
     expect(result.answers[0]).toMatchObject({
       choice: "insufficient_context",
-      reviewRequired: true,
       findings: [],
+      reviewRequired: true,
     });
     expect(result.answers[0].coverage.parserWarnings.length).toBeGreaterThan(0);
   });
@@ -369,10 +369,10 @@ describe("Issue 9 mechanical checks through the real public CLI", () => {
     expect(result.answers[0]).toMatchObject({ choice: "fail", reviewRequired: false });
     expect(result.answers[0].findings).toHaveLength(1);
     expect(result.answers[0].findings[0].sourceRange).toMatchObject({
-      startLine: 1,
+      endByte: 16,
       endLine: 1,
       startByte: 15,
-      endByte: 16,
+      startLine: 1,
     });
   });
 
@@ -415,8 +415,8 @@ describe("Issue 9 mechanical checks through the real public CLI", () => {
     });
     expect(result.answers[0]).toMatchObject({
       choice: "insufficient_context",
-      reviewRequired: true,
       counts: [],
+      reviewRequired: true,
     });
   });
 
@@ -424,9 +424,9 @@ describe("Issue 9 mechanical checks through the real public CLI", () => {
     const result = await cli("Check the panel.", { check: { kind: "ste-dictionary-membership" } });
     expect(result.answers[0]).toMatchObject({
       choice: "insufficient_context",
-      reviewRequired: true,
-      lexicalCandidates: [],
       findings: [],
+      lexicalCandidates: [],
+      reviewRequired: true,
     });
   });
 
@@ -459,8 +459,8 @@ describe("Issue 9 mechanical checks through the real public CLI", () => {
     });
     expect(result.answers[0]).toMatchObject({
       choice: "insufficient_context",
-      reviewRequired: true,
       findings: [],
+      reviewRequired: true,
     });
     expect(
       result.answers[0].lexicalCandidates.map((entry) => [entry.term, entry.membership]),
@@ -499,11 +499,11 @@ describe("Issue 9 mechanical checks through the real public CLI", () => {
     });
     expect(result.answers[0]).toMatchObject({
       choice: "insufficient_context",
-      reviewRequired: true,
       findings: [],
+      reviewRequired: true,
     });
     const candidates = result.answers[0].lexicalCandidates;
-    expect(candidates[0]).toMatchObject({ term: "Put on", membership: "approved-form" });
+    expect(candidates[0]).toMatchObject({ membership: "approved-form", term: "Put on" });
     expect(candidates.find((entry) => entry.term === "Puts on").membership).toBe("approved-form");
     expect(candidates.find((entry) => entry.term === "Put-on").membership).toBe("unlisted");
   });
@@ -515,8 +515,8 @@ describe("Issue 9 mechanical checks through the real public CLI", () => {
     });
     expect(result.answers[0]).toMatchObject({
       choice: "pass",
-      reviewRequired: false,
       counts: [{ wordCount: 5 }],
+      reviewRequired: false,
     });
   });
 
@@ -524,8 +524,8 @@ describe("Issue 9 mechanical checks through the real public CLI", () => {
     const result = await cli(`CAUTION: ${sentence(21)}`);
     expect(result.answers[0]).toMatchObject({
       choice: "fail",
+      counts: [{ limit: 20, wordCount: 21 }],
       reviewRequired: false,
-      counts: [{ wordCount: 21, limit: 20 }],
     });
   });
 
@@ -536,8 +536,8 @@ describe("Issue 9 mechanical checks through the real public CLI", () => {
     });
     expect(result.answers[0]).toMatchObject({
       choice: "pass",
+      counts: [{ limit: 25, wordCount: 25 }],
       reviewRequired: false,
-      counts: [{ wordCount: 25, limit: 25 }],
     });
   });
 
@@ -545,14 +545,14 @@ describe("Issue 9 mechanical checks through the real public CLI", () => {
     const numbered = await cli("(3) Check the panel.");
     expect(numbered.answers[0]).toMatchObject({
       choice: "pass",
-      reviewRequired: false,
       counts: [{ wordCount: 3 }],
+      reviewRequired: false,
     });
     const time = await cli("Check the panel at 11 p.m.");
     expect(time.answers[0]).toMatchObject({
       choice: "pass",
-      reviewRequired: false,
       counts: [{ wordCount: 5 }],
+      reviewRequired: false,
     });
   });
 
@@ -574,8 +574,8 @@ describe("Issue 9 mechanical checks through the real public CLI", () => {
     });
     expect(result.answers[0]).toMatchObject({
       choice: "insufficient_context",
-      reviewRequired: true,
       findings: [],
+      reviewRequired: true,
     });
     expect(
       result.answers[0].lexicalCandidates.find((entry) => entry.term === "status panel"),
@@ -594,8 +594,8 @@ describe("Issue 9 mechanical checks through the real public CLI", () => {
     });
     expect(result.answers[0]).toMatchObject({
       choice: "insufficient_context",
-      reviewRequired: true,
       findings: [],
+      reviewRequired: true,
     });
   });
 
@@ -606,8 +606,8 @@ describe("Issue 9 mechanical checks through the real public CLI", () => {
     });
     expect(result.answers[0]).toMatchObject({
       choice: "insufficient_context",
-      reviewRequired: true,
       counts: [],
+      reviewRequired: true,
     });
   });
 
@@ -615,8 +615,8 @@ describe("Issue 9 mechanical checks through the real public CLI", () => {
     const result = await cli("NOTE: The panel is closed.");
     expect(result.answers[0]).toMatchObject({
       choice: "insufficient_context",
-      reviewRequired: true,
       counts: [],
+      reviewRequired: true,
     });
   });
 
@@ -626,8 +626,8 @@ describe("Issue 9 mechanical checks through the real public CLI", () => {
     });
     expect(result.answers[0]).toMatchObject({
       choice: "insufficient_context",
-      reviewRequired: true,
       findings: [],
+      reviewRequired: true,
     });
   });
 

@@ -214,7 +214,13 @@ export function validateSteVocabulary(value, label, ErrorType = Error) {
   return value;
 }
 
+/** @typedef {{ end: number, parenthetical?: boolean, start: number, wordCount: number }} CountedSentence */
+/** @typedef {{ end: number, reason: string, start: number }} ProseWarning */
+/** @typedef {{ category: string, text: string }} DeclaredWordGroup */
+/** @typedef {{ fragment?: boolean, measurementUnits?: string[], wordGroups?: DeclaredWordGroup[], writingMode?: "procedural" | "descriptive" }} ProseContext */
+
 // Edits preserve source offsets. A group becomes one artificial lowercase word.
+/** @type {(characters: string[], start: number, end: number) => void} */
 const collapse = function (characters, start, end) {
   for (let index = start; index < end; index += 1) {
     if (!/[\r\n]/u.test(characters[index])) {
@@ -222,12 +228,21 @@ const collapse = function (characters, start, end) {
     }
   }
 };
+/** @type {(text: string, index: number) => boolean} */
 const boundary = function (text, index) {
   return index < 0 || index >= text.length || !/[\p{L}\p{N}_]/u.test(text[index]);
 };
 
+/**
+ * @param {string} text - The source prose to count.
+ * @param {ProseContext} [context] - The declarations that apply to this span.
+ * @param {{ paragraph?: boolean }} [options] - Whether to use paragraph counting.
+ * @returns {{ paragraphSentences: number, sentences: CountedSentence[], warnings: ProseWarning[] }} Counts and unresolved source spans.
+ */
 export function analyzeSteProse(text, context = {}, { paragraph = false } = {}) {
+  /** @type {ProseWarning[]} */
   const warnings = [];
+  /** @type {(reason: string, start?: number, end?: number) => number} */
   const warn = (reason, start = 0, end = text.length) => warnings.push({ reason, start, end });
   const characters = text.split("");
   const label =
@@ -251,6 +266,7 @@ export function analyzeSteProse(text, context = {}, { paragraph = false } = {}) 
       }
     }
   }
+  /** @type {CountedSentence[]} */
   const extraSentences = [];
   const groups = [...(context.wordGroups ?? [])].sort((a, b) => b.text.length - a.text.length);
   for (const group of groups) {
@@ -391,8 +407,10 @@ export function analyzeSteProse(text, context = {}, { paragraph = false } = {}) 
   if (/\b(?:NOTE|NOTES)\b/.test(current) && context.writingMode === "procedural") {
     warn("Notes in procedures use descriptive limits; supply a descriptive local target.");
   }
+  /** @type {CountedSentence[]} */
   const sentences = [];
   let start = 0;
+  /** @type {(end: number) => void} */
   const flush = (end) => {
     const body = current.slice(start, end);
     const tokens = [...body.matchAll(/[A-Za-z0-9]+(?:[-'][A-Za-z0-9]+)*/g)];

@@ -166,13 +166,13 @@ describe("historical document preparation", () => {
     expect(report.evaluations).toHaveLength(1);
     expect(report.evaluations[0].section).toMatchObject({
       id: "target",
-      sourceRange: { startLine: 3, endLine: 4 },
+      sourceRange: { endLine: 4, startLine: 3 },
     });
     expect(report.evaluations[0].state.evidence.page.markdown).toBe(fixture.page);
     expect(JSON.stringify(report.evaluations[0].state)).not.toContain("historical-negative");
     expect(JSON.stringify(report.evaluations[0].state)).not.toContain(fixture.samples[0].revision);
     const dryScore = scoreReport(report, labels);
-    expect(dryScore.coverage).toMatchObject({ expected: 1, matched: 1, exact: true });
+    expect(dryScore.coverage).toMatchObject({ exact: true, expected: 1, matched: 1 });
     expect(dryScore.totals.infrastructureError).toBe(1);
     expect(dryScore.rows[0].reason).toBe("not_evaluated");
   });
@@ -257,10 +257,10 @@ describe("historical judgment scoring", () => {
         [sample({ expected: { direct: expected } })],
       );
       expect(result.coverage).toMatchObject({
-        expected: 1,
-        labeled: 1,
-        exploratory: 0,
         exact: true,
+        expected: 1,
+        exploratory: 0,
+        labeled: 1,
       });
       expect(result.totals[counter]).toBe(1);
       expect(result.totals.abstention).toBe(0);
@@ -279,19 +279,19 @@ describe("historical judgment scoring", () => {
       evaluation({ answers: [{ questionId: "q-1", choice, confidence, reviewRequired: true }] }),
     ]);
     expect(result.totals).toMatchObject({
-      total: 1,
       abstention: 1,
       falseAcceptance: 0,
       falseRejection: 0,
-      truePositive: 0,
+      total: 1,
       trueNegative: 0,
+      truePositive: 0,
     });
   });
 
   it("reports every missing label rather than dropping absent evaluations", () => {
     const result = score([]);
-    expect(result.coverage).toMatchObject({ expected: 1, matched: 0, missing: 1, exact: false });
-    expect(result.totals).toMatchObject({ total: 1, infrastructureError: 1, missing: 1 });
+    expect(result.coverage).toMatchObject({ exact: false, expected: 1, matched: 0, missing: 1 });
+    expect(result.totals).toMatchObject({ infrastructureError: 1, missing: 1, total: 1 });
   });
 
   it.each([
@@ -323,8 +323,8 @@ describe("historical judgment scoring", () => {
     entry.answers.push({ ...entry.answers[0] });
     expect(score([entry]).coverage).toMatchObject({ duplicates: 1, exact: false });
     expect(score([evaluation({ documentId: "unexpected" })]).coverage).toMatchObject({
-      missing: 1,
       exact: false,
+      missing: 1,
     });
     expect(score([evaluation({ scope: "page", section: null })]).coverage.exact).toBe(false);
   });
@@ -337,12 +337,12 @@ describe("historical judgment scoring", () => {
       ],
     });
     const result = score([duplicateIds], [sample({ ruleIds: ["direct", "flow"] })]);
-    expect(result.coverage).toMatchObject({ expected: 2, missing: 2, exact: false });
+    expect(result.coverage).toMatchObject({ exact: false, expected: 2, missing: 2 });
     expect(result.totals.infrastructureError).toBe(2);
     const wrongRange = evaluation({
       section: { id: "target", sourceRange: { startLine: 1, endLine: 4 } },
     });
-    expect(score([wrongRange]).coverage).toMatchObject({ missing: 1, exact: false });
+    expect(score([wrongRange]).coverage).toMatchObject({ exact: false, missing: 1 });
     const extraAnswer = evaluation();
     extraAnswer.answers.push({ questionId: "unknown", choice: "pass", confidence: 1 });
     expect(score([extraAnswer]).issues).toContainEqual({
@@ -364,18 +364,18 @@ describe("historical judgment scoring", () => {
       answers: [{ questionId: "q-2", choice: "pass", confidence: 0.9, reviewRequired: false }],
     });
     const result = score([evaluation(), entry], [item]);
-    expect(result.coverage).toMatchObject({ expected: 2, labeled: 1, exploratory: 1, exact: true });
+    expect(result.coverage).toMatchObject({ exact: true, expected: 2, exploratory: 1, labeled: 1 });
     expect(result.totals).toMatchObject({
-      total: 2,
-      labeled: 1,
       exploratory: 1,
-      truePositive: 1,
+      labeled: 1,
+      total: 2,
       trueNegative: 0,
+      truePositive: 1,
     });
     expect(result.rows[1].expected).toBeNull();
     expect(result.perRule.flow).toMatchObject({
-      labeled: 0,
       exploratory: 1,
+      labeled: 0,
       predictedPass: 1,
       trueNegative: 0,
     });
@@ -401,8 +401,8 @@ describe("historical judgment scoring", () => {
       ]),
     ).rejects.toMatchObject({ code: 1 });
     expect(JSON.parse(await readFile(outputPath, "utf8")).coverage).toMatchObject({
-      missing: 1,
       exact: false,
+      missing: 1,
     });
     await expect(scoreCorpus({ reportPath, labelsPath, outputPath })).rejects.toMatchObject({
       code: "EEXIST",

@@ -47,11 +47,17 @@ const skills = await Promise.all(
     const directory = `plugins/${name}/skills`;
     const names = await readdir(path.join(root, directory));
     const candidates = await Promise.all(
-      names.map(async (skill) => ({ present: await exists(`${directory}/${skill}/SKILL.md`), skill })),
+      names.map(async (skill) => ({
+        present: await exists(`${directory}/${skill}/SKILL.md`),
+        skill,
+      })),
     );
     return {
       directory,
-      names: candidates.filter(({ present }) => present).map(({ skill }) => skill).toSorted(compareText),
+      names: candidates
+        .filter(({ present }) => present)
+        .map(({ skill }) => skill)
+        .toSorted(compareText),
     };
   }),
 );
