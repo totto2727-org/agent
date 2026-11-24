@@ -17,4 +17,3 @@ Assert the part of the result callers rely on. Compare a typed failure and its p
 
 - CLI process boundary: use the installed [cli-e2e](https://github.com/totto2727-org/e2e/blob/main/.agents/skills/cli-e2e/SKILL.md) skill.
 - TypeScript runtime: [test tools by host](../js-stack/stack/share.md#testing) ([source](https://github.com/totto2727-org/agent/blob/main/plugins/totto2727-js/skills/js-stack/stack/share.md#testing)).
-- MoonBit: [mbt-test](../mbt-test/SKILL.md) ([source](https://github.com/totto2727-org/agent/blob/main/plugins/totto2727-mbt/skills/mbt-test/SKILL.md)).

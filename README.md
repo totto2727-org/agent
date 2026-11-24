@@ -111,13 +111,11 @@ TypeScript stack choices for Cloudflare web apps, durable workflows, native macO
 
 ### [totto2727-mbt](plugins/totto2727-mbt/plugin.json)
 
-MoonBit implementation, stack selection, and tests.
+MoonBit target, CLI parser, JSON codec, and workflow runtime selection.
 
-| Skill                                                          | Refers to   |
-| -------------------------------------------------------------- | ----------- |
-| [mbt-coding](plugins/totto2727-mbt/skills/mbt-coding/SKILL.md) | `mbt-stack` |
-| [mbt-stack](plugins/totto2727-mbt/skills/mbt-stack/SKILL.md)   | None        |
-| [mbt-test](plugins/totto2727-mbt/skills/mbt-test/SKILL.md)     | None        |
+| Skill                                                        | Refers to |
+| ------------------------------------------------------------ | --------- |
+| [mbt-stack](plugins/totto2727-mbt/skills/mbt-stack/SKILL.md) | None      |
 
 ### [totto2727-principle](plugins/totto2727-principle/plugin.json)
 
@@ -152,7 +150,7 @@ Shared principles for implementation, writing, testing, and stack selection.
 | [principle-type-system-discipline](plugins/totto2727-principle/skills/principle-type-system-discipline/SKILL.md)                                     | None                                                                                                                                                                                                                                                                                                                                                                 |
 | [share-coding](plugins/totto2727-principle/skills/share-coding/SKILL.md)                                                                             | `principle-boundary-discipline`, `principle-exhaust-the-design-space`, `principle-foundational-thinking`, `principle-laziness-protocol`, `principle-migrate-callers-then-delete-legacy-apis`, `principle-minimize-reader-load`, `principle-model-the-domain`, `principle-sequence-verifiable-units`, `principle-type-system-discipline`, `share-stack`, `share-test` |
 | [share-stack](plugins/totto2727-principle/skills/share-stack/SKILL.md)                                                                               | `js-stack`                                                                                                                                                                                                                                                                                                                                                           |
-| [share-test](plugins/totto2727-principle/skills/share-test/SKILL.md)                                                                                 | `js-stack`, `mbt-test`, `principle-test-behavior-not-implementation`                                                                                                                                                                                                                                                                                                 |
+| [share-test](plugins/totto2727-principle/skills/share-test/SKILL.md)                                                                                 | `js-stack`, `principle-test-behavior-not-implementation`                                                                                                                                                                                                                                                                                                             |
 | [share-test-design](plugins/totto2727-principle/skills/share-test-design/SKILL.md)                                                                   | `share-test`                                                                                                                                                                                                                                                                                                                                                         |
 
 ### [totto2727-profile](plugins/totto2727-profile/plugin.json)
