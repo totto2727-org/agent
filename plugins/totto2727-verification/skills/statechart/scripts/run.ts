@@ -106,7 +106,7 @@ const joined = (files: string[]): Output => {
 
 const utf8 = new TextDecoder("utf-8", { ignoreBOM: true });
 
-function* outputLines(output: Output) {
+const outputLines = function* outputLines(output: Output) {
   let rest: Uint8Array = new Uint8Array(0);
   for (const part of output) {
     const buf = rest.length ? Buffer.concat([rest, part]) : part;
@@ -119,7 +119,7 @@ function* outputLines(output: Output) {
     rest = buf.subarray(cut + 1);
   }
   yield* splitLines(utf8.decode(rest));
-}
+};
 
 const messagesOf = (output: Output): Iterable<Part> => ({
   [Symbol.iterator]: () => readMessages(outputLines(output)),
@@ -243,13 +243,13 @@ const brokenRule = (rules: Rule[], broke: Break) => {
   return undefined;
 };
 
-function* only(marks: Iterable<Mark>, rules: Set<string>) {
+const only = function* only(marks: Iterable<Mark>, rules: Set<string>) {
   for (const { values, broken } of marks) {
     const kept: string[] = [];
     visitItems(broken, (name) => {if (rules.has(name)) {kept.push(name);}});
     if (kept.length) {yield { values, broken: kept };}
   }
-}
+};
 
 export async function check(specFile: string, configFile: string): Promise<CheckResult> {
   const cfg = readConfig({ file: configFile, text: fs.readFileSync(configFile, "utf8") });

@@ -139,7 +139,7 @@ const configOf = (c: Case): string => {
   return `${cfg.join("\n")}\n`;
 };
 
-function viewOf(v: NonNullable<Model["view"]>, vars: string[], actions: string[]): string {
+const viewOf = function viewOf(v: NonNullable<Model["view"]>, vars: string[], actions: string[]): string {
   const json = JSON.stringify;
   const state = {
     string: `pick(VARS.map((n) => v[n]), 0)`,
@@ -173,7 +173,7 @@ function viewOf(v: NonNullable<Model["view"]>, vars: string[], actions: string[]
     );
   }
   return `${lines.join("\n")}\n`;
-}
+};
 
 const caseOf = function (m: Model): Case {
   let next = 0;

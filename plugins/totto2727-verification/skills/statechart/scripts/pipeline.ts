@@ -10,7 +10,7 @@ import { bugs, drawOrder, walk } from "./passes/reach.ts";
 import { regionsLie } from "./passes/region-check.ts";
 import { drawRegions } from "./passes/regions.ts";
 
-function* inParts(lines: string[]) {
+const inParts = function* inParts(lines: string[]) {
   let start = 0;
   let size = 0;
   for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
@@ -21,7 +21,7 @@ function* inParts(lines: string[]) {
       size = 0;
     }
   }
-}
+};
 
 const shortestFirst = (a: { path: unknown[] }, b: { path: unknown[] }): number =>
   a.path.length - b.path.length;

@@ -238,7 +238,7 @@ const checkDetails = function (value: Record<string, unknown>, nameKey: string) 
 // Every read path classifies the owner-approval gate here, so the rule has one
 // Home. A gate that is pending or waits on an owner approval must not count as
 // Pending or failed, or the watcher waits on a human.
-function gateOr(
+const gateOr = function gateOr(
   kind: "pending" | "failed",
   details: Readonly<{
     name: string;
@@ -256,7 +256,7 @@ function gateOr(
         reportedState,
       }
     : { ...details, kind, reportedState };
-}
+};
 export function parseFastCheck(value: unknown): T.Check {
   const object = record(value, "check");
   const details = checkDetails(object, "name");

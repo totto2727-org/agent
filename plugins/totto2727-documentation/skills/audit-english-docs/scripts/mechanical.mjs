@@ -452,7 +452,7 @@ export function paragraphUnits(markdown, sections) {
  * @param {MechanicalContext} context - The declared language context.
  * @returns {SteResult} The result and evidence for one STE criterion.
  */
-function runSteMechanical(check, markdown, targetRange, context) {
+const runSteMechanical = function runSteMechanical(check, markdown, targetRange, context) {
   const inspection = inspectMarkdown(markdown);
   /** @type {Finding[]} */
   const findings = [];
@@ -821,7 +821,7 @@ function runSteMechanical(check, markdown, targetRange, context) {
           ? "pass"
           : "not_applicable",
   );
-}
+};
 
 /**
  * @overload

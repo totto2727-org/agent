@@ -38,7 +38,7 @@ const render = (message: Message): string =>
   (message.beforeMarker ?? "") +
   firstLine(message, message.body.map((part) => (isString(part) ? part : render(part))).join("\n"));
 
-function* printed(parts: Iterable<Part>): Generator<string> {
+const printed = function* printed(parts: Iterable<Part>): Generator<string> {
   let warned = false;
   let progress: Message | undefined;
   for (const part of parts) {
@@ -58,7 +58,7 @@ function* printed(parts: Iterable<Part>): Generator<string> {
     }
   }
   if (progress?.body.length) {yield render(progress);}
-}
+};
 
 export function* plainText(parts: Iterable<Part>): Generator<string> {
   let chunk = "";

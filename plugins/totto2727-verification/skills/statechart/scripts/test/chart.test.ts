@@ -332,7 +332,7 @@ test("the graph that parseDot returns keeps none of the text it read", () => {
   };
   const MiB = 1 << 20;
   const pieces = 16;
-  function* dot() {
+  const dot = function* dot() {
     for (let i = 0; i < pieces; i++) {
       const id = `-${String(i).padStart(18, "7")}`;
       const lines = [
@@ -342,7 +342,7 @@ test("the graph that parseDot returns keeps none of the text it read", () => {
       while (lines.length < 1024) {lines.push(`// ${"x".repeat(1020)}`);}
       yield* `${lines.join("\n")}\n`.split("\n");
     }
-  }
+  };
   const before = heapUsed();
   const graph = parseDot(dot());
   const kept = heapUsed() - before;
