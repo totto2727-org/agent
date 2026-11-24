@@ -195,11 +195,11 @@ const BAD_COLORS: unknown[] = [
 const random = (seed: number) => {
   let a = seed >>> 0;
   const next = () => {
-    a = (a + 0x6d2b79f5) >>> 0;
+    a = (a + 0x6D_2B_79_F5) >>> 0;
     let t = a;
     t = Math.imul(t ^ (t >>> 15), t | 1);
     t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    return ((t ^ (t >>> 14)) >>> 0) / 4_294_967_296;
   };
   const int = (n: number) => Math.floor(next() * n);
   return {
@@ -347,8 +347,8 @@ const NAMED: { [name: string]: string } = {
 };
 const WINDOWS_1252 = "€\x81‚ƒ„…†‡ˆ‰Š‹Œ\x8dŽ\x8f\x90‘’“”•–—˜™š›œ\x9džŸ";
 const fromRef = (n: number) => {
-  if (n === 0 || n > 0x10ffff || (n >= 0xd800 && n <= 0xdfff)) {return "\ufffd";}
-  if (n >= 0x80 && n <= 0x9f) {return WINDOWS_1252[n - 0x80];}
+  if (n === 0 || n > 0x10_FF_FF || (n >= 0xD8_00 && n <= 0xDF_FF)) {return "\ufffd";}
+  if (n >= 0x80 && n <= 0x9F) {return WINDOWS_1252[n - 0x80];}
   return String.fromCodePoint(n);
 };
 const fromMermaid = (s: string) =>

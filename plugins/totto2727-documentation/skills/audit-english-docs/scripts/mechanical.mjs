@@ -7,7 +7,7 @@ import {
   matchesUndefined,
 } from "./native-predicates.mjs";
 
-const MAX_TERMS = 1_000;
+const MAX_TERMS = 1000;
 const MAX_TERM_LENGTH = 128;
 const LITERAL_TERM = /^[\p{L}\p{N}_]+$/u;
 

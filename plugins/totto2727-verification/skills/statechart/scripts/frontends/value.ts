@@ -18,7 +18,7 @@ export const isSpace = (c: number) =>
 const isDigit = (c: number) => c >= 48 && c <= 57;
 const isWord = (c: number) =>
   isDigit(c) || (c >= 65 && c <= 90) || (c >= 97 && c <= 122) || c === 95;
-const isLineEnd = (c: number) => c === 10 || c === 13 || c === 0x2028 || c === 0x2029;
+const isLineEnd = (c: number) => c === 10 || c === 13 || c === 0x20_28 || c === 0x20_29;
 
 export const tokenEnd = (s: string, i: number) => {
   const c = s.charCodeAt(i);

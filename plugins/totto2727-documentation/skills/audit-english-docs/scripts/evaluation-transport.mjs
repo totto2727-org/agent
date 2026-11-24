@@ -21,7 +21,7 @@ const FATAL_STATUS = new Set([401, 402, 403]);
 export const CACHE_KEY_PREFIX = "decision-v1";
 // Request up to 30 days of reuse for unchanged document evaluations.
 // Gateway cache storage remains volatile even within this TTL.
-export const CACHE_TTL_SECONDS = 2592000;
+export const CACHE_TTL_SECONDS = 2_592_000;
 export const CACHE_SKIP = "false";
 const CLOUDFLARE_API_ORIGIN = "https://api.cloudflare.com";
 const ACCOUNT_ID_PATTERN = /^[0-9a-f]{32}$/i;

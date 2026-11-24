@@ -54,8 +54,8 @@ const CONFIG_HOLDS =
 const shown = (c: string) => {
   const code = c.codePointAt(0) ?? 0;
   const hex = `U+${code.toString(16).toUpperCase().padStart(4, "0")}`;
-  if (code < 0x20 || code === 0x7f) {return hex;}
-  return code < 0x7f ? `"${c}"` : `"${c}" (${hex})`;
+  if (code < 0x20 || code === 0x7F) {return hex;}
+  return code < 0x7F ? `"${c}"` : `"${c}" (${hex})`;
 };
 
 type Token = { image: string; line: number };
@@ -128,7 +128,7 @@ const tokenizeConfig = function (text: string, cannot: (line: number, words: str
             start,
             `TLC splits ${word} into ${word.match(/\d+|_/g)?.join(" ")}, because a name needs a letter.`,
           );}
-        if (Number(word) > 2147483647)
+        if (Number(word) > 2_147_483_647)
           {throw cannot(start, `TLC cannot read a number above 2147483647, such as ${word}.`);}
       }
       push(word);

@@ -430,7 +430,7 @@ describe("private dictionary evidence boundaries", () => {
 
   it("defers oversized selected dictionary evidence before credentials or billing", async () => {
     const paths = await dictionaryFixture({ complete: true });
-    paths.data.entries[0].meaning = "x".repeat(50000);
+    paths.data.entries[0].meaning = "x".repeat(50_000);
     await writeFile(
       resolve(paths.directory, "private-vocabulary.json"),
       JSON.stringify(paths.data),
@@ -1998,7 +1998,7 @@ describe("local mechanical and semantic engine boundaries", () => {
       documents: [{ id: "d", path: "d.md", purpose: "p", audience: "a" }],
     };
     expect(() =>
-      validateManifest({ ...base, rules: [{ ...fenceRule, source: { data: "x".repeat(50000) } }] }),
+      validateManifest({ ...base, rules: [{ ...fenceRule, source: { data: "x".repeat(50_000) } }] }),
     ).toThrow("exceeds");
     expect(() =>
       validateManifest({ ...base, rules: [{ ...fenceRule, source: { value: () => "code" } }] }),

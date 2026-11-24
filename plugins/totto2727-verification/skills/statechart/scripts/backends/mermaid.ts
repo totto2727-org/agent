@@ -50,12 +50,12 @@ const encode = (s: string, ref: (n: number) => string) => {
   for (let i = 0; i < s.length;) {
     let n = s.charCodeAt(i);
     let width = 1;
-    if (n >= 0xd800 && n <= 0xdfff) {
+    if (n >= 0xD8_00 && n <= 0xDF_FF) {
       const low = s.charCodeAt(i + 1);
-      if (n <= 0xdbff && low >= 0xdc00 && low <= 0xdfff) {
-        n = 0x10000 + ((n - 0xd800) << 10) + (low - 0xdc00);
+      if (n <= 0xDB_FF && low >= 0xDC_00 && low <= 0xDF_FF) {
+        n = 0x1_00_00 + ((n - 0xD8_00) << 10) + (low - 0xDC_00);
         width = 2;
-      } else {n = 0xfffd;}
+      } else {n = 0xFF_FD;}
     }
     let kind = kindAt(n);
     if (kind === DROPPED) {
@@ -66,7 +66,7 @@ const encode = (s: string, ref: (n: number) => string) => {
       kind &= ~JOINS;
       if (joined || kind !== KEPT) {
         out += s.slice(run, i);
-        if (joined) {out += ref(0x2060);}
+        if (joined) {out += ref(0x20_60);}
         if (kind === KEPT) {run = i;}
         else {
           out += kind === BLANKED ? " " : ref(n);
@@ -81,7 +81,7 @@ const encode = (s: string, ref: (n: number) => string) => {
 };
 const code = (s: string, ref: (n: number) => string) =>
   encode(s, ref)
-    .replace(MARKER, `${ref(0x2060)}"`)
+    .replace(MARKER, `${ref(0x20_60)}"`)
     .replace(HAZARD, (c) => ref(c.charCodeAt(0)));
 const esc = (s: string, quoted = false) => {
   const plain = code(s, (n) => `#${n};`);

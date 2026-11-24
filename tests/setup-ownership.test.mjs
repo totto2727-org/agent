@@ -48,7 +48,7 @@ const fixture = async function (t) {
         XDG_CONFIG_HOME: join(home, ".config"),
         PATH: join(base, "no-executables"),
       },
-      timeout: 10000,
+      timeout: 10_000,
     });
   return { root, home, uninstall };
 };

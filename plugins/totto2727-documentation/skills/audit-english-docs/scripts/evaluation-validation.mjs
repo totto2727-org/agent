@@ -1,6 +1,6 @@
 import { hasObjectType, matchesNull, matchesString } from "./native-predicates.mjs";
 
-const kibibyte = 1_024;
+const kibibyte = 1024;
 const maxEvidenceKibibytes = 48;
 export const MAX_EVIDENCE_BYTES = maxEvidenceKibibytes * kibibyte;
 

@@ -105,10 +105,10 @@ const realRuntime = function (): CliRuntime {
   return {
     reader: new GhGitHubReader(),
     clock: {
-      now: () => performance.now() / 1_000,
+      now: () => performance.now() / 1000,
       observedAt: () => new Date().toISOString(),
       sleep: async (seconds) => {
-        await delay(seconds * 1_000);
+        await delay(seconds * 1000);
       },
     },
     stdout: (value) => process.stdout.write(value),

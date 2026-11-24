@@ -223,7 +223,7 @@ for (const [what, bin] of [
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("the order of TLC's dump and its state IDs do not change the chart or the report", () => {
   let seed = 7;
-  const random = () => (seed = (seed * 48271) % 2147483647) / 2147483647;
+  const random = () => (seed = (seed * 48_271) % 2_147_483_647) / 2_147_483_647;
   for (const name of ["DieHard", "LoginParallel", "TwoPhase"]) {
     const dir = copyCase(name, (d) => {
       const file = path.join(d, "graph.dot");
