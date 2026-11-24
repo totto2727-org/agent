@@ -24,7 +24,7 @@ Use the decision that matches the change. These eight principles follow the [ori
 - When adding a Git ignore pattern, [separate shared build artifacts from personal files](references/git-excludes.md).
 - For collection identity, wire conversion, failure translation, and composition roots, use [domain modeling and effects](references/domain-models.md).
 - For scheduled jobs and polling, define [timing, restart, overlap, and missed-run semantics](references/scheduling.md).
-- For testability, keep the public surface limited to declarations callers need. Do not widen visibility for tests. Use [test implementation boundaries](../share-test/SKILL.md#test-implementation-boundaries) for runner and fixture decisions.
+- Do not widen the public API for tests. [Test observable behavior](../principle-test-behavior-not-implementation/SKILL.md) through the caller's interface.
 - For recurring workspace tasks, use [task orchestration](../share-stack/references/task-orchestration.md).
 
 Name public operations for what callers can rely on. Use established domain vocabulary. Explain a non-obvious constraint or deliberate divergence near the code that depends on it.
