@@ -10,24 +10,33 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 // oxlint-disable-next-line rules/no-node-imports -- Await the native subprocess and preserve its exit status in these tests.
 import { promisify } from "node:util";
-import { afterEach, describe, expect, test } from "vitest";
+import { afterEach, assert, describe, expect, test } from "vitest";
 
 import { evaluate } from "./evaluate.mjs";
+import { object } from "./evaluation-validation.mjs";
 import { parseArguments, prepareCorpus, scoreCorpus, scoreReport } from "./history-corpus.mjs";
+import { matchesUndefined } from "./native-predicates.mjs";
 
 const execute = promisify(execFile);
 const script = fileURLToPath(new URL("history-corpus.mjs", import.meta.url));
+/** @type {string[]} */
 const directories = [];
 const revision = "a".repeat(40);
 
 const temporaryDirectory = async function () {
-  const directory = await mkdtemp(
-    resolve(process.env.JCODE_SCRATCH_DIR ?? tmpdir(), "history-corpus-test-"),
-  );
+  // oxlint-disable-next-line node/no-process-env -- The CLI fixture uses the scratch directory selected by the test host.
+  const scratch = process.env.JCODE_SCRATCH_DIR ?? tmpdir();
+  const directory = await mkdtemp(resolve(scratch, "history-corpus-test-"));
   directories.push(directory);
   return directory;
 };
 
+/** @typedef {{ audience: string, documentId?: string, endLine: number, expected: Record<string, string>, family: string, id: string, path: string, purpose: string, revision: string, ruleIds: string[], ruleScopes: Record<string, string>, split: string, startLine: number }} SampleFixture */
+/** @typedef {{ choice: string, confidence: number, questionId: string, reviewRequired?: boolean }} AnswerFixture */
+/** @typedef {{ id: string, rule: { id: string, scope?: string } }} QuestionFixture */
+/** @typedef {{ answers: AnswerFixture[], documentId: string, questions: QuestionFixture[], scope: string, section: { id: string, sourceRange: { endLine: number, startLine: number } } | null, status: string }} EvaluationFixture */
+
+/** @type {(overrides?: Partial<SampleFixture>) => SampleFixture} */
 const sample = function (overrides = {}) {
   return {
     id: "historical-negative",
@@ -47,6 +56,7 @@ const sample = function (overrides = {}) {
   };
 };
 
+/** @type {(overrides?: Partial<EvaluationFixture>) => EvaluationFixture} */
 const evaluation = function (overrides = {}) {
   return {
     documentId: "sample-0001",
@@ -59,13 +69,15 @@ const evaluation = function (overrides = {}) {
   };
 };
 
+/** @type {(entries: EvaluationFixture[], samples?: SampleFixture[]) => ReturnType<typeof scoreReport>} */
 const score = function (entries, samples = [sample()]) {
   return scoreReport({ threshold: 0.8, evaluations: entries }, { version: 1, samples });
 };
 
 const repositoryFixture = async function () {
   const repository = await temporaryDirectory();
-  const git = (...args) => execute("git", ["-C", repository, ...args]);
+  /** @type {(...args: string[]) => Promise<{ stderr: string, stdout: string }>} */
+  const git = async (...args) => execute("git", ["-C", repository, ...args]);
   await git("init", "--quiet");
   const page =
     "# Guide\n\n## Configure\nSet the configuration.\n\n## Reference\nFull-page context.\n";
@@ -127,7 +139,7 @@ const repositoryFixture = async function () {
 
 const cleanupFixtures = async () => {
   await Promise.all(
-    directories.splice(0).map((directory) => rm(directory, { force: true, recursive: true })),
+    directories.splice(0).map(async (directory) => rm(directory, { force: true, recursive: true })),
   );
 };
 
@@ -169,6 +181,10 @@ describe("historical document preparation", () => {
       environment: {},
     });
     const [evaluation] = report.evaluations;
+    assert(
+      !matchesUndefined(evaluation) && "state" in evaluation,
+      "Dry-run evaluation needs its state.",
+    );
     const serialized = JSON.stringify(evaluation.state);
     expect({
       evaluationCount: report.evaluations.length,
@@ -243,8 +259,9 @@ describe("historical document preparation", () => {
       "--rules",
       fixture.rulesPath,
     ]);
-    const manifest = JSON.parse(
-      await readFile(resolve(fixture.outputDir, "manifest.json"), "utf8"),
+    const manifest = object(
+      JSON.parse(await readFile(resolve(fixture.outputDir, "manifest.json"), "utf8")),
+      "prepared manifest",
     );
     expect(manifest.documents).toHaveLength(2);
   });
@@ -420,7 +437,8 @@ describe("historical judgment scoring", () => {
         outputPath,
       ]),
     ).rejects.toMatchObject({ code: 1 });
-    expect(JSON.parse(await readFile(outputPath, "utf8")).coverage).toMatchObject({
+    const scored = object(JSON.parse(await readFile(outputPath, "utf8")), "CLI score");
+    expect(scored.coverage).toMatchObject({
       exact: false,
       missing: 1,
     });
