@@ -79,7 +79,7 @@ test("project uninstall retains user files, replacement sources, and links into 
   await writeFile(globalLock, globalBytes);
   const names = ["edited", "linked", "replaced"];
   const owned = Object.fromEntries(
-    names.map((n) => [n, { lock: lockEntry(n), hash: originalHash }]),
+    names.map((currentName) => [currentName, { lock: lockEntry(currentName), hash: originalHash }]),
   );
   const receipt = join(root, ".agents", "totto2727-setup.json");
   await writeFile(receipt, JSON.stringify({ version: 1, scope: "project", root, owned }));
@@ -133,10 +133,10 @@ test("uninstall leaves Orca's host-provided guides and their lock entries intact
   const names = ["orca-cli", "orchestration"];
   const entries = {};
   const owned = {};
-  for (const n of names) {
-    await skill(join(root, ".agents/skills"), n, pristine);
-    entries[n] = lockEntry(n, "stablyai/orca");
-    owned[n] = { lock: entries[n], hash: originalHash };
+  for (const currentName of names) {
+    await skill(join(root, ".agents/skills"), currentName, pristine);
+    entries[currentName] = lockEntry(currentName, "stablyai/orca");
+    owned[currentName] = { lock: entries[currentName], hash: originalHash };
   }
   const receipt = join(root, ".agents/totto2727-setup.json");
   const lock = join(root, "skills-lock.json");
@@ -146,7 +146,10 @@ test("uninstall leaves Orca's host-provided guides and their lock entries intact
   const result = uninstall();
   assert.equal(result.status, 0, result.stderr);
   assert.equal(await readFile(lock, "utf8"), bytes);
-  for (const n of names)
-    assert.equal(await readFile(join(root, ".agents/skills", n, "SKILL.md"), "utf8"), pristine);
+  for (const currentName of names)
+    assert.equal(
+      await readFile(join(root, ".agents/skills", currentName, "SKILL.md"), "utf8"),
+      pristine,
+    );
   await assert.rejects(readFile(receipt), { code: "ENOENT" });
 });

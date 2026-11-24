@@ -105,9 +105,9 @@ test("no frontend or backend loads a node: module when imported, even through an
       .readdirSync(path.join(scripts, folder), { encoding: "utf8", recursive: true })
       .filter((f) => f.endsWith(".ts"));
     assert.ok(files.length > 0, folder);
-    for (const f of files)
-      {for (const [, to] of loads(path.join(folder, f)))
-        {assert.ok(!to.startsWith("node:"), `${folder}/${f} reaches ${to}`);}}
+    for (const currentFile of files)
+      {for (const [, to] of loads(path.join(folder, currentFile)))
+        {assert.ok(!to.startsWith("node:"), `${folder}/${currentFile} reaches ${to}`);}}
   });
 });
 

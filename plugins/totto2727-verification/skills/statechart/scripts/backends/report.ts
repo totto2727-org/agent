@@ -56,11 +56,11 @@ export function report(
   let past = 0;
   let pastSteps = 0;
   let excluded = 0;
-  Iterator.from(graph.states.values()).forEach((s) => {
-    if (s.excluded) {excluded++;}
-    else if (s.past) {past++;}
+  Iterator.from(graph.states.values()).forEach((currentState) => {
+    if (currentState.excluded) {excluded++;}
+    else if (currentState.past) {past++;}
   });
-  Iterator.from(graph.steps).forEach((t) => {if (must(graph.states, t.to).past) {pastSteps++;}});
+  Iterator.from(graph.steps).forEach((currentStep) => {if (must(graph.states, currentStep.to).past) {pastSteps++;}});
   const includes = (n: number) =>
     chart ? `, and the chart includes ${n === 1 ? "it" : "them"}` : "";
   const out = [

@@ -213,7 +213,7 @@ const replay = function (name: string, graph: Graph) {
     const { broke } = readVerdict(messages);
     if (!broke) {continue;}
     let rule: Rule | undefined;
-    Iterator.from(rules).forEach((r) => {if (r.kind === broke.kind && (broke.kind === "deadlock" || r.name === broke.name)) {rule = r;}});
+    Iterator.from(rules).forEach((currentRule) => {if (currentRule.kind === broke.kind && (broke.kind === "deadlock" || currentRule.name === broke.name)) {rule = currentRule;}});
     if (!rule) {continue;}
     if (rule.kind === "deadlock" && drawn && !hasSection(spec, "CONSTRAINT", "ACTION_CONSTRAINT"))
       {deadEnds(graph, rule);}
@@ -359,8 +359,8 @@ test("TLC's marks place on their states even when TLC wraps them over lines", ()
     0,
   );
   const bad: Value[][] = [];
-  Iterator.from(graph.states.values()).forEach((s) => {if (s.breaks.length)
-      {bad.push([field(s.vars.rmState, "r1"), field(s.vars.rmState, "r2")].sort());}});
+  Iterator.from(graph.states.values()).forEach((currentState) => {if (currentState.breaks.length)
+      {bad.push([field(currentState.vars.rmState, "r1"), field(currentState.vars.rmState, "r2")].sort());}});
   assert.deepEqual(bad, [
     ["aborted", "committed"],
     ["aborted", "committed"],
@@ -1078,9 +1078,9 @@ test("a loop that passes one state twice names it once", () => {
   const path: PathStep[] = [];
   for (const [from, to] of ["ab", "ba", "ac", "ca"]) {
     let step: Step | undefined;
-    for (const t of graph.steps)
-      {if (t.from === from && t.to === to) {
-        step = t;
+    for (const currentStep of graph.steps)
+      {if (currentStep.from === from && currentStep.to === to) {
+        step = currentStep;
         break;
       }}
     assert.ok(step);

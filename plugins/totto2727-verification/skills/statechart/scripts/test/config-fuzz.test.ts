@@ -152,7 +152,7 @@ const generate = function (random: () => number) {
     else if (kind === "section") {tokens.splice(at, 0, ...section(pick(KEYWORDS)));}
   }
   let text = "";
-  Iterator.from(tokens).forEach((t) => {text += t.gap + t.text;});
+  Iterator.from(tokens).forEach((token) => {text += token.gap + token.text;});
   return { text: `${text}\n`, mutated: mutations > 0 };
 };
 

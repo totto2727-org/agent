@@ -396,7 +396,7 @@ export function holds(condition: Condition, others: string[]) {
 export const ruleKey = (rule: Rule) => tupleKey([rule.kind, rule.name]);
 
 export const hasRule = (rules: Rule[], rule: Rule) => {
-  for (const r of rules) {if (r.kind === rule.kind && r.name === rule.name) {return true;}}
+  for (const currentRule of rules) {if (currentRule.kind === rule.kind && currentRule.name === rule.name) {return true;}}
   return false;
 };
 
@@ -501,7 +501,7 @@ export const memo = <K, V>(make: (k: K) => V, limit = 1 << 16) => {
 
 export const valuesOf = (vars: Vars, names: string[]) => {
   const values: Value[] = [];
-  Iterator.from(names).forEach((n) => {values.push(vars[n]);});
+  Iterator.from(names).forEach((currentName) => {values.push(vars[currentName]);});
   return values;
 };
 

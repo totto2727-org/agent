@@ -167,11 +167,11 @@ const uninstall = function () {
     cli(["remove", ...names]);
   }
   const after = lock();
-  for (const n of names) {
-    if (!present(join(dest, n)) && !after[n]) {
-      delete ledger.owned[n];
+  for (const currentName of names) {
+    if (!present(join(dest, currentName)) && !after[currentName]) {
+      delete ledger.owned[currentName];
     } else {
-      console.log(`Retained by skills CLI: ${n}`);
+      console.log(`Retained by skills CLI: ${currentName}`);
     }
   }
   if (Object.keys(ledger.owned).length) {
@@ -200,7 +200,8 @@ const ownNames = function (ref) {
       true,
     ).split("\n");
     const names = paths.flatMap(
-      (p) => p.match(/^plugins\/totto2727-[^/]+\/skills\/([^/]+)\/SKILL\.md$/)?.slice(1) ?? [],
+      (path) =>
+        path.match(/^plugins\/totto2727-[^/]+\/skills\/([^/]+)\/SKILL\.md$/)?.slice(1) ?? [],
     );
     requireThat(
       names.length > 0 && names.every(safeName) && new Set(names).size === names.length,
@@ -228,27 +229,30 @@ const install = function () {
       "Invalid source pin.",
     );
     const missing = [];
-    for (const n of names) {
-      requireThat(safeName(n) && !seen.has(n), `Invalid or duplicate skill: ${n}`);
-      seen.add(n);
-      const entry = before[n];
-      if (entry || present(join(dest, n))) {
+    for (const currentName of names) {
+      requireThat(
+        safeName(currentName) && !seen.has(currentName),
+        `Invalid or duplicate skill: ${currentName}`,
+      );
+      seen.add(currentName);
+      const entry = before[currentName];
+      if (entry || present(join(dest, currentName))) {
         requireThat(
-          present(join(dest, n, "SKILL.md")),
-          `Incomplete existing install: ${n}. Resolve it before setup.`,
+          present(join(dest, currentName, "SKILL.md")),
+          `Incomplete existing install: ${currentName}. Resolve it before setup.`,
         );
         console.log(
-          `Keep ${n} (${entry?.source ?? "untracked source"} @ ${entry?.commit ?? "unverified"})`,
+          `Keep ${currentName} (${entry?.source ?? "untracked source"} @ ${entry?.commit ?? "unverified"})`,
         );
         if (entry?.source?.toLowerCase() !== repo.toLowerCase() || entry.commit !== pin) {
           requireThat(
-            values.keep.includes(n),
-            `Unverified source or different pin for ${n}. No replacement made. Inspect it, then pass --keep ${n} only if you accept the existing copy.`,
+            values.keep.includes(currentName),
+            `Unverified source or different pin for ${currentName}. No replacement made. Inspect it, then pass --keep ${currentName} only if you accept the existing copy.`,
           );
         }
         continue;
       }
-      missing.push(n);
+      missing.push(currentName);
     }
     console.log(`${repo}#${pin}: ${missing.length} to add`, missing.join(" "));
     plan.push({ repo, pin, source: `${repo}#${pin}`, names: missing });
@@ -277,7 +281,7 @@ const install = function () {
       save();
     }
     requireThat(
-      names.every((n) => ledger.owned[n]),
+      names.every((currentName) => ledger.owned[currentName]),
       `Incomplete install from ${repo}. Inspect the output and receipt before retrying.`,
     );
   }

@@ -61,7 +61,7 @@ const run = function (
   );
   const configs: { [name: string]: string } = {};
   if (fs.existsSync(log))
-    {Iterator.from(read(log).split(/^## /mu)).forEach((c) => {if (c) {configs[c.slice(0, c.indexOf("\n"))] = c;}});}
+    {Iterator.from(read(log).split(/^## /mu)).forEach((part) => {if (part) {configs[part.slice(0, part.indexOf("\n"))] = part;}});}
   const files = fs.existsSync(out) ? fs.readdirSync(out).sort() : [];
   return {
     ...r,
@@ -97,7 +97,7 @@ Iterator.from(fs.readdirSync(corpus)).forEach((name) => {
     assert.equal(r.report, read(path.join(dir, "report.md")));
     assert.equal(read(path.join(r.out, "chart.mmd")), read(path.join(dir, "chart.mmd")));
     assert.deepEqual(r.files, ["chart.mmd", "report.md", "tlc.out", ...named(r.report)].sort());
-    for (const f of r.files) {assert.doesNotMatch(read(path.join(r.out, f)), /@!@!@/u, f);}
+    for (const currentFile of r.files) {assert.doesNotMatch(read(path.join(r.out, currentFile)), /@!@!@/u, currentFile);}
     assert.match(r.configs.ChartRun, /^INVARIANT ChartMark$/mu);
     assert.match(r.configs.ChartRun, /^CONSTRAINT ChartBudget$/mu);
   });
@@ -129,7 +129,7 @@ Iterator.from(fs.readdirSync(corpus)).forEach((name) => {
     assert.equal(r.status, plain === 0 ? 0 : [11, 12, 13].includes(plain) ? 1 : 2);
     assert.equal(r.report, read(path.join(corpus, name, "report.md")));
     assert.equal(read(path.join(r.out, "chart.mmd")), read(path.join(corpus, name, "chart.mmd")));
-    for (const f of r.files) {assert.doesNotMatch(read(path.join(r.out, f)), /\r|@!@!@/u, f);}
+    for (const currentFile of r.files) {assert.doesNotMatch(read(path.join(r.out, currentFile)), /\r|@!@!@/u, currentFile);}
   });
 });
 
@@ -229,10 +229,10 @@ test("the order of TLC's dump and its state IDs do not change the chart or the r
       const ids = new Map<string, string>();
       const id = (n: string) => ids.get(n) ?? ids.set(n, String(9000 - ids.size * 17)).get(n);
       const lines: string[] = [];
-      for (const l of read(file).split("\n"))
-        {if (/^-?\d+ (?:\[|->)/u.test(l))
+      for (const part of read(file).split("\n"))
+        {if (/^-?\d+ (?:\[|->)/u.test(part))
           {lines.push(
-            l.replace(
+            part.replace(
               /^(-?\d+)(?: -> (-?\d+))?/u,
               (_: string, a: string, b: string | undefined) => id(a) + (b ? ` -> ${id(b)}` : ""),
             ),

@@ -65,7 +65,7 @@ export function* readMarks(messages: Iterable<Part>, tag: string): Generator<Mar
     if (depth > 0) {continue;}
     const texts = markTexts(chunk, top, inner);
     const values: Value[] = [];
-    if (texts) {Iterator.from(texts.values).forEach((v) => {values.push(read(v));});}
+    if (texts) {Iterator.from(texts.values).forEach((value) => {values.push(read(value));});}
     const broken = texts && ruleNames(read(texts.rules));
     if (!broken)
       {throw new Error(`TLC printed a mark that the command cannot read:\n${chunk.slice(0, 2000)}`);}
@@ -80,15 +80,15 @@ export function* readMarks(messages: Iterable<Part>, tag: string): Generator<Mar
 
 export function readCounterexample(messages: Iterable<Part>) {
   const trace: TraceState[] = [];
-  Iterator.from(messages).forEach((m) => {
-    if (isString(m)) {return;}
-    const action = m.code === EC.TLC_STATE_PRINT2 ? actionOf(m) : undefined;
-    if (!matchesUndefined(action)) {trace.push({ action, vars: messageState(m) });}
+  Iterator.from(messages).forEach((message) => {
+    if (isString(message)) {return;}
+    const action = message.code === EC.TLC_STATE_PRINT2 ? actionOf(message) : undefined;
+    if (!matchesUndefined(action)) {trace.push({ action, vars: messageState(message) });}
     else if (
-      m.code === EC.TLC_INVARIANT_VIOLATED_INITIAL ||
-      m.code === EC.TLC_PROPERTY_VIOLATED_INITIAL
+      message.code === EC.TLC_INVARIANT_VIOLATED_INITIAL ||
+      message.code === EC.TLC_PROPERTY_VIOLATED_INITIAL
     )
-      {trace.push({ action: "", vars: messageState(m) });}
+      {trace.push({ action: "", vars: messageState(message) });}
   });
   return trace;
 }

@@ -85,25 +85,25 @@ export function drawRegions(
       o.members.push(i);
     });
     const parents = new Set<string>();
-    Iterator.from(states.values()).forEach((s) => {for (let i = 1; i < s.path.length; i++) {parents.add(tupleKey(s.path.slice(0, i)));}});
-    Iterator.from(states.values()).forEach((s) => {
-      if (parents.size && parents.has(tupleKey(s.path)))
+    Iterator.from(states.values()).forEach((state) => {for (let i = 1; i < state.path.length; i++) {parents.add(tupleKey(state.path.slice(0, i)));}});
+    Iterator.from(states.values()).forEach((state) => {
+      if (parents.size && parents.has(tupleKey(state.path)))
         {throw new Error(
-          `The view's state() returned ${s.path.join(" / ")} both as a state and as a parent state${name ? ` in ${name}` : ""}. Give that state a child name of its own.`,
+          `The view's state() returned ${state.path.join(" / ")} both as a state and as a parent state${name ? ` in ${name}` : ""}. Give that state a child name of its own.`,
         );}
       const rules = new Map<string, Rule>();
-      for (const i of s.members) {for (const rule of tla[i].breaks) {rules.set(ruleKey(rule), rule);}}
-      s.breaks = [];
+      for (const i of state.members) {for (const rule of tla[i].breaks) {rules.set(ruleKey(rule), rule);}}
+      state.breaks = [];
       for (const rule of [...rules.values()].sort(
         (a, b) => byText(a.name, b.name) || byText(a.kind, b.kind),
       )) {
         let always = true;
-        for (const i of s.members) {always &&= hasRule(tla[i].breaks, rule);}
-        s.breaks.push({ rule, always });
+        for (const i of state.members) {always &&= hasRule(tla[i].breaks, rule);}
+        state.breaks.push({ rule, always });
       }
       const groups = new Set<unknown>();
-      for (const i of s.members) {groups.add(group(i));}
-      s.group = groups.size === 1 ? [...groups][0] : undefined;
+      for (const i of state.members) {groups.add(group(i));}
+      state.group = groups.size === 1 ? [...groups][0] : undefined;
     });
     const others: number[] = [];
     for (let o = 0; o < R; o++) {if (o !== r) {others.push(o);}}
@@ -189,7 +189,7 @@ export function drawRegions(
           else {untaken.add(t[j]);}
         });
         const only = new Set<string>();
-        Iterator.from(values).forEach((v) => {if (!untaken.has(v)) {only.add(v);}});
+        Iterator.from(values).forEach((value) => {if (!untaken.has(value)) {only.add(value);}});
         all.push(values);
         and.push(taken);
         or.push(only);

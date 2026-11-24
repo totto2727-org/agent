@@ -41,7 +41,7 @@ export function mark(
 
 export function deadEnds(graph: Graph, rule: Rule) {
   const from = new Set<string>();
-  Iterator.from(graph.steps).forEach((t) => {from.add(t.from);});
+  Iterator.from(graph.steps).forEach((currentStep) => {from.add(currentStep.from);});
   Iterator.from(graph.states).forEach(([id, s]) => {if (!s.past && !from.has(id)) {s.breaks.push(rule);}});
 }
 
@@ -59,8 +59,8 @@ export function addPast(
   const from = trace[end - 1]?.id;
   const action = trace[end].action;
   const taken = (to: string | undefined) => {
-    for (const t of graph.steps)
-      {if (t.from === from && t.to === to && t.action === action) {return true;}}
+    for (const currentStep of graph.steps)
+      {if (currentStep.from === from && currentStep.to === to && currentStep.action === action) {return true;}}
     return false;
   };
   let to = trace[end].id;
@@ -91,7 +91,7 @@ export function lasso(
   if (matchesUndefined(start)) {return undefined;}
   const out = new Map<string | undefined, Step[]>();
   Iterator.from(seq).forEach((s) => {out.set(s.id, []);});
-  Iterator.from(graph.steps).forEach((t) => {out.get(t.from)?.push(t);});
+  Iterator.from(graph.steps).forEach((currentStep) => {out.get(currentStep.from)?.push(currentStep);});
   const route: PathStep[] = [];
   for (let i = 1; i < seq.length; i++) {
     let step: Step | undefined;

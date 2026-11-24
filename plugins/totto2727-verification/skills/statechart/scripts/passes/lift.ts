@@ -4,20 +4,20 @@ import type { Chart, ChartState, ChartStep, Region } from '../ir.ts';
 export function liftToParents(states: ChartState[], steps: ChartStep[]) {
   const depths = new Map<string, number>();
   const leaves = new Map<string, number>();
-  Iterator.from(states.values()).forEach((s) => {for (let i = 1; i < s.path.length; i++) {
-      const prefix = tupleKey(s.path.slice(0, i));
+  Iterator.from(states.values()).forEach((state) => {for (let i = 1; i < state.path.length; i++) {
+      const prefix = tupleKey(state.path.slice(0, i));
       depths.set(prefix, i);
       leaves.set(prefix, (leaves.get(prefix) ?? 0) + 1);
     }});
   if (!depths.size) {return steps;}
   const leaving = new Map<string, ChartStep[]>();
-  for (const s of steps) {
+  for (const step of steps) {
     let same = 0;
-    while (same < s.from.length && s.from[same] === s.to[same]) {same++;}
-    for (let i = 1; i < s.from.length; i++) {
-      if (i <= same && i < s.to.length) {continue;}
-      const prefix = tupleKey(s.from.slice(0, i));
-      if (depths.has(prefix)) {append(leaving, prefix, s);}
+    while (same < step.from.length && step.from[same] === step.to[same]) {same++;}
+    for (let i = 1; i < step.from.length; i++) {
+      if (i <= same && i < step.to.length) {continue;}
+      const prefix = tupleKey(step.from.slice(0, i));
+      if (depths.has(prefix)) {append(leaving, prefix, step);}
     }
   }
   const removed = new Set<ChartStep>();
@@ -33,23 +33,23 @@ export function liftToParents(states: ChartState[], steps: ChartStep[]) {
     }
   }
   const kept: ChartStep[] = [];
-  Iterator.from(steps).forEach((s) => {if (!removed.has(s)) {kept.push(s);}});
+  Iterator.from(steps).forEach((step) => {if (!removed.has(step)) {kept.push(step);}});
   Iterator.from(lifted).forEach((s) => {kept.push(s);});
   return kept;
 }
 
 export function lift(chart: Chart): Chart {
   const regions: Region[] = [];
-  Iterator.from(chart.regions).forEach((r) => {
+  Iterator.from(chart.regions).forEach((region) => {
     const known = new Map<string[], number>();
-    for (const s of r.states) {known.set(s.path, known.size);}
+    for (const state of region.states) {known.set(state.path, known.size);}
     let numbers: Map<string, number> | undefined;
     const pathIndex = (path: string[]) => {
       let i = known.get(path);
       if (!matchesUndefined(i)) {return i;}
       if (!numbers) {
         numbers = new Map();
-        for (const s of r.states) {numbers.set(tupleKey(s.path), numbers.size);}
+        for (const state of region.states) {numbers.set(tupleKey(state.path), numbers.size);}
       }
       const k = tupleKey(path);
       i = numbers.get(k);
@@ -58,7 +58,7 @@ export function lift(chart: Chart): Chart {
       return i;
     };
     const merged = new Map<number | string, ChartStep>();
-    for (const s of liftToParents(r.states, r.steps)) {
+    for (const s of liftToParents(region.states, region.steps)) {
       const f = pathIndex(s.from);
       const t = pathIndex(s.to);
       const k =
@@ -69,7 +69,7 @@ export function lift(chart: Chart): Chart {
       if (prior) {prior.label += ` or ${s.label}`;}
       else {merged.set(k, { ...s });}
     }
-    regions.push({ ...r, steps: [...merged.values()] });
+    regions.push({ ...region, steps: [...merged.values()] });
   });
   return { ...chart, regions };
 }

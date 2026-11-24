@@ -11,7 +11,7 @@ export function readChecks({ configFile, config }: { configFile: string; config:
   if (!config.spec && !config.init)
     {throw refuse("The configuration file did not specify the initial state predicate.");}
   const written: ConfigSection[] = [];
-  Iterator.from(config.sections).forEach((s) => {if (!["INVARIANT", "PROPERTY", "CHECK_DEADLOCK"].includes(s.key)) {written.push(s);}});
+  Iterator.from(config.sections).forEach((section) => {if (!["INVARIANT", "PROPERTY", "CHECK_DEADLOCK"].includes(section.key)) {written.push(section);}});
   return {
     invariants: config.invariants,
     properties: config.properties,
@@ -49,7 +49,7 @@ const parseXml = function (xml: string) {
   return document;
 };
 
-const child = (node: XmlNode | undefined, tag: string) => node?.children.find((c) => c.tag === tag);
+const child = (node: XmlNode | undefined, tag: string) => node?.children.find((currentChild) => currentChild.tag === tag);
 const textOf = (node: XmlNode | undefined, tag: string) => child(node, tag)?.text ?? "";
 
 export type Sany = {
@@ -79,7 +79,7 @@ export function readSany(xml: string): Sany {
       {variables.push({ uid: Number(uid), name });}
   });
   variables.sort((a, b) => a.uid - b.uid);
-  return { variables: variables.map((v) => v.name), definitions };
+  return { variables: variables.map((variable) => variable.name), definitions };
 }
 
 export function readSpec({

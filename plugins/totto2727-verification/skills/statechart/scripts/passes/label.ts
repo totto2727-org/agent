@@ -83,7 +83,7 @@ export function asParents(
   const parents = new Array<Shape>(shapes.length);
   for (let i = 0; i < shapes.length; i++) {
     const path: string[] = [];
-    Iterator.from(names).forEach((n) => {for (const p of shapes[i][n]) {path.push(`${n} ${p}`);}});
+    Iterator.from(names).forEach((currentName) => {for (const p of shapes[i][currentName]) {path.push(`${currentName} ${p}`);}});
     parents[i] = shapeOf(path, tla[i].vars);
   }
   return { names: [""], shapes: parents, labels, group };

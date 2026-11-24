@@ -3,7 +3,7 @@ import type { ConfigSection, Spec } from '../ir.ts';
 
 export function configText(sections: ConfigSection[], extra: string[]) {
   const lines: string[] = [];
-  Iterator.from(sections).forEach((s) => {lines.push(`${s.key} ${s.tokens.join(" ")}`);});
+  Iterator.from(sections).forEach((section) => {lines.push(`${section.key} ${section.tokens.join(" ")}`);});
   lines.push(...extra);
   return lines.join("\n");
 }

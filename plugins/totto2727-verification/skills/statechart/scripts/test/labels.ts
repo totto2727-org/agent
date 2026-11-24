@@ -452,27 +452,27 @@ const readMermaid = async function (text: string, want: Want, { mermaid, html }:
     return;
   }
   const byId = new Map<string | undefined, MermaidNode>();
-  Iterator.from(data.nodes).forEach((n) => {byId.set(n.id, n);});
+  Iterator.from(data.nodes).forEach((currentNode) => {byId.set(currentNode.id, currentNode);});
   let count = 0;
-  Iterator.from(data.nodes).forEach((n) => {
-    if (n.shape === "divider" || n.shape === "stateStart" || n.shape === "stateEnd") {return;}
+  Iterator.from(data.nodes).forEach((currentNode) => {
+    if (currentNode.shape === "divider" || currentNode.shape === "stateStart" || currentNode.shape === "stateEnd") {return;}
     count++;
-    let parent = byId.get(n.parentId);
+    let parent = byId.get(currentNode.parentId);
     while (parent?.shape === "divider") {parent = byId.get(parent.parentId);}
-    const w = want.nodes.get(n.id);
-    const shown = fromMermaid(n.label ?? "");
-    if (!w || (parent?.id ?? null) !== w.parent || Boolean(n.isGroup) !== w.group)
-      {problems.push(`mermaid-nodes: Mermaid draws ${n.id} where the chart has no such node`);}
+    const w = want.nodes.get(currentNode.id);
+    const shown = fromMermaid(currentNode.label ?? "");
+    if (!w || (parent?.id ?? null) !== w.parent || Boolean(currentNode.isGroup) !== w.group)
+      {problems.push(`mermaid-nodes: Mermaid draws ${currentNode.id} where the chart has no such node`);}
     else if (rewritten(shown))
       {problems.push(
-        `mermaid-text: Mermaid's SVG cleanup rewrites ${n.id}'s ${JSON.stringify(shown)}`,
+        `mermaid-text: Mermaid's SVG cleanup rewrites ${currentNode.id}'s ${JSON.stringify(shown)}`,
       );}
-    else if (visible(html(decoded(n.label ?? ""))) !== visible(w.text))
+    else if (visible(html(decoded(currentNode.label ?? ""))) !== visible(w.text))
       {problems.push(
-        `mermaid-text: ${n.id} shows ${JSON.stringify(html(decoded(n.label ?? "")))} for ${JSON.stringify(w.text)}`,
+        `mermaid-text: ${currentNode.id} shows ${JSON.stringify(html(decoded(currentNode.label ?? "")))} for ${JSON.stringify(w.text)}`,
       );}
-    if (n.isGroup && n.dir && n.dir !== "TB")
-      {problems.push(`mermaid-direction: ${n.id} runs ${n.dir}`);}
+    if (currentNode.isGroup && currentNode.dir && currentNode.dir !== "TB")
+      {problems.push(`mermaid-direction: ${currentNode.id} runs ${currentNode.dir}`);}
   });
   if (count !== want.nodes.size)
     {problems.push(`mermaid-nodes: ${count} nodes for ${want.nodes.size}`);}
@@ -495,9 +495,9 @@ const readMermaid = async function (text: string, want: Want, { mermaid, html }:
     );}
   const got: string[][] = [];
   const shown: string[][] = [];
-  Iterator.from(data.edges).forEach((e) => {
-    got.push([e.start, e.end, fromMermaid(e.label ?? "")]);
-    shown.push([e.start, e.end, html(decoded(e.label ?? ""))]);
+  Iterator.from(data.edges).forEach((edge) => {
+    got.push([edge.start, edge.end, fromMermaid(edge.label ?? "")]);
+    shown.push([edge.start, edge.end, html(decoded(edge.label ?? ""))]);
   });
   if (edgeKeys(got, false) !== edgeKeys(want.edges, false))
     {problems.push("mermaid-edges: the arrows join other states");}
@@ -521,10 +521,10 @@ const readPele = function (text: string, want: Want, render: Render, problems: s
   const drawn = new Map<string, string>();
   Iterator.from(svg.matchAll(
     /<g class="pele-(?:node|cluster) ([^"]*)" data-id="([^"]*)"[^>]*>([\s\S]*?)<\/g>/g,
-  )).forEach((m) => {
-    if (/state-(?:start|end)/u.test(m[1])) {return;}
-    const regexMatch = m[3].match(/<text[^>]*>([\s\S]*?)<\/text>/);
-    drawn.set(m[2], regexMatch ? fromSvg(regexMatch[1]) : "");
+  )).forEach((currentRegexMatch) => {
+    if (/state-(?:start|end)/u.test(currentRegexMatch[1])) {return;}
+    const regexMatch = currentRegexMatch[3].match(/<text[^>]*>([\s\S]*?)<\/text>/);
+    drawn.set(currentRegexMatch[2], regexMatch ? fromSvg(regexMatch[1]) : "");
   });
   if (drawn.size !== want.nodes.size)
     {problems.push(`pele-nodes: ${drawn.size} nodes for ${want.nodes.size}`);}
@@ -537,17 +537,17 @@ const readPele = function (text: string, want: Want, render: Render, problems: s
       );}
   });
   let arrows = 0;
-  Iterator.from(svg.matchAll(/<g class="pele-edge pele-transition"/gu)).forEach((_) => {arrows++;});
+  Iterator.from(svg.matchAll(/<g class="pele-edge pele-transition"/gu)).forEach((currentRegexMatch) => {arrows++;});
   if (arrows !== want.edges.length)
     {problems.push(`pele-edges: ${arrows} arrows for ${want.edges.length}`);}
   Iterator.from(svg.matchAll(
     /<g class="pele-edge-label" data-id="edge(\d+)"[^>]*>[\s\S]*?<text[^>]*>([\s\S]*?)<\/text>/g,
-  )).forEach((m) => {
-    const w = want.edges[Number(m[1])];
-    if (!w) {problems.push(`pele-edges: Pele labels edge${m[1]}, which the chart does not have`);}
-    else if (wrapped(fromSvg(m[2])) !== wrapped(w[2]))
+  )).forEach((currentRegexMatch) => {
+    const w = want.edges[Number(currentRegexMatch[1])];
+    if (!w) {problems.push(`pele-edges: Pele labels edge${currentRegexMatch[1]}, which the chart does not have`);}
+    else if (wrapped(fromSvg(currentRegexMatch[2])) !== wrapped(w[2]))
       {problems.push(
-        `pele-text: edge${m[1]} shows ${JSON.stringify(fromSvg(m[2]))} for ${JSON.stringify(w[2])}`,
+        `pele-text: edge${currentRegexMatch[1]} shows ${JSON.stringify(fromSvg(currentRegexMatch[2]))} for ${JSON.stringify(w[2])}`,
       );}
   });
   const title = svg.match(/<text class="pele-title"[^>]*>([\s\S]*?)<\/text>/);

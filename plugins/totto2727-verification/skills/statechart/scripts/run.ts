@@ -85,8 +85,8 @@ export const messageOf = (error: unknown) =>
 const joined = (files: string[]): Output => {
   const fds: number[] = [];
   const sizes: number[] = [];
-  Iterator.from(files).forEach((f) => {
-    const fd = fs.openSync(f, "r");
+  Iterator.from(files).forEach((currentFile) => {
+    const fd = fs.openSync(currentFile, "r");
     fds.push(fd);
     sizes.push(fs.fstatSync(fd).size);
   });
@@ -140,7 +140,7 @@ const runToFiles = (
   new Promise<FileResult>((resolve) => {
     const files = [`${out}.stdout`, `${out}.stderr`];
     const fds: number[] = [];
-    Iterator.from(files).forEach((f) => {fds.push(fs.openSync(f, "w"));});
+    Iterator.from(files).forEach((currentFile) => {fds.push(fs.openSync(currentFile, "w"));});
     let child: ChildProcess;
     try {
       child = spawn(file, args, { ...options, stdio: ["ignore", ...fds], windowsHide: true });
