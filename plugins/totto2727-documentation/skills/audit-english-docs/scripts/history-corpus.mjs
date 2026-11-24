@@ -21,7 +21,10 @@ const execute = promisify(execFile);
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const defaultSpec = resolve(scriptDirectory, "../references/history-corpus.json");
 const defaultRules = resolve(scriptDirectory, "../references/rules.json");
-const choices = new Set(["pass", "fail", "not_applicable", "insufficient_context"]);
+/** @type {Readonly<["pass", "fail", "not_applicable", "insufficient_context"]>} */
+const choices = ["pass", "fail", "not_applicable", "insufficient_context"];
+/** @typedef {(typeof choices)[number]} PredictedChoice */
+/** @typedef {"pass" | "fail" | "abstention" | "infrastructureError"} ScoreOutcome */
 
 /** @typedef {{ outputDir: string, repository: string, rulesPath?: string, specPath?: string, split?: string }} PrepareOptions */
 /** @typedef {{ labelsPath: string, outputPath: string, reportPath: string }} ScoreOptions */
@@ -271,6 +274,7 @@ const counters = function () {
   };
 };
 
+/** @type {(count: ReturnType<typeof counters>, row: ScoreRow) => void} */
 const addCount = function (count, row) {
   count.total += 1;
   count[matchesNull(row.expected) ? "exploratory" : "labeled"] += 1;
@@ -292,20 +296,57 @@ const addCount = function (count, row) {
   }
 };
 
+/** @typedef {{ evaluation: Record<string, unknown>, answers: Array<Record<string, unknown> | undefined> }} AnswerMatch */
+/** @typedef {{ documentId: string, matches: AnswerMatch[], ruleId: string, sample: CorpusSample, scope: RuleScope }} ScoringTarget */
+/** @typedef {{ choice?: PredictedChoice, confidence?: number, documentId: string, expected: unknown, family: string, outcome: ScoreOutcome, reason?: string, ruleId: string, sampleId: string, split: CorpusSplit }} ScoreRow */
+/** @typedef {{ documentId?: unknown, kind: string, questionId?: unknown }} ScoreIssue */
+
+/** @type {(documentId: unknown, ruleId: unknown) => string} */
+const targetKey = (documentId, ruleId) => JSON.stringify([documentId, ruleId]);
+
+/** @type {(row: ScoreRow, answer: Record<string, unknown> | undefined, threshold: number) => void} */
+const scoreCompletedAnswer = (row, answer, threshold) => {
+  const choice = choices.find((option) => option === answer?.choice);
+  const providedConfidence = answer?.confidence;
+  const confidence = Number.isFinite(providedConfidence) ? Number(providedConfidence) : Number.NaN;
+  if (matchesUndefined(choice) || !(confidence >= 0 && confidence <= 1)) {
+    row.reason = "malformed_answer";
+    return;
+  }
+  row.choice = choice;
+  row.confidence = confidence;
+  if (confidence < threshold) {
+    row.outcome = "abstention";
+    row.reason = "low_confidence";
+    return;
+  }
+  if (choice === "fail" || (choice === "pass" && answer?.reviewRequired !== true)) {
+    row.outcome = choice;
+    return;
+  }
+  row.outcome = "abstention";
+  row.reason = choice === "pass" ? "review_required" : choice;
+};
+
+/**
+ * @param {unknown} report - A semantic evaluator report.
+ * @param {unknown} labels - The sealed corpus labels.
+ */
 export function scoreReport(report, labels) {
-  requireValue(
-    record(report) && Array.isArray(report.evaluations),
-    "Report must contain evaluations",
-  );
+  const sourceReport = asRecord(report);
+  const evaluations = asArray(sourceReport?.evaluations);
+  requireValue(!matchesUndefined(evaluations), "Report must contain evaluations");
   const samples = validateSamples(labels);
-  const threshold = report.threshold ?? 0.8;
+  const reportedThreshold = sourceReport?.threshold ?? 0.8;
+  const threshold = Number.isFinite(reportedThreshold) ? Number(reportedThreshold) : Number.NaN;
   requireValue(
     Number.isFinite(threshold) && threshold >= 0 && threshold <= 1,
     "Invalid report threshold",
   );
+  /** @type {Map<string, ScoringTarget>} */
   const expected = new Map();
+  /** @type {Set<string>} */
   const documents = new Set();
-  const key = (documentId, ruleId) => JSON.stringify([documentId, ruleId]);
   Iterator.from(samples).forEach((sample) => {
     const { documentId, ruleScopes } = sample.original;
     requireValue(
@@ -317,22 +358,32 @@ export function scoreReport(report, labels) {
       const scope =
         /** @type {Record<string, unknown> | undefined} */ (ruleScopes)?.[ruleId] ?? "section";
       requireValue(scope === "section" || scope === "page", "Invalid label rule scope");
-      expected.set(key(documentId, ruleId), { documentId, sample, ruleId, scope, matches: [] });
+      expected.set(targetKey(documentId, ruleId), {
+        documentId,
+        matches: [],
+        ruleId,
+        sample,
+        scope,
+      });
     }
   });
+  /** @type {ScoreIssue[]} */
   const issues = [];
-  for (const evaluation of report.evaluations) {
-    if (!record(evaluation) || !Array.isArray(evaluation.questions)) {
+  for (const rawEvaluation of evaluations) {
+    const evaluation = asRecord(rawEvaluation);
+    const rawQuestions = asArray(evaluation?.questions);
+    if (matchesUndefined(evaluation) || matchesUndefined(rawQuestions)) {
       issues.push({ kind: "malformed_evaluation" });
       continue;
     }
-    if (!documents.has(evaluation.documentId)) {
+    if (!matchesString(evaluation.documentId) || !documents.has(evaluation.documentId)) {
       issues.push({ kind: "unexpected_document", documentId: evaluation.documentId });
     }
-    const answers = Array.isArray(evaluation.answers) ? evaluation.answers : [];
-    const questionIds = new Set(evaluation.questions.map((question) => question?.id));
+    const questions = rawQuestions.map((question) => asRecord(question));
+    const answers = (asArray(evaluation.answers) ?? []).map((answer) => asRecord(answer));
+    const questionIds = new Set(questions.map((question) => question?.id));
     const ambiguousIds = new Set(
-      evaluation.questions
+      questions
         .filter(
           (question, index, all) => all.findIndex((other) => other?.id === question?.id) !== index,
         )
@@ -347,7 +398,7 @@ export function scoreReport(report, labels) {
         });
       }
     });
-    Iterator.from(evaluation.questions).forEach((question) => {
+    Iterator.from(questions).forEach((question) => {
       if (!nonempty(question?.id) || ambiguousIds.has(question.id)) {
         issues.push({
           kind: "ambiguous_question_id",
@@ -356,14 +407,16 @@ export function scoreReport(report, labels) {
         });
         return;
       }
-      const target = expected.get(key(evaluation.documentId, question?.rule?.id));
+      const target = expected.get(targetKey(evaluation.documentId, asRecord(question?.rule)?.id));
+      const section = asRecord(evaluation.section);
+      const range = asRecord(section?.sourceRange);
       if (
         !target ||
         evaluation.scope !== target.scope ||
         (target.scope === "section" &&
-          (evaluation.section?.id !== "target" ||
-            evaluation.section.sourceRange?.startLine !== target.sample.startLine ||
-            evaluation.section.sourceRange?.endLine !== target.sample.endLine))
+          (section?.id !== "target" ||
+            range?.startLine !== target.sample.startLine ||
+            range?.endLine !== target.sample.endLine))
       ) {
         issues.push({
           kind: "unexpected_question",
@@ -374,15 +427,16 @@ export function scoreReport(report, labels) {
       }
       target.matches.push({
         evaluation,
-        question,
         answers: answers.filter((answer) => answer?.questionId === question.id),
       });
     });
   }
+  /** @type {ScoreRow[]} */
   const rows = [];
   let missing = 0;
   let duplicates = 0;
   Iterator.from(expected.values()).forEach(({ documentId, sample, ruleId, matches }) => {
+    /** @type {ScoreRow} */
     const row = {
       documentId,
       sampleId: sample.id,
@@ -400,7 +454,6 @@ export function scoreReport(report, labels) {
       duplicates += matches.length - 1;
     } else {
       const { evaluation, answers } = matches[0];
-      const answer = answers[0];
       if (evaluation.status !== "complete") {
         row.reason = evaluation.status === "error" ? "evaluation_error" : "not_evaluated";
       } else if (answers.length !== 1) {
@@ -410,48 +463,25 @@ export function scoreReport(report, labels) {
         } else {
           duplicates += answers.length - 1;
         }
-      } else if (
-        !choices.has(answer.choice) ||
-        !Number.isFinite(answer.confidence) ||
-        answer.confidence < 0 ||
-        answer.confidence > 1
-      ) {
-        row.reason = "malformed_answer";
       } else {
-        row.choice = answer.choice;
-        row.confidence = answer.confidence;
-        if (
-          !["pass", "fail"].includes(answer.choice) ||
-          answer.confidence < threshold ||
-          (answer.choice === "pass" && answer.reviewRequired === true)
-        ) {
-          row.outcome = "abstention";
-          row.reason =
-            answer.confidence < threshold
-              ? "low_confidence"
-              : answer.choice === "pass"
-                ? "review_required"
-                : answer.choice;
-        } else {
-          row.outcome = answer.choice;
-        }
+        scoreCompletedAnswer(row, answers[0], threshold);
       }
     }
     rows.push(row);
   });
   const totals = counters();
+  /** @type {Map<string, ReturnType<typeof counters>>} */
   const perRule = new Map();
+  /** @type {Map<string, ReturnType<typeof counters>>} */
   const perFamily = new Map();
   Iterator.from(rows).forEach((row) => {
-    if (!perRule.has(row.ruleId)) {
-      perRule.set(row.ruleId, counters());
-    }
-    if (!perFamily.has(row.family)) {
-      perFamily.set(row.family, counters());
-    }
-    for (const count of [totals, perRule.get(row.ruleId), perFamily.get(row.family)]) {
+    const ruleCounts = perRule.get(row.ruleId) ?? counters();
+    const familyCounts = perFamily.get(row.family) ?? counters();
+    perRule.set(row.ruleId, ruleCounts);
+    perFamily.set(row.family, familyCounts);
+    [totals, ruleCounts, familyCounts].forEach((count) => {
       addCount(count, row);
-    }
+    });
   });
   return {
     version: 1,
