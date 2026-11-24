@@ -1,7 +1,7 @@
 // oxlint-disable-next-line rules/no-node-imports -- Test the distributed script as a native Node.js subprocess.
 import { execFile } from "node:child_process";
 // oxlint-disable-next-line rules/no-node-imports -- Create and inspect filesystem fixtures for the subprocess.
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 // oxlint-disable-next-line rules/no-node-imports -- Place subprocess fixtures in the system temporary directory.
 import { tmpdir } from "node:os";
 // oxlint-disable-next-line rules/no-node-imports -- Resolve test fixture paths for the subprocess.
@@ -10,14 +10,38 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 // oxlint-disable-next-line rules/no-node-imports -- Await the native subprocess and preserve its exit status in these tests.
 import { promisify } from "node:util";
-import { afterEach, describe, expect, test } from "vitest";
+import { afterEach, assert, describe, expect, test } from "vitest";
+import { readEvaluationReport } from "./evaluation-test-support.mjs";
+import { object } from "./evaluation-validation.mjs";
+import {
+  matchesNull,
+  matchesNumber,
+  matchesString,
+  matchesUndefined,
+} from "./native-predicates.mjs";
 
 const execute = promisify(execFile);
 const script = fileURLToPath(new URL("evaluate.mjs", import.meta.url));
+/** @type {string[]} */
 const directories = [];
-const sentence = (count) => `Check ${"the ".repeat(count - 2)}panel.`;
+const FRAMING_WORDS = 2;
+const CLI_OK = 0;
+const CLI_INVALID = 2;
+const NO_REQUESTS = 0;
+const FIRST = 0;
+
+/** @typedef {{ check?: Record<string, unknown>, dryRun?: boolean, mechanicalOnly?: boolean, model?: string, rules?: unknown[], scope?: string, sections?: unknown[], ste?: Record<string, unknown>, vocabulary?: object }} CliOptions */
+/** @typedef {import("./evaluation-test-support.mjs").EvaluationReport} EvaluationReport */
+/** @typedef {EvaluationReport["evaluations"][number]} Evaluation */
+/** @typedef {Evaluation["answers"][number]} EvaluationAnswer */
+/** @typedef {Awaited<ReturnType<typeof cli>>} CliResult */
+
+/** @type {(count: number) => string} */
+const sentence = (count) => `Check ${"the ".repeat(count - FRAMING_WORDS)}panel.`;
+/** @type {(mode?: string) => { kind: string, writingMode: string }} */
 const checkFor = (mode = "procedural") => ({ kind: "ste-sentence-length", writingMode: mode });
 
+/** @type {(markdown: string, options?: CliOptions) => Promise<{ answers?: EvaluationAnswer[], exitCode: number, report?: EvaluationReport, stderr?: string }>} */
 const cli = async function (
   markdown,
   {
@@ -56,7 +80,7 @@ const cli = async function (
   const manifestPath = resolve(directory, "manifest.json");
   const outputPath = resolve(directory, "report.json");
   await writeFile(manifestPath, JSON.stringify(manifest));
-  let exitCode = 0;
+  let exitCode = CLI_OK;
   let stderr = "";
   try {
     await execute(
@@ -70,26 +94,82 @@ const cli = async function (
         ...(mechanicalOnly ? ["--mechanical-only"] : []),
         ...(dryRun ? ["--dry-run"] : []),
       ],
-      {
-        env: { PATH: process.env.PATH },
-      },
+      // oxlint-disable-next-line node/no-process-env -- Pass only the parent's PATH to the native, credential-free CLI.
+      { env: { PATH: process.env.PATH } },
     );
   } catch (error) {
-    exitCode = error.code;
-    stderr = error.stderr;
+    const { code, stderr: output } = object(error, "native CLI failure");
+    assert(matchesNumber(code), "CLI must report a numeric exit code.");
+    exitCode = code;
+    assert(matchesString(output), "CLI must return stderr as text.");
+    stderr = output;
   }
-  if (exitCode === 2) {
+  if (exitCode === CLI_INVALID) {
     return { exitCode, stderr };
   }
-  const report = JSON.parse(await readFile(outputPath, "utf8"));
-  expect(report.requestCount).toBe(0);
-  return { exitCode, report, answers: report.evaluations.flatMap((entry) => entry.answers) };
+  const report = await readEvaluationReport(outputPath);
+  expect(report.requestCount).toBe(NO_REQUESTS);
+  const answers = report.evaluations.flatMap(
+    /** @returns {EvaluationAnswer[]} The answers in report order. */
+    (entry) => entry.answers,
+  );
+  return { answers, exitCode, report };
 };
 
 const cleanupFixtures = async () => {
   await Promise.all(
-    directories.splice(0).map((directory) => rm(directory, { force: true, recursive: true })),
+    directories
+      .splice(FIRST)
+      .map(async (directory) => rm(directory, { force: true, recursive: true })),
   );
+};
+
+/** @type {(result: CliResult) => EvaluationReport} */
+const reportOf = (result) => {
+  const { report } = result;
+  assert(!matchesUndefined(report), "CLI must emit an evaluation report.");
+  return report;
+};
+
+/** @type {(result: CliResult) => EvaluationAnswer[]} */
+const answersOf = (result) => {
+  const { answers } = result;
+  assert(!matchesUndefined(answers), "CLI report must include answers.");
+  return answers;
+};
+
+/** @type {(result: CliResult, index?: number) => import("./mechanical.mjs").SteResult} */
+const steAnswerOf = (result, index = FIRST) => {
+  const answer = answersOf(result)[index];
+  assert(
+    !matchesUndefined(answer) &&
+      "counts" in answer &&
+      "coverage" in answer &&
+      "lexicalCandidates" in answer,
+    "Expected an STE mechanical answer.",
+  );
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- The CLI serialized an STE answer and each test asserts its selected evidence.
+  return /** @type {import("./mechanical.mjs").SteResult} */ (/** @type {unknown} */ (answer));
+};
+
+/** @type {(result: CliResult) => Evaluation} */
+const firstEvaluation = (result) => {
+  const entry = reportOf(result).evaluations[FIRST];
+  assert(!matchesUndefined(entry), "CLI report must include the first evaluation.");
+  return entry;
+};
+
+const nounGroups = (/** @type {CliResult} */ result) => {
+  const entry = firstEvaluation(result);
+  assert("state" in entry, "Dry-run evaluation must include its state.");
+  const { local } = entry.state.evidence;
+  assert(!matchesNull(local), "Selected noun-group evidence must include local context.");
+  const { nounGroupCounts } = local;
+  assert(
+    !matchesUndefined(nounGroupCounts),
+    "Dry-run state must include the selected noun groups.",
+  );
+  return nounGroupCounts;
 };
 
 describe("mechanical checks for Issue 9 through the real public CLI", () => {
@@ -112,12 +192,14 @@ describe("mechanical checks for Issue 9 through the real public CLI", () => {
       model: "clef-flash",
       ste: {},
     });
-    expect(result.answers[0]).toMatchObject({
+    expect(answersOf(result)[0]).toMatchObject({
       choice: "insufficient_context",
       reviewRequired: true,
     });
-    expect(result.report.evaluations[0]).toMatchObject({ status: "deferred" });
-    expect(result.report.evaluations[0].reason).toContain("Required noun-group counts");
+    expect(firstEvaluation(result)).toMatchObject({ status: "deferred" });
+    const entry = firstEvaluation(result);
+    assert("reason" in entry, "Deferred evaluation must explain the missing evidence.");
+    expect(entry.reason).toContain("Required noun-group counts");
   });
 
   test.each([
@@ -140,7 +222,7 @@ describe("mechanical checks for Issue 9 through the real public CLI", () => {
           ],
         },
       });
-      const selected = result.report.evaluations[0].state.evidence.local.nounGroupCounts;
+      const selected = nounGroups(result);
       expect(selected).toHaveLength(1);
       expect(selected[0]).toMatchObject({
         text,
@@ -151,7 +233,7 @@ describe("mechanical checks for Issue 9 through the real public CLI", () => {
         source: "Original local role claim.",
       });
       expect(JSON.stringify(selected)).not.toContain("UNMATCHED-GROUP-SOURCE");
-      expect(result.report.evaluations[0].questions[0].instructions).toContain(
+      expect(firstEvaluation(result).questions[0].instructions).toContain(
         "never count words yourself",
       );
     },
@@ -169,7 +251,7 @@ describe("mechanical checks for Issue 9 through the real public CLI", () => {
         wordGroups: [{ text, category: "title" }],
       },
     });
-    expect(result.report.evaluations[0].state.evidence.local.nounGroupCounts[0]).toMatchObject({
+    expect(nounGroups(result)[0]).toMatchObject({
       hyphenComponentCounts: [1, 1, 1, 1],
       status: "counted",
       wordCount: 4,
@@ -188,11 +270,11 @@ describe("mechanical checks for Issue 9 through the real public CLI", () => {
         ],
       },
     });
-    expect(result.answers[0]).toMatchObject({
+    expect(answersOf(result)[0]).toMatchObject({
       choice: "insufficient_context",
       reviewRequired: true,
     });
-    expect(result.report.evaluations[0].status).toBe("deferred");
+    expect(firstEvaluation(result).status).toBe("deferred");
   });
 
   test("rejects caller-supplied noun count totals as invalid executable evidence", async () => {
@@ -224,7 +306,7 @@ describe("mechanical checks for Issue 9 through the real public CLI", () => {
         check: checkFor(writingMode),
         ste: { writingMode },
       });
-      expect(result.answers[0]).toMatchObject({
+      expect(answersOf(result)[0]).toMatchObject({
         choice: exitCodeChoice,
         reviewRequired: false,
         counts: [{ wordCount: count, limit }],
@@ -235,7 +317,7 @@ describe("mechanical checks for Issue 9 through the real public CLI", () => {
 
   test("requires declared mode and never infers it from prose or a heading", async () => {
     const missing = await cli("# Procedure\n\nCheck the panel.\n", { ste: {} });
-    expect(missing.answers[0]).toMatchObject({
+    expect(answersOf(missing)[0]).toMatchObject({
       choice: "insufficient_context",
       counts: [],
       reviewRequired: true,
@@ -244,7 +326,7 @@ describe("mechanical checks for Issue 9 through the real public CLI", () => {
 
   test("does not apply procedural limits to a declared descriptive target", async () => {
     const result = await cli(sentence(24), { ste: { writingMode: "descriptive" } });
-    expect(result.answers[0].choice).toBe("not_applicable");
+    expect(answersOf(result)[0].choice).toBe("not_applicable");
   });
 
   test.each([
@@ -256,7 +338,7 @@ describe("mechanical checks for Issue 9 through the real public CLI", () => {
       ste: { writingMode: "descriptive" },
       scope: "paragraph",
     });
-    expect(result.answers[0]).toMatchObject({
+    expect(answersOf(result)[0]).toMatchObject({
       choice,
       reviewRequired: false,
       counts: [{ sentenceCount: count, limit: 6 }],
@@ -267,14 +349,14 @@ describe("mechanical checks for Issue 9 through the real public CLI", () => {
     const result = await cli(
       'Check the quick-release panel (42) at 12.5 kg with the "Maintenance setup" label.',
     );
-    expect(result.answers[0]).toMatchObject({ choice: "pass", counts: [{ wordCount: 11 }] });
+    expect(answersOf(result)[0]).toMatchObject({ choice: "pass", counts: [{ wordCount: 11 }] });
   });
 
   test("checks parenthetical prose as a separate word-count unit as well as one outer word", async () => {
     const result = await cli(`Check the panel (${sentence(21).toLowerCase().slice(0, -1)}).`);
-    expect(result.answers[0]).toMatchObject({ choice: "fail", reviewRequired: false });
-    expect(result.answers[0].counts.map((entry) => entry.wordCount)).toStrictEqual([4, 21]);
-    expect(result.answers[0].findings[0].parenthetical).toBe(true);
+    expect(answersOf(result)[0]).toMatchObject({ choice: "fail", reviewRequired: false });
+    expect(steAnswerOf(result).counts.map((entry) => entry.wordCount)).toStrictEqual([4, 21]);
+    expect(steAnswerOf(result).findings[0].parenthetical).toBe(true);
   });
 
   test("does not claim parenthetical prose paragraph boundaries from the word-count rule", async () => {
@@ -282,7 +364,7 @@ describe("mechanical checks for Issue 9 through the real public CLI", () => {
       check: { kind: "ste-paragraph-length" },
       ste: { writingMode: "descriptive" },
     });
-    expect(result.answers[0]).toMatchObject({
+    expect(answersOf(result)[0]).toMatchObject({
       choice: "insufficient_context",
       counts: [],
       reviewRequired: true,
@@ -293,8 +375,8 @@ describe("mechanical checks for Issue 9 through the real public CLI", () => {
     const result = await cli(
       "Inspect these areas:\n- the upper panel\n- the lower quick-release panel.\n",
     );
-    expect(result.answers[0]).toMatchObject({ choice: "pass", reviewRequired: false });
-    expect(result.answers[0].counts.map((entry) => entry.wordCount)).toStrictEqual([3, 3, 4]);
+    expect(answersOf(result)[0]).toMatchObject({ choice: "pass", reviewRequired: false });
+    expect(steAnswerOf(result).counts.map((entry) => entry.wordCount)).toStrictEqual([3, 3, 4]);
   });
 
   test("does not mistake vertical-list fragments for paragraph sentences", async () => {
@@ -302,7 +384,7 @@ describe("mechanical checks for Issue 9 through the real public CLI", () => {
       check: { kind: "ste-paragraph-length" },
       ste: { writingMode: "descriptive" },
     });
-    expect(result.answers[0]).toMatchObject({
+    expect(answersOf(result)[0]).toMatchObject({
       choice: "insufficient_context",
       counts: [],
       reviewRequired: true,
@@ -311,8 +393,8 @@ describe("mechanical checks for Issue 9 through the real public CLI", () => {
 
   test("excludes numbered work-step markers from the word count", async () => {
     const result = await cli("1. Check the panel.\n2. Close the latch.\n");
-    expect(result.answers[0]).toMatchObject({ choice: "pass", reviewRequired: false });
-    expect(result.answers[0].counts.map((entry) => entry.wordCount)).toStrictEqual([3, 3]);
+    expect(answersOf(result)[0]).toMatchObject({ choice: "pass", reviewRequired: false });
+    expect(steAnswerOf(result).counts.map((entry) => entry.wordCount)).toStrictEqual([3, 3]);
   });
 
   test("accepts explicit section 8 semantic groups and additional literal measurement units", async () => {
@@ -323,19 +405,19 @@ describe("mechanical checks for Issue 9 through the real public CLI", () => {
         measurementUnits: ["furlongs"],
       },
     });
-    expect(result.answers[0]).toMatchObject({
+    expect(answersOf(result)[0]).toMatchObject({
       choice: "pass",
       counts: [{ wordCount: 7 }],
       reviewRequired: false,
     });
-    expect(result.answers[0].coverage.declaredWordGroups).toStrictEqual([
+    expect(steAnswerOf(result).coverage.declaredWordGroups).toStrictEqual([
       { category: "proper-noun", text: "North River Works" },
     ]);
   });
 
   test("handles source-illustrated composite identifiers and time abbreviations as one word", async () => {
     const result = await cli("Check the No. 2 panel at 11 a.m. today.");
-    expect(result.answers[0]).toMatchObject({
+    expect(answersOf(result)[0]).toMatchObject({
       choice: "pass",
       counts: [{ wordCount: 7 }],
       reviewRequired: false,
@@ -359,12 +441,12 @@ describe("mechanical checks for Issue 9 through the real public CLI", () => {
     "Check 4 unknownunits.",
   ])("abstains on ambiguous prose rather than partially passing: %j", async (markdown) => {
     const result = await cli(markdown);
-    expect(result.answers[0]).toMatchObject({
+    expect(answersOf(result)[0]).toMatchObject({
       choice: "insufficient_context",
       findings: [],
       reviewRequired: true,
     });
-    expect(result.answers[0].coverage.parserWarnings.length).toBeGreaterThan(0);
+    expect(steAnswerOf(result).coverage.parserWarnings.length).toBeGreaterThan(0);
   });
 
   test("keeps prose semicolons distinct from excluded code and unchangeable quotations", async () => {
@@ -372,9 +454,9 @@ describe("mechanical checks for Issue 9 through the real public CLI", () => {
       'Check the panel; close it. Read "Stop; wait".\n\n```js\nrun();\n```\n',
       { check: { kind: "ste-punctuation" } },
     );
-    expect(result.answers[0]).toMatchObject({ choice: "fail", reviewRequired: false });
-    expect(result.answers[0].findings).toHaveLength(1);
-    expect(result.answers[0].findings[0].sourceRange).toMatchObject({
+    expect(answersOf(result)[0]).toMatchObject({ choice: "fail", reviewRequired: false });
+    expect(steAnswerOf(result).findings).toHaveLength(1);
+    expect(steAnswerOf(result).findings[0].sourceRange).toMatchObject({
       endByte: 16,
       endLine: 1,
       startByte: 15,
@@ -386,8 +468,8 @@ describe("mechanical checks for Issue 9 through the real public CLI", () => {
     const result = await cli(`# First\n\n${sentence(20)}\n\n# Second\n\n${sentence(21)}\n`, {
       scope: "section",
     });
-    expect(result.answers.map((entry) => entry.choice)).toStrictEqual(["pass", "fail"]);
-    expect(result.answers[1].findings[0].sourceRange.startLine).toBe(7);
+    expect(answersOf(result).map((entry) => entry.choice)).toStrictEqual(["pass", "fail"]);
+    expect(steAnswerOf(result, 1).findings[0].sourceRange.startLine).toBe(7);
   });
 
   test("propagates explicit section mode to paragraph targets without leaking across sections", async () => {
@@ -398,7 +480,10 @@ describe("mechanical checks for Issue 9 through the real public CLI", () => {
         { startLine: 3, endLine: 3 },
       ],
     });
-    expect(result.answers.map((entry) => entry.choice)).toStrictEqual(["not_applicable", "fail"]);
+    expect(answersOf(result).map((entry) => entry.choice)).toStrictEqual([
+      "not_applicable",
+      "fail",
+    ]);
   });
 
   test("abstains on page-level mixed writing modes rather than applying a global limit", async () => {
@@ -408,7 +493,7 @@ describe("mechanical checks for Issue 9 through the real public CLI", () => {
         { startLine: 3, endLine: 3 },
       ],
     });
-    expect(result.answers[0]).toMatchObject({
+    expect(answersOf(result)[0]).toMatchObject({
       choice: "insufficient_context",
       reviewRequired: true,
     });
@@ -419,7 +504,7 @@ describe("mechanical checks for Issue 9 through the real public CLI", () => {
       scope: "section",
       sections: [{ startLine: 1, endLine: 1 }],
     });
-    expect(result.answers[0]).toMatchObject({
+    expect(answersOf(result)[0]).toMatchObject({
       choice: "insufficient_context",
       counts: [],
       reviewRequired: true,
@@ -428,7 +513,7 @@ describe("mechanical checks for Issue 9 through the real public CLI", () => {
 
   test("keeps missing dictionary evidence unavailable", async () => {
     const result = await cli("Check the panel.", { check: { kind: "ste-dictionary-membership" } });
-    expect(result.answers[0]).toMatchObject({
+    expect(answersOf(result)[0]).toMatchObject({
       choice: "insufficient_context",
       findings: [],
       lexicalCandidates: [],
@@ -463,13 +548,13 @@ describe("mechanical checks for Issue 9 through the real public CLI", () => {
       ste: { vocabularyFile: "vocabulary.json" },
       vocabulary,
     });
-    expect(result.answers[0]).toMatchObject({
+    expect(answersOf(result)[0]).toMatchObject({
       choice: "insufficient_context",
       findings: [],
       reviewRequired: true,
     });
     expect(
-      result.answers[0].lexicalCandidates.map((entry) => [entry.term, entry.membership]),
+      steAnswerOf(result).lexicalCandidates.map((entry) => [entry.term, entry.membership]),
     ).toStrictEqual([
       ["Checked", "approved-form"],
       ["panels", "not-approved-entry"],
@@ -503,15 +588,15 @@ describe("mechanical checks for Issue 9 through the real public CLI", () => {
       ste: { vocabularyFile: "vocabulary.json" },
       vocabulary,
     });
-    expect(result.answers[0]).toMatchObject({
+    expect(answersOf(result)[0]).toMatchObject({
       choice: "insufficient_context",
       findings: [],
       reviewRequired: true,
     });
-    const candidates = result.answers[0].lexicalCandidates;
+    const candidates = steAnswerOf(result).lexicalCandidates;
     expect(candidates[0]).toMatchObject({ membership: "approved-form", term: "Put on" });
-    expect(candidates.find((entry) => entry.term === "Puts on").membership).toBe("approved-form");
-    expect(candidates.find((entry) => entry.term === "Put-on").membership).toBe("unlisted");
+    expect(candidates.find((entry) => entry.term === "Puts on")?.membership).toBe("approved-form");
+    expect(candidates.find((entry) => entry.term === "Put-on")?.membership).toBe("unlisted");
   });
 
   test("does not treat ordinary descriptive mentions of warnings as a safety instruction", async () => {
@@ -519,7 +604,7 @@ describe("mechanical checks for Issue 9 through the real public CLI", () => {
       check: checkFor("descriptive"),
       ste: { writingMode: "descriptive" },
     });
-    expect(result.answers[0]).toMatchObject({
+    expect(answersOf(result)[0]).toMatchObject({
       choice: "pass",
       counts: [{ wordCount: 5 }],
       reviewRequired: false,
@@ -528,7 +613,7 @@ describe("mechanical checks for Issue 9 through the real public CLI", () => {
 
   test("excludes explicit safety labels from a declared procedural count", async () => {
     const result = await cli(`CAUTION: ${sentence(21)}`);
-    expect(result.answers[0]).toMatchObject({
+    expect(answersOf(result)[0]).toMatchObject({
       choice: "fail",
       counts: [{ limit: 20, wordCount: 21 }],
       reviewRequired: false,
@@ -540,7 +625,7 @@ describe("mechanical checks for Issue 9 through the real public CLI", () => {
       check: checkFor("descriptive"),
       ste: { writingMode: "descriptive" },
     });
-    expect(result.answers[0]).toMatchObject({
+    expect(answersOf(result)[0]).toMatchObject({
       choice: "pass",
       counts: [{ limit: 25, wordCount: 25 }],
       reviewRequired: false,
@@ -549,13 +634,13 @@ describe("mechanical checks for Issue 9 through the real public CLI", () => {
 
   test("excludes parenthetical work-step numbering and keeps terminal time abbreviation boundaries", async () => {
     const numbered = await cli("(3) Check the panel.");
-    expect(numbered.answers[0]).toMatchObject({
+    expect(answersOf(numbered)[0]).toMatchObject({
       choice: "pass",
       counts: [{ wordCount: 3 }],
       reviewRequired: false,
     });
     const time = await cli("Check the panel at 11 p.m.");
-    expect(time.answers[0]).toMatchObject({
+    expect(answersOf(time)[0]).toMatchObject({
       choice: "pass",
       counts: [{ wordCount: 5 }],
       reviewRequired: false,
@@ -578,13 +663,13 @@ describe("mechanical checks for Issue 9 through the real public CLI", () => {
       ste: { vocabularyFile: "vocabulary.json" },
       vocabulary,
     });
-    expect(result.answers[0]).toMatchObject({
+    expect(answersOf(result)[0]).toMatchObject({
       choice: "insufficient_context",
       findings: [],
       reviewRequired: true,
     });
     expect(
-      result.answers[0].lexicalCandidates.find((entry) => entry.term === "status panel"),
+      steAnswerOf(result).lexicalCandidates.find((entry) => entry.term === "status panel"),
     ).toMatchObject({
       membership: "unlisted",
       technicalTermCandidate: true,
@@ -598,7 +683,7 @@ describe("mechanical checks for Issue 9 through the real public CLI", () => {
       check: { kind: "ste-dictionary-membership" },
       ste: { vocabularyFile: "missing-private.json" },
     });
-    expect(result.answers[0]).toMatchObject({
+    expect(answersOf(result)[0]).toMatchObject({
       choice: "insufficient_context",
       findings: [],
       reviewRequired: true,
@@ -610,7 +695,7 @@ describe("mechanical checks for Issue 9 through the real public CLI", () => {
       check: checkFor("descriptive"),
       ste: { writingMode: "descriptive" },
     });
-    expect(result.answers[0]).toMatchObject({
+    expect(answersOf(result)[0]).toMatchObject({
       choice: "insufficient_context",
       counts: [],
       reviewRequired: true,
@@ -619,7 +704,7 @@ describe("mechanical checks for Issue 9 through the real public CLI", () => {
 
   test("defers procedural notes instead of treating them as procedural 20", async () => {
     const result = await cli("NOTE: The panel is closed.");
-    expect(result.answers[0]).toMatchObject({
+    expect(answersOf(result)[0]).toMatchObject({
       choice: "insufficient_context",
       counts: [],
       reviewRequired: true,
@@ -630,7 +715,7 @@ describe("mechanical checks for Issue 9 through the real public CLI", () => {
     const result = await cli("Check the panel &amp; latch.", {
       check: { kind: "ste-punctuation" },
     });
-    expect(result.answers[0]).toMatchObject({
+    expect(answersOf(result)[0]).toMatchObject({
       choice: "insufficient_context",
       findings: [],
       reviewRequired: true,

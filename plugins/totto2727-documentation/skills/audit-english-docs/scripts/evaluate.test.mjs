@@ -25,6 +25,7 @@ import {
   validateManifest,
   validateResponse,
 } from "./evaluate.mjs";
+import { readEvaluationReport } from "./evaluation-test-support.mjs";
 import { object, text } from "./evaluation-validation.mjs";
 import {
   paragraphUnits,
@@ -68,14 +69,6 @@ const readFixtureManifest = async (file) => {
   assert(Array.isArray(manifest.documents), "Fixture manifest needs its document list.");
   // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- This test reads and mutates the manifests its fixture writers own.
   return /** @type {FixtureManifest} */ (manifest);
-};
-
-/** @type {(file: string) => Promise<EvaluationReport>} */
-const readEvaluationReport = async (file) => {
-  const report = object(JSON.parse(await readFile(file, "utf8")), "evaluation report");
-  assert(Array.isArray(report.evaluations), "Evaluator output needs its evaluation list.");
-  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Individual tests assert the emitted fields after checking the report envelope here.
-  return /** @type {EvaluationReport} */ (report);
 };
 
 /** @type {(fragment: string) => unknown} */
