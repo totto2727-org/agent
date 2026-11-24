@@ -9,9 +9,10 @@ import { object } from "./evaluation-validation.mjs";
 export const readEvaluationReport = async (file) => {
   const report = object(JSON.parse(await readFile(file, "utf8")), "evaluation report");
   assert(Array.isArray(report.evaluations), "Evaluator output needs its evaluation list.");
+  /* oxlint-disable typescript/no-unsafe-type-assertion -- Individual tests assert the emitted fields after checking the report envelope here. */
   return (
     /** @type {EvaluationReport} */
-    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Individual tests assert the emitted fields after checking the report envelope here.
-    report
+    (report)
   );
+  /* oxlint-enable typescript/no-unsafe-type-assertion */
 };
