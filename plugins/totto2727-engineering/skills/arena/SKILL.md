@@ -13,19 +13,19 @@ Open a todolist with one entry per phase (Frame, Fan out, Cross-judge, Pick, Gra
 Every candidate gets the same prompt, so the prompt is the contract.
 
 1. State the artifact each candidate is producing.
-2. Derive the rubric, 3-6 concrete gradeable criteria for what success looks like on *this* task. It is the picker's tool in Phase D. Candidates only see the task.
-3. Pick the runners from the `arena runners` line in the pstack settings file (`~/.cursor/rules/pstack-models.mdc` in Cursor, `~/.claude/rules/pstack-models.md` in Claude Code, `~/.agents/pstack-models.md` in other harnesses), by default `claude-fable-5-2-high`, `claude-opus-5-5-high-fast`, and `gemini-4-neon-xhigh`. An `auto` or `inherit-parent` entry is the parent model, so omit `model` and spawn a general-purpose subagent (`generalPurpose` in Cursor). If your subagent tool rejects a slug, use the nearest valid slug of the same family from its error message or your harness's model list, or drop the seat, keep at least two runners, and say so. Families go by prefix, and the longest match wins: `claude-fable-*`, `claude-*`, and `gemini-*`, after dropping a leading `cursor-`. Any other slug's family is its text before the first hyphen. Spawn more for multiple design directions, and repeat one model when the work is generation-bound, not judgment-sensitive. Pick each subagent's reasoning level per the Subagents section of the **poteto-mode** skill.
+2. Derive the rubric, 3-6 concrete gradeable criteria for what success looks like on _this_ task. It is the picker's tool in Phase D. Candidates only see the task.
+3. Select independent candidate approaches and a harness for each. Respect the requested model and effort. Check availability on the execution host rather than substituting a different model. See the [Orca worker guide](../poteto-mode/references/orca.md) ([source](https://github.com/totto2727-org/agent/blob/main/plugins/totto2727-workflow/skills/poteto-mode/references/orca.md)).
 4. Give each candidate its own output location (a git worktree where possible, otherwise `/tmp/arena-<slug>/candidate-<n>/`), per the **separate-before-serializing-shared-state** principle skill.
 
 ## Phase B: Fan out
 
-Spawn all N subagents in one message with `run_in_background: true`, each with the task, the path to the shared grounding, its own output path, and instructions to produce the artifact and a short rationale naming the alternatives it considered and what it rejected.
+Start independent Orca workers in separate writable worktrees. Give each the same task, grounding material, output path, and request for a short rationale. Collect each receipt and result.
 
 If a candidate produces no output, proceed with N-1 and note the dropout.
 
 ## Phase C: Cross-judge
 
-After all Phase B candidates complete, spawn one readonly judge from the `arena cross-judge pool` line in the pstack settings file (`~/.cursor/rules/pstack-models.mdc` in Cursor, `~/.claude/rules/pstack-models.md` in Claude Code, `~/.agents/pstack-models.md` in other harnesses), by default `claude-opus-5-5-high-fast`, `gemini-4-neon-xhigh`. The judge is never from the parent's vendor, and Fable counts as Claude for that check, so use the first entry from another vendor. An `auto` or `inherit-parent` entry is the parent model. If you do not know the parent's model, use the first real slug and say that the vendor check did not run. If your subagent tool rejects a slug, use the nearest valid slug of the same family from its error message or your harness's model list, then the next such entry, or skip the judge, and say so. While you read in Phase D, the judge scores each candidate, by path label, on each rubric criterion and recommends a base.
+Have an independent read-only judge score the artifacts against the rubric without seeing the candidate identities. If cross-model review is requested, verify the distinct models before claiming it. If no independent judge can run, report the missing review.
 
 ## Phase D: Pick a base
 

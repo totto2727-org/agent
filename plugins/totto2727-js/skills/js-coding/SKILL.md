@@ -6,6 +6,8 @@ description: >-
 
 # JavaScript and TypeScript coding
 
+For TypeScript syntax, narrowing, and schema-derived types, see [TypeScript best practices](../typescript-best-practices/SKILL.md).
+
 Use pure Effect data APIs directly. Compose an `Effect` when an operation needs services, can fail, or owns a resource.
 Keep native APIs at host and third-party boundaries. Do not add Effect to an unrelated public library or rewrite an upstream-first fork to satisfy a local default.
 

@@ -3,6 +3,8 @@ export default {
     ignorePatterns: [
       "plugins/totto2727-documentation/skills/share-artifact/agents/template.md",
       "plugins/totto2727-documentation/skills/share-artifact/readme/template.md",
+      "plugins/totto2727-verification/skills/statechart/scripts/**",
+      "plugins/totto2727-workflow/skills/poteto-mode/scripts/**",
     ],
   },
   lint: {

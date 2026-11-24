@@ -2,7 +2,7 @@
 
 ## Type safety
 
-Express invariants in the type system whenever possible.
+Use [type system discipline](../../principle-type-system-discipline/SKILL.md) to decide which invariants the compiler can enforce.
 Preserve paths, identifiers, commands, and domain payloads as specific structural values while they cross application layers.
 Keep generic JSON at serialization boundaries, and convert structural values to text only when an external protocol or display requires it.
 
@@ -34,7 +34,7 @@ Keep a mutable private collection only when controlled mutation is part of the i
 
 ## Strict boundary conversion
 
-Treat external bytes, text, JSON, TOML, CSV rows, request parameters, environment values, parser nodes, and weak library values as untrusted boundary input.
+Apply [boundary discipline](../../principle-boundary-discipline/SKILL.md) to external bytes, text, configuration, parser nodes, and weak library values.
 Keep each value in the smallest adapter that owns its format and move it promptly through explicit representations:
 
 ```text
@@ -65,9 +65,7 @@ Do not repeat checks such as `is_absolute` in terminal functions.
 
 ## State models
 
-Represent each valid state as a distinct variant whose payload contains exactly the data available in that state.
-Prefer an algebraic data type such as `Success(data) | Failure(error)` over independent flags and optional fields such as `{ error: boolean, data: unknown }`.
-A state transition should construct another valid variant rather than mutate unrelated fields into a temporarily inconsistent combination.
+Use [model the domain](../../principle-model-the-domain/SKILL.md) when flags and optional fields must change together.
 
 ## Failures
 

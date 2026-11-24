@@ -68,8 +68,7 @@ For such an exception, explain only the behavior, conditions, and consequences t
 Include the underlying mechanism only when those facts alone are insufficient.
 Possible future interest, completeness, and the availability of implementation details do not justify an exception.
 
-Choose learning, task execution, reference, or explanation by the intended group's purpose.
-Include information only when it helps that group act, understand, decide, or look something up.
+Once you know the audience, use [technical writing](../technical-writing/SKILL.md#pick-the-mode-first-diátaxis) ([source](https://github.com/totto2727-org/agent/blob/main/plugins/totto2727-documentation/skills/technical-writing/SKILL.md#pick-the-mode-first-diátaxis)) to choose the document's structure.
 
 ### State current guidance and its grounds
 

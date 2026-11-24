@@ -6,6 +6,8 @@ disable-model-invocation: true
 
 # Minimize Reader Load
 
+Give each module one responsibility. Put discovery, resolution, and naming rules in the library that owns the concept. Entry points request resolved values rather than implementing another lookup.
+
 Reader load is the work a reader must do to understand code. It has two independent axes: layers to trace between the question and the answer, and hidden or mutable state to hold in their head. Guard both.
 
 - Collapse layers that only forward: wrappers with one caller, adapters with no second implementation, pass-through methods. Inline them.

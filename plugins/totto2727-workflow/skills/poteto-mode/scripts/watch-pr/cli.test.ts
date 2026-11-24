@@ -5,7 +5,6 @@ import { renderJson, renderPretty } from "./render.ts";
 import type { GitHubReader, WatcherVerdict } from "./types.ts";
 import { parsePrNumber } from "./types.ts";
 
-const silentIo = { stdout: () => {}, stderr: () => {} };
 
 function testRuntime(reader: GitHubReader): {
   readonly runtime: CliRuntime;
@@ -34,7 +33,7 @@ function testRuntime(reader: GitHubReader): {
 
 describe("parseArgs", () => {
   it("uses the specified defaults", () => {
-    expect(parseArgs([], silentIo)).toMatchObject({
+    expect(parseArgs([])).toMatchObject({
       owner: null,
       repo: null,
       pr: null,
@@ -68,8 +67,7 @@ describe("parseArgs", () => {
         "3",
         "--allow-draft",
         "--pretty",
-      ],
-      silentIo
+      ]
     );
     expect(parsed.mode).toBe("queued-stack");
     expect(parsed.stackPrs.map(Number)).toEqual([10, 11, 12]);
@@ -198,7 +196,7 @@ describe("main", () => {
     expect(await main(["--interval", "0"], harness.runtime)).toBe(64);
     expect(harness.stdout).toEqual([]);
     expect(harness.stderr.join("")).toContain(
-      "option '--interval <seconds>' argument '0' is invalid"
+      "--interval: 0 must be greater than zero"
     );
   });
 

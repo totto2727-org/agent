@@ -49,6 +49,8 @@ description: >-
 
 ## Keep environments and dependencies explicit
 
+Before writing custom code or adding a dependency, check whether an installed dependency provides the capability. If not, prefer a mature, actively maintained library. Reimplement it only for a concrete unmet requirement.
+
 - Separate development tools, dependency management, application builds, and production runtimes.
 - Select the newest compatible releases that meet release-age and supply-chain safeguards.
 - Preserve those safeguards when changing package managers.

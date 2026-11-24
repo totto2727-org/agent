@@ -1,8 +1,8 @@
 ### Opening a PR
 
-Invoked at the end of every other playbook.
+Use only when publication is in scope. Read-only investigations, plans, and pauses do not open PRs.
 
-Work from a git worktree off trunk, and keep unrelated work out of it. Rebase into small, landable commits. Run `/deslop` from `cursor-team-kit` over the diff before commit.
+Work from a git worktree off trunk, and keep unrelated work out of it. Rebase into small, landable commits. Review the diff for redundant code before committing.
 
 Title: `type(scope): subject`, naming a real symbol when one carries the change. Body: a one-minute briefing under 40 lines with these `##` headings in order, dropping empty ones: `## Why`, `## What changed`, `## Scope`, `## Tradeoffs` (only rejected alternatives a reviewer would otherwise ask about), `## Blast Radius`, `## Verification`.
 

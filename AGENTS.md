@@ -50,6 +50,8 @@ When a plugin or a skill moves, update the README map and check its links both i
 To refresh the Oxlint index and rule pages, install the locked dependencies. With Node.js 24 or later, run `node scripts/sync-oxlint-skill.mjs /path/to/oxlint-docs` against a trusted, clean checkout matching the installed plugin. The index links the exact docs revision used.
 The command imports the site's English rule Markdown and checks its IDs against the plugin. Review the incorporated Effect rule references against their implementation and tests, then run `vp fmt plugins/totto2727-js/skills/oxlint` and `vp check`.
 
+For pstack updates, follow the [upstream comparison and design record](docs/upstream-differences.md). Inspect upstream changes before editing the installed workflow or importing new skills. After a skill changes owner or references, run `node scripts/refresh-skill-map.mjs`, format `README.md`, and confirm that each installable skill is listed once.
+
 ## Task-specific documentation
 
 - When maintaining README, AGENTS, or ADR guidance, use the matching slice linked from [share-artifact](plugins/totto2727-documentation/skills/share-artifact/SKILL.md).

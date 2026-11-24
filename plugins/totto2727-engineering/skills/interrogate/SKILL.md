@@ -1,6 +1,6 @@
 ---
 name: interrogate
-description: "Use for \"interrogate\", \"adversarial review\", \"multi-model review\", \"challenge this\", \"stress test this code\", \"find blind spots\", or \"tear this apart\". Adversaries try to break a change or design, and only findings proven by a run survive."
+description: 'Use for "interrogate", "adversarial review", "multi-model review", "challenge this", "stress test this code", "find blind spots", or "tear this apart". Adversaries try to break a change or design, and only findings proven by a run survive.'
 disable-model-invocation: true
 ---
 
@@ -14,9 +14,9 @@ The scope is what the user names. Otherwise it is the branch diff from its merge
 
 ## Fan out
 
-Run Phase A steps 3 and 4 and Phase B of the **arena** skill, with four changes. Read the `interrogate reviewers` line in place of `arena runners`. Copy the scope's uncommitted changes into each worktree. Spawn each adversary as a general-purpose subagent (`generalPurpose` in Cursor). In place of the arena task and rationale, give each adversary the scope, the intent, and this brief:
+Use the independent worker and workspace guidance in [arena](../arena/SKILL.md). Give each reviewer the same change, including any relevant uncommitted diff, and the intended behavior. Give each this brief:
 
-> Break this change. Prove each finding with a run against the real code, such as a failing test, a repro script, or command output that shows the wrong behavior. For a design or plan, run a prototype or probe the current tree. Keep repros in your own worktree. Report each finding with a title, the exact command, the output it printed, and the output the intent requires. Leave out anything you did not run. That covers style, naming, structure, and risks that need a future change to matter. No findings is a valid result.
+> Identify incorrect behavior using ordinary tests, type checks, or a bounded local prototype. Record the expected and actual outcomes and how to rerun the check. For a security concern, report defensive evidence and a mitigation rather than developing or running an exploit. Distinguish a verified finding from an unverified risk. No findings is a valid result.
 
 ## Verify
 

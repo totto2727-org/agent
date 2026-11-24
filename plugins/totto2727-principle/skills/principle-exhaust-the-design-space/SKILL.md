@@ -6,4 +6,6 @@ disable-model-invocation: true
 
 # Exhaust the Design Space
 
+Before prototyping, look for a proven pattern in the package and in mature products that solve the same problem. Reuse it when it fits. Compare alternatives when no precedent satisfies the requirements.
+
 It also applies to product design decisions where user experience depends on feel, not logic.

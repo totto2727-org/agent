@@ -1,3 +1,4 @@
+import { stripVTControlCharacters } from "node:util";
 import type * as T from "./types.ts";
 export const renderJson = (verdict: T.WatcherVerdict): string =>
   `${JSON.stringify(verdict)}\n`;
@@ -53,9 +54,7 @@ export function renderStatusTable(rows: T.NonEmpty<T.PrSnapshot>): string {
   return `${lines.join("\n")}\n`;
 }
 function sanitizeText(value: string): string {
-  return value
-    .replace(/\x1b\[[0-9;]*[a-zA-Z]/g, "")
-    .replace(/[\x00-\x1f\x7f-\x9f]/g, "");
+  return stripVTControlCharacters(value).replace(/\p{Cc}/gu, "");
 }
 function threadLine(thread: T.ReviewThread): string {
   const comment = thread.firstComment;

@@ -2,7 +2,7 @@
 
 **You own the measurement story. Plan, review, verify the numbers.** Tie every fix to a measurement, don't read source instead of measuring.
 
-1. Capture a baseline trace via the matching control skill. Vet the baseline, and each later number, with the **benchmark-checklist** skill.
+1. Capture a baseline trace via an available driver for the affected surface. Vet the baseline, and each later number, with the [benchmark-checklist](../../benchmark-checklist/SKILL.md) ([source](https://github.com/totto2727-org/agent/blob/main/plugins/totto2727-verification/skills/benchmark-checklist/SKILL.md)).
 2. Trace the code to ground hypotheses. Don't claim a perf ceiling without running it first.
    Try the performance mantras in order, cheapest first:
    1. Don't do it. Stop work whose result nothing uses rather than cheapening it.
@@ -14,12 +14,13 @@
    7. Do it cheaper.
 
    When an earlier mantra meets the target, stop.
-3. Plan the fix from the trace. If it crosses a function boundary, `architect` first. Delegate implementation to a subagent using your configured perf-issue model (default `claude-opus-5-5-xhigh-fast`). Pick each subagent's reasoning level for the job, per the Subagents section. Review the diff. Capture a post-fix trace.
-   Apply the **sequence-verifiable-units** principle skill, verifying each attempt before trying the next.
+
+3. Plan the fix from the trace. If it crosses a function boundary, [architect](../../architect/SKILL.md) ([source](https://github.com/totto2727-org/agent/blob/main/plugins/totto2727-engineering/skills/architect/SKILL.md)) first. Delegate implementation to a subagent selected for this task via [Orca runtime](../references/orca.md). Use [Orca runtime](../references/orca.md) for worker availability and model selection. Review the diff. Capture a post-fix trace.
+   Apply the [sequence-verifiable-units](../../principle-sequence-verifiable-units/SKILL.md) ([source](https://github.com/totto2727-org/agent/blob/main/plugins/totto2727-principle/skills/principle-sequence-verifiable-units/SKILL.md)), verifying each attempt before trying the next.
 4. Parse and compare the artifacts (JSON to sqlite, diff). "Inconclusive" or wrong-surface is not a pass. Flag it.
 5. Cite the measurement in the PR.
-6. Run **Opening a PR**.
+6. When publication is in scope, follow [Opening a PR](opening-a-pr.md).
 
-For sustained improvement against a metric rather than a one-off fix, use the Hillclimb playbook (`playbooks/hillclimb.md`).
+For sustained improvement against a metric rather than a one-off fix, use the Hillclimb playbook ([hillclimb](hillclimb.md)).
 
 **Reply:** baseline number, post-fix number, delta, artifact path.

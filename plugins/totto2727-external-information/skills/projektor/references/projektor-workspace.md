@@ -7,7 +7,7 @@ It does not set assignees or operating policy for other Projektor workspaces.
 
 Keep at least one corresponding active tracking task for every open PR in the user's requested repository scope, after applying the exclusion below.
 Audit all existing open PRs and create missing tasks under that authorization, not only tasks for newly opened PRs.
-Use the [reconciliation procedure](../SKILL.md#reconcile-open-pull-requests) to reuse tasks by actual scope, exclude incidental references and duplicates from active coverage, and preserve history.
+Use the [reconciliation procedure](pull-request-tracking.md) to reuse tasks by actual scope, exclude incidental references and duplicates from active coverage, and preserve history.
 Maintain this coverage when continuing work or handing off a PR.
 
 ## Dependency-maintenance exclusion

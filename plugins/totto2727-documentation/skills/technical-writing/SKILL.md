@@ -10,7 +10,7 @@ Write so a tired engineer understands on the first read.
 
 - Cut every word that does no work.
 - Use the short, everyday word: "use", not "utilize".
-- When a rule makes a sentence worse, fix the sentence another way or leave it alone.
+- For English developer documentation, apply [documentation principles](../documentation-principles/SKILL.md) ([source](https://github.com/totto2727-org/agent/blob/main/plugins/totto2727-principle/skills/documentation-principles/SKILL.md)). Its STE baseline and exception criteria take precedence over the style advice below.
 - Write the real symbol, file, flag, or command name, not a synonym or a description of it.
 - Don't invent jargon. Use the words a developer would say out loud. Say what a named pattern means the first time.
 
@@ -41,15 +41,9 @@ One document, one mode. Don't mix modes. Split and link instead.
 - Numbered lists for sequences, bullets for everything else. Introduce a list with a complete sentence. Keep items parallel.
 - Code goes in code font. UI elements go in bold. Use serial commas. Drop "etc.".
 
-## Make statements load one at a time (STE rules)
+## Review controlled English
 
-- One instruction per sentence. One thought per sentence everywhere else.
-- Split instructions longer than about 20 words and other sentences longer than about 25.
-- Put the warning or condition before the step it guards.
-- Keep "the" and "a".
-- Give each word one meaning, and pick one word per action.
-- Write procedures as direct commands, never as narration and never in the passive.
-- Avoid "-ing" words where you can.
+Use [documentation quality](../documentation-quality/SKILL.md) for mechanical checks and review against the adopted issue. A clean mechanical result alone does not establish STE compliance.
 
 ## Leave no sentence open to two readings (Global English)
 
@@ -64,7 +58,7 @@ One document, one mode. Don't mix modes. Split and link instead.
 
 ## Voice and repo specifics
 
-- Apply the **unslop** skill to every doc this skill touches. That skill owns the slop-pattern catalog: AI vocabulary, filler, hedging, formatting tells.
+- Apply [unslop](../unslop/SKILL.md) to every doc this skill touches. That skill owns the slop-pattern catalog: AI vocabulary, filler, hedging, formatting tells.
 - PR descriptions and commit messages are writing too. Every layer except Diátaxis applies to them. A PR body is a briefing that a reviewer can read in under a minute. Do not paste swarm logs, SHA lists, or metric tables. Link them.
 - Product UI strings are not documentation. Use your product's copy guidelines for those.
 - Indent code snippets with tabs. Write real paths. Make every count or tree claim true at the commit that lands it, and include the command that regenerates it.

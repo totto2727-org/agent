@@ -33,7 +33,7 @@ Report the limits of temporary verification, and do not present it as maintained
 
 ## Observable behavior
 
-Test the contract visible to a caller, not private implementation steps. Prefer returned values, emitted effects, durable state, and public errors over internal call order or private helper structure.
+Use [test behavior, not implementation](../principle-test-behavior-not-implementation/SKILL.md) to choose what the test observes.
 
 ## Assertion and expectation APIs
 

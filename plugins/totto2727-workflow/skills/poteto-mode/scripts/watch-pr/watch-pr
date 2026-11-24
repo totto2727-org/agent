@@ -1,6 +1,4 @@
-#!/usr/bin/env bun
-import { ensureDependenciesInstalled } from "../bootstrap.ts";
-
-ensureDependenciesInstalled();
-const { main } = await import("./cli.ts");
-process.exitCode = await main(process.argv.slice(2));
+#!/usr/bin/env bash
+set -eu
+here=$(cd -- "$(dirname -- "$0")" && pwd)
+exec bun --no-install "$here/cli.ts" "$@"

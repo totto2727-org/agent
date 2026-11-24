@@ -6,9 +6,12 @@ disable-model-invocation: true
 
 # Migrate Callers Then Delete Legacy APIs
 
+When replacing an internal interface, migrate its callers and remove the obsolete implementation in the same change. Do not keep a compatibility layer, migration script, or rollback path for the old interface.
+
 - Update tests to assert the new contract, and delete tests that only protect pre-refactor implementation details
 
 **When this applies:**
+
 - No external users depend on backward compatibility
 - The project can absorb coordinated breaking changes
 - The new API is part of a simplification or refactor initiative
