@@ -1,4 +1,4 @@
-import { EC, isString } from '../ir.ts';
+import { EC, isString, visitItems } from '../ir.ts';
 import type { Part } from '../ir.ts';
 import { textOf } from "./messages.ts";
 
@@ -24,7 +24,7 @@ export function readVerdict(messages: Iterable<Part>) {
   let broke: Break | undefined;
   let distinct = 0;
   let initial = 0;
-  Iterator.from(messages).forEach((message) => {
+  visitItems(messages, (message) => {
     if (isString(message)) {return;}
     const count = DISTINCT.get(message.code)?.exec(textOf(message));
     if (count) {distinct = Math.max(distinct, Number(count[1]));}

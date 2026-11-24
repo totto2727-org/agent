@@ -1,4 +1,4 @@
-import { isRecord, isString, key, list, loopOf, matchesNull, matchesUndefined, must, sortBy, stateText, tupleKey } from '../ir.ts';
+import { isRecord, isString, key, list, loopOf, matchesNull, matchesUndefined, must, sortBy, stateText, tupleKey, visitItems } from '../ir.ts';
 import type { Answers, Bug, Graph, Hidden, Labels, Rule, Shape, Step, Story, Vars, View, Walk } from '../ir.ts';
 
 const isLabel = (l: unknown): l is string =>
@@ -12,7 +12,7 @@ const shapeOf = (shape: unknown, vars: Vars): Shape => {
   };
   const path = (p: unknown): string[] => {
     const labels: string[] = [];
-    Iterator.from([p].flat()).forEach((l) => {
+    visitItems([p].flat(), (l) => {
       if (!isLabel(l)) {fail();}
       labels.push(l);
     });
@@ -21,7 +21,7 @@ const shapeOf = (shape: unknown, vars: Vars): Shape => {
   };
   const regions: [string, unknown][] = isRecord(shape) ? Object.entries(shape) : [["", shape]];
   const pairs: [string, string[]][] = [];
-  Iterator.from(regions).forEach(([k, v]) => {pairs.push([k, path(v)]);});
+  visitItems(regions, ([k, v]) => {pairs.push([k, path(v)]);});
   return pairs.length ? Object.fromEntries(pairs) : fail();
 };
 
@@ -83,7 +83,7 @@ export function asParents(
   const parents = new Array<Shape>(shapes.length);
   for (let i = 0; i < shapes.length; i++) {
     const path: string[] = [];
-    Iterator.from(names).forEach((currentName) => {for (const p of shapes[i][currentName]) {path.push(`${currentName} ${p}`);}});
+    visitItems(names, (currentName) => {for (const p of shapes[i][currentName]) {path.push(`${currentName} ${p}`);}});
     parents[i] = shapeOf(path, tla[i].vars);
   }
   return { names: [""], shapes: parents, labels, group };
@@ -100,7 +100,7 @@ export function labelGraph(
   const n = shapes.length;
   const m = stepLabels.length;
   const onPath = new Set<Step>();
-  Iterator.from(found).forEach((b) => {for (const currentStep of b.path) {onPath.add(currentStep.step);}});
+  visitItems(found, (b) => {for (const currentStep of b.path) {onPath.add(currentStep.step);}});
   const pathStepIndex = new Map<Step, number>();
   if (onPath.size)
     {for (let j = 0; j < m; j++)
@@ -109,7 +109,7 @@ export function labelGraph(
   const keys: string[][] = [];
   const kinds: Int32Array[] = [];
   const sizes: number[] = [];
-  Iterator.from(names).forEach((name) => {
+  visitItems(names, (name) => {
     const key = new Array<string>(n);
     const kind = new Int32Array(n);
     const tops = new Map<string, number>();
@@ -166,10 +166,10 @@ export function labelGraph(
   }
   const sorted = sortBy(Int32Array.from(drawn), [fromRank, toRank, action]);
   const pathSteps = new Uint8Array(m);
-  Iterator.from(pathStepIndex.values()).forEach((j) => {pathSteps[j] = 1;});
+  visitItems(pathStepIndex.values(), (j) => {pathSteps[j] = 1;});
   const byLabel = new Map<string, { changed: Uint8Array; sets: Set<string> }>();
   if (R > 1)
-    {Iterator.from(sorted).forEach((j) => {
+    {visitItems(sorted, (j) => {
       let entry = byLabel.get(drawnLabels[j]);
       if (!entry)
         {byLabel.set(drawnLabels[j], (entry = { changed: new Uint8Array(R), sets: new Set() }));}
@@ -182,9 +182,9 @@ export function labelGraph(
       if (changed.length > 1) {entry.sets.add(list(changed));}
     });}
   const together = new Set<string>();
-  Iterator.from(byLabel).forEach(([text, { sets }]) => {if (sets.size) {together.add(text);}});
+  visitItems(byLabel, ([text, { sets }]) => {if (sets.size) {together.add(text);}});
   const notes: string[] = [];
-  Iterator.from(byLabel).forEach(([text, entry]) => {
+  visitItems(byLabel, ([text, entry]) => {
     const changed: string[] = [];
     for (let r = 0; r < R; r++) {if (entry.changed[r]) {changed.push(names[r]);}}
     if (changed.length < 2) {return;}
@@ -221,7 +221,7 @@ const tell = function <Id, B extends Told<Id>>(
 ) {
   const vars = (id: Id) => must(states, id).vars;
   const stories = new Map<B, Story>();
-  Iterator.from(found).forEach((bug) => {
+  visitItems(found, (bug) => {
     const story: Story = [{ state: shapeAt(bug.start) }];
     let from: Id = bug.start;
     for (const [k, p] of bug.path.entries()) {

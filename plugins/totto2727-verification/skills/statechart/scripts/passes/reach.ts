@@ -1,4 +1,4 @@
-import { byText, count, defaultState, matchesUndefined, must, ruleKey, sortBy } from '../ir.ts';
+import { byText, count, defaultState, matchesUndefined, must, ruleKey, sortBy, visitItems } from '../ir.ts';
 import type { Bug, Graph, PathStep, Rule, State, Walk } from '../ir.ts';
 
 export function walk(graph: Graph): Walk {
@@ -7,7 +7,7 @@ export function walk(graph: Graph): Walk {
   const nameOf: string[] = [];
   const starts: number[] = [];
   const unique = new Set<string>();
-  Iterator.from(graph.states).forEach(([id, s]) => {
+  visitItems(graph.states, ([id, s]) => {
     const name = defaultState(s.vars);
     if (s.start) {starts.push(ids.length);}
     ids.push(id);
@@ -39,7 +39,7 @@ export function walk(graph: Graph): Walk {
     action[j] = a;
   }
   const actionRank = new Int32Array(actions.size);
-  Iterator.from([...actions.keys()].sort(byText).entries()).forEach(([i, a]) => {actionRank[must(actions, a)] = i;});
+  visitItems([...actions.keys()].sort(byText).entries(), ([i, a]) => {actionRank[must(actions, a)] = i;});
   const toName = new Int32Array(m);
   for (let j = 0; j < m; j++) {
     action[j] = actionRank[action[j]];
@@ -50,13 +50,13 @@ export function walk(graph: Graph): Walk {
   for (let i = 0; i < n; i++) {first[i + 1] += first[i];}
   const fill = first.slice(0, n);
   const next = new Int32Array(m);
-  Iterator.from(sortBy(count(m), [action, toName])).forEach((j) => {next[fill[from[j]]++] = j;});
+  visitItems(sortBy(count(m), [action, toName]), (j) => {next[fill[from[j]]++] = j;});
   starts.sort((left, right) => nameRank[left] - nameRank[right]);
   const depth = new Int32Array(n).fill(-1);
   const via = new Int32Array(n).fill(-1);
   const reached = new Int32Array(n);
   let size = 0;
-  Iterator.from(starts).forEach((s) => {
+  visitItems(starts, (s) => {
     depth[s] = 0;
     reached[size++] = s;
   });
@@ -100,9 +100,9 @@ export function drawOrder({ depth, nameRank }: Walk) {
 
 export function bugs(graph: Graph, { ids, from, via, reached }: Walk = walk(graph)) {
   const ends = new Map<string, string>();
-  Iterator.from(graph.states).forEach(([id, s]) => {for (const rule of s.ends ?? []) {ends.set(ruleKey(rule), id);}});
+  visitItems(graph.states, ([id, s]) => {for (const rule of s.ends ?? []) {ends.set(ruleKey(rule), id);}});
   const first = new Map<string, { rule: Rule; i: number }>();
-  Iterator.from(reached).forEach((i) => {
+  visitItems(reached, (i) => {
     const s = must(graph.states, ids[i]);
     for (const rule of s.past ? s.ends : s.breaks) {
       const k = ruleKey(rule);
@@ -110,7 +110,7 @@ export function bugs(graph: Graph, { ids, from, via, reached }: Walk = walk(grap
     }
   });
   const found: Bug[] = [];
-  Iterator.from(first.values()).forEach(({ rule, i }) => {
+  visitItems(first.values(), ({ rule, i }) => {
     const path: PathStep[] = [];
     let start = i;
     for (let j: number; (j = via[start]) >= 0; start = from[j]) {

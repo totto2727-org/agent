@@ -7,7 +7,7 @@ import path from "node:path";
 import { parseArgs } from "node:util";
 import { killGroup } from "./kill.ts";
 import { messageOf } from "./run.ts";
-import { matchesNull, matchesUndefined } from "./ir.ts";
+import { matchesNull, matchesUndefined, visitItems } from "./ir.ts";
 
 const USAGE = `Usage: statechart SPEC.tla [--config FILE] [--view FILE] [--out DIR]
 
@@ -27,7 +27,7 @@ and 2 when TLC stops with an error, a signal kills the check, or the command can
 
 let stop: NodeJS.Signals | undefined;
 const stopped = new Promise<void>((resolve) => {
-  Iterator.from(["SIGINT", "SIGTERM"] as const).forEach((name) => {process.on(name, () => {
+  visitItems(["SIGINT", "SIGTERM"] as const, (name) => {process.on(name, () => {
       stop ??= name;
       resolve();
     });});

@@ -1,6 +1,6 @@
 import type { Graph, State, Step, Value, Vars } from '../ir.ts';
 import { parseValue } from "./value.ts";
-import { isString, matchesUndefined } from "../ir.ts";
+import { isString, matchesUndefined, visitItems } from "../ir.ts";
 
 const unescapeDot = (s: string): string => {
   let i = s.indexOf("\\");
@@ -22,7 +22,7 @@ const unescapeDot = (s: string): string => {
 
 export const parseState = (label: string, parsed = new Map<string, [string, Value]>()): Vars => {
   const pairs: [string, Value][] = [];
-  Iterator.from((label.startsWith(String.raw`/\ `) ? label.slice(3) : label).split("\n/\\ ")).forEach((part) => {
+  visitItems((label.startsWith(String.raw`/\ `) ? label.slice(3) : label).split("\n/\\ "), (part) => {
     let pair = parsed.get(part);
     if (!pair) {
       const [, name, value] = /^(\w+)\s*=\s*([\s\S]*)$/.exec(part) ?? [];
@@ -51,7 +51,7 @@ export function parseDot(input: Lines): Graph {
     if (matchesUndefined(copy)) {owned.set((copy = String(JSON.parse(JSON.stringify(s)))), copy);}
     return copy;
   };
-  Iterator.from(linesOf(input)).forEach((line) => {
+  visitItems(linesOf(input), (line) => {
     const edge = /^(-?\d+) -> (-?\d+) \[label="([^"]*)"/.exec(line);
     if (edge) {
       steps.set(edge.slice(1).join(" "), {
@@ -69,7 +69,7 @@ export function parseDot(input: Lines): Graph {
         breaks: [],
       });}
   });
-  Iterator.from(steps.values()).forEach((loose) => {if (!states.has(loose.from) || !states.has(loose.to))
+  visitItems(steps.values(), (loose) => {if (!states.has(loose.from) || !states.has(loose.to))
       {throw new Error(
         `The TLC graph dump has a step ${loose.action} to or from a state that it does not list.`,
       );}});

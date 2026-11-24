@@ -12,6 +12,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { plainText } from "../backends/plain-text.ts";
 import { readMessages } from "../frontends/messages.ts";
 import { drawn } from "./drawn.ts";
+import { visitItems } from "../ir.ts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const corpus = path.join(here, "corpus");
@@ -62,7 +63,7 @@ const run = function (
   );
   const configs: Record<string, string> = {};
   if (fs.existsSync(log))
-    {Iterator.from(read(log).split(/^## /mu)).forEach((part) => {if (part) {configs[part.slice(0, part.indexOf("\n"))] = part;}});}
+    {visitItems(read(log).split(/^## /mu), (part) => {if (part) {configs[part.slice(0, part.indexOf("\n"))] = part;}});}
   const files = fs.existsSync(out) ? fs.readdirSync(out).sort() : [];
   return {
     ...r,
@@ -82,11 +83,11 @@ const copyCase = function (name: string, edit: (dir: string) => void = () => {})
 
 const named = (report: string): string[] => {
   const files: string[] = [];
-  Iterator.from(report.matchAll(/\btlc-\w+\.out\b/g)).forEach(([file]) => {if (!files.includes(file)) {files.push(file);}});
+  visitItems(report.matchAll(/\btlc-\w+\.out\b/g), ([file]) => {if (!files.includes(file)) {files.push(file);}});
   return files;
 };
 
-Iterator.from(fs.readdirSync(corpus)).forEach((name) => {
+visitItems(fs.readdirSync(corpus), (name) => {
   // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
   test(`${name} writes the committed chart and report from TLC's output`, () => {
     const dir = path.join(corpus, name);
@@ -115,7 +116,7 @@ const asTlcPrintsOnWindows = function (text: string): string {
   return lines.join("\n");
 };
 
-Iterator.from(fs.readdirSync(corpus)).forEach((name) => {
+visitItems(fs.readdirSync(corpus), (name) => {
   // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
   test(`${name} writes the committed chart and report from TLC's output with Windows line ends`, () => {
     const dir = copyCase(name, (d) => {
@@ -138,7 +139,7 @@ const launcher = path.join(here, "../statechart");
 
 const launcherTools = (): string => {
   const bin = fs.mkdtempSync(path.join(os.tmpdir(), "statechart-bin-"));
-  Iterator.from(["dirname", "readlink", "sed"]).forEach((tool) => {
+  visitItems(["dirname", "readlink", "sed"], (tool) => {
     const found = spawnSync("sh", ["-c", `command -v ${tool}`], { encoding: "utf8" });
     fs.symlinkSync(found.stdout.trim(), path.join(bin, tool));
   });
@@ -155,10 +156,10 @@ const linkedLauncher = (): string => {
   return path.join(first, "statechart");
 };
 
-Iterator.from([
+visitItems([
   ["by its own path", () => launcher],
   ["through an absolute and a relative symlink", linkedLauncher],
-] satisfies [string, () => string][]).forEach(([how, command]) => {
+] satisfies [string, () => string][], ([how, command]) => {
   // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
   test(`the launcher reached ${how} writes the committed chart on this Node`, () => {
     const dir = path.join(corpus, "MediaPlayer");
@@ -203,11 +204,11 @@ test("the launcher runs statechart.ts on Bun 1.1.5 when PATH has no Node", () =>
   assert.equal(r.stdout, `${path.join(here, "../statechart.ts")}\n`);
 });
 
-Iterator.from([
+visitItems([
   ["has none", launcherTools],
   ["has only a node that fails --version", unsetNode],
   ["has only Bun 1.1.4", fakeBun("1.1.4")],
-] satisfies [string, () => string][]).forEach(([what, bin]) => {
+] satisfies [string, () => string][], ([what, bin]) => {
   // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
   test(`the launcher stops with exit 127 and names only the runtimes when PATH ${what}`, () => {
     const r = run(path.join(corpus, "Login"), { command: [launcher], env: { PATH: bin() } });
@@ -224,7 +225,7 @@ Iterator.from([
 test("the order of TLC's dump and its state IDs do not change the chart or the report", () => {
   let seed = 7;
   const random = (): number => (seed = (seed * 48_271) % 2_147_483_647) / 2_147_483_647;
-  Iterator.from(["DieHard", "LoginParallel", "TwoPhase"]).forEach((name) => {
+  visitItems(["DieHard", "LoginParallel", "TwoPhase"], (name) => {
     const dir = copyCase(name, (d) => {
       const file = path.join(d, "graph.dot");
       const ids = new Map<string, string>();
@@ -340,7 +341,7 @@ const assertEmpty = async function (dir: string): Promise<void> {
 const gridCase = function (n: number): string {
   const dir = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "statechart-case-")), "Grid");
   fs.cpSync(path.join(here, "grid"), dir, { recursive: true });
-  Iterator.from(["ChartRun.out", "verdict-1.out"]).forEach((run) => {fs.copyFileSync(path.join(corpus, "Login", run), path.join(dir, run));});
+  visitItems(["ChartRun.out", "verdict-1.out"], (run) => {fs.copyFileSync(path.join(corpus, "Login", run), path.join(dir, run));});
   const id = (x: number, y: number): string => String(1_000_000 + x * n + y);
   const lines = ["strict digraph DiskGraph {"];
   for (let x = 0; x < n; x++)
@@ -447,7 +448,7 @@ test(
   },
 );
 
-Iterator.from(["SIGINT", "SIGTERM"] satisfies NodeJS.Signals[]).forEach((signal) => {
+visitItems(["SIGINT", "SIGTERM"] satisfies NodeJS.Signals[], (signal) => {
   // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
   test(
     `${signal} stops TLC, removes the temporary folder, and writes nothing`,
@@ -509,7 +510,7 @@ Iterator.from(["SIGINT", "SIGTERM"] satisfies NodeJS.Signals[]).forEach((signal)
   );
 });
 
-Iterator.from(["SIGINT", "SIGTERM"] satisfies NodeJS.Signals[]).forEach((signal) => {
+visitItems(["SIGINT", "SIGTERM"] satisfies NodeJS.Signals[], (signal) => {
   // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
   test(`${signal} while the command reads TLC's last output stops the check and writes nothing`, () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "statechart-late-"));
@@ -549,7 +550,7 @@ test("a broken property is named in the report, and its TLC trace is in tlc-NAME
   const dir = path.join(corpus, "MediaPlayerProps");
   const r = run(dir);
   assert.equal(r.status, 1);
-  Iterator.from(["EventuallyPlays", "QuietWhenStopped"]).forEach((p) => {
+  visitItems(["EventuallyPlays", "QuietWhenStopped"], (p) => {
     assert.match(r.report, new RegExp(`^## ${p} breaks\n.*tlc-${p}\\.out`, "m"));
     const out = read(path.join(r.out, `tlc-${p}.out`));
     const from: string[] = [];
@@ -575,7 +576,7 @@ test("TLC checks the rules and draws the chart with VIEW and SYMMETRY, and the r
   assert.equal(r.status, 1);
   const verdict = r.configs["verdict-1"];
   assert.match(verdict, /^PROPERTY EventuallyStops$/mu);
-  Iterator.from([verdict, r.configs.ChartRun]).forEach((config) => {
+  visitItems([verdict, r.configs.ChartRun], (config) => {
     assert.match(config, /^VIEW vars$/mu);
     assert.match(config, /^SYMMETRY Perms$/mu);
   });
@@ -592,7 +593,7 @@ const overBudget = (file: string): void =>
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a check above the chart budget skips the drawing run and draws only the bug paths", () => {
   const dir = copyCase("FirstRule", (d) => {
-    Iterator.from(fs.readdirSync(d)).forEach((fileName) => {if (/^verdict-\d+\.out$/u.test(fileName)) {overBudget(path.join(d, fileName));}});
+    visitItems(fs.readdirSync(d), (fileName) => {if (/^verdict-\d+\.out$/u.test(fileName)) {overBudget(path.join(d, fileName));}});
   });
   const r = run(dir);
   assert.equal(r.status, 1);
@@ -602,7 +603,7 @@ test("a check above the chart budget skips the drawing run and draws only the bu
     r.report,
     /^TLC reached more states than the chart budget of 500, so the chart draws only the bug paths: 4 states and 3 arrows\.$/mu,
   );
-  Iterator.from(["NotOne", "NotOneOrThree", "AlsoNotOne", "NoDeadlock"]).forEach((rule) => {assert.match(r.report, new RegExp(`^## ${rule} breaks$`, "m"));});
+  visitItems(["NotOne", "NotOneOrThree", "AlsoNotOne", "NoDeadlock"], (rule) => {assert.match(r.report, new RegExp(`^## ${rule} breaks$`, "m"));});
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
@@ -803,7 +804,7 @@ test("a view that hides a step of a bug path stops the command with exit 2", () 
   assert.deepEqual(r.files, []);
 });
 
-Iterator.from([
+visitItems([
   ["state() returns a number", "export const state = (v) => 7;", /state\(\) returned 7/u],
   ["state() reads a missing variable", "export const state = (v) => `${v.nope}`;", /undefined/u],
   ["step() returns an empty label", 'export const step = () => "";', /step\(\) returned ""/u],
@@ -812,7 +813,7 @@ Iterator.from([
     'export const group = () => "Busy";\nexport const colors = {};',
     /group\(\) returned "Busy"/u,
   ],
-] satisfies [string, string, RegExp][]).forEach(([what, body, words]) => {
+] satisfies [string, string, RegExp][], ([what, body, words]) => {
   // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
   test(`a view whose ${what} stops the command with exit 2`, () => {
     const view = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "statechart-view-")), "view.mjs");
@@ -829,7 +830,7 @@ const writeView = (body: string): string => {
   return view;
 };
 
-Iterator.from([
+visitItems([
   [
     "gives a group a mark class as its color",
     'export const group = () => "Working";\nexport const colors = { Working: "breaks" };',
@@ -858,7 +859,7 @@ Iterator.from([
   ["has a default export", "export default { state: (v) => v.main };", /\bdefault\b/u],
   ["exports colors as a string", 'export const colors = "blue";', /\bcolors\b[\s\S]*\bobject\b/],
   ["exports a number as its title", "export const title = 7;", /\btitle\b[\s\S]*\bstring\b/],
-] satisfies [string, string, RegExp][]).forEach(([what, body, words]) => {
+] satisfies [string, string, RegExp][], ([what, body, words]) => {
   // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
   test(`a view that ${what} stops the command with exit 2 before TLC runs`, () => {
     const r = run(path.join(corpus, "Login"), { view: writeView(body) });
@@ -974,7 +975,7 @@ test("a flat view names a label with U+0000 as written when a loop cannot take a
   assert.deepEqual(r.files, []);
 });
 
-Iterator.from([
+visitItems([
   [
     "a parent-state view keeps a label with U+0000 apart from the parent path it spells",
     {
@@ -1126,7 +1127,7 @@ Iterator.from([
     arrows: string[];
     says: RegExp;
   },
-][]).forEach(([what, c]) => {
+][], ([what, c]) => {
   // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
   test(what, () => {
     const width = "fanOut" in c ? c.fanOut : undefined;
@@ -1144,7 +1145,7 @@ Iterator.from([
   });
 });
 
-Iterator.from([
+visitItems([
   ["an unknown option", ["--bogus"], /Unknown option '--bogus'[\s\S]*Usage:/],
   ["a second spec", ["Other.tla"], /Give one SPEC\.tla\.[\s\S]*Usage:/],
   [
@@ -1152,7 +1153,7 @@ Iterator.from([
     ["--config", "Missing.cfg"],
     /Cannot find the TLC config Missing\.cfg/u,
   ],
-] satisfies [string, string[], RegExp][]).forEach(([what, args, words]) => {
+] satisfies [string, string[], RegExp][], ([what, args, words]) => {
   // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
   test(`${what} stops the command with exit 2 before TLC runs`, () => {
     const r = run(path.join(corpus, "Login"), { args });
@@ -1167,12 +1168,12 @@ const contents = (p: string) => {
   if (stat.isSymbolicLink()) {return fs.readlinkSync(p);}
   if (!stat.isDirectory()) {return read(p);}
   const files: Record<string, string> = {};
-  Iterator.from(fs.readdirSync(p)).forEach((fileName) => {files[fileName] = read(path.join(p, fileName));});
+  visitItems(fs.readdirSync(p), (fileName) => {files[fileName] = read(path.join(p, fileName));});
   return files;
 };
 const newPath = (): string => path.join(fs.mkdtempSync(path.join(os.tmpdir(), "statechart-out-")), "out");
 
-Iterator.from([
+visitItems([
   [
     "a folder of the user's files",
     (out) => {
@@ -1207,7 +1208,7 @@ Iterator.from([
     (out) => fs.symlinkSync(path.join(path.dirname(out), "gone"), out),
     /cannot be the output folder\. It is a broken link\./u,
   ],
-] satisfies [string, (out: string) => void, RegExp][]).forEach(([what, make, words]) => {
+] satisfies [string, (out: string) => void, RegExp][], ([what, make, words]) => {
   // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
   test(`an --out that is ${what} stops the command with exit 2 before TLC runs, and keeps what is there`, () => {
     const out = newPath();
@@ -1251,7 +1252,7 @@ test("an empty --out folder gets the chart and the report", () => {
   assert.deepEqual(fs.readdirSync(out).sort(), ["chart.mmd", "report.md", "tlc.out"]);
 });
 
-Iterator.from([
+visitItems([
   [
     "a misspelled first keyword",
     "\\* The rules\nINVARIENT NeverLocked\nSPECIFICATION Spec\n",
@@ -1337,7 +1338,7 @@ Iterator.from([
     "\uFEFFSPECIFICATION Spec\nINVARIANT TypeOK\n",
     /Login\.cfg at line 1\. The file starts with a byte order mark\. Save it as UTF-8 without one\.$/mu,
   ],
-] satisfies [string, string, RegExp][]).forEach(([what, config, words]) => {
+] satisfies [string, string, RegExp][], ([what, config, words]) => {
   // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
   test(`a config with ${what} stops the command with exit 2 before TLC runs`, () => {
     const dir = copyCase("Login", (d) => fs.writeFileSync(path.join(d, "Login.cfg"), config));

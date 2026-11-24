@@ -1,6 +1,6 @@
 import type { Config, ConfigSection, Spec } from "../ir.ts";
 import { NAME } from "./config.ts";
-import { matchesUndefined } from "../ir.ts";
+import { matchesUndefined, visitItems } from "../ir.ts";
 
 export type Checks = Pick<Spec, "invariants" | "properties" | "deadlock" | "written">;
 
@@ -11,7 +11,7 @@ export function readChecks({ configFile, config }: { configFile: string; config:
   if (!config.spec && !config.init)
     {throw refuse("The configuration file did not specify the initial state predicate.");}
   const written: ConfigSection[] = [];
-  Iterator.from(config.sections).forEach((section) => {if (!["INVARIANT", "PROPERTY", "CHECK_DEADLOCK"].includes(section.key)) {written.push(section);}});
+  visitItems(config.sections, (section) => {if (!["INVARIANT", "PROPERTY", "CHECK_DEADLOCK"].includes(section.key)) {written.push(section);}});
   return {
     invariants: config.invariants,
     properties: config.properties,
@@ -34,9 +34,9 @@ const decode = (text: string): string =>
 const parseXml = function (xml: string) {
   const document: XmlNode = { tag: "", text: "", children: [] };
   const open = [document];
-  Iterator.from(xml.matchAll(
+  visitItems(xml.matchAll(
     /<(\/?)([^\s/>?!]+)[^>]*?(\/?)>|<[?!][^>]*>|([^<]+)/g,
-  )).forEach(([, close, tag, empty, text]) => {
+  ), ([, close, tag, empty, text]) => {
     const parent = open[open.length - 1];
     if (!matchesUndefined(text)) {parent.text += decode(text);}
     else if (close) {open.pop();}
@@ -62,13 +62,13 @@ const VARIABLE_KIND = "3";
 export function readSany(xml: string): Sany {
   const modules = child(parseXml(xml), "modules");
   const symbols = new Map<string, XmlNode>();
-  Iterator.from(child(modules, "context")?.children ?? []).forEach((entry) => {symbols.set(textOf(entry, "UID"), entry.children[1]);});
+  visitItems(child(modules, "context")?.children ?? [], (entry) => {symbols.set(textOf(entry, "UID"), entry.children[1]);});
   const root = textOf(modules, "RootModule");
   let module: XmlNode | undefined;
-  Iterator.from(symbols.values()).forEach((node) => {if (node.tag === "ModuleNode" && textOf(node, "uniquename") === root) {module = node;}});
+  visitItems(symbols.values(), (node) => {if (node.tag === "ModuleNode" && textOf(node, "uniquename") === root) {module = node;}});
   const definitions = new Map<string, XmlNode>();
   const variables: { uid: number; name: string }[] = [];
-  Iterator.from(module?.children ?? []).forEach((ref) => {
+  visitItems(module?.children ?? [], (ref) => {
     if (ref.tag !== "OpDeclNodeRef" && ref.tag !== "UserDefinedOpKindRef") {return;}
     const uid = textOf(ref, "UID");
     const node = symbols.get(uid);
@@ -98,12 +98,12 @@ const STATE_LEVEL = 1;
 
 export function initialOnlyProperties({ definitions }: Sany, { written, properties }: Spec) {
   const replaced = new Map<string, string>();
-  Iterator.from(written).forEach((s) => {if (s.key === "CONSTANT")
+  visitItems(written, (s) => {if (s.key === "CONSTANT")
       {for (let i = 1; i + 1 < s.tokens.length; i++)
         {if (s.tokens[i] === "<-" && NAME.test(s.tokens[i + 1]))
           {replaced.set(s.tokens[i - 1], s.tokens[i + 1]);}}}});
   const names = new Set<string>();
-  Iterator.from(properties).forEach((name) => {
+  visitItems(properties, (name) => {
     const definition = definitions.get(replaced.get(name) ?? name);
     if (definition && Number(textOf(definition, "level")) <= STATE_LEVEL) {names.add(name);}
   });

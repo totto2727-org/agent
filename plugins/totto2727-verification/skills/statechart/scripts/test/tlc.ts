@@ -6,6 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { PINNED_FLAGS } from "../run.ts";
+import { visitItems } from "../ir.ts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const jar = process.env.TLA2TOOLS;
@@ -23,7 +24,7 @@ const stepsIn = (text: string): number =>
 const properties = function (cfg: string): string[] {
   const names: string[] = [];
   let section = "";
-  Iterator.from(cfg.split("\n")).forEach((line) => {
+  visitItems(cfg.split("\n"), (line) => {
     section = (/^[A-Z_]+/u.exec(line))?.[0] ?? section;
     if (/^PROPERT(?:Y|IES)$/u.test(section))
       {for (const word of line.trim().split(/\s+/u)) {if (word && word !== section) {names.push(word);}}}
@@ -67,7 +68,7 @@ const tlc = function (dir: string, module: string, cfg: string) {
 const alone = function (cfg: string, rule: string): string {
   const lines: string[] = [];
   let section = "";
-  Iterator.from(cfg.split("\n")).forEach((line) => {
+  visitItems(cfg.split("\n"), (line) => {
     section = (/^[A-Z_]+/u.exec(line))?.[0] ?? section;
     if (!RULES.test(section)) {lines.push(line);}
   });
@@ -120,7 +121,7 @@ export function agrees(module: string, files: Record<string, string[]>, cfg: str
 
     const breaks = new Map<string, number>();
     const bounded = new Set<string>();
-    Iterator.from(report.matchAll(/^## (\S+) breaks\n(.*)$/gm)).forEach(([, rule, body]) => {
+    visitItems(report.matchAll(/^## (\S+) breaks\n(.*)$/gm), ([, rule, body]) => {
       const said = (/has (\d+) steps?:/u.exec(body))?.[1];
       const file = (/ is in (tlc-\S+\.out)\./.exec(body))?.[1];
       if (!file) {
@@ -141,11 +142,11 @@ export function agrees(module: string, files: Record<string, string[]>, cfg: str
     const chartFile = path.join(out, "chart.mmd");
     const chart = fs.existsSync(chartFile) ? fs.readFileSync(chartFile, "utf8") : "";
     if (plain.broke) {assert.equal(breaks.get(plain.broke), plain.steps, shown);}
-    Iterator.from(holds).forEach((rule) => {
+    visitItems(holds, (rule) => {
       const r = tlc(dir, module, alone(cfg, rule));
       assert.equal(r.status, 0, `${rule} holds in the report, but TLC says:\n${r.out}`);
     });
-    Iterator.from(breaks).forEach(([rule, steps]) => {
+    visitItems(breaks, ([rule, steps]) => {
       const r = tlc(dir, module, alone(cfg, rule));
       assert.equal(r.broke, rule, `${rule} breaks in the report, but TLC says:\n${r.out}`);
       if (!bounded.has(rule)) {assert.equal(steps, r.steps, rule);}

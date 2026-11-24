@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import { finished } from "node:stream/promises";
 import { killGroup } from "./kill.ts";
+import { visitItems } from "./ir.ts";
 
 const [pid, ...dirs] = process.argv.slice(2);
 
@@ -10,4 +11,4 @@ await finished(process.stdin).catch(() => {});
 const running = !input.includes("exited");
 const groupOutlivesWorker = process.platform !== "win32";
 if (running || groupOutlivesWorker) {await killGroup(Number(pid));}
-Iterator.from(dirs).forEach((dir) => {fs.rmSync(dir, { force: true, recursive: true });});
+visitItems(dirs, (dir) => {fs.rmSync(dir, { force: true, recursive: true });});

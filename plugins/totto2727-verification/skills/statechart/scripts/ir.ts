@@ -254,6 +254,11 @@ export const matchesNull = (value: unknown) => value === null;
 // oxlint-disable-next-line rules/force-predicate, typescript/explicit-function-return-type, typescript/explicit-module-boundary-types -- Infer an exact native sentinel guard for the standalone skill.
 export const matchesUndefined = (value: unknown) => value === undefined;
 
+export const visitItems = <Item>(source: Iterable<Item>, visit: (item: Item) => void): void => {
+  // oxlint-disable-next-line rules/no-for-loops -- The standalone wrapper supports Bun 1.1.5, which lacks iterator helpers.
+  for (const item of source) {visit(item);}
+};
+
 export const PART = 1 << 24;
 
 export const byText = (a: string, b: string) => (a < b ? -1 : (a > b ? 1 : 0));
@@ -326,7 +331,7 @@ export const append = <K, V>(groups: Map<K, V[]>, key: K, item: V): void => {
 
 export const seqOf = (bug: Bug, index: ReadonlyMap<string, number>): number[] => {
   const seq = [must(index, bug.start)];
-  Iterator.from(bug.path).forEach((p) => {seq.push(must(index, p.state));});
+  visitItems(bug.path, (p) => {seq.push(must(index, p.state));});
   return seq;
 };
 
@@ -337,7 +342,7 @@ export const defaultState = (vars: Vars): string => {
   const entries = Object.entries(vars);
   if (entries.length === 1) {return show(entries[0][1]);}
   const parts: string[] = [];
-  Iterator.from(entries).forEach(([k, v]) => {parts.push(`${k}=${show(v)}`);});
+  visitItems(entries, ([k, v]) => {parts.push(`${k}=${show(v)}`);});
   return parts.join(" ");
 };
 
@@ -410,7 +415,7 @@ const span = (lo: number, hi: number): string => (hi > lo ? `${lo}..${hi}` : Str
 const setKey = (members: Value[]): string => {
   const ints: number[] = [];
   let others: string[] = [];
-  Iterator.from(members).forEach((currentValue) => {if (typeof currentValue === "number") {ints.push(currentValue);}
+  visitItems(members, (currentValue) => {if (typeof currentValue === "number") {ints.push(currentValue);}
     else {others.push(key(currentValue));}});
   for (let i = 1; i < ints.length; i++)
     {if (ints[i - 1] >= ints[i]) {
@@ -501,7 +506,7 @@ export const memo = <K, V>(make: (k: K) => V, limit = 1 << 16) => {
 
 export const valuesOf = (vars: Vars, names: string[]) => {
   const values: Value[] = [];
-  Iterator.from(names).forEach((currentName) => {values.push(vars[currentName]);});
+  visitItems(names, (currentName) => {values.push(vars[currentName]);});
   return values;
 };
 
@@ -512,7 +517,7 @@ export const findTrace = <Id>(
   find: Find<Id>,
 ) => {
   const trace: (TraceState & { values: Value[]; id: Id | undefined })[] = [];
-  Iterator.from(counterexample).forEach(({ action, vars }) => {
+  visitItems(counterexample, ({ action, vars }) => {
     const values = valuesOf(vars, names);
     trace.push({ action, vars, values, id: find(values) });
   });
@@ -528,7 +533,7 @@ export const findTrace = <Id>(
 
 export const findLoop = <Id>({ seq, loop }: Trace, names: string[], find: Find<Id>) => {
   const found: { action: string; id: Id | undefined }[] = [];
-  Iterator.from(seq).forEach(({ action, vars }) => {found.push({ action, id: vars && find(valuesOf(vars, names)) });});
+  visitItems(seq, ({ action, vars }) => {found.push({ action, id: vars && find(valuesOf(vars, names)) });});
   return { seq: found, loop };
 };
 
@@ -539,7 +544,7 @@ export const pastState = (
   excluded: boolean,
 ): PastState => {
   const breaks: Rule[] = [];
-  Iterator.from(marked).forEach((r) => {if (!hasRule(breaks, r)) {breaks.push(r);}});
+  visitItems(marked, (r) => {if (!hasRule(breaks, r)) {breaks.push(r);}});
   return { vars, start, breaks, ends: [], past: true, excluded };
 };
 
@@ -560,7 +565,7 @@ export const hasSection = ({ written }: Spec, ...keys: string[]): boolean => {
 
 export const stateRules = (spec: Spec) => {
   const rules: Rule[] = [];
-  Iterator.from(spec.invariants).forEach((name) => {rules.push({ kind: "invariant", name });});
+  visitItems(spec.invariants, (name) => {rules.push({ kind: "invariant", name });});
   if (spec.deadlock) {rules.push(deadlockRule(spec));}
   return rules;
 };

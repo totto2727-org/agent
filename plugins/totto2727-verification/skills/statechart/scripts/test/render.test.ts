@@ -14,6 +14,7 @@ import { walk } from "../passes/reach.ts";
 import { project } from "../pipeline.ts";
 import { fuzz } from './labels.ts';
 import type { Html, Mermaid, Render } from './labels.ts';
+import { visitItems } from "../ir.ts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const charts = [
@@ -57,7 +58,7 @@ before(async () => {
 });
 
 const classes = new Set<string>();
-Iterator.from(charts).forEach((chart) => {
+visitItems(charts, (chart) => {
   const name = path.relative(here, chart);
   const text = fs.readFileSync(chart, "utf8");
   const marks = [...text.matchAll(/^ {2}class (\w+) (\w+)$/gmu)];
@@ -87,7 +88,7 @@ test("random labels and colors keep their text and the chart's shape in Mermaid 
 const pathPoints = (d: string) => {
   const points: number[][] = [];
   let [ax, ay] = [0, 0];
-  Iterator.from(d.matchAll(/([MLC])([^MLC]*)/g)).forEach(([, cmd, args]) => {
+  visitItems(d.matchAll(/([MLC])([^MLC]*)/g), ([, cmd, args]) => {
     const n = args.split(/[ ,]/u).filter(Boolean).map(Number);
     const [x, y] = n.slice(-2);
     if (cmd !== "M")
@@ -110,17 +111,17 @@ const pathPoints = (d: string) => {
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("an arrow into a parent from its only way in stays out of the parent's title bar in Pele 1.9.0", () => {
   const graph: Graph = { states: new Map(), steps: [] };
-  Iterator.from([
+  visitItems([
     ["ask", "Asking your view for labels"],
     ["flat", "Laying out the chart/Flat"],
     ["parents", "Laying out the chart/Parent states"],
     ["regions", "Laying out the chart/Regions"],
-  ]).forEach(([id, at]) => {graph.states.set(id, { vars: { at }, start: id === "ask", breaks: [] });});
-  Iterator.from([
+  ], ([id, at]) => {graph.states.set(id, { vars: { at }, start: id === "ask", breaks: [] });});
+  visitItems([
     ["flat", "String"],
     ["parents", "Array"],
     ["regions", "Object"],
-  ]).forEach(([to, action]) => {graph.steps.push({ from: "ask", to, action });});
+  ], ([to, action]) => {graph.steps.push({ from: "ask", to, action });});
   const { chart } = project(graph, walk(graph), { state: (v) => String(v.at).split("/") }, []);
   const { svg } = render(chartText(chart));
   const bars = [
@@ -130,9 +131,9 @@ test("an arrow into a parent from its only way in stays out of the parent's titl
   ].map(([, id, x, y, w, rule]) => ({ id, left: +x, right: +x + +w, top: +y, bottom: +rule }));
   assert.equal(bars.length, 1);
   const crossings: string[] = [];
-  Iterator.from(svg.matchAll(
+  visitItems(svg.matchAll(
     /<g class="pele-edge pele-transition" data-id="([^"]*)"><path d="([^"]*)"/g,
-  )).forEach(([, id, d]) => {for (const bar of bars)
+  ), ([, id, d]) => {for (const bar of bars)
       {if (
         pathPoints(d).some(
           ([x, y]) => x > bar.left && x < bar.right && y > bar.top && y < bar.bottom,
@@ -145,5 +146,5 @@ test("an arrow into a parent from its only way in stays out of the parent's titl
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("the theme in references/render.md colors each class that the charts use", () => {
   assert.ok(classes.size > 0);
-  Iterator.from(classes).forEach((name) => {assert.match(theme, new RegExp(`\\.pele \\.${name} rect \\{`), name);});
+  visitItems(classes, (name) => {assert.match(theme, new RegExp(`\\.pele \\.${name} rect \\{`), name);});
 });

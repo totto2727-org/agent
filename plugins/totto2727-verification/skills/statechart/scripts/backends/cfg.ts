@@ -1,9 +1,9 @@
-import { CHART_STATES, RERUN_STATES } from '../ir.ts';
+import { CHART_STATES, RERUN_STATES, visitItems } from '../ir.ts';
 import type { ConfigSection, Spec } from '../ir.ts';
 
 export function configText(sections: ConfigSection[], extra: string[]): string {
   const lines: string[] = [];
-  Iterator.from(sections).forEach((section) => {lines.push(`${section.key} ${section.tokens.join(" ")}`);});
+  visitItems(sections, (section) => {lines.push(`${section.key} ${section.tokens.join(" ")}`);});
   lines.push(...extra);
   return lines.join("\n");
 }
@@ -20,7 +20,7 @@ export const boundRun = (module: string): string =>
 
 export function chartRun({ module, variables, invariants }: Spec, tag: string): string {
   const every: string[] = [];
-  Iterator.from(invariants).forEach((name) => {every.push(`(IF ~${name} THEN {"${name}"} ELSE {}) \\cup `);});
+  visitItems(invariants, (name) => {every.push(`(IF ~${name} THEN {"${name}"} ELSE {}) \\cup `);});
   return [
     `---- MODULE ChartRun ----`,
     `EXTENDS ${module}`,

@@ -1,7 +1,7 @@
 import { mermaidLines } from "./backends/mermaid.ts";
 import { plainText } from "./backends/plain-text.ts";
 import { report } from "./backends/report.ts";
-import { PART, ruleKey } from './ir.ts';
+import { PART, ruleKey, visitItems } from './ir.ts';
 import type { Answers, Bug, Chart, CheckedView, CheckResult, Graph, Story, View, Walk } from './ir.ts';
 import { asParents, ask, labelGraph, storiesOf } from "./passes/label.ts";
 import { lift } from "./passes/lift.ts";
@@ -46,7 +46,7 @@ export function project(graph: Graph, walked: Walk, view: View, found: Bug[]) {
 export function compile(result: CheckResult, view: CheckedView) {
   const walked = walk(result.graph);
   const found = [...(result.paths ?? bugs(result.graph, walked))].sort(shortestFirst);
-  Iterator.from(result.properties).forEach((property) => {if (property.bug) {found.push({ rule: property.rule, ...property.bug });}});
+  visitItems(result.properties, (property) => {if (property.bug) {found.push({ rule: property.rule, ...property.bug });}});
   const { chart, stories } =
     found.length || !result.paths
       ? project(result.graph, walked, view, found)
@@ -57,8 +57,8 @@ export function compile(result: CheckResult, view: CheckedView) {
   files.set("report.md", [text]);
   files.set("tlc.out", plainText(result.messages));
   const drawn = new Set<string>();
-  Iterator.from(found).forEach((b) => {if (b.rule.kind !== "property") {drawn.add(ruleKey(b.rule));}});
-  Iterator.from([...result.rules, ...result.properties]).forEach(({ rule, outcome, messages }) => {if (outcome === "broken" && messages && !drawn.has(ruleKey(rule)))
+  visitItems(found, (b) => {if (b.rule.kind !== "property") {drawn.add(ruleKey(b.rule));}});
+  visitItems([...result.rules, ...result.properties], ({ rule, outcome, messages }) => {if (outcome === "broken" && messages && !drawn.has(ruleKey(rule)))
       {files.set(`tlc-${rule.name}.out`, plainText(messages));}});
   return { report: text, files, exit: result.exit };
 }

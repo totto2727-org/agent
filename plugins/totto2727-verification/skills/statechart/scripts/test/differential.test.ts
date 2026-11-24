@@ -8,6 +8,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import fc from "fast-check";
+import { visitItems } from "../ir.ts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const skip = !process.env.TLA2TOOLS && "set TLA2TOOLS to the path of tla2tools.jar to run TLC";
@@ -192,9 +193,9 @@ const caseOf = function (m: Model): Case {
   defs.push(`Init == ${vars.map((variable, index) => `${variable} \\in ${set(index, m.vars[index].init)}`).join(String.raw` /\ `)}`);
   const actions = m.actions.map((currentAction) => {
     const changed = new Map<number, number[]>();
-    Iterator.from(currentAction.set).forEach((s) => {if (!changed.has(s.v % vars.length)) {changed.set(s.v % vars.length, s.to);}});
+    visitItems(currentAction.set, (s) => {if (!changed.has(s.v % vars.length)) {changed.set(s.v % vars.length, s.to);}});
     const parts = currentAction.guard.map(atom);
-    Iterator.from(changed).forEach(([k, to]) => {parts.push(`${vars[k]}' \\in ${set(k, to)}`);});
+    visitItems(changed, ([k, to]) => {parts.push(`${vars[k]}' \\in ${set(k, to)}`);});
     const kept = vars.filter((variable, index) => !changed.has(index));
     if (kept.length) {parts.push(`UNCHANGED <<${kept.join(", ")}>>`);}
     const action = name();
@@ -316,7 +317,7 @@ const claimOf = (r: Run, breaks: number[], traced: boolean): Claim => {
 
 const plainAnswers = async function (dir: string, c: Case) {
   const rules = new Map<string, Promise<Claim>>();
-  Iterator.from(c.invariants).forEach((name) => {rules.set(
+  visitItems(c.invariants, (name) => {rules.set(
       name,
       plainTlc(dir, c, `inv-${name}`, [`INVARIANT ${name}`, "CHECK_DEADLOCK FALSE"]).then((r) =>
         claimOf(r, [12], true),
@@ -349,7 +350,7 @@ const plainAnswers = async function (dir: string, c: Case) {
 const compilerAnswers = function (r: Run, c: Case) {
   const lines = r.stdout.split("\n");
   const rules = new Map<string, Claim>();
-  Iterator.from(lines.entries()).forEach(([i, line]) => {
+  visitItems(lines.entries(), ([i, line]) => {
     const broken = /^## (\S+) breaks$/.exec(line);
     if (broken) {
       const shortest = /^The shortest path has (\d+) steps?:$/u.exec(lines[i + 1]);
@@ -563,5 +564,5 @@ for (const [what, c, says] of [
   // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
   {test(`${what}, as plain TLC answers`, { skip }, async () => {
     const report = await answer(c);
-    Iterator.from(says).forEach((said) => {assert.ok(report.includes(said), `${said}\nis not in\n${report}`);});
+    visitItems(says, (said) => {assert.ok(report.includes(said), `${said}\nis not in\n${report}`);});
   });}

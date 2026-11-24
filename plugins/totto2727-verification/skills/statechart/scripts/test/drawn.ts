@@ -1,11 +1,13 @@
+import { visitItems } from "../ir.ts";
+
 const shown = (text: string): string => text.replaceAll(/#(\d+);/gu, (_, n) => String.fromCodePoint(Number(n)));
 
 export const drawn = (chart: string) => {
   const names = new Map<string, string>();
-  Iterator.from(chart.matchAll(/^ *(?:state "(.*)" as (s\d+) \{|(s\d+): (.*))$/gm)).forEach((currentRegexMatch) => {names.set(currentRegexMatch[2] ?? currentRegexMatch[3], shown(currentRegexMatch[1] ?? currentRegexMatch[4]));});
+  visitItems(chart.matchAll(/^ *(?:state "(.*)" as (s\d+) \{|(s\d+): (.*))$/gm), (currentRegexMatch) => {names.set(currentRegexMatch[2] ?? currentRegexMatch[3], shown(currentRegexMatch[1] ?? currentRegexMatch[4]));});
   const arrows: string[] = [];
   const blocks: string[] = [];
-  Iterator.from(chart.split("\n")).forEach((line) => {
+  visitItems(chart.split("\n"), (line) => {
     const block = /^ *state ".*" as (\w+) \{$/.exec(line);
     if (block) {blocks.push(block[1]);}
     if (/^ *\}$/u.test(line)) {blocks.pop();}

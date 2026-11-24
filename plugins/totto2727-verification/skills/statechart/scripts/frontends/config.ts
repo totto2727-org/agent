@@ -1,4 +1,4 @@
-import { CHECK_DEADLOCK, matchesUndefined } from '../ir.ts';
+import { CHECK_DEADLOCK, matchesUndefined, visitItems } from '../ir.ts';
 import type { Config } from '../ir.ts';
 
 type ListField = "invariants" | "properties" | "constraints" | "actionConstraints";
@@ -24,7 +24,7 @@ const isListField = (field: Section["field"]): field is ListField =>
   field === "actionConstraints";
 
 const SECTIONS = new Map<string, Section>();
-Iterator.from([
+visitItems([
   { key: "CONSTANT", plural: "CONSTANTS" },
   { key: CHECK_DEADLOCK, field: "checkDeadlock" },
   { key: "INIT", field: "init", undefinedNoun: "initial predicate" },
@@ -43,7 +43,7 @@ Iterator.from([
     field: "actionConstraints",
     undefinedNoun: "action constraint",
   },
-] satisfies Section[]).forEach((section) => {
+] satisfies Section[], (section) => {
   SECTIONS.set(section.key, section);
   if (section.plural) {SECTIONS.set(section.plural, section);}
 });

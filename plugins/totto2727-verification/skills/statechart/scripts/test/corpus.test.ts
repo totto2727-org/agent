@@ -8,13 +8,14 @@ import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { check, PINNED_FLAGS } from "../run.ts";
+import { visitItems } from "../ir.ts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const corpus = path.join(here, "corpus");
 const skip = !process.env.TLA2TOOLS && "set TLA2TOOLS to the path of tla2tools.jar to run TLC";
 const read = (file: string): string => fs.readFileSync(file, "utf8");
 
-Iterator.from(fs.readdirSync(corpus)).forEach((name) => {
+visitItems(fs.readdirSync(corpus), (name) => {
   // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
   test(`${name} gives the committed chart and report when TLC runs`, { skip }, () => {
     const dir = path.join(corpus, name);
@@ -155,7 +156,7 @@ const counter = (name: string, before: string[], variables: string[]): string[] 
   "====",
 ];
 
-Iterator.from([
+visitItems([
   [
     "a `(*` inside a `\\*` comment",
     "Paren",
@@ -200,7 +201,7 @@ Iterator.from([
     "Pre",
     counter("Pre", ["Notes before the header: VARIABLES fake"], ["VARIABLE x"]),
   ],
-] as const).forEach(([input, name, tla]) => {
+] as const, ([input, name, tla]) => {
   // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
   test(`a spec with ${input} gives plain TLC's exit and path`, { skip }, () => {
     const base = writeSpec(name, [...tla], "SPECIFICATION Spec\nINVARIANT Low\n");

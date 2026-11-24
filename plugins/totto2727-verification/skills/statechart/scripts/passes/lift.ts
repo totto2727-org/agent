@@ -1,10 +1,10 @@
-import { append, matchesUndefined, must, tupleKey, unkey } from '../ir.ts';
+import { append, matchesUndefined, must, tupleKey, unkey, visitItems } from '../ir.ts';
 import type { Chart, ChartState, ChartStep, Region } from '../ir.ts';
 
 export function liftToParents(states: ChartState[], steps: ChartStep[]) {
   const depths = new Map<string, number>();
   const leaves = new Map<string, number>();
-  Iterator.from(states.values()).forEach((state) => {for (let i = 1; i < state.path.length; i++) {
+  visitItems(states.values(), (state) => {for (let i = 1; i < state.path.length; i++) {
       const prefix = tupleKey(state.path.slice(0, i));
       depths.set(prefix, i);
       leaves.set(prefix, (leaves.get(prefix) ?? 0) + 1);
@@ -24,23 +24,23 @@ export function liftToParents(states: ChartState[], steps: ChartStep[]) {
   const lifted: ChartStep[] = [];
   for (const [prefix] of [...depths].sort((left, right) => left[1] - right[1])) {
     const groups = new Map<string, ChartStep[]>();
-    Iterator.from(leaving.get(prefix) ?? []).forEach((s) => {if (!removed.has(s)) {append(groups, tupleKey([s.label, s.when, s.to]), s);}});
+    visitItems(leaving.get(prefix) ?? [], (s) => {if (!removed.has(s)) {append(groups, tupleKey([s.label, s.when, s.to]), s);}});
     const under = must(leaves, prefix);
     for (const group of groups.values()) {
       if (under < 2 || group.length < under) {continue;}
-      Iterator.from(group).forEach((s) => {removed.add(s);});
+      visitItems(group, (s) => {removed.add(s);});
       lifted.push({ ...group[0], from: unkey(prefix) });
     }
   }
   const kept: ChartStep[] = [];
-  Iterator.from(steps).forEach((step) => {if (!removed.has(step)) {kept.push(step);}});
-  Iterator.from(lifted).forEach((s) => {kept.push(s);});
+  visitItems(steps, (step) => {if (!removed.has(step)) {kept.push(step);}});
+  visitItems(lifted, (s) => {kept.push(s);});
   return kept;
 }
 
 export function lift(chart: Chart): Chart {
   const regions: Region[] = [];
-  Iterator.from(chart.regions).forEach((region) => {
+  visitItems(chart.regions, (region) => {
     const known = new Map<string[], number>();
     for (const state of region.states) {known.set(state.path, known.size);}
     let numbers: Map<string, number> | undefined;

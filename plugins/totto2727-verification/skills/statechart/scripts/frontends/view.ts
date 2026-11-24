@@ -1,4 +1,4 @@
-import { checked, isString, list, matchesNull, matchesUndefined } from '../ir.ts';
+import { checked, isString, list, matchesNull, matchesUndefined, visitItems } from '../ir.ts';
 import type { CheckedView, Value, Vars } from '../ir.ts';
 
 type Json = boolean | number | string | Json[] | { [key: string]: Json };
@@ -16,7 +16,7 @@ export const json = (v: Value): Json => {
       j = members;
     } else if (v.kind === "set") {
       const members: Json[] = [];
-      Iterator.from(v.members).forEach((m) => {members.push(json(m));});
+      visitItems(v.members, (m) => {members.push(json(m));});
       j = members;
     } else {
       const fields: [string, Json][] = [];

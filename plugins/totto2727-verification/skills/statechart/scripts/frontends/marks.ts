@@ -1,4 +1,4 @@
-import { EC, isString, matchesUndefined, memo } from '../ir.ts';
+import { EC, isString, matchesUndefined, memo, visitItems } from '../ir.ts';
 import type { Mark, Part, TraceState, Value } from '../ir.ts';
 import { actionOf, messageState } from "./messages.ts";
 import { BRACKET, isSpace, parseValue, tokenEnd, unreadable } from "./value.ts";
@@ -13,7 +13,7 @@ const markTexts = (chunk: string, top: number[], inner: number[]) => {
     {return undefined;}
   if (!chunk.startsWith(">>", end)) {return undefined;}
   const cuts = [open + 1];
-  Iterator.from(inner).forEach((k) => {if (k > open && k < close) {cuts.push(k);}});
+  visitItems(inner, (k) => {if (k > open && k < close) {cuts.push(k);}});
   cuts.push(close);
   const texts: string[] = [];
   for (let k = 1; k < cuts.length; k++) {texts.push(chunk.slice(cuts[k - 1] + 1, cuts[k]));}
@@ -65,7 +65,7 @@ export function* readMarks(messages: Iterable<Part>, tag: string): Generator<Mar
     if (depth > 0) {continue;}
     const texts = markTexts(chunk, top, inner);
     const values: Value[] = [];
-    if (texts) {Iterator.from(texts.values).forEach((value) => {values.push(read(value));});}
+    if (texts) {visitItems(texts.values, (value) => {values.push(read(value));});}
     const broken = texts && ruleNames(read(texts.rules));
     if (!broken)
       {throw new Error(`TLC printed a mark that the command cannot read:\n${chunk.slice(0, 2000)}`);}
@@ -80,7 +80,7 @@ export function* readMarks(messages: Iterable<Part>, tag: string): Generator<Mar
 
 export function readCounterexample(messages: Iterable<Part>) {
   const trace: TraceState[] = [];
-  Iterator.from(messages).forEach((message) => {
+  visitItems(messages, (message) => {
     if (isString(message)) {return;}
     const action = message.code === EC.TLC_STATE_PRINT2 ? actionOf(message) : undefined;
     if (!matchesUndefined(action)) {trace.push({ action, vars: messageState(message) });}

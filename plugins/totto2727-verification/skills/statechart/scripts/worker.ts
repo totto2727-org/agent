@@ -6,7 +6,7 @@ import { inspect } from "node:util";
 import { checkView } from "./frontends/view.ts";
 import { compile } from "./pipeline.ts";
 import { check, messageOf } from "./run.ts";
-import { isString } from "./ir.ts";
+import { isString, visitItems } from "./ir.ts";
 
 const [stage, specFile, configFile, viewFile] = process.argv.slice(2);
 
@@ -18,7 +18,7 @@ try {
   const { files, exit } = compile(await check(specFile, configFile), view);
   const draft = path.join(stage, "draft");
   fs.mkdirSync(draft);
-  Iterator.from(files).forEach(([name, parts]) => {
+  visitItems(files, ([name, parts]) => {
     const fd = fs.openSync(path.join(draft, name), "wx");
     try {
       for (const part of parts)

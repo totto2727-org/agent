@@ -11,6 +11,7 @@ import { configText } from "../backends/cfg.ts";
 import { readConfig } from "../frontends/config.ts";
 import { readChecks } from '../frontends/spec.ts';
 import type { Checks } from '../frontends/spec.ts';
+import { visitItems } from "../ir.ts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const skip = !process.env.TLA2TOOLS && "set TLA2TOOLS to the path of tla2tools.jar to run TLC";
@@ -153,7 +154,7 @@ const generate = function (random: () => number) {
     else if (kind === "section") {tokens.splice(at, 0, ...section(pick(KEYWORDS)));}
   }
   let text = "";
-  Iterator.from(tokens).forEach((token) => {text += token.gap + token.text;});
+  visitItems(tokens, (token) => {text += token.gap + token.text;});
   return { text: `${text}\n`, mutated: mutations > 0 };
 };
 
@@ -192,7 +193,7 @@ const model = function (reading: Reading | undefined) {
   const { overrides, modConstants, modOverrides } = reading;
   const table = tableOf(reading);
   const out: Reading = { overrides, modConstants, modOverrides };
-  Iterator.from(MODEL).forEach((key) => {out[key] = table[key];});
+  visitItems(MODEL, (key) => {out[key] = table[key];});
   return out;
 };
 
@@ -231,7 +232,7 @@ test(
       cases.push({ i, text, mutated, skill, file, written });
     }
     const tlc = readInTlc(files, String(process.env.TLA2TOOLS));
-    Iterator.from(cases).forEach(({ i, text, mutated, skill, file, written }) => {
+    visitItems(cases, ({ i, text, mutated, skill, file, written }) => {
       const want = tlc.get(file);
       assert.ok(want, `TLC printed nothing for config ${i}`);
       const where = `config ${i} of seed ${SEED}: ${JSON.stringify(text)}\nTLC reads ${JSON.stringify(want)}`;

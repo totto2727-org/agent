@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 // oxlint-disable-next-line rules/no-node-imports, vitest/no-import-node-test -- Statechart runs these fixtures with Node's test runner as part of the standalone skill.
 import { test } from "node:test";
 import { agrees, skip } from "./tlc.ts";
+import { visitItems } from "../ir.ts";
 
 const late = [
   "---- MODULE Late ----",
@@ -40,7 +41,7 @@ test(
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a rule that breaks before a step fails to evaluate breaks", { skip }, () => {
-  Iterator.from(["div", "assert"]).forEach((mode) => {
+  visitItems(["div", "assert"], (mode) => {
     const verdict = agrees("Late", { Late: late }, lateCfg(mode, "Small"));
     assert.equal(verdict.status, 1);
     assert.deepEqual(verdict.breaks, new Map([["Small", 1]]));
@@ -74,7 +75,7 @@ test("a rule that breaks before it fails to evaluate breaks", { skip }, () => {
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a rule that fails to evaluate before TLC reaches a break exits 2", { skip }, () => {
-  Iterator.from(["", "CHECK_DEADLOCK FALSE\n"]).forEach((deadlock) => {
+  visitItems(["", "CHECK_DEADLOCK FALSE\n"], (deadlock) => {
     const verdict = agrees(
       "WarnPath",
       { WarnPath: warnPath(String.raw`Two \/ One`) },
@@ -133,7 +134,7 @@ test("a deadlock breaks whatever shape the SPECIFICATION has", { skip }, () => {
   );
   assert.deepEqual(live.breaks, new Map([["NoDeadlock", 2]]));
   assert.deepEqual(live.holds, ["TypeOK"]);
-  Iterator.from([String.raw`[][Next \/ Tick]_vars`, String.raw`[][\E i \in 1..2 : Step(i)]_vars`]).forEach((next) => {
+  visitItems([String.raw`[][Next \/ Tick]_vars`, String.raw`[][\E i \in 1..2 : Step(i)]_vars`], (next) => {
     const verdict = agrees(
       "Shape",
       {

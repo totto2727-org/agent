@@ -16,7 +16,7 @@ import { initialOnlyProperties, readChecks, readSany, readSpec } from "./fronten
 import { readTrace } from "./frontends/trace.ts";
 import { readVerdict } from './frontends/verdict.ts';
 import type { Break } from './frontends/verdict.ts';
-import { CHART_STATES, LEVEL, PART, RERUN_STATES, hasSection, isString, matchesNull, matchesUndefined, must, ruleKey, stateRules } from './ir.ts';
+import { CHART_STATES, LEVEL, PART, RERUN_STATES, hasSection, isString, matchesNull, matchesUndefined, must, ruleKey, stateRules, visitItems } from './ir.ts';
 import type { Bug, CheckResult, ConfigSection, Lasso, Mark, Outcome, Output, Part, Property, Rule, Stop, Trace, Verdict } from './ir.ts';
 import { addPast, deadEnds, finder, lasso, mark } from "./passes/annotate.ts";
 import { pathGraph } from "./passes/paths.ts";
@@ -85,7 +85,7 @@ export const messageOf = (error: unknown): string =>
 const joined = (files: string[]): Output => {
   const fds: number[] = [];
   const sizes: number[] = [];
-  Iterator.from(files).forEach((currentFile) => {
+  visitItems(files, (currentFile) => {
     const fd = fs.openSync(currentFile, "r");
     fds.push(fd);
     sizes.push(fs.fstatSync(fd).size);
@@ -140,12 +140,12 @@ const runToFiles = (
   new Promise<FileResult>((resolve) => {
     const files = [`${out}.stdout`, `${out}.stderr`];
     const fds: number[] = [];
-    Iterator.from(files).forEach((currentFile) => {fds.push(fs.openSync(currentFile, "w"));});
+    visitItems(files, (currentFile) => {fds.push(fs.openSync(currentFile, "w"));});
     let child: ChildProcess;
     try {
       child = spawn(file, args, { ...options, stdio: ["ignore", ...fds], windowsHide: true });
     } finally {
-      Iterator.from(fds).forEach((fd) => {fs.closeSync(fd);});
+      visitItems(fds, (fd) => {fs.closeSync(fd);});
     }
     let error: Error | undefined;
     const settle = (code: number | null): void =>
@@ -193,7 +193,7 @@ const tail = (r: FileResult): string => {
   if (r.error) {return r.error.message;}
   const kept: string[] = [];
   let size = 0;
-  Iterator.from(plainText(messagesOf(r.output))).forEach((chunk) => {
+  visitItems(plainText(messagesOf(r.output)), (chunk) => {
     kept.push(chunk);
     size += chunk.length;
     while (size - kept[0].length >= 1 << 28) {size -= kept.shift()!.length;}
@@ -209,7 +209,7 @@ const firstLines = (text: string): string => {
 
 const stopOf = (r: FileResult): Stop => {
   const errors: Part[] = [];
-  Iterator.from(r.error ? [] : messagesOf(r.output)).forEach((m) => {if (
+  visitItems(r.error ? [] : messagesOf(r.output), (m) => {if (
       !isString(m) &&
       (m.level === LEVEL.ERROR ||
         m.level === LEVEL.TLCBUG ||
@@ -229,7 +229,7 @@ const sanyErrors = (r: FileResult): string | undefined => {
 
 const names = (rules: Rule[], kind: Rule["kind"]): string[] => {
   const found: string[] = [];
-  Iterator.from(rules).forEach((rule) => {if (rule.kind === kind) {found.push(rule.name);}});
+  visitItems(rules, (rule) => {if (rule.kind === kind) {found.push(rule.name);}});
   return found;
 };
 
@@ -246,7 +246,7 @@ const brokenRule = (rules: Rule[], broke: Break) => {
 function* only(marks: Iterable<Mark>, rules: Set<string>) {
   for (const { values, broken } of marks) {
     const kept: string[] = [];
-    Iterator.from(broken).forEach((name) => {if (rules.has(name)) {kept.push(name);}});
+    visitItems(broken, (name) => {if (rules.has(name)) {kept.push(name);}});
     if (kept.length) {yield { values, broken: kept };}
   }
 }
@@ -311,7 +311,7 @@ export async function check(specFile: string, configFile: string): Promise<Check
     const spec = { ...readSpec({ module, sany, checks }), folder };
     const rules = stateRules(spec);
     const all = [...rules];
-    Iterator.from(spec.properties).forEach((name) => {all.push({ kind: "property", name });});
+    visitItems(spec.properties, (name) => {all.push({ kind: "property", name });});
     const verdicts = new Map<string, Verdict>();
     const decide = (rule: Rule, outcome: Outcome, r?: FileResult) =>
       verdicts.set(ruleKey(rule), { rule, outcome, messages: r && messagesOf(r.output) });
@@ -322,7 +322,7 @@ export async function check(specFile: string, configFile: string): Promise<Check
       const states = { distinct: 0, initial: 0, complete: false, cut: false };
       for (let k = 1; groups.length;) {
         const group: Rule[] = [];
-        Iterator.from(groups[0]).forEach((rule) => {if (!verdicts.has(ruleKey(rule))) {group.push(rule);}});
+        visitItems(groups[0], (rule) => {if (!verdicts.has(ruleKey(rule))) {group.push(rule);}});
         if (first && !group.length) {
           groups.shift();
           continue;
@@ -354,18 +354,18 @@ export async function check(specFile: string, configFile: string): Promise<Check
         } else if (rule) {decide(rule, "broken", r);}
         else if (cut && (r.status === 0 || broke?.kind === "temporal")) {
           states.cut = true;
-          Iterator.from(group).forEach((rule) => {decide(rule, "not checked");});
+          visitItems(group, (rule) => {decide(rule, "not checked");});
         } else if (r.status === 0) {
           states.complete = true;
-          Iterator.from(group).forEach((rule) => {decide(rule, "holds");});
+          visitItems(group, (rule) => {decide(rule, "holds");});
         } else if (broke && properties.length) {
           if (broke.kind === "temporal") {
             states.complete = true;
-            Iterator.from(group).forEach((rule) => {if (rule.kind !== "property") {decide(rule, "holds");}});
+            visitItems(group, (rule) => {if (rule.kind !== "property") {decide(rule, "holds");}});
           }
           const pending: Rule[][] = [];
           const rest: Rule[] = [];
-          Iterator.from(group).forEach((rule) => {if (rule.kind === "property") {pending.push([rule]);}
+          visitItems(group, (rule) => {if (rule.kind === "property") {pending.push([rule]);}
             else if (!verdicts.has(ruleKey(rule))) {rest.push(rule);}});
           if (pending.length === 1) {decide(pending[0][0], "broken", r);}
           else {groups.splice(0, 1, rest, ...pending);}
@@ -374,7 +374,7 @@ export async function check(specFile: string, configFile: string): Promise<Check
             `TLC exited ${r.status} on ${specFile}, but its output names no rule that broke:\n${tail(r)}`,
           );}
       }
-      Iterator.from(all).forEach((rule) => {if (!verdicts.has(ruleKey(rule))) {decide(rule, "not checked");}});
+      visitItems(all, (rule) => {if (!verdicts.has(ruleKey(rule))) {decide(rule, "not checked");}});
       return { first: first!, stop, states };
     };
     fs.writeFileSync(path.join(dir, "ChartBound.tla"), boundRun(spec.module));
@@ -385,7 +385,7 @@ export async function check(specFile: string, configFile: string): Promise<Check
     const initialOnly = initialOnlyProperties(sany, spec);
     const propertiesWith = (bugOf: (trace: Trace) => Lasso | undefined) => {
       const properties: Property[] = [];
-      Iterator.from(all).forEach((rule) => {
+      visitItems(all, (rule) => {
         if (rule.kind !== "property") {return;}
         const verdict = must(verdicts, ruleKey(rule));
         properties.push({
@@ -398,7 +398,7 @@ export async function check(specFile: string, configFile: string): Promise<Check
     };
     if (exit === 2) {throw failed(judged.first);}
     const checked: Verdict[] = [];
-    Iterator.from(rules).forEach((rule) => {checked.push(must(verdicts, ruleKey(rule)));});
+    visitItems(rules, (rule) => {checked.push(must(verdicts, ruleKey(rule)));});
     const common = {
       spec,
       exit,
@@ -427,11 +427,11 @@ export async function check(specFile: string, configFile: string): Promise<Check
         const find = finder(graph, spec.variables);
         const drawing = drawn.status === 0 ? undefined : { status: drawn.status };
         const broken = new Set<string>();
-        Iterator.from(verdicts.values()).forEach(({ rule, outcome }) => {if (rule.kind === "invariant" && outcome === "broken") {broken.add(rule.name);}});
+        visitItems(verdicts.values(), ({ rule, outcome }) => {if (rule.kind === "invariant" && outcome === "broken") {broken.add(rule.name);}});
         const marks = only(readMarks(readMessages(fileLines(drawn.stdout)), tag), broken);
         const past = mark(graph, marks, spec.variables, rules, find);
         const excludes = hasSection(spec, "ACTION_CONSTRAINT");
-        Iterator.from(rules).forEach((rule) => {
+        visitItems(rules, (rule) => {
           const { outcome, messages } = must(verdicts, ruleKey(rule));
           if (
             rule.kind === "deadlock" &&
@@ -460,7 +460,7 @@ export async function check(specFile: string, configFile: string): Promise<Check
     }
     const drawn = pathGraph(spec.variables);
     const paths: Bug[] = [];
-    Iterator.from(rules).forEach((rule) => {
+    visitItems(rules, (rule) => {
       const { outcome, messages } = must(verdicts, ruleKey(rule));
       if (outcome === "broken" && messages)
         {paths.push(drawn.bug(rule, readCounterexample(messages)));}

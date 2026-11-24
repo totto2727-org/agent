@@ -4,6 +4,7 @@ import { checkView } from "../frontends/view.ts";
 import type { Chart, ChartState, State, Step, View } from "../ir.ts";
 import { walk } from "../passes/reach.ts";
 import { project } from "../pipeline.ts";
+import { visitItems } from "../ir.ts";
 
 export type Render = (text: string) => { svg: string };
 
@@ -348,7 +349,7 @@ const build = function (c: Case, labels: string[]) {
   for (let i = 0; i < c.n; i++)
     {states.set(String(i), { vars: { k: i }, start: i === 0, breaks: [] });}
   const steps: Step[] = [];
-  Iterator.from(c.steps).forEach(([from, to, a]) => {steps.push({ from: String(from), to: String(to), action: `A${a}` });});
+  visitItems(c.steps, ([from, to, a]) => {steps.push({ from: String(from), to: String(to), action: `A${a}` });});
   const view: RawView = {
     state: ({ k }) => {
       if (c.mode === "regions") {
@@ -455,11 +456,11 @@ const expected = function (chart: Chart): Want {
     const drawn = drawnEdges(region);
     const tree = (prefix: string[], parent: string | null, below: ChartState[]): void => {
       const heads = new Map<string, ChartState[]>();
-      Iterator.from(below).forEach((currentState) => {
+      visitItems(below, (currentState) => {
         const head = currentState.path[prefix.length];
         heads.set(head, [...(heads.get(head) ?? []), currentState]);
       });
-      Iterator.from(heads).forEach(([head, under]) => {
+      visitItems(heads, ([head, under]) => {
         const path = [...prefix, head];
         const inner: ChartState[] = [];
         let leaf: ChartState | undefined;
@@ -478,7 +479,7 @@ const expected = function (chart: Chart): Want {
       });
     };
     tree([], wrap, region.states);
-    Iterator.from(drawn).forEach((currentEdge) => {if (!currentEdge.start || !currentEdge.from.length)
+    visitItems(drawn, (currentEdge) => {if (!currentEdge.start || !currentEdge.from.length)
         {edges.push([
           currentEdge.start ? `${wrap ?? "root"}_start` : id(region.name, currentEdge.from),
           id(region.name, currentEdge.to),
@@ -493,7 +494,7 @@ const expected = function (chart: Chart): Want {
 
 const edgeKeys = (edges: string[][], withLabels: boolean): string => {
   const keys: string[] = [];
-  Iterator.from(edges).forEach(([from, to, text]) => {keys.push(withLabels ? `${from} ${to} ${visible(text)}` : `${from} ${to}`);});
+  visitItems(edges, ([from, to, text]) => {keys.push(withLabels ? `${from} ${to} ${visible(text)}` : `${from} ${to}`);});
   return keys.sort().join("\n");
 };
 
@@ -507,9 +508,9 @@ const readMermaid = async function (text: string, want: Want, { mermaid, html }:
     return;
   }
   const byId = new Map<string | undefined, MermaidNode>();
-  Iterator.from(data.nodes).forEach((currentNode) => {byId.set(currentNode.id, currentNode);});
+  visitItems(data.nodes, (currentNode) => {byId.set(currentNode.id, currentNode);});
   let count = 0;
-  Iterator.from(data.nodes).forEach((currentNode) => {
+  visitItems(data.nodes, (currentNode) => {
     if (currentNode.shape === "divider" || currentNode.shape === "stateStart" || currentNode.shape === "stateEnd") {return;}
     count++;
     let parent = byId.get(currentNode.parentId);
@@ -550,7 +551,7 @@ const readMermaid = async function (text: string, want: Want, { mermaid, html }:
     );}
   const got: string[][] = [];
   const shown: string[][] = [];
-  Iterator.from(data.edges).forEach((edge) => {
+  visitItems(data.edges, (edge) => {
     got.push([edge.start, edge.end, fromMermaid(edge.label ?? "")]);
     shown.push([edge.start, edge.end, html(decoded(edge.label ?? ""))]);
   });
@@ -558,7 +559,7 @@ const readMermaid = async function (text: string, want: Want, { mermaid, html }:
     {problems.push("mermaid-edges: the arrows join other states");}
   else if (edgeKeys(shown, true) !== edgeKeys(want.edges, true))
     {problems.push("mermaid-text: an arrow shows other text");}
-  Iterator.from(got).forEach(([from, to, text]) => {if (rewritten(text))
+  visitItems(got, ([from, to, text]) => {if (rewritten(text))
       {problems.push(
         `mermaid-text: Mermaid's SVG cleanup rewrites the arrow from ${from} to ${to}'s ${JSON.stringify(text)}`,
       );}});
@@ -574,16 +575,16 @@ const readPele = function (text: string, want: Want, render: Render, problems: s
     return;
   }
   const drawn = new Map<string, string>();
-  Iterator.from(svg.matchAll(
+  visitItems(svg.matchAll(
     /<g class="pele-(?:node|cluster) ([^"]*)" data-id="([^"]*)"[^>]*>([\s\S]*?)<\/g>/g,
-  )).forEach((currentRegexMatch) => {
+  ), (currentRegexMatch) => {
     if (/state-(?:start|end)/u.test(currentRegexMatch[1])) {return;}
     const regexMatch = /<text[^>]*>([\s\S]*?)<\/text>/.exec(currentRegexMatch[3]);
     drawn.set(currentRegexMatch[2], regexMatch ? fromSvg(regexMatch[1]) : "");
   });
   if (drawn.size !== want.nodes.size)
     {problems.push(`pele-nodes: ${drawn.size} nodes for ${want.nodes.size}`);}
-  Iterator.from(want.nodes).forEach(([node, w]) => {
+  visitItems(want.nodes, ([node, w]) => {
     const shown = drawn.get(node);
     if (shown === undefined) {problems.push(`pele-nodes: Pele draws no ${node}`);}
     else if (wrapped(shown) !== wrapped(w.text))
@@ -592,12 +593,12 @@ const readPele = function (text: string, want: Want, render: Render, problems: s
       );}
   });
   let arrows = 0;
-  Iterator.from(svg.matchAll(/<g class="pele-edge pele-transition"/gu)).forEach((currentRegexMatch) => {arrows++;});
+  visitItems(svg.matchAll(/<g class="pele-edge pele-transition"/gu), (currentRegexMatch) => {arrows++;});
   if (arrows !== want.edges.length)
     {problems.push(`pele-edges: ${arrows} arrows for ${want.edges.length}`);}
-  Iterator.from(svg.matchAll(
+  visitItems(svg.matchAll(
     /<g class="pele-edge-label" data-id="edge(\d+)"[^>]*>[\s\S]*?<text[^>]*>([\s\S]*?)<\/text>/g,
-  )).forEach((currentRegexMatch) => {
+  ), (currentRegexMatch) => {
     const w = want.edges[Number(currentRegexMatch[1])];
     if (!w) {problems.push(`pele-edges: Pele labels edge${currentRegexMatch[1]}, which the chart does not have`);}
     else if (wrapped(fromSvg(currentRegexMatch[2])) !== wrapped(w[2]))
@@ -675,7 +676,7 @@ export async function fuzz({
       const plain = labels.with(labelIndex, `n${labelIndex}`);
       const again = await check(c, plain, tools);
       let same = false;
-      Iterator.from(again.problems).forEach((p) => {if (kind(p) === first) {same = true;}});
+      visitItems(again.problems, (p) => {if (kind(p) === first) {same = true;}});
       if (same) {labels = plain;}
     }
     const kept = [];

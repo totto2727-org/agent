@@ -10,6 +10,7 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { plainText } from "../backends/plain-text.ts";
 import { readMessages } from "../frontends/messages.ts";
+import { visitItems } from "../ir.ts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const corpus = path.join(here, "corpus");
@@ -67,7 +68,7 @@ test(
           assert.equal(stderr, "");
           const runs = fs.readdirSync(twin).filter((fileName) => fileName.endsWith(".out"));
           assert.ok(runs.includes("ChartRun.out"), "the drawing run has a plain twin");
-          Iterator.from(runs).forEach((run) => {
+          visitItems(runs, (run) => {
             const exit = run.replace(/\.out$/u, ".exit");
             assert.equal(maybe(path.join(tool, exit)), maybe(path.join(twin, exit)), exit);
             assert.equal(
@@ -81,8 +82,8 @@ test(
             steady(`${read(path.join(twin, "verdict-1.out"))}\n`),
           );
           const verdicts = new Set<string>();
-          Iterator.from(runs).forEach((run) => {if (run.startsWith("verdict-")) {verdicts.add(steady(`${read(path.join(twin, run))}\n`));}});
-          Iterator.from(fs.readdirSync(out)).forEach((fileName) => {if (/^tlc-\w+\.out$/u.test(fileName))
+          visitItems(runs, (run) => {if (run.startsWith("verdict-")) {verdicts.add(steady(`${read(path.join(twin, run))}\n`));}});
+          visitItems(fs.readdirSync(out), (fileName) => {if (/^tlc-\w+\.out$/u.test(fileName))
               {assert.ok(verdicts.has(steady(read(path.join(out, fileName)))), fileName);}});
         }),
       ),

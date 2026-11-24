@@ -13,7 +13,7 @@ import { report } from "../backends/report.ts";
 import { readConfig } from "../frontends/config.ts";
 import { readChecks, readSany, readSpec } from "../frontends/spec.ts";
 import { checkView, json } from "../frontends/view.ts";
-import { EC, hasSection, key, LEVEL, ruleKey, show, stateRules } from '../ir.ts';
+import { EC, hasSection, key, LEVEL, ruleKey, show, stateRules, visitItems } from '../ir.ts';
 import type { Bug, Graph, Lasso, PathStep, Rule, Spec, State, Step, Value, Vars, View } from '../ir.ts';
 import { addPast, deadEnds, finder, lasso, mark } from "../passes/annotate.ts";
 import { pathGraph } from "../passes/paths.ts";
@@ -46,12 +46,12 @@ type StepRow = [from: string, to: string, action: string];
 
 const graphOf = (states: StateRow[], steps: StepRow[]) => {
   const graph: Graph = { states: new Map(), steps: [] };
-  Iterator.from(states).forEach(([id, vars, start, breaks = []]) => {
+  visitItems(states, ([id, vars, start, breaks = []]) => {
     const rules: Rule[] = [];
     for (const name of breaks) {rules.push({ kind: "invariant", name });}
     graph.states.set(id, { vars, start: !!start, breaks: rules });
   });
-  Iterator.from(steps).forEach(([from, to, action]) => {graph.steps.push({ from, to, action });});
+  visitItems(steps, ([from, to, action]) => {graph.steps.push({ from, to, action });});
   return graph;
 };
 
@@ -98,7 +98,7 @@ const draw = function (graph: Graph, view: View, loops: Bug[] = []) {
 
 const marked = (chart: string) => {
   const out: Record<string, string> = {};
-  Iterator.from(chart.matchAll(/^ {2}class (s\d+) (breaks|mayBreak)$/gm)).forEach(([, id, cls]) => {
+  visitItems(chart.matchAll(/^ {2}class (s\d+) (breaks|mayBreak)$/gm), ([, id, cls]) => {
     const label = (new RegExp(`^\\s*${id}: (.*)$`, "m").exec(chart))?.[1];
     assert.ok(label !== undefined, `${id} has no label`);
     out[label] = cls;
@@ -126,7 +126,7 @@ test("TLA+ values reach the view as the skill says: sequences from 1, sets as ar
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a value outside the grammar TLC prints is an error, never a guess", () => {
-  Iterator.from([
+  visitItems([
     "<<1, 2",
     "<<1 2>>",
     "{1,}",
@@ -141,13 +141,13 @@ test("a value outside the grammar TLC prints is an error, never a guess", () => 
     "",
     "SUBSET {1}",
     "[S -> T]",
-  ]).forEach((text) => {assert.throws(() => parseValue(text), /cannot read TLA\+ value/u, text);});
+  ], (text) => {assert.throws(() => parseValue(text), /cannot read TLA\+ value/u, text);});
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a label prints each value in TLA+, so values that TLC tells apart look apart", () => {
   const shown = (text: string): string => show(parseValue(text));
-  Iterator.from([
+  visitItems([
     '"A"',
     "A",
     "<<0>>",
@@ -162,7 +162,7 @@ test("a label prints each value in TLA+, so values that TLC tells apart look apa
     '"TRUE"',
     String.raw`"a\nb\tc\"d\\e"`,
     '(<<1, 2>> :> {A, "A"} @@ 0 :> -1)',
-  ]).forEach((text) => {assert.equal(shown(text), text);});
+  ], (text) => {assert.equal(shown(text), text);});
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
@@ -181,7 +181,7 @@ test("equal TLA+ values share one key and unequal ones do not, as TLC compares t
     ["{A, B}", "{B, A}"],
     ['{"b", "a"}', '{"a", "b"}'],
   ];
-  Iterator.from(same).forEach(([a, b]) => {assert.equal(key(parseValue(a)), key(parseValue(b)), `${a} = ${b}`);});
+  visitItems(same, ([a, b]) => {assert.equal(key(parseValue(a)), key(parseValue(b)), `${a} = ${b}`);});
   const apart = [
     ['"A"', "A"],
     ["<<0>>", '("1" :> 0)'],
@@ -197,7 +197,7 @@ test("equal TLA+ values share one key and unequal ones do not, as TLC compares t
     ["[a |-> 1]", "[a |-> 2]"],
     ["{<<1>>}", "{<<2>>}"],
   ];
-  Iterator.from(apart).forEach(([a, b]) => {assert.notEqual(key(parseValue(a)), key(parseValue(b)), `${a} # ${b}`);});
+  visitItems(apart, ([a, b]) => {assert.notEqual(key(parseValue(a)), key(parseValue(b)), `${a} # ${b}`);});
 });
 
 const replay = function (name: string, graph: Graph): void {
@@ -214,7 +214,7 @@ const replay = function (name: string, graph: Graph): void {
     const { broke } = readVerdict(messages);
     if (!broke) {continue;}
     let rule: Rule | undefined;
-    Iterator.from(rules).forEach((currentRule) => {if (currentRule.kind === broke.kind && (broke.kind === "deadlock" || currentRule.name === broke.name)) {rule = currentRule;}});
+    visitItems(rules, (currentRule) => {if (currentRule.kind === broke.kind && (broke.kind === "deadlock" || currentRule.name === broke.name)) {rule = currentRule;}});
     if (!rule) {continue;}
     if (rule.kind === "deadlock" && drawn && !hasSection(spec, "CONSTRAINT", "ACTION_CONSTRAINT"))
       {deadEnds(graph, rule);}
@@ -235,7 +235,7 @@ const replay = function (name: string, graph: Graph): void {
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("each corpus bug path is the shortest way to its rule", () => {
   const paths: Record<string, string[]> = {};
-  Iterator.from(["DieHard", "MediaPlayer", "LoginParallel", "TwoPhase", "FirstRule"]).forEach((name) => {
+  visitItems(["DieHard", "MediaPlayer", "LoginParallel", "TwoPhase", "FirstRule"], (name) => {
     const graph = parseDot(fileLines(corpus(name, "graph.dot")));
     replay(name, graph);
     for (const bug of bugs(graph)) {
@@ -271,7 +271,7 @@ test("a chart of only the bug paths words each one with the view, asked once for
     if (!/^verdict-\d+\.out$/u.test(f)) {continue;}
     const messages = [...readMessages(fileLines(corpus("FirstRule", f)))];
     const { broke } = readVerdict(messages);
-    Iterator.from(rules).forEach((rule) => {if (broke?.kind === rule.kind && (broke.kind === "deadlock" || rule.name === broke.name))
+    visitItems(rules, (rule) => {if (broke?.kind === rule.kind && (broke.kind === "deadlock" || rule.name === broke.name))
         {paths.push(drawn.bug(rule, readCounterexample(messages)));}});
   }
   const asked: Record<string, number> = {};
@@ -306,7 +306,7 @@ test("a chart of only the bug paths words each one with the view, asked once for
     /^TLC reached 1,234 states, more than the chart budget of 500, so the chart draws only the bug paths: 4 states and 3 arrows\.$/mu,
   );
   assert.ok(files.has("chart.mmd"));
-  Iterator.from(["NotOne", "NotOneOrThree", "AlsoNotOne"]).forEach((rule) => {assert.match(
+  visitItems(["NotOne", "NotOneOrThree", "AlsoNotOne"], (rule) => {assert.match(
       text,
       new RegExp(`^## ${rule} breaks\\n.*\\n0\\. x is 0\\n1\\. Next adds one: x is 1$`, "m"),
     );});
@@ -360,7 +360,7 @@ test("TLC's marks place on their states even when TLC wraps them over lines", ()
     0,
   );
   const bad: Value[][] = [];
-  Iterator.from(graph.states.values()).forEach((currentState) => {if (currentState.breaks.length)
+  visitItems(graph.states.values(), (currentState) => {if (currentState.breaks.length)
       {bad.push([field(currentState.vars.rmState, "r1"), field(currentState.vars.rmState, "r2")].sort());}});
   assert.deepEqual(bad, [
     ["aborted", "committed"],
@@ -435,13 +435,13 @@ test("a wrapped mark with a model value named constructor places on its state", 
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a tagged line in the wrong shape is an error, not spec output", () => {
-  Iterator.from([
+  visitItems([
     '<<"chart", [x |-> 1, y |-> 2], {"Inv"}>>',
     '<<"chart", 1>>',
     '<<"chart", <<1>>, <<"Inv">>>>',
     '<<"chart", <<1>>, {1}>>',
     '<<"chart", <<1>>, {"Inv"}, 2>>',
-  ]).forEach((line) => {assert.throws(
+  ], (line) => {assert.throws(
       () => [...readMarks(readMessages(`${line}\n`), "chart")],
       /TLC printed a mark that the command cannot read/u,
       line,
@@ -452,7 +452,7 @@ const ab: View = { state: (v) => ({ A: `a${v.a}`, B: `b${v.b}` }) };
 const bit = (v: Vars): string => `${v.a}${v.b}${v.c}`;
 const xorStates: StateRow[] = [];
 const xorSteps: StepRow[] = [];
-Iterator.from([0, 1]).forEach((a) => {for (const b of [0, 1])
+visitItems([0, 1], (a) => {for (const b of [0, 1])
     {for (const c of [0, 1]) {
       const v = { a, b, c };
       xorStates.push([bit(v), v, a === 0]);
@@ -533,14 +533,14 @@ const truthGraphs: Record<string, [Graph, View]> = {
   ],
 };
 
-Iterator.from([
+visitItems([
   ["starts", false],
   ["xor", false],
   ["fork", false],
   ["partial", false],
   ["lockstep", true],
   ["interleaved", true],
-] satisfies [string, boolean][]).forEach(([name, regions]) => {
+] satisfies [string, boolean][], ([name, regions]) => {
   // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
   test(`${name}: the chart uses regions only when they show the model's moves exactly`, () => {
     const { chart, report: text } = draw(...truthGraphs[name]);
@@ -1197,7 +1197,7 @@ test("checkView takes colors only as a plain object", () => {
   const bare: object = Object.create(null);
   checkView({ colors: Object.assign(bare, { Busy: "blue" }) }, inspect);
   const inherited: object = Object.create({ Busy: "blue" });
-  Iterator.from([new Map([["Busy", "blue"]]), inherited, new String("blue")]).forEach((colors) => {assert.throws(() => checkView({ colors }, inspect), {
+  visitItems([new Map([["Busy", "blue"]]), inherited, new String("blue")], (colors) => {assert.throws(() => checkView({ colors }, inspect), {
       message: "The view's colors must be a plain object.",
     });});
 });
@@ -1217,10 +1217,10 @@ test("the chart uses the colors that checkView read once from the view's own key
     changed.Busy = "breaks";
     return "Busy";
   };
-  Iterator.from([
+  visitItems([
     { group: () => "Busy", colors: flips },
     { group: changes, colors: changed },
-  ]).forEach((view) => {
+  ], (view) => {
     const { chart } = draw(graph, checkView(view, inspect));
     assert.match(chart, /^ {2}class s\d+ blue$/mu);
     assert.doesNotMatch(chart, /\bbreaks\b/u);

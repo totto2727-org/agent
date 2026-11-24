@@ -1,4 +1,4 @@
-import { append, byText, matchesUndefined, tupleKey } from '../ir.ts';
+import { append, byText, matchesUndefined, tupleKey, visitItems } from '../ir.ts';
 import type { Chart, ChartState, Region } from '../ir.ts';
 
 const BLANK = /\p{White_Space}/u;
@@ -218,8 +218,8 @@ export function mermaidLines(chart: Chart): string[] {
       `${indent}${e.start ? "[*]" : idOf(e.from)} --> ${idOf(e.to)}${matchesUndefined(e.label) ? "" : `: ${esc(e.label)}`}`;
     const tree = (prefix: string[], indent: string, below: ChartState[]): void => {
       const heads = new Map<string, ChartState[]>();
-      Iterator.from(below).forEach((s) => {append(heads, s.path[prefix.length], s);});
-      Iterator.from(heads).forEach(([head, under]) => {
+      visitItems(below, (s) => {append(heads, s.path[prefix.length], s);});
+      visitItems(heads, ([head, under]) => {
         const path = [...prefix, head];
         let leaf: ChartState | undefined;
         const inner: ChartState[] = [];
@@ -251,13 +251,13 @@ export function mermaidLines(chart: Chart): string[] {
       });
     };
     tree([], "  ", r.states);
-    Iterator.from(drawn).forEach((e) => {if (!e.start || !e.from.length) {out.push(line(e, "  "));}});
+    visitItems(drawn, (e) => {if (!e.start || !e.from.length) {out.push(line(e, "  "));}});
     return out;
   };
   let body: string[];
   if (chart.regions.length > 1) {
     body = [`  state "At the same time" as all {`];
-    Iterator.from(chart.regions.entries()).forEach(([i, r]) => {
+    visitItems(chart.regions.entries(), ([i, r]) => {
       if (i) {body.push("    --");}
       body.push(`    state "${esc(r.name, true)}" as r${i} {`);
       for (const line of region(r)) {body.push(`    ${line}`);}
@@ -266,13 +266,13 @@ export function mermaidLines(chart: Chart): string[] {
     body.push("  }");
   } else {body = region(chart.regions[0]);}
   const legend: string[][] = [];
-  Iterator.from([
+  visitItems([
     ...Object.entries(chart.colors),
     [`Breaks ${or(rules.breaks)}`, "breaks"],
     [`Breaks ${or(rules.mayBreak)} in some cases`, "mayBreak"],
     [`Path to the ${or(chart.paths)} bug`, "bugPath"],
     [`Repeats forever, so ${or(chart.loops)} breaks`, "repeats"],
-  ]).forEach((entry) => {if (used.has(entry[1])) {legend.push(entry);}});
+  ], (entry) => {if (used.has(entry[1])) {legend.push(entry);}});
   const lines: string[] = [];
   const title = chart.title && code(chart.title, (n) => `ﬂ°°${n}¶ß`).replaceAll("<", "ﬂ°°60¶ß");
   if (title) {lines.push("---", `title: ${JSON.stringify(title)}`, "---");}
@@ -280,13 +280,13 @@ export function mermaidLines(chart: Chart): string[] {
   if (chart.regions.length > 1) {lines.push("  direction LR");}
   if (legend.length) {
     lines.push(`  state "Legend" as legend {`);
-    Iterator.from(legend.entries()).forEach(([i, [text]]) => {lines.push(`    lg${i}: ${esc(text)}`);});
+    visitItems(legend.entries(), ([i, [text]]) => {lines.push(`    lg${i}: ${esc(text)}`);});
     lines.push("  }");
-    Iterator.from(legend.entries()).forEach(([i, [, cls]]) => {lines.push(`  class lg${i} ${cls}`);});
+    visitItems(legend.entries(), ([i, [, cls]]) => {lines.push(`  class lg${i} ${cls}`);});
   }
-  Iterator.from(body).forEach((line) => {lines.push(line);});
+  visitItems(body, (line) => {lines.push(line);});
   Object.entries(MARK_STYLES).forEach(([cls, style]) => {if (used.has(cls)) {lines.push(`  classDef ${cls} ${style}`);}});
-  Iterator.from(marks).forEach((line) => {lines.push(line);});
+  visitItems(marks, (line) => {lines.push(line);});
   return lines;
 }
 
