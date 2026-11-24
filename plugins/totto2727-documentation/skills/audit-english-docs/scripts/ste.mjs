@@ -1,4 +1,10 @@
-import { isRecord, matchesBoolean, matchesString, matchesUndefined } from "./native-predicates.mjs";
+import {
+  isRecord,
+  matchesBoolean,
+  matchesNumber,
+  matchesString,
+  matchesUndefined,
+} from "./native-predicates.mjs";
 
 // Source: ASD-STE100 Issue 9, rules 5.1, 6.3, 6.6 and section 8.
 // This is a bounded prose parser, not a grammar, typography or dictionary oracle.
@@ -209,7 +215,7 @@ const validStructuredTerm = (value) => {
   }
   const maxCategory = kind === "noun" ? maximumNounCategory : maximumVerbCategory;
   return (
-    typeof category === "number" &&
+    matchesNumber(category) &&
     Number.isInteger(category) &&
     category >= minimumTermCategory &&
     category <= maxCategory &&

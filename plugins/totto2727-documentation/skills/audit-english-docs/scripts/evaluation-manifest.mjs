@@ -9,6 +9,7 @@ import {
   hasObjectType,
   matchesBoolean,
   matchesNull,
+  matchesNumber,
   matchesString,
   matchesUndefined,
 } from "./native-predicates.mjs";
@@ -18,6 +19,16 @@ export const MODELS = ["clef-flash", "clef", "typesafe/jev"];
 
 /** @typedef {"--concurrency" | "--manifest" | "--output"} ValueFlag */
 /** @typedef {{ concurrency: number | string, dryRun: boolean, manifest?: string, mechanicalOnly: boolean, output?: string }} CLIOptions */
+/** @typedef {"page" | "paragraph" | "section"} RuleScope */
+/** @typedef {{ id: string, requiresDictionaryEntries?: boolean, requiresNounGroupCounts?: boolean, scope: RuleScope, source: Record<string, unknown> | undefined }} RuleDetails */
+/** @typedef {RuleDetails & { engine: "decision", fail: string, instructions: string, pass: string }} DecisionRule */
+/** @typedef {RuleDetails & { check: import("./mechanical.mjs").MechanicalCheck, engine: "mechanical" }} MechanicalRule */
+/** @typedef {DecisionRule | MechanicalRule} Rule */
+
+/** @typedef {Record<string, unknown> & { audience: string, id: string, path: string, purpose: string, ruleIds: string[], sections?: unknown[], sourceLanguage?: string, ste: import("./ste.mjs").SteContext | undefined, templateConstraints: string[] }} Document */
+/** @typedef {{ documentIds: Set<string>, needsLanguage: boolean, ruleIds: ReadonlySet<string>, rules: Rule[] }} DocumentValidation */
+/** @typedef {{ documents: Document[], englishOnly: boolean, model: string | undefined, rules: Rule[], templateConstraints: string[], threshold: number | null }} Manifest */
+/** @typedef {{ mechanicalOnly?: boolean }} ManifestOptions */
 
 const defaultConcurrency = 4;
 const minimumConcurrency = 1;
@@ -89,20 +100,31 @@ const constraints = (value, label) => {
   if (matchesUndefined(value)) {
     return [];
   }
-  if (!Array.isArray(value) || value.some((entry) => !matchesString(entry) || !entry.trim())) {
-    throw new EvaluationError(`${label} must be an array of non-empty strings`);
+  const message = `${label} must be an array of non-empty strings`;
+  if (!Array.isArray(value)) {
+    throw new EvaluationError(message);
+  }
+  /** @type {unknown[]} */
+  const entries = value;
+  if (!entries.every(matchesString) || entries.some((entry) => !entry.trim())) {
+    throw new EvaluationError(message);
   }
   bounded(JSON.stringify(value), label);
-  return /** @type {string[]} */ (value);
+  return entries;
 };
 
-const provenance = function (value, label) {
+const maximumMetadataDepth = 8;
+const rootMetadataDepth = 0;
+
+/** @type {(value: unknown, label: string) => Record<string, unknown> | undefined} */
+const provenance = (value, label) => {
   if (matchesUndefined(value)) {
     return undefined;
   }
-  object(value, label);
+  const record = object(value, label);
+  /** @type {(entry: unknown, depth: number) => void} */
   const visit = (entry, depth) => {
-    if (depth > 8) {
+    if (depth > maximumMetadataDepth) {
       throw new EvaluationError(`${label} metadata is too deeply nested`);
     }
     if (matchesNull(entry) || matchesString(entry) || matchesBoolean(entry)) {
@@ -121,152 +143,207 @@ const provenance = function (value, label) {
       visit(child, depth + 1);
     });
   };
-  visit(value, 0);
-  bounded(JSON.stringify(value), label);
-  return value;
+  visit(record, rootMetadataDepth);
+  bounded(JSON.stringify(record), label);
+  return record;
 };
 
-export function validateManifest(raw, { mechanicalOnly = false } = {}) {
+/** @type {(raw: unknown, index: number, names: Set<string>) => Rule} */
+const validateRule = (raw, index, names) => {
+  const label = `rules[${index}]`;
+  const rule = object(raw, label);
+  const id = text(rule.id, `${label}.id`);
+  if (names.has(id)) {
+    throw new EvaluationError(`Duplicate rule id: ${id}`);
+  }
+  names.add(id);
+  const scope = rule.scope ?? "section";
+  if (scope !== "section" && scope !== "page" && scope !== "paragraph") {
+    throw new EvaluationError(`${label}.scope must be section, page, or paragraph`);
+  }
+  const engine = rule.engine ?? "decision";
+  if (engine !== "decision" && engine !== "mechanical") {
+    throw new EvaluationError(`${label}.engine must be decision or mechanical`);
+  }
+  if (engine === "decision" && !matchesUndefined(rule.check)) {
+    throw new EvaluationError(`${label}.check requires the mechanical engine`);
+  }
+  const { requiresDictionaryEntries, requiresNounGroupCounts } = rule;
+  if (
+    !matchesUndefined(requiresDictionaryEntries) &&
+    (engine !== "decision" || !matchesBoolean(requiresDictionaryEntries))
+  ) {
+    throw new EvaluationError(
+      `${label}.requiresDictionaryEntries requires a boolean on a decision rule`,
+    );
+  }
+  if (
+    !matchesUndefined(requiresNounGroupCounts) &&
+    (engine !== "decision" || !matchesBoolean(requiresNounGroupCounts))
+  ) {
+    throw new EvaluationError(
+      `${label}.requiresNounGroupCounts requires a boolean on a decision rule`,
+    );
+  }
+  /** @type {RuleDetails & { engine: "decision" | "mechanical" }} */
+  const details = {
+    id,
+    scope,
+    engine,
+    ...(matchesUndefined(requiresNounGroupCounts) ? {} : { requiresNounGroupCounts }),
+    ...(matchesUndefined(requiresDictionaryEntries) ? {} : { requiresDictionaryEntries }),
+    source: provenance(rule.source, `${label}.source`),
+  };
+  if (engine === "mechanical") {
+    return {
+      ...details,
+      engine,
+      check: validateMechanicalCheck(rule.check, `${label}.check`, EvaluationError),
+    };
+  }
+  return {
+    ...details,
+    engine,
+    instructions: text(rule.instructions, `${label}.instructions`),
+    pass: text(rule.pass, `${label}.pass`),
+    fail: text(rule.fail, `${label}.fail`),
+  };
+};
+
+const noEntries = 0;
+const minimumThreshold = 0;
+const maximumThreshold = 1;
+
+/** @type {(rawDocument: unknown, index: number, context: DocumentValidation) => Document} */
+const validateDocument = (rawDocument, index, { documentIds, needsLanguage, ruleIds, rules }) => {
+  const document = object(rawDocument, `documents[${index}]`);
+  const id = text(document.id, `documents[${index}].id`);
+  if (documentIds.has(id)) {
+    throw new EvaluationError(`Duplicate document id: ${id}`);
+  }
+  documentIds.add(id);
+  text(document.path, `documents[${index}].path`);
+  text(document.purpose, `documents[${index}].purpose`);
+  text(document.audience, `documents[${index}].audience`);
+  if (
+    !matchesUndefined(document.context) &&
+    !matchesNull(document.context) &&
+    document.context !== ""
+  ) {
+    throw new EvaluationError(
+      `documents[${index}].context is no longer supported: remove legacy context and use purpose, audience, and templateConstraints for task metadata. Evaluation evidence must stay on the same page.`,
+    );
+  }
+  if (!matchesUndefined(document.sourceLanguage)) {
+    text(document.sourceLanguage, `documents[${index}].sourceLanguage`);
+  }
+  if (needsLanguage && matchesUndefined(document.sourceLanguage)) {
+    throw new EvaluationError(`documents[${index}].sourceLanguage is required with englishOnly`);
+  }
+  const requested = document.ruleIds ?? rules.map((rule) => rule.id);
+  const invalidRules = `documents[${index}].ruleIds contains an unknown rule`;
+  if (!Array.isArray(requested)) {
+    throw new EvaluationError(invalidRules);
+  }
+  /** @type {unknown[]} */
+  const selected = requested;
+  if (
+    selected.length === noEntries ||
+    !selected.every(matchesString) ||
+    selected.some((id) => !ruleIds.has(id))
+  ) {
+    throw new EvaluationError(invalidRules);
+  }
+  if (!matchesUndefined(document.sections) && !Array.isArray(document.sections)) {
+    throw new EvaluationError(`documents[${index}].sections must be an array`);
+  }
+  const ste = validateSteContext(document.ste, `documents[${index}].ste`, EvaluationError);
+  if (ste) {
+    bounded(JSON.stringify(ste), `documents[${index}].ste`);
+  }
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- The fields above are validated before retaining the manifest’s original keys and values.
+  return /** @type {Document} */ ({
+    ...document,
+    ste,
+    templateConstraints: constraints(
+      document.templateConstraints,
+      `documents[${index}].templateConstraints`,
+    ),
+    ruleIds: selected,
+  });
+};
+
+/**
+ * @param {unknown} raw - The manifest's JSON data.
+ * @param {ManifestOptions} [options] - Whether only local mechanical checks are requested.
+ * @returns {Manifest} The checked source, rules and output settings.
+ */
+export const validateManifest = (raw, { mechanicalOnly = false } = {}) => {
   const manifest = object(raw, "manifest");
-  if (!matchesUndefined(manifest.model) && !MODELS.includes(manifest.model)) {
+  const { model } = manifest;
+  if (!matchesUndefined(model) && (!matchesString(model) || !MODELS.includes(model))) {
     throw new EvaluationError(`manifest.model must be one of: ${MODELS.join(", ")}`);
   }
-  if (!Array.isArray(manifest.rules) || !manifest.rules.length) {
+  if (!Array.isArray(manifest.rules) || manifest.rules.length === noEntries) {
     throw new EvaluationError("manifest.rules must be a non-empty array");
   }
-  if (!Array.isArray(manifest.documents) || !manifest.documents.length) {
+  if (!Array.isArray(manifest.documents) || manifest.documents.length === noEntries) {
     throw new EvaluationError("manifest.documents must be a non-empty array");
   }
   const threshold = manifest.threshold ?? null;
-  if (!matchesNull(threshold) && (!Number.isFinite(threshold) || threshold < 0 || threshold > 1)) {
+  if (
+    !matchesNull(threshold) &&
+    (!matchesNumber(threshold) ||
+      !Number.isFinite(threshold) ||
+      threshold < minimumThreshold ||
+      threshold > maximumThreshold)
+  ) {
     throw new EvaluationError("manifest.threshold must be between 0 and 1");
   }
+  /** @type {Set<string>} */
   const ruleIds = new Set();
-  const rules = manifest.rules.map((rawRule, index) => {
-    const rule = object(rawRule, `rules[${index}]`);
-    const id = text(rule.id, `rules[${index}].id`);
-    if (ruleIds.has(id)) {
-      throw new EvaluationError(`Duplicate rule id: ${id}`);
-    }
-    ruleIds.add(id);
-    const scope = rule.scope ?? "section";
-    if (!["section", "page", "paragraph"].includes(scope)) {
-      throw new EvaluationError(`rules[${index}].scope must be section, page, or paragraph`);
-    }
-    const engine = rule.engine ?? "decision";
-    if (!["decision", "mechanical"].includes(engine)) {
-      throw new EvaluationError(`rules[${index}].engine must be decision or mechanical`);
-    }
-    if (engine === "decision" && !matchesUndefined(rule.check)) {
-      throw new EvaluationError(`rules[${index}].check requires the mechanical engine`);
-    }
-    if (
-      !matchesUndefined(rule.requiresDictionaryEntries) &&
-      (engine !== "decision" || !matchesBoolean(rule.requiresDictionaryEntries))
-    ) {
-      throw new EvaluationError(
-        `rules[${index}].requiresDictionaryEntries requires a boolean on a decision rule`,
-      );
-    }
-    if (
-      !matchesUndefined(rule.requiresNounGroupCounts) &&
-      (engine !== "decision" || !matchesBoolean(rule.requiresNounGroupCounts))
-    ) {
-      throw new EvaluationError(
-        `rules[${index}].requiresNounGroupCounts requires a boolean on a decision rule`,
-      );
-    }
-    return {
-      id,
-      scope,
-      engine,
-      ...(matchesUndefined(rule.requiresNounGroupCounts)
-        ? {}
-        : { requiresNounGroupCounts: rule.requiresNounGroupCounts }),
-      ...(matchesUndefined(rule.requiresDictionaryEntries)
-        ? {}
-        : { requiresDictionaryEntries: rule.requiresDictionaryEntries }),
-      source: provenance(rule.source, `rules[${index}].source`),
-      ...(engine === "mechanical"
-        ? {
-            check: validateMechanicalCheck(rule.check, `rules[${index}].check`, EvaluationError),
-          }
-        : {
-            instructions: text(rule.instructions, `rules[${index}].instructions`),
-            pass: text(rule.pass, `rules[${index}].pass`),
-            fail: text(rule.fail, `rules[${index}].fail`),
-          }),
-    };
-  });
-  const documentIds = new Set();
-  const documents = manifest.documents.map((rawDocument, index) => {
-    const document = object(rawDocument, `documents[${index}]`);
-    const id = text(document.id, `documents[${index}].id`);
-    if (documentIds.has(id)) {
-      throw new EvaluationError(`Duplicate document id: ${id}`);
-    }
-    documentIds.add(id);
-    text(document.path, `documents[${index}].path`);
-    text(document.purpose, `documents[${index}].purpose`);
-    text(document.audience, `documents[${index}].audience`);
-    if (
-      !matchesUndefined(document.context) &&
-      !matchesNull(document.context) &&
-      document.context !== ""
-    ) {
-      throw new EvaluationError(
-        `documents[${index}].context is no longer supported: remove legacy context and use purpose, audience, and templateConstraints for task metadata. Evaluation evidence must stay on the same page.`,
-      );
-    }
-    if (!matchesUndefined(document.sourceLanguage)) {
-      text(document.sourceLanguage, `documents[${index}].sourceLanguage`);
-    }
-    if (manifest.englishOnly && matchesUndefined(document.sourceLanguage)) {
-      throw new EvaluationError(`documents[${index}].sourceLanguage is required with englishOnly`);
-    }
-    const selected = document.ruleIds ?? rules.map((rule) => rule.id);
-    if (!Array.isArray(selected) || !selected.length || selected.some((id) => !ruleIds.has(id))) {
-      throw new EvaluationError(`documents[${index}].ruleIds contains an unknown rule`);
-    }
-    if (!matchesUndefined(document.sections) && !Array.isArray(document.sections)) {
-      throw new EvaluationError(`documents[${index}].sections must be an array`);
-    }
-    const ste = validateSteContext(document.ste, `documents[${index}].ste`, EvaluationError);
-    if (ste) {
-      bounded(JSON.stringify(ste), `documents[${index}].ste`);
-    }
-    return {
-      ...document,
-      ste,
-      templateConstraints: constraints(
-        document.templateConstraints,
-        `documents[${index}].templateConstraints`,
-      ),
-      ruleIds: selected,
-    };
-  });
+  /** @type {unknown[]} */
+  const inputRules = manifest.rules;
+  const rules = inputRules.map((rawRule, index) => validateRule(rawRule, index, ruleIds));
+  /** @type {DocumentValidation} */
+  const documentContext = {
+    documentIds: new Set(),
+    needsLanguage: Boolean(manifest.englishOnly),
+    ruleIds,
+    rules,
+  };
+  /** @type {unknown[]} */
+  const inputDocuments = manifest.documents;
+  const documents = inputDocuments.map((document, index) =>
+    validateDocument(document, index, documentContext),
+  );
   if (!matchesUndefined(manifest.englishOnly) && !matchesBoolean(manifest.englishOnly)) {
     throw new EvaluationError("manifest.englishOnly must be boolean");
   }
   const selectedSemanticWork = documents.some(
     (document) =>
-      (!manifest.englishOnly || /^en(?:-|$)/i.test(document.sourceLanguage)) &&
+      (!manifest.englishOnly || /^en(?:-|$)/iu.test(document.sourceLanguage ?? "")) &&
       rules.some((rule) => rule.engine === "decision" && document.ruleIds.includes(rule.id)),
   );
   if (!mechanicalOnly && selectedSemanticWork) {
-    text(manifest.model, "manifest.model");
+    text(model, "manifest.model");
   }
   return {
-    model: manifest.model,
+    model,
     threshold,
     rules,
     documents,
     englishOnly: manifest.englishOnly ?? false,
     templateConstraints: constraints(manifest.templateConstraints, "manifest.templateConstraints"),
   };
-}
+};
 
-export async function loadManifest(manifestPath, options) {
+/**
+ * @param {string} manifestPath - The user-selected manifest path.
+ * @param {ManifestOptions} [options] - Whether only local mechanical checks are requested.
+ * @returns {Promise<Manifest>} The checked manifest and its referenced rules.
+ */
+export const loadManifest = async (manifestPath, options) => {
   const raw = object(JSON.parse(await readFile(manifestPath, "utf8")), "manifest");
   const hasRules = !matchesUndefined(raw.rules);
   const hasRulesFile = !matchesUndefined(raw.rulesFile);
@@ -278,11 +355,14 @@ export async function loadManifest(manifestPath, options) {
     const path = isAbsolute(rulesFile)
       ? rulesFile
       : resolve(dirname(resolve(manifestPath)), rulesFile);
-    const rules = JSON.parse(await readFile(path, "utf8"));
-    if (!Array.isArray(rules)) {
+    /** @type {unknown} */
+    const parsed = JSON.parse(await readFile(path, "utf8"));
+    if (!Array.isArray(parsed)) {
       throw new EvaluationError("manifest.rulesFile must contain a JSON array");
     }
+    /** @type {unknown[]} */
+    const rules = parsed;
     raw.rules = rules;
   }
   return validateManifest(raw, options);
-}
+};

@@ -3,6 +3,10 @@
 export const matchesBoolean = (value) => typeof value === "boolean";
 
 /** @param {unknown} value - The input to check. */
+// oxlint-disable-next-line rules/force-predicate, jsdoc/require-returns -- Infer the native number guard in the standalone Node skill.
+export const matchesNumber = (value) => typeof value === "number";
+
+/** @param {unknown} value - The input to check. */
 // oxlint-disable-next-line rules/force-predicate, jsdoc/require-returns -- Infer the native type guard for an installed skill that runs without repository dependencies.
 export const matchesString = (value) => typeof value === "string";
 
