@@ -2,7 +2,7 @@ import { CHECK_DEADLOCK, matchesUndefined, visitItems } from '#statechart/ir.ts'
 import type { Config } from '#statechart/ir.ts';
 
 type ListField = "invariants" | "properties" | "constraints" | "actionConstraints";
-type Section = {
+interface Section {
   key: string;
   plural?: string;
   field?:
@@ -16,7 +16,7 @@ type Section = {
     | "type"
     | "typeConstraint";
   undefinedNoun?: string;
-};
+}
 const isListField = (field: Section["field"]): field is ListField =>
   field === "invariants" ||
   field === "properties" ||
@@ -58,7 +58,7 @@ const shown = (c: string): string => {
   return code < 0x7F ? `"${c}"` : `"${c}" (${hex})`;
 };
 
-type Token = { image: string; line: number };
+interface Token { image: string; line: number }
 
 const tokenizeConfig = function (text: string, cannot: (line: number, words: string) => Error) {
   if (text.startsWith("\uFEFF"))

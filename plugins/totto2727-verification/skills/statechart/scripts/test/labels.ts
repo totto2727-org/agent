@@ -9,14 +9,14 @@ import { visitItems } from "#statechart/ir.ts";
 
 export type Render = (text: string) => { svg: string };
 
-type MermaidNode = {
+interface MermaidNode {
   id: string;
   label?: string;
   shape?: string;
   parentId?: string;
   isGroup?: boolean;
   dir?: string;
-};
+}
 
 export type Mermaid = {
   parse: (text: string) => Promise<unknown>;
@@ -35,7 +35,7 @@ export type Mermaid = {
 
 export type Html = (markup: string) => string;
 
-type Tools = { render: Render; mermaid: Mermaid; html: Html };
+interface Tools { render: Render; mermaid: Mermaid; html: Html }
 
 const THEME = ["blue", "orange", "purple", "yellow", "teal", "tan", "pink"];
 const WORDS = ["Idle", "Run", "a", "b", "x1", "ok", "Done", "waiting", "on", "off", "p q"];
@@ -428,14 +428,14 @@ const fromSvg = (text: string): string =>
     .replaceAll(/&(?<named>quot|lt|gt|apos|nbsp);/gu, (_match: string, named: string) => NAMED[named])
     .replaceAll('&amp;', "&");
 
-type Node = { text: string; parent: string | null; group: boolean };
+interface Node { text: string; parent: string | null; group: boolean }
 
-type Want = {
+interface Want {
   nodes: Map<string, Node>;
   edges: string[][];
   direction: string;
   title: string | undefined;
-};
+}
 
 const expected = function (chart: Chart): Want {
   const nodes = new Map<string, Node>();
@@ -614,7 +614,7 @@ const readPele = function (text: string, want: Want, render: Render, problems: s
     );}
 };
 
-type Checked = { refused?: true; text?: string; problems: string[] };
+interface Checked { refused?: true; text?: string; problems: string[] }
 
 const check = async function (c: Case, labels: string[], tools: Tools): Promise<Checked> {
   const { graph, view } = build(c, labels);

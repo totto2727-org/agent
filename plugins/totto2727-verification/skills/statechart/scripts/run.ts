@@ -60,12 +60,12 @@ const JAVA_TOOL = "java@temurin-25";
 export const PINNED_FLAGS = ["-workers", "1", "-fp", "0", "-lncheck", "final"];
 const SANY_ERRORS = /^\*\*\* ?(?:Errors|Abort messages|Parse Error)/mu;
 
-type ChildResult = {
+interface ChildResult {
   status: number | null;
   stdout: string;
   stderr: string;
   error: ExecFileException | undefined;
-};
+}
 
 const runChild = (file: string, args: string[], options: { cwd: string; env: NodeJS.ProcessEnv }) =>
   new Promise<ChildResult>((resolve) => {
@@ -134,12 +134,12 @@ const messagesOf = (output: Output): Iterable<Part> => ({
   [Symbol.iterator]: () => readMessages(outputLines(output)),
 });
 
-type FileResult = {
+interface FileResult {
   status: number | null;
   stdout: string;
   output: Output;
   error: Error | undefined;
-};
+}
 
 const runToFiles = (
   file: string,

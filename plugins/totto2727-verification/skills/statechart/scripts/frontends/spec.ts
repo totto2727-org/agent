@@ -20,7 +20,7 @@ export const readChecks = function readChecks({ configFile, config }: { configFi
   };
 };
 
-type XmlNode = { tag: string; text: string; children: XmlNode[] };
+interface XmlNode { tag: string; text: string; children: XmlNode[] }
 
 const ENTITIES: Record<string, string> = { amp: "&", apos: "'", gt: ">", lt: "<", quot: '"' };
 

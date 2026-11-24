@@ -79,7 +79,7 @@ const DOMAIN: fc.Arbitrary<Domain> = fc.oneof(
 );
 
 const ATOM = fc.record({ v: fc.nat(2), i: fc.nat(3), not: fc.boolean() });
-type Atom = { v: number; i: number; not: boolean };
+interface Atom { v: number; i: number; not: boolean }
 
 const MODEL = fc.record({
   module: fc.constantFrom("Model", "prototype"),
@@ -127,7 +127,7 @@ const MODEL = fc.record({
   ),
 });
 type Model = typeof MODEL extends fc.Arbitrary<infer M> ? M : never;
-type Case = {
+interface Case {
   module: string;
   tla: string;
   view?: string;
@@ -135,7 +135,7 @@ type Case = {
   invariants: string[];
   deadlock: boolean;
   property?: string;
-};
+}
 
 const configOf = (c: Case): string => {
   const cfg = [...c.base];
@@ -264,7 +264,7 @@ const caseOf = function (m: Model): Case {
   };
 };
 
-type Run = { status: number | null; stdout: string; stderr: string };
+interface Run { status: number | null; stdout: string; stderr: string }
 
 const run = (command: string, args: string[], cwd: string) =>
   new Promise<Run>((resolve, reject) => {
@@ -310,7 +310,7 @@ const plainTlc = (dir: string, c: Case, name: string, lines: string[]) => {
   );
 };
 
-type Claim = { breaks: boolean; steps?: number };
+interface Claim { breaks: boolean; steps?: number }
 
 const claimOf = (r: Run, breaks: number[], traced: boolean): Claim => {
   if (r.status === 0) {return { breaks: false };}

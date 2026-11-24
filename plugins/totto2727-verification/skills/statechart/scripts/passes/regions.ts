@@ -3,13 +3,13 @@ import type { Arrow, Bug, Chart, ChartState, ChartStep, Condition, Labels, Regio
 
 const anyRest: Condition = { kind: "and", otherKeys: [] };
 
-type RegionMove = {
+interface RegionMove {
   f: number;
   t: number;
   text: string;
   group: number[];
   other: RegionMove | undefined;
-};
+}
 
 export const drawRegions = function drawRegions(
   { states: tla, index, from, to }: Walk,

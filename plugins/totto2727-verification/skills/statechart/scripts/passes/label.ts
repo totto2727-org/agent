@@ -210,7 +210,7 @@ export const labelGraph = function labelGraph(
   };
 };
 
-type Told<Id> = { rule: Rule; start: Id; path: { action: string; state: Id }[]; loop?: number };
+interface Told<Id> { rule: Rule; start: Id; path: { action: string; state: Id }[]; loop?: number }
 
 const tell = function <Id, B extends Told<Id>>(
   states: ReadonlyMap<Id, { vars: Vars }>,

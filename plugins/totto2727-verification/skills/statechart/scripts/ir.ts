@@ -11,7 +11,7 @@ export type Vars = Record<string, Value>;
 
 export type Rule = { kind: "invariant" | "deadlock" | "property"; name: string };
 
-type StateBase = { vars: Vars; start: boolean; breaks: Rule[] };
+interface StateBase { vars: Vars; start: boolean; breaks: Rule[] }
 
 export type PastState = StateBase & { ends: Rule[]; past: true; excluded: boolean };
 
