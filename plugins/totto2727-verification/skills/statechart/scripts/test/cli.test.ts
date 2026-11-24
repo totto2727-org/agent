@@ -471,8 +471,8 @@ visitItems(["SIGINT", "SIGTERM"] satisfies NodeJS.Signals[], (signal) => {
   test(
     `${signal} while the view draws the chart stops the command, and it writes nothing`,
     { timeout: 60_000 },
-    () =>
-      signalWhile(signal, (fakes) => {
+    async () => {
+      await signalWhile(signal, (fakes) => {
         const drawing = path.join(fakes, "drawing");
         const dir = copyCase("Login", (d) =>
           fs.writeFileSync(
@@ -488,15 +488,16 @@ visitItems(["SIGINT", "SIGTERM"] satisfies NodeJS.Signals[], (signal) => {
           ),
         );
         return { dir, reached: () => fs.existsSync(drawing) };
-      }),
+      });
+    },
   );
 
   // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
   test(
     `${signal} while the command writes its files stops it, and it writes nothing`,
     { timeout: 60_000 },
-    () =>
-      signalWhile(signal, () => ({
+    async () => {
+      await signalWhile(signal, () => ({
         dir: gridCase(150),
         reached: (parent) => {
           for (const f of fs.readdirSync(parent, { encoding: "utf8", recursive: true }))
@@ -507,7 +508,8 @@ visitItems(["SIGINT", "SIGTERM"] satisfies NodeJS.Signals[], (signal) => {
               {return true;}}
           return false;
         },
-      })),
+      }));
+    },
   );
 });
 

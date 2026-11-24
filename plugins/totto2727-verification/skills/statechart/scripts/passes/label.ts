@@ -12,9 +12,8 @@ const shapeOf = (shape: unknown, vars: Vars): Shape => {
   };
   const path = (p: unknown): string[] => {
     const labels: string[] = [];
-    visitItems([p].flat(), (l) => {
-      if (!isLabel(l)) {fail();}
-      labels.push(l);
+    visitItems([p].flat(), (label) => {
+      labels.push(isLabel(label) ? label : fail());
     });
     if (!labels.length) {fail();}
     return labels;
@@ -225,8 +224,8 @@ const tell = function <Id, B extends Told<Id>>(
     const story: Story = [{ state: shapeAt(bug.start) }];
     let from: Id = bug.start;
     for (const [k, p] of bug.path.entries()) {
-      const step = labelAt(bug, k, from);
-      if (matchesNull(step)) {unlabeled(p.action, vars(from), vars(p.state), bug);}
+      const label = labelAt(bug, k, from);
+      const step = matchesNull(label) ? unlabeled(p.action, vars(from), vars(p.state), bug) : label;
       story.push({ step, state: shapeAt(p.state) });
       from = p.state;
     }

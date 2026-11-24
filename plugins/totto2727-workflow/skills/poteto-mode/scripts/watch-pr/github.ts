@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 import type * as T from "./types.ts";
 import { nonEmpty, parsePrNumber } from "./types.ts";
-import { isString, matchesNull, matchesUndefined } from "./native-predicates.ts";
+import { isBoolean, isString, matchesNull, matchesUndefined } from "./native-predicates.ts";
 import { visitItems } from "./native-iteration.ts";
 
 export const REVIEW_THREADS_QUERY =
@@ -95,14 +95,10 @@ const missing = function (path: string, value?: unknown): never {
 const isRecord = function (value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && !matchesNull(value) && !Array.isArray(value);
 };
-const record = function (value: unknown, path: string): Record<string, unknown> {
-  if (!isRecord(value)) {missing(path, value);}
-  return value;
-};
-const list = function (value: unknown, path: string): Readonly<unknown[]> {
-  if (!Array.isArray(value)) {missing(path, value);}
-  return value;
-};
+const record = (value: unknown, path: string): Record<string, unknown> =>
+  isRecord(value) ? value : missing(path, value);
+const list = (value: unknown, path: string): Readonly<unknown[]> =>
+  Array.isArray(value) ? value : missing(path, value);
 const at = function (value: unknown, path: Readonly<string[]>): unknown {
   let current = value;
   visitItems(path, (key) => {
@@ -112,10 +108,10 @@ const at = function (value: unknown, path: Readonly<string[]>): unknown {
   });
   return current;
 };
-const string = function (value: unknown, path: string): string {
-  if (!isString(value)) {missing(path, value);}
-  return value;
-};
+const string = (value: unknown, path: string): string =>
+  isString(value) ? value : missing(path, value);
+const boolean = (value: unknown, path: string): boolean =>
+  isBoolean(value) ? value : missing(path, value);
 const optionalString = (value: unknown, path: string): string | null =>
   matchesNull(value) ? null : string(value, path);
 const enumValue = function <const V extends Readonly<string[]>>(
@@ -365,8 +361,7 @@ export function parseReviewThreadPage(value: unknown): T.ReviewThreadPage {
   const threads: T.RawReviewThread[] = [];
   visitItems(nodes, (node) => {
     const thread = record(node, "review thread");
-    if (typeof thread.isResolved !== "boolean")
-      {missing("review thread.isResolved", thread.isResolved);}
+    const resolved = boolean(thread.isResolved, "review thread.isResolved");
     const comments = list(
       at(thread, ["comments", "nodes"]),
       "review thread.comments.nodes"
@@ -374,17 +369,16 @@ export function parseReviewThreadPage(value: unknown): T.ReviewThreadPage {
     threads.push({
       id: string(thread.id, "review thread.id"),
       firstComment: comments.length === 0 ? null : parseComment(comments[0]),
-      resolved: thread.isResolved,
+      resolved,
     });
   });
   const page = record(reviewThreads.pageInfo, "reviewThreads.pageInfo");
-  if (typeof page.hasNextPage !== "boolean")
-    {missing("reviewThreads.pageInfo.hasNextPage", page.hasNextPage);}
+  const hasNextPage = boolean(page.hasNextPage, "reviewThreads.pageInfo.hasNextPage");
   const cursor = optionalString(
     page.endCursor,
     "reviewThreads.pageInfo.endCursor"
   );
-  return { threads, endCursor: page.hasNextPage && cursor ? cursor : null };
+  return { threads, endCursor: hasNextPage && cursor ? cursor : null };
 }
 export function buildReviewThreads(
   threads: Readonly<T.RawReviewThread[]>
@@ -412,8 +406,7 @@ export function parsePullRequest(
   context: T.PrContext
 ): T.PullRequestFacts {
   const object = record(value, "pull request");
-  if (typeof object.isDraft !== "boolean")
-    {missing("pull request.isDraft", object.isDraft);}
+  const isDraft = boolean(object.isDraft, "pull request.isDraft");
   return {
     context,
     mergeable: enumValue(
@@ -436,7 +429,7 @@ export function parsePullRequest(
       "pull request.state"
     ),
     mergedAt: optionalString(object.mergedAt, "pull request.mergedAt"),
-    isDraft: object.isDraft,
+    isDraft,
   };
 }
 const graphqlArgs = function (
@@ -507,10 +500,8 @@ export class GhGitHubReader implements T.GitHubReader {
     ]);
     return list(value, "open PRs").map((item, index) => {
       const object = record(item, `open PRs[${index}]`);
-      if (typeof object.isCrossRepository !== "boolean")
-        {missing(`open PRs[${index}].isCrossRepository`, object.isCrossRepository);}
       return {
-        isCrossRepository: object.isCrossRepository,
+        isCrossRepository: boolean(object.isCrossRepository, `open PRs[${index}].isCrossRepository`),
         number: parsePrNumber(object.number, `open PRs[${index}].number`),
         headRefName: string(
           object.headRefName,
@@ -571,13 +562,12 @@ export class GhGitHubReader implements T.GitHubReader {
       .map(mapRollupNode)
       .filter((check): check is T.Check => !matchesNull(check));
     const page = record(contexts.pageInfo, "contexts.pageInfo");
-    if (typeof page.hasNextPage !== "boolean")
-      {missing("contexts.pageInfo.hasNextPage", page.hasNextPage);}
+    const hasNextPage = boolean(page.hasNextPage, "contexts.pageInfo.hasNextPage");
     const cursor = optionalString(
       page.endCursor,
       "contexts.pageInfo.endCursor"
     );
-    return { checks, endCursor: page.hasNextPage && cursor ? cursor : null };
+    return { checks, endCursor: hasNextPage && cursor ? cursor : null };
   }
   public async reviewThreadPage(
     context: T.PrContext,

@@ -4,9 +4,10 @@
     "allowJs": true,
     "module": "NodeNext",
     "noEmit": true,
+    "skipLibCheck": true,
     "strict": true,
     "target": "ESNext",
-    "types": ["node"]
+    "types": ["node", "bun-types"]
   },
   "include": [
     "plugins/**/*.ts",
