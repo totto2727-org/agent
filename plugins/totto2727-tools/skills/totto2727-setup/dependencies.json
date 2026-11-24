@@ -8,13 +8,6 @@
       "reason": "Required HTML renderer."
     },
     {
-      "repo": "moonbitlang/skills",
-      "pin": "cc5435cb236fb92b144ccd46773adfe5502a42c6",
-      "names": ["moonbit-orientation"],
-      "usedBy": ["mbt-stack"],
-      "reason": "Required MoonBit workflow guidance."
-    },
-    {
       "repo": "totto2727-org/e2e",
       "pin": "fabc164421873e3642bf84dbb98bf904887effbd",
       "names": ["cli-e2e"],
@@ -35,8 +28,8 @@
       "pin": "56c61c9ee79a8df1a98822309c04847a57f56000",
       "names": ["modern-web-guidance"],
       "optional": true,
-      "usedBy": ["js-stack"],
-      "reason": "IME-safe enter submission guidance, tag v0.0.186."
+      "usedBy": [],
+      "reason": "Standalone browser guidance for frontend work, including IME-safe Enter submission."
     },
     {
       "repo": "cathrynlavery/diagram-design",

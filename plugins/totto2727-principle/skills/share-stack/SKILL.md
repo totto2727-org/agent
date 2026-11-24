@@ -1,6 +1,6 @@
 ---
 name: share-stack
-description: Choose a deployment host, GUI runtime, or migration owner across workspace languages.
+description: Choose a deployment host or migration owner across workspace languages.
 ---
 
 # Shared stack decisions
@@ -10,11 +10,6 @@ Use these defaults for new projects and approved migrations, not to rewrite work
 ## Deployment
 
 Choose Cloudflare Workers for hosted TypeScript services. Use Cloudflare Containers when a process, sandbox, or runtime capability rules out Workers; start with Containers for other languages. This choice does not apply to a local binary or library.
-
-## User interface
-
-- **Browser:** use the [TypeScript web profile](../js-stack/stack/frontend.md) ([source](https://github.com/totto2727-org/agent/blob/main/plugins/totto2727-js/skills/js-stack/stack/frontend.md)).
-- **Native macOS, TypeScript:** use the [NSH profile](../js-stack/stack/desktop.md) ([source](https://github.com/totto2727-org/agent/blob/main/plugins/totto2727-js/skills/js-stack/stack/desktop.md)).
 
 ## Database migrations
 

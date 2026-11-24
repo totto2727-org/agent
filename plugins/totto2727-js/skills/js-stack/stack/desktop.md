@@ -1,9 +1,0 @@
-# Native macOS GUI: NSH and TypeScript
-
-Choose NSH for a TypeScript application that needs a native macOS window and desktop capabilities such as a global shortcut or selection capture. For a remotely served page, choose the [browser stack](frontend.md) instead. This profile is verified against an Apple Silicon macOS design, not as a cross-platform GUI recommendation.
-
-In [GlossShift's NSH design, PR #17](https://github.com/totto2727-org/glossshift/pull/17), the [desktop entry point](https://github.com/totto2727-org/glossshift/blob/c47587d41fb4827a48c4e5366fc4479979e99760/app/desktop/src/main.tsx) uses `mount` from `nsh` to mount TSX in the prebuilt host. This is not a browser DOM or a Node process running the UI. Put host operations behind a [native adapter](https://github.com/totto2727-org/glossshift/blob/c47587d41fb4827a48c4e5366fc4479979e99760/app/desktop/src/nativeAdapter.ts). GlossShift uses a small Swift helper specifically for macOS Accessibility selection capture. An ordinary window does not need that helper or permission.
-
-Keep translation, cancellation, and settings in [shared Effect services](https://github.com/totto2727-org/glossshift/tree/c47587d41fb4827a48c4e5366fc4479979e99760/package/runtime/src). The [Node CLI](cli.md) supplies its own platform services and works without NSH, Swift, or Accessibility access. Verify each deliverable independently: mount the GUI in the real host, exercise the permission-denied path for the protected feature, and run the standalone CLI without starting a window.
-
-GlossShift's [default-branch baseline](https://github.com/totto2727-org/glossshift/blob/a3540e2587bff614d96edbcf6e5845166d981e7c/README.md) uses Rust and GPUI. The NSH implementation above is design evidence, not a branch to install or a reason to migrate an existing Rust GUI.
