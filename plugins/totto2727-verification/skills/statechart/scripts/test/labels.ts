@@ -651,7 +651,7 @@ const check = async function (c: Case, labels: string[], tools: Tools): Promise<
 
 const kind = (problem: string): string => problem.slice(0, problem.indexOf(":"));
 
-export async function fuzz({
+export const fuzz = async function fuzz({
   seed,
   charts,
   ...tools
@@ -695,4 +695,4 @@ export async function fuzz({
     };
   }
   return { drawn, refused };
-}
+};

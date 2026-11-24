@@ -7,7 +7,7 @@ import type * as T from "./types.ts";
 import { nonEmpty } from "./types.ts";
 import { matchesNull, matchesUndefined } from "./native-predicates.ts";
 
-export function assessGitHubMerge(args: Readonly<{
+export const assessGitHubMerge = function assessGitHubMerge(args: Readonly<{
   mergeStateStatus: T.MergeStateStatus;
   headRollupState: T.RollupState;
 }>): T.GitHubMergeAssessment {
@@ -31,7 +31,7 @@ export function assessGitHubMerge(args: Readonly<{
     mergeStateStatus: args.mergeStateStatus,
     headRollupState: args.headRollupState,
   };
-}
+};
 const mergeAssessment = async function (
   reader: T.GitHubReader,
   facts: T.PullRequestFacts
@@ -58,7 +58,7 @@ const AUTOMATION_TOKENS = [
   "pr review automation",
   "review automation",
 ] as const;
-export async function readSnapshot(args: Readonly<{
+export const readSnapshot = async function readSnapshot(args: Readonly<{
   reader: T.GitHubReader;
   context: T.PrContext;
   pendingHistory: "include" | "omit";
@@ -139,7 +139,7 @@ export async function readSnapshot(args: Readonly<{
         )
     ),
   };
-}
+};
 const conflictBlocker = (row: T.PrSnapshot): T.MergeBlocker | null =>
   row.kind === "open" &&
   (row.facts.mergeable === "CONFLICTING" ||
@@ -217,7 +217,7 @@ const readyContribution = function (
     },
   };
 };
-export function classifyPr(
+export const classifyPr = function classifyPr(
   row: T.PrSnapshot,
   allowDraft = false
 ): T.PrDecision {
@@ -235,8 +235,8 @@ export function classifyPr(
   return ready.kind === "merged-pr"
     ? { kind: "merged", pr: ready }
     : { kind: "ready", pr: ready };
-}
-export function selectTierMajorStackDecision(
+};
+export const selectTierMajorStackDecision = function selectTierMajorStackDecision(
   rows: T.NonEmpty<T.PrSnapshot>,
   allowDraft = false
 ): T.StackDecision {
@@ -264,7 +264,7 @@ export function selectTierMajorStackDecision(
   if (matchesNull(prs) || prs.length !== rows.length)
     {throw new Error("stack has no classified decision");}
   return { kind: "clear", prs };
-}
+};
 export const queryBackoffSeconds = (
   interval: number,
   failures: number
@@ -286,7 +286,7 @@ export interface VerdictStamp<M extends T.WatchMode = T.WatchMode> {
     mode: M2
   ): Envelope<M2> & P;
 }
-export function verdictFactory<M extends T.WatchMode>(
+export const verdictFactory = function verdictFactory<M extends T.WatchMode>(
   clock: WatchClock,
   mode: M
 ): VerdictStamp<M> {
@@ -309,7 +309,7 @@ export function verdictFactory<M extends T.WatchMode>(
     };
   }
   return stamp;
-}
+};
 const blockerVerdict = function (
   stamp: VerdictStamp,
   blocker: T.MergeBlocker
@@ -333,7 +333,7 @@ const blockerVerdict = function (
     }
   }
 };
-export function statusQueryVerdict(
+export const statusQueryVerdict = function statusQueryVerdict(
   stamp: VerdictStamp,
   failures: number,
   failure: T.QueryFailure
@@ -344,7 +344,7 @@ export function statusQueryVerdict(
     exitCode: 7,
     blocker: { kind: "status-query", failures, failure },
   });
-}
+};
 export interface WatchClock {
   now(): number;
   observedAt(): string;
@@ -426,7 +426,7 @@ const pollUntilTerminal = async function <V>(args: Readonly<{
     }
   }
 };
-export async function runSimple(args: Readonly<{
+export const runSimple = async function runSimple(args: Readonly<{
   dependencies: RunDependencies;
   contexts: T.NonEmpty<T.PrContext>;
   mode: T.WatchMode;
@@ -528,7 +528,7 @@ export async function runSimple(args: Readonly<{
     stamp,
     step,
   });
-}
+};
 export type QueueWork =
   | Readonly<{
       kind: "whole-stack-sweep";
@@ -563,7 +563,7 @@ const orderedRows = (state: QueueState): T.PrSnapshot[] =>
   });
 const activeRows = (state: QueueState): T.PrSnapshot[] =>
   orderedRows(state).filter((row) => row.kind !== "merged");
-export function planQueue(state: QueueState, now: number): QueueState {
+export const planQueue = function planQueue(state: QueueState, now: number): QueueState {
   if (!matchesNull(state.work)) {return state;}
   if (state.snapshots.size === 0 || now >= state.nextSweepAt) {
     const remaining = nonEmpty(
@@ -578,12 +578,12 @@ export function planQueue(state: QueueState, now: number): QueueState {
   return matchesUndefined(frontier)
     ? state
     : { ...state, work: { kind: "frontier-poll", frontier } };
-}
+};
 export interface QueueSnapshotResult {
   readonly state: QueueState;
   readonly completedSweepRows: T.NonEmpty<T.PrSnapshot> | null;
 }
-export function applyQueueSnapshot(
+export const applyQueueSnapshot = function applyQueueSnapshot(
   state: QueueState,
   snapshot: T.PrSnapshot,
   now: number,
@@ -616,7 +616,7 @@ export function applyQueueSnapshot(
     state: { ...base, work: null, nextSweepAt: now + options.sweepInterval },
     completedSweepRows: rows,
   };
-}
+};
 export type QueueEvaluation =
   | Readonly<{
       kind: "complete";
@@ -653,7 +653,7 @@ export type QueueEvaluation =
         | Readonly<{ kind: "merge-queue"; unmergedCount: number }>;
       emit: boolean;
     }>;
-export function evaluateQueue(
+export const evaluateQueue = function evaluateQueue(
   state: QueueState,
   now: number,
   options: T.PollingOptions
@@ -715,8 +715,8 @@ export function evaluateQueue(
     reason,
     emit: state.lastWaitKey !== key,
   };
-}
-export async function runQueued(args: Readonly<{
+};
+export const runQueued = async function runQueued(args: Readonly<{
   dependencies: RunDependencies;
   contexts: T.NonEmpty<T.PrContext>;
   options: T.PollingOptions;
@@ -850,4 +850,4 @@ export async function runQueued(args: Readonly<{
     stamp,
     step,
   });
-}
+};

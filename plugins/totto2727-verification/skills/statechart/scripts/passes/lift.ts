@@ -1,7 +1,7 @@
 import { append, matchesUndefined, must, tupleKey, unkey, visitItems } from '#statechart/ir.ts';
 import type { Chart, ChartState, ChartStep, Region } from '#statechart/ir.ts';
 
-export function liftToParents(states: ChartState[], steps: ChartStep[]) {
+export const liftToParents = function liftToParents(states: ChartState[], steps: ChartStep[]) {
   const depths = new Map<string, number>();
   const leaves = new Map<string, number>();
   visitItems(states.values(), (state) => {for (let i = 1; i < state.path.length; i++) {
@@ -36,9 +36,9 @@ export function liftToParents(states: ChartState[], steps: ChartStep[]) {
   visitItems(steps, (step) => {if (!removed.has(step)) {kept.push(step);}});
   visitItems(lifted, (chartStep) => {kept.push(chartStep);});
   return kept;
-}
+};
 
-export function lift(chart: Chart): Chart {
+export const lift = function lift(chart: Chart): Chart {
   const regions: Region[] = [];
   visitItems(chart.regions, (region) => {
     const known = new Map<string[], number>();
@@ -72,4 +72,4 @@ export function lift(chart: Chart): Chart {
     regions.push({ ...region, steps: [...merged.values()] });
   });
   return { ...chart, regions };
-}
+};

@@ -45,7 +45,7 @@ const unlabeled = function (
   );
 };
 
-export function ask(graph: Graph, { states: tla, nameOf, from, to }: Walk, view: View): Answers {
+export const ask = function ask(graph: Graph, { states: tla, nameOf, from, to }: Walk, view: View): Answers {
   const n = nameOf.length;
   const m = from.length;
   const {state} = view;
@@ -73,9 +73,9 @@ export function ask(graph: Graph, { states: tla, nameOf, from, to }: Walk, view:
     return groups[i];
   };
   return { names, shapes, labels, group };
-}
+};
 
-export function asParents(
+export const asParents = function asParents(
   { states: tla }: Walk,
   { names, shapes, labels, group }: Answers,
 ): Answers {
@@ -86,9 +86,9 @@ export function asParents(
     parents[i] = shapeOf(path, tla[i].vars);
   }
   return { names: [""], shapes: parents, labels, group };
-}
+};
 
-export function labelGraph(
+export const labelGraph = function labelGraph(
   graph: Graph,
   { index, from, to, action }: Walk,
   answers: Answers,
@@ -208,7 +208,7 @@ export function labelGraph(
     together,
     notes,
   };
-}
+};
 
 type Told<Id> = { rule: Rule; start: Id; path: { action: string; state: Id }[]; loop?: number };
 

@@ -49,7 +49,7 @@ const mergeCell = function (row: T.PrSnapshot): string {
     ? "⚠️ conflict"
     : "✅";
 };
-export function renderStatusTable(rows: T.NonEmpty<T.PrSnapshot>): string {
+export const renderStatusTable = function renderStatusTable(rows: T.NonEmpty<T.PrSnapshot>): string {
   const lines = ["| PR | CI | Review | Merge |", "| --- | --- | --- | --- |"];
   visitItems(rows, (row) => {
     const url = `https://github.com/${row.context.owner}/${row.context.repo}/pull/${row.context.number}`;
@@ -58,7 +58,7 @@ export function renderStatusTable(rows: T.NonEmpty<T.PrSnapshot>): string {
     );
   });
   return `${lines.join("\n")}\n`;
-}
+};
 const sanitizeText = function (value: string): string {
   return stripVTControlCharacters(value).replaceAll(/\p{Cc}/gu, "");
 };
@@ -149,7 +149,7 @@ const renderBlocker = function (blocker: T.MergeBlocker | StatusQueryBlocker): s
     }
   }
 };
-export function renderPretty(verdict: T.WatcherVerdict): string {
+export const renderPretty = function renderPretty(verdict: T.WatcherVerdict): string {
   switch (verdict.kind) {
     case "QUEUE": {
       return `QUEUE: captured ${verdict.queue.length} PR${verdict.queue.length === 1 ? "" : "s"} bottom-to-top: ${verdict.queue.map((pr) => `#${pr.number}`).join(",")}\n`;
@@ -193,4 +193,4 @@ export function renderPretty(verdict: T.WatcherVerdict): string {
       return exhaustive;
     }
   }
-}
+};

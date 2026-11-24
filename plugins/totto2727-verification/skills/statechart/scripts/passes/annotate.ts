@@ -17,7 +17,7 @@ export const finder = (graph: Graph, names: string[]) => {
   return find;
 };
 
-export function mark(
+export const mark = function mark(
   graph: Graph,
   marks: Iterable<Mark>,
   names: string[],
@@ -37,15 +37,15 @@ export function mark(
     }
   });
   return past;
-}
+};
 
-export function deadEnds(graph: Graph, rule: Rule): void {
+export const deadEnds = function deadEnds(graph: Graph, rule: Rule): void {
   const from = new Set<string>();
   visitItems(graph.steps, (currentStep) => {from.add(currentStep.from);});
   visitItems(graph.states, ([id, s]) => {if (!s.past && !from.has(id)) {s.breaks.push(rule);}});
-}
+};
 
-export function addPast(
+export const addPast = function addPast(
   graph: Graph,
   counterexample: TraceState[],
   names: string[],
@@ -78,9 +78,9 @@ export function addPast(
   if (!hasRule(last.breaks, rule)) {last.breaks.push(rule);}
   (last.ends ??= []).push(rule);
   if (!matchesUndefined(from) && last.past && !taken(to)) {graph.steps.push({ from, to, action });}
-}
+};
 
-export function lasso(
+export const lasso = function lasso(
   graph: Graph,
   trace: Trace,
   names: string[],
@@ -110,4 +110,4 @@ export function lasso(
     loop,
     stutters,
   };
-}
+};

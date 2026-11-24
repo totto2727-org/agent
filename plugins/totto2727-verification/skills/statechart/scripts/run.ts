@@ -22,7 +22,7 @@ import { addPast, deadEnds, finder, lasso, mark } from "./passes/annotate.ts";
 import { pathGraph } from "./passes/paths.ts";
 import { hostEnvironment } from "#statechart/host-env.ts";
 
-export function* fileLines(file: string) {
+export const fileLines = function* fileLines(file: string) {
   const fd = fs.openSync(file, "r");
   try {
     let buf = Buffer.allocUnsafe(PART);
@@ -44,7 +44,7 @@ export function* fileLines(file: string) {
   } finally {
     fs.closeSync(fd);
   }
-}
+};
 
 const TLC_TOOL =
   "http:tla2tools[url=https://github.com/tlaplus/tlaplus/releases/download/v1.7.4/tla2tools.jar,checksum=sha256:936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88]@1.7.4";
@@ -252,7 +252,7 @@ const only = function* only(marks: Iterable<Mark>, rules: Set<string>) {
   }
 };
 
-export async function check(specFile: string, configFile: string): Promise<CheckResult> {
+export const check = async function check(specFile: string, configFile: string): Promise<CheckResult> {
   const cfg = readConfig({ file: configFile, text: fs.readFileSync(configFile, "utf8") });
   const checks = readChecks({ configFile, config: cfg });
   const folder = path.dirname(path.resolve(specFile));
@@ -476,4 +476,4 @@ export async function check(specFile: string, configFile: string): Promise<Check
   } finally {
     fs.rmSync(dir, { force: true, recursive: true });
   }
-}
+};

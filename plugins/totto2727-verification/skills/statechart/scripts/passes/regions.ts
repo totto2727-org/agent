@@ -11,7 +11,7 @@ type RegionMove = {
   other: RegionMove | undefined;
 };
 
-export function drawRegions(
+export const drawRegions = function drawRegions(
   { states: tla, index, from, to }: Walk,
   { names, shapes, drawnLabels, group, keys, kinds, sizes, sorted, pathSteps, notes }: Labels,
   order: Int32Array,
@@ -269,4 +269,4 @@ export function drawRegions(
     paths,
     loops,
   };
-}
+};

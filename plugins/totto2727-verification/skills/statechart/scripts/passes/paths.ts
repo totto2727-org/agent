@@ -1,7 +1,7 @@
 import { hasRule, matchesUndefined, must, stateKey } from '#statechart/ir.ts';
 import type { Bug, Graph, Lasso, PathStep, Rule, Step, Trace, TraceState, Vars } from '#statechart/ir.ts';
 
-export function pathGraph(names: string[]) {
+export const pathGraph = function pathGraph(names: string[]) {
   const graph: Graph = { states: new Map(), steps: [] };
   const ids = new Map<string, string>();
   const taken = new Map<string, Step>();
@@ -45,4 +45,4 @@ export function pathGraph(names: string[]) {
     lasso: ({ seq, loop }: Trace): Lasso | undefined =>
       seq.length ? { ...route(seq), loop, stutters: loop === seq.length - 1 } : undefined,
   };
-}
+};

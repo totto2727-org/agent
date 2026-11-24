@@ -1,12 +1,12 @@
 import { CHART_STATES, RERUN_STATES, visitItems } from '#statechart/ir.ts';
 import type { ConfigSection, Spec } from '#statechart/ir.ts';
 
-export function configText(sections: ConfigSection[], extra: string[]): string {
+export const configText = function configText(sections: ConfigSection[], extra: string[]): string {
   const lines: string[] = [];
   visitItems(sections, (section) => {lines.push(`${section.key} ${section.tokens.join(" ")}`);});
   lines.push(...extra);
   return lines.join("\n");
-}
+};
 
 export const boundRun = (module: string): string =>
   [
@@ -18,7 +18,7 @@ export const boundRun = (module: string): string =>
     `====`,
   ].join("\n");
 
-export function chartRun({ module, variables, invariants }: Spec, tag: string): string {
+export const chartRun = function chartRun({ module, variables, invariants }: Spec, tag: string): string {
   const every: string[] = [];
   visitItems(invariants, (name) => {every.push(`(IF ~${name} THEN {"${name}"} ELSE {}) \\cup `);});
   return [
@@ -31,4 +31,4 @@ export function chartRun({ module, variables, invariants }: Spec, tag: string): 
     `ChartMark == ChartBroken = {} \\/ ChartTLC!PrintT(<<"${tag}", <<${variables.join(", ")}>>, ChartBroken>>)`,
     `====`,
   ].join("\n");
-}
+};

@@ -4,7 +4,7 @@ import { matchesUndefined, visitItems } from "#statechart/ir.ts";
 
 export type Checks = Pick<Spec, "invariants" | "properties" | "deadlock" | "written">;
 
-export function readChecks({ configFile, config }: { configFile: string; config: Config }): Checks {
+export const readChecks = function readChecks({ configFile, config }: { configFile: string; config: Config }): Checks {
   const refuse = (words: string) => new Error(`TLC refuses the config ${configFile}. ${words}`);
   if (config.spec && (config.init || config.next))
     {throw refuse("The configuration file cannot specify both INIT/NEXT and SPECIFICATION fields.");}
@@ -18,7 +18,7 @@ export function readChecks({ configFile, config }: { configFile: string; config:
     deadlock: config.checkDeadlock !== false,
     written,
   };
-}
+};
 
 type XmlNode = { tag: string; text: string; children: XmlNode[] };
 
@@ -59,7 +59,7 @@ export type Sany = {
 
 const VARIABLE_KIND = "3";
 
-export function readSany(xml: string): Sany {
+export const readSany = function readSany(xml: string): Sany {
   const modules = child(parseXml(xml), "modules");
   const symbols = new Map<string, XmlNode>();
   visitItems(child(modules, "context")?.children ?? [], (entry) => {symbols.set(textOf(entry, "UID"), entry.children[1]);});
@@ -80,9 +80,9 @@ export function readSany(xml: string): Sany {
   });
   variables.sort((left, right) => left.uid - right.uid);
   return { variables: variables.map((variable) => variable.name), definitions };
-}
+};
 
-export function readSpec({
+export const readSpec = function readSpec({
   module,
   sany,
   checks,
@@ -92,11 +92,11 @@ export function readSpec({
   checks: Checks;
 }): Spec {
   return { module, variables: sany.variables, ...checks };
-}
+};
 
 const STATE_LEVEL = 1;
 
-export function initialOnlyProperties({ definitions }: Sany, { written, properties }: Spec) {
+export const initialOnlyProperties = function initialOnlyProperties({ definitions }: Sany, { written, properties }: Spec) {
   const replaced = new Map<string, string>();
   visitItems(written, (section) => {if (section.key === "CONSTANT")
       {for (let i = 1; i + 1 < section.tokens.length; i++)
@@ -108,4 +108,4 @@ export function initialOnlyProperties({ definitions }: Sany, { written, properti
     if (definition && Number(textOf(definition, "level")) <= STATE_LEVEL) {names.add(name);}
   });
   return names;
-}
+};

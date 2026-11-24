@@ -2,7 +2,7 @@ import { EC, isString, matchesUndefined } from '#statechart/ir.ts';
 import type { Part, Trace } from '#statechart/ir.ts';
 import { actionOf, messageState, textOf } from "./messages.ts";
 
-export function readTrace(messages: Iterable<Part>): Trace {
+export const readTrace = function readTrace(messages: Iterable<Part>): Trace {
   const seq: Trace["seq"] = [];
   for (const message of messages) {
     if (isString(message)) {continue;}
@@ -22,4 +22,4 @@ export function readTrace(messages: Iterable<Part>): Trace {
       {seq.push({ action: "", vars: messageState(message) });}
   }
   return { seq, loop: undefined };
-}
+};

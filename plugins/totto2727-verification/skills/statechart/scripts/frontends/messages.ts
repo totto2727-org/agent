@@ -12,7 +12,7 @@ const cutMessage = function (open: Message[]) {
   return open[0]?.body.length ? open[0] : undefined;
 };
 
-export function* readMessages(tlcOut: string | Iterable<string>): Generator<Part> {
+export const readMessages = function* readMessages(tlcOut: string | Iterable<string>): Generator<Part> {
   const lines = linesOf(tlcOut)[Symbol.iterator]();
   const open: Message[] = [];
   try {
@@ -37,7 +37,7 @@ export function* readMessages(tlcOut: string | Iterable<string>): Generator<Part
   }
   const cut = cutMessage(open);
   if (cut) {yield cut;}
-}
+};
 
 export const textOf = ({ body }: Message): string =>
   body.filter((part) => isString(part)).join("\n");

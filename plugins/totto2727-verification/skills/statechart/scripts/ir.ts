@@ -380,7 +380,7 @@ export const unkey = (k: string): string[] => {
   return parts;
 };
 
-export function holds(condition: Condition, others: string[]): boolean {
+export const holds = function holds(condition: Condition, others: string[]): boolean {
   switch (condition.kind) {
     case "and": {
       for (let j = 0; j < others.length; j++)
@@ -396,7 +396,7 @@ export function holds(condition: Condition, others: string[]): boolean {
       return condition.otherTuples.has(tupleKey(others));
     }
   }
-}
+};
 
 export const ruleKey = (rule: Rule): string => tupleKey([rule.kind, rule.name]);
 

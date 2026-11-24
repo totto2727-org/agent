@@ -253,7 +253,7 @@ const gateOr = function gateOr(
       }
     : { ...details, kind, reportedState };
 };
-export function parseFastCheck(value: unknown): T.Check {
+export const parseFastCheck = function parseFastCheck(value: unknown): T.Check {
   const object = record(value, "check");
   const details = checkDetails(object, "name");
   const state = string(object.state, "check.state").toUpperCase();
@@ -267,8 +267,8 @@ export function parseFastCheck(value: unknown): T.Check {
   if (bucket === "skipping")
     {return { ...details, kind: "skipped", reportedState: state };}
   return { ...details, kind: "failed", reportedState: state };
-}
-export function mapRollupNode(value: unknown): T.Check | null {
+};
+export const mapRollupNode = function mapRollupNode(value: unknown): T.Check | null {
   const object = record(value, "rollup node");
   const typename = object.__typename;
   if (typename !== "CheckRun" && typename !== "StatusContext") {return null;}
@@ -302,7 +302,7 @@ export function mapRollupNode(value: unknown): T.Check | null {
   return state === "SUCCESS"
     ? { ...details, link, kind: "passed", reportedState: state }
     : { ...details, link, kind: "failed", reportedState: state || "FAILURE" };
-}
+};
 const parseComment = function (value: unknown): T.ReviewComment {
   const object = record(value, "review comment");
   const author =
@@ -352,7 +352,7 @@ const passKey = function (comment: T.ReviewComment | null): string | null {
   }
   return null;
 };
-export function parseReviewThreadPage(value: unknown): T.ReviewThreadPage {
+export const parseReviewThreadPage = function parseReviewThreadPage(value: unknown): T.ReviewThreadPage {
   const reviewThreads = record(
     at(value, ["data", "repository", "pullRequest", "reviewThreads"]),
     "reviewThreads"
@@ -379,8 +379,8 @@ export function parseReviewThreadPage(value: unknown): T.ReviewThreadPage {
     "reviewThreads.pageInfo.endCursor"
   );
   return { threads, endCursor: hasNextPage && cursor ? cursor : null };
-}
-export function buildReviewThreads(
+};
+export const buildReviewThreads = function buildReviewThreads(
   threads: Readonly<T.RawReviewThread[]>
 ): Readonly<T.ReviewThread[]> {
   const keys = new Set<string>();
@@ -400,8 +400,8 @@ export function buildReviewThreads(
       isBugbot: isBugbot(firstComment),
       bugbotReviewPasses: passes,
     }));
-}
-export function parsePullRequest(
+};
+export const parsePullRequest = function parsePullRequest(
   value: unknown,
   context: T.PrContext
 ): T.PullRequestFacts {
@@ -431,7 +431,7 @@ export function parsePullRequest(
     mergedAt: optionalString(object.mergedAt, "pull request.mergedAt"),
     isDraft,
   };
-}
+};
 const graphqlArgs = function (
   query: string,
   context: T.PrContext
@@ -603,7 +603,7 @@ export class GhGitHubReader implements T.GitHubReader {
   }
 }
 
-export async function resolveChecks(
+export const resolveChecks = async function resolveChecks(
   reader: T.GitHubReader,
   context: T.PrContext
 ): Promise<T.CheckRead> {
@@ -624,8 +624,8 @@ export async function resolveChecks(
       ? `fast path exit=${fast.exitCode}; GraphQL rollup was empty${firstLine(fast.stderr) ? `; ${firstLine(fast.stderr)}` : ""}`
       : "fast path and GraphQL rollup were empty";
   throw new ChecksUnavailable(`could not read PR checks: ${suffix}`);
-}
-export async function resolveReviewThreads(
+};
+export const resolveReviewThreads = async function resolveReviewThreads(
   reader: T.GitHubReader,
   context: T.PrContext
 ): Promise<Readonly<T.ReviewThread[]>> {
@@ -637,8 +637,8 @@ export async function resolveReviewThreads(
     after = page.endCursor;
   } while (!matchesNull(after));
   return buildReviewThreads(threads);
-}
-export async function resolveContext(args: Readonly<{
+};
+export const resolveContext = async function resolveContext(args: Readonly<{
   reader: T.GitHubReader;
   owner: string | null;
   repo: string | null;
@@ -661,8 +661,8 @@ export async function resolveContext(args: Readonly<{
     repo: args.repo ?? inferred.repo,
     number: args.pr ?? inferred.number,
   };
-}
-export function orderStack(
+};
+export const orderStack = function orderStack(
   context: T.PrContext,
   open: Readonly<T.OpenPullRequest[]>
 ): T.NonEmpty<T.PrContext> {
@@ -712,10 +712,10 @@ export function orderStack(
       }))
     ) ?? [context]
   );
-}
-export async function discoverStack(
+};
+export const discoverStack = async function discoverStack(
   reader: T.GitHubReader,
   context: T.PrContext
 ): Promise<T.NonEmpty<T.PrContext>> {
   return orderStack(context, await reader.openPullRequests(context));
-}
+};

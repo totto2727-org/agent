@@ -190,7 +190,7 @@ const MARK_STYLES = {
   mayBreak: "fill:#fff3e6,stroke:#e8730c,stroke-width:2.5px,color:#b85a06",
 };
 
-export function mermaidLines(chart: Chart): string[] {
+export const mermaidLines = function mermaidLines(chart: Chart): string[] {
   let next = 0;
   const marks: string[] = [];
   const used = new Set<string>();
@@ -288,6 +288,6 @@ export function mermaidLines(chart: Chart): string[] {
   Object.entries(MARK_STYLES).forEach(([cls, style]) => {if (used.has(cls)) {lines.push(`  classDef ${cls} ${style}`);}});
   visitItems(marks, (line) => {lines.push(line);});
   return lines;
-}
+};
 
 export const mermaid = (chart: Chart): string => mermaidLines(chart).join("\n");

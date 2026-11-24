@@ -60,7 +60,7 @@ const VIEW_EXPORTS = ["state", "step", "group", "colors", "title"];
 
 type Inspect = (value: unknown, options: { breakLength: number }) => string;
 
-export function checkView(
+export const checkView = function checkView(
   view: Readonly<Record<string, unknown>>,
   inspect: Inspect,
 ): CheckedView {
@@ -117,4 +117,4 @@ export function checkView(
     title,
     [checked]: true,
   };
-}
+};

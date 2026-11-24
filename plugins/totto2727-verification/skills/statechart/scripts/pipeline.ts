@@ -26,7 +26,7 @@ const inParts = function* inParts(lines: string[]) {
 const shortestFirst = (a: { path: unknown[] }, b: { path: unknown[] }): number =>
   a.path.length - b.path.length;
 
-export function project(graph: Graph, walked: Walk, view: View, found: Bug[]) {
+export const project = function project(graph: Graph, walked: Walk, view: View, found: Bug[]) {
   const { order, rank } = drawOrder(walked);
   const draw = (answers: Answers) => {
     const labels = labelGraph(graph, walked, answers, rank, found);
@@ -41,9 +41,9 @@ export function project(graph: Graph, walked: Walk, view: View, found: Bug[]) {
     chart: lift(lie ? { ...chart, lie } : chart),
     stories: storiesOf(graph, found, walked, first.labels),
   };
-}
+};
 
-export function compile(result: CheckResult, view: CheckedView) {
+export const compile = function compile(result: CheckResult, view: CheckedView) {
   const walked = walk(result.graph);
   const found = [...(result.paths ?? bugs(result.graph, walked))].sort(shortestFirst);
   visitItems(result.properties, (property) => {if (property.bug) {found.push({ rule: property.rule, ...property.bug });}});
@@ -61,4 +61,4 @@ export function compile(result: CheckResult, view: CheckedView) {
   visitItems([...result.rules, ...result.properties], ({ rule, outcome, messages }) => {if (outcome === "broken" && messages && !drawn.has(ruleKey(rule)))
       {files.set(`tlc-${rule.name}.out`, plainText(messages));}});
   return { report: text, files, exit: result.exit };
-}
+};

@@ -55,7 +55,7 @@ const usage = [
   "  [--max-query-errors COUNT] [--allow-draft] [--status-only] [--pretty]",
   "JSON (NDJSON while polling) is the default. A timeout of zero disables the deadline.",
 ].join("\n");
-export function parseArgs(argv: Readonly<string[]>): CliOptions {
+export const parseArgs = function parseArgs(argv: Readonly<string[]>): CliOptions {
   const { values: raw } = parseOptions({
     args: [...argv],
     strict: true,
@@ -95,7 +95,7 @@ export function parseArgs(argv: Readonly<string[]>): CliOptions {
       allowDraft: raw["allow-draft"] ?? false,
     },
   };
-}
+};
 export interface CliRuntime {
   readonly reader: T.GitHubReader;
   readonly clock: WatchClock;
@@ -117,7 +117,7 @@ const realRuntime = function (): CliRuntime {
     stderr: (value) => process.stderr.write(value),
   };
 };
-export async function main(
+export const main = async function main(
   argv: Readonly<string[]>,
   runtime: CliRuntime = realRuntime(),
 ): Promise<number> {
@@ -168,6 +168,6 @@ export async function main(
         });
   runtime.stdout(render(verdict));
   return verdict.exitCode;
-}
+};
 
 if (import.meta.main) {process.exitCode = await main(process.argv.slice(2));}

@@ -1,14 +1,14 @@
 declare const prNumberBrand: unique symbol;
 export type PrNumber = number & Readonly<{ [prNumberBrand]: "PrNumber" }>;
 export type NonEmpty<T> = Readonly<[T, ...T[]]>;
-export function nonEmpty<T>(items: Readonly<T[]>): NonEmpty<T> | null {
+export const nonEmpty = function nonEmpty<T>(items: Readonly<T[]>): NonEmpty<T> | null {
   return items.length === 0 ? null : [items[0], ...items.slice(1)];
-}
-export function parsePrNumber(value: unknown, label = "PR number"): PrNumber {
+};
+export const parsePrNumber = function parsePrNumber(value: unknown, label = "PR number"): PrNumber {
   if (typeof value !== "number" || !Number.isInteger(value) || value <= 0)
     {throw new Error(`${label} must be a positive integer`);}
   return value as PrNumber;
-}
+};
 export interface Repository {
   readonly owner: string;
   readonly repo: string;

@@ -145,7 +145,7 @@ const tokenizeConfig = function (text: string, cannot: (line: number, words: str
   return { tokens, end: last };
 };
 
-export function readConfig({ file, text }: { file: string; text: string }): Config {
+export const readConfig = function readConfig({ file, text }: { file: string; text: string }): Config {
   const refuse = (line: number, words: string) =>
     new Error(`TLC refuses the config ${file} at line ${line}. ${words}`);
   const cannot = (line: number, words: string) =>
@@ -274,4 +274,4 @@ export function readConfig({ file, text }: { file: string; text: string }): Conf
   }
   if (deferred) {throw deferred;}
   return config;
-}
+};

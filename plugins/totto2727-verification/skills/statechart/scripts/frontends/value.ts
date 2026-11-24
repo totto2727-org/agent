@@ -64,7 +64,7 @@ const model = (name: string) => {
   return v;
 };
 
-export function parseValue(text: string): Value {
+export const parseValue = function parseValue(text: string): Value {
   const tokens: string[] = [];
   const starts: number[] = [];
   for (let pos = 0; ;) {
@@ -167,4 +167,4 @@ export function parseValue(text: string): Value {
     fail();
   }
   return out;
-}
+};

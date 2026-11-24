@@ -31,7 +31,7 @@ const toRawThread = function (thread: ReviewThread): RawReviewThread {
   return { id: thread.id, firstComment: thread.firstComment, resolved: false };
 };
 
-export function passingCheck(name = "ci"): Check {
+export const passingCheck = function passingCheck(name = "ci"): Check {
   return {
     kind: "passed",
     name,
@@ -40,9 +40,9 @@ export function passingCheck(name = "ci"): Check {
     link: "",
     workflow: "",
   };
-}
+};
 
-export function pendingCheck(name = "ci"): Check {
+export const pendingCheck = function pendingCheck(name = "ci"): Check {
   return {
     kind: "pending",
     name,
@@ -51,9 +51,9 @@ export function pendingCheck(name = "ci"): Check {
     link: "",
     workflow: "",
   };
-}
+};
 
-export function failedCheck(name = "ci"): Check {
+export const failedCheck = function failedCheck(name = "ci"): Check {
   return {
     kind: "failed",
     name,
@@ -62,9 +62,9 @@ export function failedCheck(name = "ci"): Check {
     link: "",
     workflow: "",
   };
-}
+};
 
-export function fakeReader(
+export const fakeReader = function fakeReader(
   options: FakeReaderOptions = {}
 ): GitHubReader & Readonly<{ calls: Readonly<string[]> }> {
   const calls: string[] = [];
@@ -127,4 +127,4 @@ export function fakeReader(
       return options.commitRollups ?? [{ oid: "head", state: "SUCCESS" }];
     },
   };
-}
+};

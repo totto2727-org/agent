@@ -145,7 +145,7 @@ export const validateSteContext = (value, label, ErrorType = Error) => {
  * @param {string} text - A declared noun group.
  * @returns {{ hyphenComponentCounts: number[], wordCount: number } | null} Counts for forms the bounded tokenizer recognizes.
  */
-export function countDeclaredNounGroup(text) {
+export const countDeclaredNounGroup = function countDeclaredNounGroup(text) {
   if (!/^[A-Za-z]+(?:-[A-Za-z]+)*(?: [A-Za-z]+(?:-[A-Za-z]+)*)*$/u.test(text)) {
     return null;
   }
@@ -154,7 +154,7 @@ export function countDeclaredNounGroup(text) {
     wordCount: words.length,
     hyphenComponentCounts: words.map((word) => word.split("-").length),
   };
-}
+};
 
 /** @typedef {{ approved: boolean, forms?: string[], meaning: string, partOfSpeech: string, word: string }} VocabularyEntry */
 /** @typedef {{ category: number, kind: "noun" | "verb", source: string, text: string }} TechnicalTerm */
@@ -295,7 +295,11 @@ const boundary = function (text, index) {
  * @param {{ paragraph?: boolean }} [options] - Whether to use paragraph counting.
  * @returns {{ paragraphSentences: number, sentences: CountedSentence[], warnings: ProseWarning[] }} Counts and unresolved source spans.
  */
-export function analyzeSteProse(text, context = {}, { paragraph = false } = {}) {
+export const analyzeSteProse = function analyzeSteProse(
+  text,
+  context = {},
+  { paragraph = false } = {},
+) {
   /** @type {ProseWarning[]} */
   const warnings = [];
   /** @type {(reason: string, start?: number, end?: number) => number} */
@@ -509,4 +513,4 @@ export function analyzeSteProse(text, context = {}, { paragraph = false } = {}) 
     paragraphSentences: sentences.length,
     warnings,
   };
-}
+};

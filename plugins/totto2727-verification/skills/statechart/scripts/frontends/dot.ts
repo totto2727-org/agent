@@ -41,7 +41,7 @@ export const splitLines = (text: string): string[] =>
 
 export const linesOf = (input: Lines) => (isString(input) ? splitLines(input) : input);
 
-export function parseDot(input: Lines): Graph {
+export const parseDot = function parseDot(input: Lines): Graph {
   const states = new Map<string, State>();
   const steps = new Map<string, Step>();
   const parsed = new Map<string, [string, Value]>();
@@ -74,4 +74,4 @@ export function parseDot(input: Lines): Graph {
         `The TLC graph dump has a step ${loose.action} to or from a state that it does not list.`,
       );}});
   return { states, steps: [...steps.values()] };
-}
+};

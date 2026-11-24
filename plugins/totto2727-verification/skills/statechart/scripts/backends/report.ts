@@ -23,7 +23,7 @@ const forever = (loop: { state: string }[], stutters: boolean | undefined): stri
 
 const fenced = (text: string): string => ["```", text, "```"].join("\n");
 
-export function report(
+export const report = function report(
   {
     spec,
     graph,
@@ -157,4 +157,4 @@ export function report(
         `TLC checked ${property.rule.name} only in the initial states, because it has no [], <>, or ~>. List it as an INVARIANT to check every state.`,
       );}});
   return out.join("\n");
-}
+};

@@ -20,7 +20,7 @@ const DISTINCT = new Map<number, RegExp>([
   [EC.TLC_STATS, /(\d+) distinct states found/u],
 ]);
 
-export function readVerdict(messages: Iterable<Part>) {
+export const readVerdict = function readVerdict(messages: Iterable<Part>) {
   let broke: Break | undefined;
   let distinct = 0;
   let initial = 0;
@@ -38,4 +38,4 @@ export function readVerdict(messages: Iterable<Part>) {
     if (named && name) {broke = { kind: named[0], name };}
   });
   return { broke, distinct, initial };
-}
+};

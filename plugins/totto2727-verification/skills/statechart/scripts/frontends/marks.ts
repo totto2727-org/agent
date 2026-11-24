@@ -30,7 +30,7 @@ const ruleNames = (currentValue: Value): string[] | undefined => {
   return names;
 };
 
-export function* readMarks(messages: Iterable<Part>, tag: string): Generator<Mark> {
+export const readMarks = function* readMarks(messages: Iterable<Part>, tag: string): Generator<Mark> {
   const read = memo(parseValue);
   const start = `"${tag}",`;
   let chunk = "";
@@ -76,9 +76,9 @@ export function* readMarks(messages: Iterable<Part>, tag: string): Generator<Mar
     {throw new Error(
       `TLC's output ends inside a marked state, so the command cannot tell which rules it breaks:\n${chunk.slice(0, 2000)}`,
     );}
-}
+};
 
-export function readCounterexample(messages: Iterable<Part>) {
+export const readCounterexample = function readCounterexample(messages: Iterable<Part>) {
   const trace: TraceState[] = [];
   visitItems(messages, (message) => {
     if (isString(message)) {return;}
@@ -91,4 +91,4 @@ export function readCounterexample(messages: Iterable<Part>) {
       {trace.push({ action: "", vars: messageState(message) });}
   });
   return trace;
-}
+};

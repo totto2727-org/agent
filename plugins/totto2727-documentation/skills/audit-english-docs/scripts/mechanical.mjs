@@ -72,7 +72,11 @@ const literalTerms = (value, allowEmpty) => {
  * @param {new (message: string) => Error} [ErrorType] - The caller's validation error constructor.
  * @returns {MechanicalCheck} A check restricted to the supported parameters.
  */
-export function validateMechanicalCheck(check, label, ErrorType = Error) {
+export const validateMechanicalCheck = function validateMechanicalCheck(
+  check,
+  label,
+  ErrorType = Error,
+) {
   /** @type {(message: string) => never} */
   const reject = (message) => {
     throw new ErrorType(`${label}: ${message}`);
@@ -133,7 +137,7 @@ export function validateMechanicalCheck(check, label, ErrorType = Error) {
       return reject("unsupported mechanical kind");
     }
   }
-}
+};
 
 /**
  * @param {string} markdown - The complete source document.
@@ -141,7 +145,7 @@ export function validateMechanicalCheck(check, label, ErrorType = Error) {
  * @param {number} end - The exclusive UTF-16 end of the span.
  * @returns {SourceRange} Line and UTF-8 byte offsets in the original document.
  */
-export function sourceRange(markdown, start, end) {
+export const sourceRange = function sourceRange(markdown, start, end) {
   return {
     startLine: markdown.slice(0, start).split("\n").length,
     endLine: Math.max(
@@ -151,7 +155,7 @@ export function sourceRange(markdown, start, end) {
     startByte: Buffer.byteLength(markdown.slice(0, start)),
     endByte: Buffer.byteLength(markdown.slice(0, end)),
   };
-}
+};
 
 /**
  * @template {{ text: string }} Group
@@ -160,7 +164,7 @@ export function sourceRange(markdown, start, end) {
  * @param {Group[]} [groups] - The caller's declarations and their literal text.
  * @returns {Array<Group & NounGroupEvidence>} Evidence for matching declarations.
  */
-export function nounGroupCounts(markdown, targetRange, groups = []) {
+export const nounGroupCounts = function nounGroupCounts(markdown, targetRange, groups = []) {
   const { visible, uncertainties } = inspectMarkdown(markdown);
   /** @type {Array<Group & NounGroupEvidence>} */
   const selected = [];
@@ -189,7 +193,7 @@ export function nounGroupCounts(markdown, targetRange, groups = []) {
     }
   });
   return selected;
-}
+};
 
 // Offsets remain UTF-16 source offsets until sourceRange converts them to UTF-8.
 // Conservative exclusions intentionally reduce coverage rather than claim that
@@ -375,7 +379,7 @@ export function inspectMarkdown(markdown) {
  * @param {Array<{ headingPath: string[], id?: unknown, sourceRange: SourceRange, ste?: Context }>} sections - Sections eligible for paragraph checks.
  * @returns {Paragraph<Context>[]} Whole paragraphs contained in those sections.
  */
-export function paragraphUnits(markdown, sections) {
+export const paragraphUnits = function paragraphUnits(markdown, sections) {
   const { fences, frontmatter } = inspectMarkdown(markdown);
   const lines = [...markdown.matchAll(/[^\n]*(?:\n|$)/g)].filter((line) => line[0].length);
   /** @type {Paragraph<Context>[]} */
@@ -443,7 +447,7 @@ export function paragraphUnits(markdown, sections) {
   });
   flush();
   return units;
-}
+};
 
 /**
  * @param {SteCheck} check - The selected mechanical criterion.
@@ -846,7 +850,7 @@ const runSteMechanical = function runSteMechanical(check, markdown, targetRange,
  * @param {MechanicalContext} [context] - The declared language context.
  * @returns {MechanicalResult | SteResult} The result and collected evidence.
  */
-export function runMechanical(check, markdown, targetRange, context = {}) {
+export const runMechanical = function runMechanical(check, markdown, targetRange, context = {}) {
   if (check.kind !== "fenced-code-language" && check.kind !== "prohibited-terms") {
     return runSteMechanical(check, markdown, targetRange, context);
   }
@@ -933,4 +937,4 @@ export function runMechanical(check, markdown, targetRange, context = {}) {
         .map(({ start, end, kind }) => ({ kind, sourceRange: sourceRange(markdown, start, end) })),
     },
   };
-}
+};

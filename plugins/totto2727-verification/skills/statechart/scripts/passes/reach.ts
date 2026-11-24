@@ -1,7 +1,7 @@
 import { byText, count, defaultState, matchesUndefined, must, ruleKey, sortBy, visitItems } from '#statechart/ir.ts';
 import type { Bug, Graph, PathStep, Rule, State, Walk } from '#statechart/ir.ts';
 
-export function walk(graph: Graph): Walk {
+export const walk = function walk(graph: Graph): Walk {
   const ids: string[] = [];
   const states: State[] = [];
   const nameOf: string[] = [];
@@ -84,9 +84,9 @@ export function walk(graph: Graph): Walk {
     reached: reached.subarray(0, size),
     starts,
   };
-}
+};
 
-export function drawOrder({ depth, nameRank }: Walk) {
+export const drawOrder = function drawOrder({ depth, nameRank }: Walk) {
   const n = depth.length;
   let deepest = 0;
   for (let i = 0; i < n; i++) {if (depth[i] > deepest) {deepest = depth[i];}}
@@ -96,9 +96,9 @@ export function drawOrder({ depth, nameRank }: Walk) {
   const rank = new Int32Array(n);
   for (let p = 0; p < n; p++) {rank[order[p]] = p;}
   return { order, rank };
-}
+};
 
-export function bugs(graph: Graph, { ids, from, via, reached }: Walk = walk(graph)) {
+export const bugs = function bugs(graph: Graph, { ids, from, via, reached }: Walk = walk(graph)) {
   const ends = new Map<string, string>();
   visitItems(graph.states, ([id, s]) => {for (const rule of s.ends ?? []) {ends.set(ruleKey(rule), id);}});
   const first = new Map<string, { rule: Rule; i: number }>();
@@ -120,4 +120,4 @@ export function bugs(graph: Graph, { ids, from, via, reached }: Walk = walk(grap
     found.push({ rule, start: ids[start], path });
   });
   return found;
-}
+};

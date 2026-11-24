@@ -90,7 +90,7 @@ export type Verdict = {
   report: string;
 };
 
-export function agrees(module: string, files: Record<string, string[]>, cfg: string): Verdict {
+export const agrees = function agrees(module: string, files: Record<string, string[]>, cfg: string): Verdict {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "statechart-plain-"));
   try {
     Object.entries(files).forEach(([name, lines]) => {fs.writeFileSync(path.join(dir, `${name}.tla`), `${lines.join("\n")}\n`);});
@@ -156,4 +156,4 @@ export function agrees(module: string, files: Record<string, string[]>, cfg: str
   } finally {
     fs.rmSync(dir, { force: true, recursive: true });
   }
-}
+};
