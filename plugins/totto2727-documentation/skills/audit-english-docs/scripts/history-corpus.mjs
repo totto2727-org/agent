@@ -59,12 +59,16 @@ const readRuleScopes = async (rulesPath) => {
 };
 
 /** @typedef {import("./history-corpus-labels.mjs").CorpusSample} CorpusSample */
+/** @typedef {{ endLine: number, headingPath: string[], id: string, startLine: number }} CorpusSection */
+/** @typedef {{ audience: string, id: string, path: string, purpose: string, ruleIds: string[], sections: CorpusSection[] }} CorpusDocument */
+/** @typedef {Record<string, unknown> & { documentId: string, ruleScopes: Record<string, RuleScope | undefined> }} CorpusLabel */
+/** @typedef {{ documents: CorpusDocument[], model: string, rulesFile: string, threshold: number }} CorpusManifest */
 /** @type {(samples: CorpusSample[], split: string) => { documentId: string, sample: CorpusSample }[]} */
 const selectSamples = (samples, split) => {
   const selected = samples
     .map((sample, index) => ({
-      sample,
       documentId: `sample-${String(index + firstSampleId).padStart(sampleIdWidth, "0")}`,
+      sample,
     }))
     .filter(({ sample }) => split === "all" || sample.split === split);
   requireValue(hasEntries(selected), "No samples selected");
@@ -100,6 +104,7 @@ const loadPage = async (sample, repository, scopes) => {
  * @param {ReturnType<typeof selectSamples>} selected - Samples with stable document IDs.
  * @param {string} repository - The checkout containing the pinned file revisions.
  * @param {Map<string, RuleScope>} scopes - The rule scopes declared in the rule file.
+ * @returns {Promise<{ documents: CorpusDocument[], labels: CorpusLabel[], pages: { page: string, path: string }[] }>} The documents, labels, and source pages in corpus order.
  */
 const collectCorpusFiles = async (selected, repository, scopes) => {
   const documents = [];
@@ -111,6 +116,7 @@ const collectCorpusFiles = async (selected, repository, scopes) => {
     const page = await loadPage(sample, repository, scopes);
     const fileName = `${documentId}.md`;
     pages.push({ page, path: fileName });
+    /* oxlint-disable eslint/sort-keys -- Preserve the document and section field order in the saved manifest. */
     documents.push({
       id: documentId,
       path: fileName,
@@ -126,6 +132,7 @@ const collectCorpusFiles = async (selected, repository, scopes) => {
       ],
       ruleIds: sample.ruleIds,
     });
+    /* oxlint-enable eslint/sort-keys */
     labels.push({
       ...sample.original,
       documentId,
@@ -159,7 +166,10 @@ const writeCorpusFiles = async (outputDir, { labelFile, manifest, pages }) => {
   );
 };
 
-/** @param {PrepareOptions} options - The pinned corpus inputs and output directory. */
+/**
+ * @param {PrepareOptions} options - The pinned corpus inputs and output directory.
+ * @returns {Promise<{ labels: { samples: CorpusLabel[], version: number }, manifest: CorpusManifest }>} The corpus manifest and sealed labels.
+ */
 export const prepareCorpus = async function ({
   repository,
   outputDir,
@@ -176,6 +186,7 @@ export const prepareCorpus = async function ({
   const scopes = await readRuleScopes(rulesPath);
   const selected = selectSamples(samples, split);
   const { documents, labels, pages } = await collectCorpusFiles(selected, repository, scopes);
+  /* oxlint-disable eslint/sort-keys -- Preserve the field order of the prepared manifest and sealed labels. */
   const manifest = {
     rulesFile: path.resolve(rulesPath),
     model: "typesafe/jev",
@@ -183,7 +194,9 @@ export const prepareCorpus = async function ({
     documents,
   };
   const labelFile = { version: corpusVersion, samples: labels };
+  /* oxlint-enable eslint/sort-keys */
   await writeCorpusFiles(outputDir, { labelFile, manifest, pages });
+  // oxlint-disable-next-line eslint/sort-keys -- Preserve the native preparation result's field order.
   return { manifest, labels: labelFile };
 };
 
@@ -240,17 +253,17 @@ const main = async function () {
     const { command, options } = parseArguments(process.argv.slice(firstCliArgument));
     if (command === "prepare") {
       await prepareCorpus({
-        repository: options.repository,
         outputDir: options["output-dir"],
-        split: options.split,
-        specPath: options.spec,
+        repository: options.repository,
         rulesPath: options.rules,
+        specPath: options.spec,
+        split: options.split,
       });
     } else {
       const result = await scoreCorpus({
-        reportPath: options.report,
         labelsPath: options.labels,
         outputPath: options.output,
+        reportPath: options.report,
       });
       if (!result.coverage.exact || result.totals.infrastructureError > noEntries) {
         process.exitCode = 1;

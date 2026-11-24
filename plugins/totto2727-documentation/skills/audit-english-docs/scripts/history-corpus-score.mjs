@@ -5,41 +5,56 @@ import {
   defaultThreshold,
   hasEntries,
   noEntries,
-  nonempty,
   requireValue,
   validateSamples,
 } from "./history-corpus-labels.mjs";
-import { matchesNull, matchesString, matchesUndefined } from "./native-predicates.mjs";
+import { indexExpectedScores, matchEvaluations } from "./history-corpus-matching.mjs";
+import { matchesNull, matchesUndefined } from "./native-predicates.mjs";
 
 const singleAnswer = 1;
 const minimumProbability = 0;
 const maximumProbability = 1;
+// oxlint-disable-next-line unicorn/no-null -- The score format stores a JSON null for exploratory rows without expected labels.
+const exploratoryLabel = null;
 
 /** @typedef {import("./history-corpus-labels.mjs").CorpusSample} CorpusSample */
-/** @typedef {import("./history-corpus-labels.mjs").RuleScope} RuleScope */
+/** @typedef {import("./history-corpus-matching.mjs").ScoringTarget} ScoringTarget */
 
 /** @type {Readonly<["pass", "fail", "not_applicable", "insufficient_context"]>} */
 const choices = ["pass", "fail", "not_applicable", "insufficient_context"];
 /** @typedef {(typeof choices)[number]} PredictedChoice */
 /** @typedef {"pass" | "fail" | "abstention" | "infrastructureError"} ScoreOutcome */
 
-const counters = function () {
-  return {
-    total: 0,
-    labeled: 0,
-    exploratory: 0,
-    expectedPass: 0,
-    expectedFail: 0,
-    predictedPass: 0,
-    predictedFail: 0,
-    truePositive: 0,
-    trueNegative: 0,
-    falseAcceptance: 0,
-    falseRejection: 0,
-    abstention: 0,
-    infrastructureError: 0,
-    missing: 0,
-  };
+/* oxlint-disable eslint/sort-keys -- Preserve the score file's established counter field order. */
+const initialCounts = {
+  total: 0,
+  labeled: 0,
+  exploratory: 0,
+  expectedPass: 0,
+  expectedFail: 0,
+  predictedPass: 0,
+  predictedFail: 0,
+  truePositive: 0,
+  trueNegative: 0,
+  falseAcceptance: 0,
+  falseRejection: 0,
+  abstention: 0,
+  infrastructureError: 0,
+  missing: 0,
+};
+/* oxlint-enable eslint/sort-keys */
+
+/** @type {() => typeof initialCounts} */
+const counters = () => ({ ...initialCounts });
+
+/** @type {(count: ReturnType<typeof counters>, row: ScoreRow) => void} */
+const countPrediction = (count, row) => {
+  count[row.outcome === "pass" ? "predictedPass" : "predictedFail"] += 1;
+  if (row.expected === "fail") {
+    count[row.outcome === "fail" ? "truePositive" : "falseAcceptance"] += 1;
+  } else if (row.expected === "pass") {
+    count[row.outcome === "pass" ? "trueNegative" : "falseRejection"] += 1;
+  }
 };
 
 /** @type {(count: ReturnType<typeof counters>, row: ScoreRow) => void} */
@@ -50,12 +65,7 @@ const addCount = function (count, row) {
     count[row.expected === "pass" ? "expectedPass" : "expectedFail"] += 1;
   }
   if (row.outcome === "pass" || row.outcome === "fail") {
-    count[row.outcome === "pass" ? "predictedPass" : "predictedFail"] += 1;
-    if (row.expected === "fail") {
-      count[row.outcome === "fail" ? "truePositive" : "falseAcceptance"] += 1;
-    } else if (row.expected === "pass") {
-      count[row.outcome === "pass" ? "trueNegative" : "falseRejection"] += 1;
-    }
+    countPrediction(count, row);
   } else {
     count[row.outcome] += 1;
   }
@@ -64,13 +74,19 @@ const addCount = function (count, row) {
   }
 };
 
-/** @typedef {{ evaluation: Record<string, unknown>, answers: Array<Record<string, unknown> | undefined> }} AnswerMatch */
-/** @typedef {{ documentId: string, matches: AnswerMatch[], ruleId: string, sample: CorpusSample, scope: RuleScope }} ScoringTarget */
 /** @typedef {{ choice?: PredictedChoice, confidence?: number, documentId: string, expected: unknown, family: string, outcome: ScoreOutcome, reason?: string, ruleId: string, sampleId: string, split: CorpusSplit }} ScoreRow */
-/** @typedef {{ documentId?: unknown, kind: string, questionId?: unknown }} ScoreIssue */
-
-/** @type {(documentId: unknown, ruleId: unknown) => string} */
-const targetKey = (documentId, ruleId) => JSON.stringify([documentId, ruleId]);
+/** @typedef {{ duplicates: number, missing: number }} Counts */
+/** @typedef {import("./history-corpus-matching.mjs").ScoreIssue} ScoreIssue */
+/** @type {(choice: PredictedChoice, lowConfidence: boolean, reviewRequired: boolean) => Pick<ScoreRow, "outcome" | "reason">} */
+const scoredOutcome = (choice, lowConfidence, reviewRequired) => {
+  if (lowConfidence) {
+    return { outcome: "abstention", reason: "low_confidence" };
+  }
+  if (choice === "fail" || (choice === "pass" && !reviewRequired)) {
+    return { outcome: choice };
+  }
+  return { outcome: "abstention", reason: choice === "pass" ? "review_required" : choice };
+};
 
 /** @type {(row: ScoreRow, answer: Record<string, unknown> | undefined, threshold: number) => void} */
 const scoreCompletedAnswer = (row, answer, threshold) => {
@@ -84,19 +100,15 @@ const scoreCompletedAnswer = (row, answer, threshold) => {
     row.reason = "malformed_answer";
     return;
   }
-  row.choice = choice;
-  row.confidence = confidence;
-  if (confidence < threshold) {
-    row.outcome = "abstention";
-    row.reason = "low_confidence";
-    return;
-  }
-  if (choice === "fail" || (choice === "pass" && answer?.reviewRequired !== true)) {
-    row.outcome = choice;
-    return;
-  }
-  row.outcome = "abstention";
-  row.reason = choice === "pass" ? "review_required" : choice;
+  Object.assign(
+    row,
+    { choice, confidence },
+    scoredOutcome(
+      choice,
+      confidence < threshold,
+      confidence >= threshold && choice === "pass" && answer?.reviewRequired === true,
+    ),
+  );
 };
 
 /** @type {(report: unknown, labels: unknown) => { evaluations: unknown[], samples: CorpusSample[], threshold: number }} */
@@ -116,108 +128,26 @@ const scoreInput = (report, labels) => {
   return { evaluations, samples, threshold };
 };
 
-/** @type {(samples: CorpusSample[]) => { documents: Set<string>, expected: Map<string, ScoringTarget> }} */
-const indexExpectedScores = (samples) => {
-  /** @type {Map<string, ScoringTarget>} */
-  const expected = new Map();
-  /** @type {Set<string>} */
-  const documents = new Set();
-  samples.forEach((sample) => {
-    const { documentId, ruleScopes } = sample.original;
-    requireValue(
-      nonempty(documentId) && !documents.has(documentId),
-      "Labels need unique documentIds",
-    );
-    documents.add(documentId);
-    sample.ruleIds.forEach((ruleId) => {
-      const scope =
-        /** @type {Record<string, unknown> | undefined} */ (ruleScopes)?.[ruleId] ?? "section";
-      requireValue(scope === "section" || scope === "page", "Invalid label rule scope");
-      expected.set(targetKey(documentId, ruleId), {
-        documentId,
-        matches: [],
-        ruleId,
-        sample,
-        scope,
-      });
-    });
-  });
-  return { documents, expected };
+/** @type {(row: ScoreRow, match: ScoringTarget["matches"][number], state: { counts: Counts, threshold: number }) => void} */
+const scoreMatchedQuestion = (row, { evaluation, answers }, { counts, threshold }) => {
+  if (evaluation.status !== "complete") {
+    row.reason = evaluation.status === "error" ? "evaluation_error" : "not_evaluated";
+  } else if (answers.length === singleAnswer) {
+    scoreCompletedAnswer(row, answers[0], threshold);
+  } else if (hasEntries(answers)) {
+    row.reason = "duplicate_answer";
+    counts.duplicates += answers.length - singleAnswer;
+  } else {
+    row.reason = "missing";
+    counts.missing += singleAnswer;
+  }
 };
 
-/** @type {(evaluations: unknown[], index: ReturnType<typeof indexExpectedScores>) => ScoreIssue[]} */
-const matchEvaluations = (evaluations, { documents, expected }) => {
-  /** @type {ScoreIssue[]} */
-  const issues = [];
-  evaluations.forEach((rawEvaluation) => {
-    const evaluation = asRecord(rawEvaluation);
-    const rawQuestions = asArray(evaluation?.questions);
-    if (matchesUndefined(evaluation) || matchesUndefined(rawQuestions)) {
-      issues.push({ kind: "malformed_evaluation" });
-      return;
-    }
-    if (!matchesString(evaluation.documentId) || !documents.has(evaluation.documentId)) {
-      issues.push({ kind: "unexpected_document", documentId: evaluation.documentId });
-    }
-    const questions = rawQuestions.map((question) => asRecord(question));
-    const answers = (asArray(evaluation.answers) ?? []).map((answer) => asRecord(answer));
-    const questionIds = new Set(questions.map((question) => question?.id));
-    const ambiguousIds = new Set(
-      questions
-        .filter(
-          (question, index, all) => all.findIndex((other) => other?.id === question?.id) !== index,
-        )
-        .map((question) => question?.id),
-    );
-    Iterator.from(answers).forEach((answer) => {
-      if (!questionIds.has(answer?.questionId)) {
-        issues.push({
-          kind: "unexpected_answer",
-          documentId: evaluation.documentId,
-          questionId: answer?.questionId,
-        });
-      }
-    });
-    Iterator.from(questions).forEach((question) => {
-      if (!nonempty(question?.id) || ambiguousIds.has(question.id)) {
-        issues.push({
-          kind: "ambiguous_question_id",
-          documentId: evaluation.documentId,
-          questionId: question?.id,
-        });
-        return;
-      }
-      const target = expected.get(targetKey(evaluation.documentId, asRecord(question?.rule)?.id));
-      const section = asRecord(evaluation.section);
-      const range = asRecord(section?.sourceRange);
-      if (
-        !target ||
-        evaluation.scope !== target.scope ||
-        (target.scope === "section" &&
-          (section?.id !== "target" ||
-            range?.startLine !== target.sample.startLine ||
-            range?.endLine !== target.sample.endLine))
-      ) {
-        issues.push({
-          kind: "unexpected_question",
-          documentId: evaluation.documentId,
-          questionId: question?.id,
-        });
-        return;
-      }
-      target.matches.push({
-        evaluation,
-        answers: answers.filter((answer) => answer?.questionId === question.id),
-      });
-    });
-  });
-  return issues;
-};
-
-/** @type {(targets: Iterable<ScoringTarget>, threshold: number) => { counts: { duplicates: number, missing: number }, rows: ScoreRow[] }} */
+/** @type {(targets: Iterable<ScoringTarget>, threshold: number) => { counts: Counts, rows: ScoreRow[] }} */
 const scoreRows = (targets, threshold) => {
   const counts = { duplicates: 0, missing: 0 };
   const rows = Array.from(targets, ({ documentId, sample, ruleId, matches }) => {
+    /* oxlint-disable eslint/sort-keys -- Keep the serialized row columns in their established order. */
     /** @type {ScoreRow} */
     const row = {
       documentId,
@@ -225,9 +155,10 @@ const scoreRows = (targets, threshold) => {
       family: sample.family,
       split: sample.split,
       ruleId,
-      expected: Object.hasOwn(sample.expected, ruleId) ? sample.expected[ruleId] : null,
+      expected: Object.hasOwn(sample.expected, ruleId) ? sample.expected[ruleId] : exploratoryLabel,
       outcome: "infrastructureError",
     };
+    /* oxlint-enable eslint/sort-keys */
     if (!hasEntries(matches)) {
       row.reason = "missing";
       counts.missing += singleAnswer;
@@ -235,26 +166,14 @@ const scoreRows = (targets, threshold) => {
       row.reason = "duplicate_question";
       counts.duplicates += matches.length - singleAnswer;
     } else {
-      const { evaluation, answers } = matches[0];
-      if (evaluation.status !== "complete") {
-        row.reason = evaluation.status === "error" ? "evaluation_error" : "not_evaluated";
-      } else if (answers.length === singleAnswer) {
-        scoreCompletedAnswer(row, answers[0], threshold);
-      } else {
-        row.reason = hasEntries(answers) ? "duplicate_answer" : "missing";
-        if (!hasEntries(answers)) {
-          counts.missing += singleAnswer;
-        } else {
-          counts.duplicates += answers.length - singleAnswer;
-        }
-      }
+      scoreMatchedQuestion(row, matches[0], { counts, threshold });
     }
     return row;
   });
   return { counts, rows };
 };
 
-/** @param {ScoreRow[]} rows - The completed score rows in corpus order. */
+/** @type {(rows: ScoreRow[]) => { perFamily: Record<string, typeof initialCounts>, perRule: Record<string, typeof initialCounts>, totals: typeof initialCounts }} */
 const summarizeRows = (rows) => {
   const totals = counters();
   /** @type {Map<string, ReturnType<typeof counters>>} */
@@ -276,6 +195,7 @@ const summarizeRows = (rows) => {
 /**
  * @param {unknown} report - A semantic evaluator report.
  * @param {unknown} labels - The sealed corpus labels.
+ * @returns {ReturnType<typeof summarizeRows> & { coverage: Counts & { exact: boolean, expected: number, exploratory: number, labeled: number, matched: number, unexpected: number }, issues: ScoreIssue[], positiveClass: string, rows: ScoreRow[], threshold: number, version: number }} The score and coverage report in corpus order.
  */
 export const scoreReport = function (report, labels) {
   const { evaluations, samples, threshold } = scoreInput(report, labels);
@@ -287,6 +207,7 @@ export const scoreReport = function (report, labels) {
     rows,
   } = scoreRows(expected.values(), threshold);
   const { perFamily, perRule, totals } = summarizeRows(rows);
+  /* oxlint-disable eslint/sort-keys -- Keep the public score report and coverage fields in their established order. */
   return {
     version: corpusVersion,
     positiveClass: "fail",
@@ -308,4 +229,5 @@ export const scoreReport = function (report, labels) {
     rows,
     issues,
   };
+  /* oxlint-enable eslint/sort-keys */
 };
