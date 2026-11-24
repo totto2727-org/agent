@@ -1,11 +1,18 @@
 // oxlint-disable-next-line rules/no-node-imports -- The standalone Bun watcher uses this built-in to remove terminal control codes before writing the watcher's report.
 import { stripVTControlCharacters } from "node:util";
-import type * as T from "./types.ts";
+import type * as Watch from "./types.ts";
 import { visitItems } from "./native-iteration.ts";
+import { matchesNull, matchesUndefined } from "./native-predicates.ts";
 
-export const renderJson = (verdict: T.WatcherVerdict): string =>
+const EMPTY = 0;
+const SINGULAR_COUNT = 1;
+const FIRST_LINE_COUNT = 1;
+const BODY_PREVIEW_LENGTH = 180;
+const pluralSuffix = (count: number): string => count === SINGULAR_COUNT ? "" : "s";
+
+export const renderJson = (verdict: Watch.WatcherVerdict): string =>
   `${JSON.stringify(verdict)}\n`;
-const ciCell = function (row: T.PrSnapshot): string {
+const ciCell = function (row: Watch.PrSnapshot): string {
   if (row.kind !== "open") {return "\u2014";}
   const was = row.ci.hadPreviousPassingCi ? ", was ✅" : "";
   switch (row.ci.kind) {
@@ -16,7 +23,7 @@ const ciCell = function (row: T.PrSnapshot): string {
       return `⏳ ${row.ci.pending.length} pending${was}`;
     }
     case "ci-failing": {
-      return `❌ ${row.ci.failed.length} failed${row.ci.pending.length ? `, ${row.ci.pending.length} pending` : ""}${was}`;
+      return `❌ ${row.ci.failed.length} failed${row.ci.pending.length > EMPTY ? `, ${row.ci.pending.length} pending` : ""}${was}`;
     }
     case "ci-github-rejected": {
       return `❌ GitHub reports failing checks${was}`;
@@ -27,18 +34,15 @@ const ciCell = function (row: T.PrSnapshot): string {
     }
   }
 };
-const reviewCell = function (row: T.PrSnapshot): string {
+const reviewCell = function (row: Watch.PrSnapshot): string {
   if (row.kind !== "open") {return "\u2014";}
   const open = row.threads.length;
-  return row.reviewAutomationRunning
-    ? (open
-      ? `🤖 running, ${open} open`
-      : "🤖 running")
-    : (open
-      ? `📝 ${open} open`
-      : "✅");
+  if (row.reviewAutomationRunning) {
+    return open > EMPTY ? `🤖 running, ${open} open` : "🤖 running";
+  }
+  return open > EMPTY ? `📝 ${open} open` : "✅";
 };
-const mergeCell = function (row: T.PrSnapshot): string {
+const mergeCell = function (row: Watch.PrSnapshot): string {
   if (row.kind === "merged") {return "✅ merged";}
   if (row.kind === "closed") {return "❌ closed";}
   if (row.facts.isDraft) {return "⏸ draft";}
@@ -50,7 +54,7 @@ const mergeCell = function (row: T.PrSnapshot): string {
     ? "⚠️ conflict"
     : "✅";
 };
-export const renderStatusTable = function renderStatusTable(rows: T.NonEmpty<T.PrSnapshot>): string {
+export const renderStatusTable = function renderStatusTable(rows: Watch.NonEmpty<Watch.PrSnapshot>): string {
   const lines = ["| PR | CI | Review | Merge |", "| --- | --- | --- | --- |"];
   visitItems(rows, (row) => {
     const url = `https://github.com/${row.context.owner}/${row.context.repo}/pull/${row.context.number}`;
@@ -63,14 +67,16 @@ export const renderStatusTable = function renderStatusTable(rows: T.NonEmpty<T.P
 const sanitizeText = function (value: string): string {
   return stripVTControlCharacters(value).replaceAll(/\p{Cc}/gu, "");
 };
-const threadLine = function (thread: T.ReviewThread): string {
+const displayText = (value: string | null | undefined): string => {
+  if (matchesNull(value) || matchesUndefined(value)) {return "None";}
+  return value.length === EMPTY ? "None" : sanitizeText(value);
+};
+const threadLine = function (thread: Watch.ReviewThread): string {
   const comment = thread.firstComment;
-  const path = comment?.path ? sanitizeText(comment.path) : "None";
-  const authorLogin = comment?.authorLogin
-    ? sanitizeText(comment.authorLogin)
-    : "None";
-  const bodyLine = (comment?.body ?? "").split(/\r?\n/u, 1)[0] ?? "";
-  const sanitizedBody = sanitizeText(bodyLine).slice(0, 180);
+  const path = displayText(comment?.path);
+  const authorLogin = displayText(comment?.authorLogin);
+  const [bodyLine = ""] = (comment?.body ?? "").split(/\r?\n/u, FIRST_LINE_COUNT);
+  const sanitizedBody = sanitizeText(bodyLine).slice(EMPTY, BODY_PREVIEW_LENGTH);
   return [
     thread.id,
     path,
@@ -86,7 +92,34 @@ type StatusQueryBlocker = Readonly<{
   failures: number;
   failure: Readonly<{ detail: string }>;
 }>;
-const renderBlocker = function (blocker: T.MergeBlocker | StatusQueryBlocker): string {
+type FailingChecksBlocker = Extract<Watch.MergeBlocker, { kind: "failing-checks" }>;
+const renderFailingChecks = (blocker: FailingChecksBlocker): string => {
+  const failed = blocker.ci.kind === "ci-failing" ? blocker.ci.failed : [];
+  const details = failed.map(
+    (check) => `${check.name} ${check.reportedState} ${check.description} ${check.link}`,
+  );
+  if (blocker.ci.kind === "ci-github-rejected") {
+    details.push(
+      `mergeStateStatus=${blocker.ci.github.mergeStateStatus}`,
+      `headRollupState=${blocker.ci.github.headRollupState}`,
+    );
+  }
+  return [
+    "BLOCKER: failing-checks",
+    `pr=${blocker.pr.number}`,
+    `failed=${failed.length}`,
+    ...details,
+  ].join("\n");
+};
+
+type MergeGate = Extract<Watch.MergeBlocker, { kind: "merge-gate" }>;
+const mergeGateAction = (reason: MergeGate["reason"]): string => {
+  if (reason === "closed-without-merge") {return "restore or remove the closed PR from the queued stack";}
+  if (reason === "draft-pr") {return "mark the PR ready for review before waiting for the merge queue";}
+  return "resolve the changes-requested review before waiting for the merge queue";
+};
+
+const renderBlocker = function (blocker: Watch.MergeBlocker | StatusQueryBlocker): string {
   switch (blocker.kind) {
     case "merge-conflicts": {
       return [
@@ -106,34 +139,13 @@ const renderBlocker = function (blocker: T.MergeBlocker | StatusQueryBlocker): s
       ].join("\n");
     }
     case "failing-checks": {
-      const failed = blocker.ci.kind === "ci-failing" ? blocker.ci.failed : [];
-      const details = failed.map(
-        (check) =>
-          `${check.name} ${check.reportedState} ${check.description} ${check.link}`
-      );
-      if (blocker.ci.kind === "ci-github-rejected")
-        {details.push(
-          `mergeStateStatus=${blocker.ci.github.mergeStateStatus}`,
-          `headRollupState=${blocker.ci.github.headRollupState}`
-        );}
-      return [
-        "BLOCKER: failing-checks",
-        `pr=${blocker.pr.number}`,
-        `failed=${failed.length}`,
-        ...details,
-      ].join("\n");
+      return renderFailingChecks(blocker);
     }
     case "merge-gate": {
-      const action =
-        blocker.reason === "closed-without-merge"
-          ? "restore or remove the closed PR from the queued stack"
-          : (blocker.reason === "draft-pr"
-            ? "mark the PR ready for review before waiting for the merge queue"
-            : "resolve the changes-requested review before waiting for the merge queue");
       return [
         `BLOCKER: ${blocker.reason}`,
         `pr=${blocker.pr.number}`,
-        `action=${action}`,
+        `action=${mergeGateAction(blocker.reason)}`,
       ].join("\n");
     }
     case "status-query": {
@@ -150,18 +162,25 @@ const renderBlocker = function (blocker: T.MergeBlocker | StatusQueryBlocker): s
     }
   }
 };
-export const renderPretty = function renderPretty(verdict: T.WatcherVerdict): string {
+type WaitingVerdict = Extract<Watch.ProgressVerdict, { kind: "WAITING" }>;
+const renderWaiting = (verdict: WaitingVerdict): string => {
+  if (verdict.reason.kind === "pending-checks") {
+    const count = verdict.reason.pending.length;
+    return `WAITING: frontier=#${verdict.frontier.number}; ${count} check${pluralSuffix(count)} pending\n`;
+  }
+  const count = verdict.reason.unmergedCount;
+  return `WAITING: frontier=#${verdict.frontier.number} is blocker-free; waiting for merge queue (${count} PR${pluralSuffix(count)} unmerged)\n`;
+};
+
+type ProgressMessage = Exclude<Watch.ProgressVerdict, { kind: "STATUS" }>;
+const renderProgress = (verdict: ProgressMessage): string => {
   switch (verdict.kind) {
     case "QUEUE": {
-      return `QUEUE: captured ${verdict.queue.length} PR${verdict.queue.length === 1 ? "" : "s"} bottom-to-top: ${verdict.queue.map((pr) => `#${pr.number}`).join(",")}\n`;
-    }
-    case "STATUS": {
-      return renderStatusTable(verdict.rows);
+      const { length } = verdict.queue;
+      return `QUEUE: captured ${length} PR${pluralSuffix(length)} bottom-to-top: ${verdict.queue.map((pr) => `#${pr.number}`).join(",")}\n`;
     }
     case "WAITING": {
-      return verdict.reason.kind === "pending-checks"
-        ? `WAITING: frontier=#${verdict.frontier.number}; ${verdict.reason.pending.length} check${verdict.reason.pending.length === 1 ? "" : "s"} pending\n`
-        : `WAITING: frontier=#${verdict.frontier.number} is blocker-free; waiting for merge queue (${verdict.reason.unmergedCount} PR${verdict.reason.unmergedCount === 1 ? "" : "s"} unmerged)\n`;
+      return renderWaiting(verdict);
     }
     case "ADVANCE": {
       return `ADVANCE: merged #${verdict.merged.number}; next=#${verdict.frontier.number}; remaining=${verdict.remaining}\n`;
@@ -169,29 +188,51 @@ export const renderPretty = function renderPretty(verdict: T.WatcherVerdict): st
     case "RETRY": {
       return `RETRY: GitHub status query failed; retrying in ${verdict.retryInSeconds}s\ndetail=${verdict.failure.detail}\n`;
     }
+    default: {
+      const exhaustive: never = verdict;
+      return exhaustive;
+    }
+  }
+};
+
+const renderReadyDetail = (scope: Extract<Watch.TerminalVerdict, { kind: "READY" }>["scope"]): string => {
+  if (scope.kind !== "single" || scope.pr.kind !== "ready-pr") {return "";}
+  const { ci, gate } = scope.pr.proof;
+  const isDraft = gate.draft === "draft-allowed";
+  const note = isDraft ? "\nnote=draft allowed (--allow-draft); leave draft \u2014 do not mark ready" : "";
+  return `\nmergeStateStatus=${ci.github.mergeStateStatus}\nreviewDecision=${gate.reviewDecision}\nisDraft=${isDraft}${note}`;
+};
+
+const renderTimeout = (reason: Watch.TimeoutVerdict["reason"]): string => {
+  if (reason.kind === "pending-checks") {return "TIMEOUT: checks still pending\n";}
+  if (reason.kind === "status-unavailable") {return "TIMEOUT: GitHub status remained unavailable\n";}
+  return `TIMEOUT: queued stack still has ${reason.unmergedCount} PR${pluralSuffix(reason.unmergedCount)} unmerged; frontier=#${reason.frontier.number}\n`;
+};
+
+type TerminalMessage = Exclude<Watch.TerminalVerdict, { kind: "STATUS" }>;
+const renderTerminal = (verdict: TerminalMessage): string => {
+  switch (verdict.kind) {
     case "BLOCKER": {
       return `${renderBlocker(verdict.blocker)}\n`;
     }
     case "READY": {
-      const detail =
-        verdict.scope.kind === "single" && verdict.scope.pr.kind === "ready-pr"
-          ? `\nmergeStateStatus=${verdict.scope.pr.proof.ci.github.mergeStateStatus}\nreviewDecision=${verdict.scope.pr.proof.gate.reviewDecision}\nisDraft=${verdict.scope.pr.proof.gate.draft === "draft-allowed"}${verdict.scope.pr.proof.gate.draft === "draft-allowed" ? "\nnote=draft allowed (--allow-draft); leave draft \u2014 do not mark ready" : ""}`
-          : "";
-      return `READY: no merge conflicts, no unresolved review threads, no failing or pending checks${detail}\n`;
+      return `READY: no merge conflicts, no unresolved review threads, no failing or pending checks${renderReadyDetail(verdict.scope)}\n`;
     }
     case "COMPLETE": {
-      return `COMPLETE: queued stack merged (${verdict.queue.length} PR${verdict.queue.length === 1 ? "" : "s"})\n`;
+      const { length } = verdict.queue;
+      return `COMPLETE: queued stack merged (${length} PR${pluralSuffix(length)})\n`;
     }
     case "TIMEOUT": {
-      if (verdict.reason.kind === "pending-checks")
-        {return "TIMEOUT: checks still pending\n";}
-      if (verdict.reason.kind === "status-unavailable")
-        {return "TIMEOUT: GitHub status remained unavailable\n";}
-      return `TIMEOUT: queued stack still has ${verdict.reason.unmergedCount} PR${verdict.reason.unmergedCount === 1 ? "" : "s"} unmerged; frontier=#${verdict.reason.frontier.number}\n`;
+      return renderTimeout(verdict.reason);
     }
     default: {
       const exhaustive: never = verdict;
       return exhaustive;
     }
   }
+};
+
+export const renderPretty = (verdict: Watch.WatcherVerdict): string => {
+  if (verdict.kind === "STATUS") {return renderStatusTable(verdict.rows);}
+  return verdict.terminal ? renderTerminal(verdict) : renderProgress(verdict);
 };
