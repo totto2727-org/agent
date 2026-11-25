@@ -4,7 +4,7 @@ import { spawn } from 'node:child_process';
 // oxlint-disable-next-line rules/no-node-imports -- The standalone Statechart tool uses this built-in to type the real subprocess status and streams.
 import type { ChildProcess } from 'node:child_process';
 // oxlint-disable-next-line rules/no-node-imports -- The standalone Statechart tool uses this built-in to inspect or write files through the host filesystem.
-import fs from "node:fs";
+import fs from "node:fs/promises";
 // oxlint-disable-next-line rules/no-node-imports -- The standalone Statechart tool uses this built-in to select the host's real temporary directory.
 import os from "node:os";
 // oxlint-disable-next-line rules/no-node-imports -- The standalone Statechart tool uses this built-in to resolve paths using the host platform's filesystem conventions.
@@ -12,7 +12,7 @@ import path from "node:path";
 // oxlint-disable-next-line rules/no-node-imports -- The standalone Statechart tool uses this built-in to parse the CLI's established switches with its native argument parser.
 import { parseArgs } from "node:util";
 import { killGroup } from "./kill.ts";
-import { messageOf } from "./run.ts";
+import { fileExists, messageOf } from "./run.ts";
 import { matchesNull, matchesUndefined, visitItems } from "./ir.ts";
 import { hostEnvironment } from "#statechart/host-env.ts";
 
@@ -83,120 +83,179 @@ const codeOf = (error: unknown): unknown =>
   // oxlint-disable-next-line rules/no-instanceof-error -- Inspect the native system errors from Node-compatible filesystem operations.
   error instanceof Error && "code" in error ? error.code : undefined;
 
+const FIRST_ENTRY = 0;
+
+const firstEntry = (entries: string[]): string => entries.toSorted()[FIRST_ENTRY];
+
+const hasDirectoryEntry = async (out: string): Promise<boolean> => {
+  try {
+    await fs.lstat(out);
+    return true;
+  } catch (error) {
+    if (codeOf(error) === "ENOENT") {return false;}
+    throw error;
+  }
+};
+
+const unresolvedOutput = async (out: string, error: unknown): Promise<string> => {
+  if (codeOf(error) !== "ENOENT") {
+    throw cliError(`${out} cannot be the output folder. ${messageOf(error)}. Pass --out with a new folder.`, { cause: error });
+  }
+  if (await hasDirectoryEntry(out)) {
+    throw cliError(`${out} cannot be the output folder. It is a broken link. Pass --out with a new folder.`, { cause: error });
+  }
+  return path.resolve(out);
+};
+
+const outputPath = async (out: string): Promise<string> => {
+  const observed: { dest?: string; entries: string[] } = { entries: [] };
+  try {
+    observed.entries = await fs.readdir(out);
+    observed.dest = await fs.realpath(out);
+  } catch (error) {
+    observed.dest = await unresolvedOutput(out, error);
+  }
+  if (observed.entries.length) {
+    throw cliError(`${out} is not empty. It has ${firstEntry(observed.entries)}. The command writes only to a new or empty folder. Pass --out with a new folder.`);
+  }
+  return observed.dest;
+};
+
+const stageFolder = async (dest: string): Promise<string> => {
+  const nearest = { dir: path.dirname(dest) };
+  // oxlint-disable-next-line eslint/no-await-in-loop -- Resolve the nearest existing ancestor before allocating the stage on the same filesystem.
+  while (!(await fileExists(nearest.dir))) {nearest.dir = path.dirname(nearest.dir);}
+  return fs.mkdtemp(path.join(nearest.dir, `.${path.basename(dest)}.statechart-`));
+};
+
+const runtimeArgs = (): string[] => (process.versions.deno ?? "")
+  ? ["run", "--quiet", "--no-prompt", "--allow-read", "--allow-write", "--allow-run", "--allow-env"]
+  : process.execArgv;
+
+interface WorkerOptions {
+  configFile: string;
+  specFile: string;
+  stage: string;
+  tmp: string;
+  view: string;
+}
+
+const launchWorker = (runtime: string[], { configFile, specFile: source, stage, tmp, view }: WorkerOptions): ChildProcess =>
+  spawn(
+    process.execPath,
+    [...runtime, path.join(import.meta.dirname, "worker.ts"), stage, source, configFile, ...(view ? [view] : [])],
+    {
+      detached: true,
+      // oxlint-disable-next-line eslint/sort-keys -- Preserve the environment overlay's order when passing it to the worker.
+      env: { ...hostEnvironment(), TMPDIR: tmp, TEMP: tmp, TMP: tmp },
+      stdio: ["ignore", "inherit", "inherit"],
+    },
+  );
+
+const launchCheck = (options: WorkerOptions): { janitor: ChildProcess; toJanitor: NonNullable<ChildProcess["stdin"]>; worker: ChildProcess } => {
+  const runtime = runtimeArgs();
+  const worker = launchWorker(runtime, options);
+  const janitor = spawn(process.execPath,
+    [...runtime, path.join(import.meta.dirname, "janitor.ts"), String(worker.pid), options.stage, options.tmp],
+    { detached: true, stdio: ["pipe", "ignore", "ignore"] },
+  );
+  return { janitor, toJanitor: janitor.stdin, worker };
+};
+
+const observeWorker = async (worker: ChildProcess, toJanitor: NonNullable<ChildProcess["stdin"]>): Promise<number> => {
+  // oxlint-disable-next-line eslint/no-empty-function -- The janitor can close this pipe during shutdown; attach the native error listener for that race.
+  toJanitor.on("error", () => {});
+  const { promise: exited, resolve: workerExited } = Promise.withResolvers<number>();
+  worker.on("exit", (code) => {
+    toJanitor.write("exited\n");
+    workerExited(code ?? COMMAND_ERROR);
+  });
+  await Promise.race([stopped, exited]);
+  const running = matchesNull(worker.exitCode) && matchesNull(worker.signalCode);
+  const groupOutlivesWorker = process.platform !== "win32";
+  if (!matchesUndefined(worker.pid) && (running || groupOutlivesWorker)) {await killGroup(worker.pid);}
+  return exited;
+};
+
+interface Output {
+  dest: string;
+  out: string;
+  stage: string;
+}
+
+const publish = async (completed: string, { dest, out }: Output): Promise<void> => {
+  await fs.mkdir(path.dirname(dest), { recursive: true });
+  try {
+    await fs.rename(completed, dest);
+  } catch (error) {
+    if (codeOf(error) !== "ENOTEMPTY" && codeOf(error) !== "EEXIST") {throw error;}
+    const appeared = firstEntry(await fs.readdir(dest));
+    throw cliError(`${path.join(out, appeared)} appeared while the check ran, so the command wrote nothing. Pass --out with a new folder.`, { cause: error });
+  }
+  process.stdout.write(await fs.readFile(path.join(dest, "report.md")));
+  // oxlint-disable-next-line eslint/no-console -- The command prints the completed output directory on stdout.
+  console.log(`\nWrote ${out}`);
+};
+
+const interruptedStatus = (workerSignal: NodeJS.Signals | null): number | undefined => {
+  const { name: stop } = interruption;
+  if (!matchesUndefined(stop)) {
+    printError(`${stop} stopped the check, so the command wrote nothing.`);
+    return SIGNAL_STATUS_OFFSET + os.constants.signals[stop];
+  }
+  if (!matchesNull(workerSignal)) {
+    printError(`${workerSignal} killed the check, so the command wrote nothing.`);
+    return COMMAND_ERROR;
+  }
+  return undefined;
+};
+
+const finishCheck = async (verdict: number, workerSignal: NodeJS.Signals | null, output: Output): Promise<number> => {
+  const signalStatus = interruptedStatus(workerSignal);
+  if (!matchesUndefined(signalStatus)) {return signalStatus;}
+  const completed = path.join(output.stage, "done");
+  if ((verdict === CHECK_PASSED || verdict === RULE_BROKEN) && (await fileExists(completed))) {
+    await publish(completed, output);
+    return verdict;
+  }
+  return COMMAND_ERROR;
+};
+
+interface Cleanup {
+  janitor?: ChildProcess;
+  tmp?: string;
+}
+
+const removeStage = async (stage: string, { janitor, tmp }: Cleanup): Promise<void> => {
+  await fs.rm(stage, { force: true, recursive: true });
+  if (!matchesUndefined(tmp)) {await fs.rm(tmp, { force: true, recursive: true });}
+  janitor?.kill("SIGKILL");
+};
+
+const check = async (input: Invocation, configFile: string, output: Output): Promise<number> => {
+  const cleanup: Cleanup = {};
+  const { stage } = output;
+  try {
+    const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "statechart-"));
+    cleanup.tmp = tmp;
+    const { janitor, toJanitor, worker } = launchCheck({ configFile, specFile: input.specFile, stage, tmp, view: input.flags.view ?? "" });
+    cleanup.janitor = janitor;
+    const verdict = await observeWorker(worker, toJanitor);
+    return await finishCheck(verdict, worker.signalCode, output);
+  } finally {
+    await removeStage(stage, cleanup);
+  }
+};
+
 try {
   const configFile = flags.config ?? specFile.replace(/\.tla$/u, ".cfg");
-  if (!fs.existsSync(configFile))
-    {throw cliError(`Cannot find the TLC config ${configFile}. Pass --config FILE.`);}
+  if (!(await fileExists(configFile))) {
+    throw cliError(`Cannot find the TLC config ${configFile}. Pass --config FILE.`);
+  }
   const out = flags.out ?? specFile.replace(/\.tla$/u, "-chart");
-  let entries: string[] = [];
-  let dest: string;
-  try {
-    entries = fs.readdirSync(out);
-    dest = fs.realpathSync(out);
-  } catch (error) {
-    if (codeOf(error) !== "ENOENT")
-      {throw cliError(
-        `${out} cannot be the output folder. ${messageOf(error)}. Pass --out with a new folder.`,
-        { cause: error },
-      );}
-    if (fs.lstatSync(out, { throwIfNoEntry: false }))
-      {throw cliError(
-        `${out} cannot be the output folder. It is a broken link. Pass --out with a new folder.`,
-        { cause: error },
-      );}
-    dest = path.resolve(out);
-  }
-  if (entries.length)
-    {throw cliError(
-      `${out} is not empty. It has ${entries.sort()[0]}. The command writes only to a new or empty folder. Pass --out with a new folder.`,
-    );}
-
-  let base = path.dirname(dest);
-  while (!fs.existsSync(base)) {base = path.dirname(base);}
-  const stage = fs.mkdtempSync(path.join(base, `.${path.basename(dest)}.statechart-`));
-  const done = path.join(stage, "done");
-  const cleanup: { janitor?: ChildProcess; tmp?: string } = {};
-  let exitCode: number;
-  try {
-    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "statechart-"));
-    cleanup.tmp = tmp;
-    const view = flags.view ?? "";
-    const runtime = process.versions.deno
-      ? [
-          "run",
-          "--quiet",
-          "--no-prompt",
-          "--allow-read",
-          "--allow-write",
-          "--allow-run",
-          "--allow-env",
-        ]
-      : process.execArgv;
-    const worker = spawn(
-      process.execPath,
-      [
-        ...runtime,
-        path.join(import.meta.dirname, "worker.ts"),
-        stage,
-        specFile,
-        configFile,
-        ...(view ? [view] : []),
-      ],
-      {
-        detached: true,
-        stdio: ["ignore", "inherit", "inherit"],
-        env: { ...hostEnvironment(), TMPDIR: tmp, TEMP: tmp, TMP: tmp },
-      },
-    );
-    const janitor = spawn(
-      process.execPath,
-      [...runtime, path.join(import.meta.dirname, "janitor.ts"), String(worker.pid), stage, tmp],
-      { detached: true, stdio: ["pipe", "ignore", "ignore"] },
-    );
-    cleanup.janitor = janitor;
-    const toJanitor = janitor.stdin;
-    // oxlint-disable-next-line eslint/no-empty-function -- The janitor can close this pipe during shutdown; attach the native error listener for that race.
-    toJanitor.on("error", () => {});
-    const { promise: exited, resolve: workerExited } = Promise.withResolvers<number>();
-    worker.on("exit", (code) => {
-      toJanitor.write("exited\n");
-      workerExited(code ?? COMMAND_ERROR);
-    });
-    await Promise.race([stopped, exited]);
-    const running = matchesNull(worker.exitCode) && matchesNull(worker.signalCode);
-    const groupOutlivesWorker = process.platform !== "win32";
-    if (!matchesUndefined(worker.pid) && (running || groupOutlivesWorker)) {await killGroup(worker.pid);}
-    const verdict = await exited;
-    const { name: stop } = interruption;
-    const killedBy = worker.signalCode ?? "";
-    if (!matchesUndefined(stop)) {
-      printError(`${stop} stopped the check, so the command wrote nothing.`);
-      exitCode = SIGNAL_STATUS_OFFSET + os.constants.signals[stop];
-    } else if (killedBy) {
-      printError(`${killedBy} killed the check, so the command wrote nothing.`);
-      exitCode = COMMAND_ERROR;
-    } else if ((verdict === CHECK_PASSED || verdict === RULE_BROKEN) && fs.existsSync(done)) {
-      fs.mkdirSync(path.dirname(dest), { recursive: true });
-      try {
-        fs.renameSync(done, dest);
-      } catch (error) {
-        if (codeOf(error) !== "ENOTEMPTY" && codeOf(error) !== "EEXIST") {throw error;}
-        throw cliError(
-          `${path.join(out, fs.readdirSync(dest).sort()[0])} appeared while the check ran, so the command wrote nothing. Pass --out with a new folder.`,
-          { cause: error },
-        );
-      }
-      process.stdout.write(fs.readFileSync(path.join(dest, "report.md")));
-      // oxlint-disable-next-line eslint/no-console -- The command prints the completed output directory on stdout.
-      console.log(`\nWrote ${out}`);
-      exitCode = verdict;
-    } else {exitCode = COMMAND_ERROR;}
-  } finally {
-    fs.rmSync(stage, { force: true, recursive: true });
-    if (!matchesUndefined(cleanup.tmp)) {fs.rmSync(cleanup.tmp, { force: true, recursive: true });}
-    cleanup.janitor?.kill("SIGKILL");
-  }
-  process.exit(exitCode);
+  const dest = await outputPath(out);
+  const stage = await stageFolder(dest);
+  process.exit(await check({ flags, specFile }, configFile, { dest, out, stage }));
 } catch (error) {
   printError(messageOf(error));
   process.exit(COMMAND_ERROR);
