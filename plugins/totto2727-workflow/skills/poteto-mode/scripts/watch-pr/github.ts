@@ -1,8 +1,10 @@
+import { mapRollupNode, parseFastCheck } from "./github-check-decode.ts";
 import { parseJson, run, runJson } from "./github-command.ts";
+import { at, boolean, enumValue, list, missing, nullableEnum, optionalString, record, string, WIRE_NULL } from "./github-json.ts";
 import { errorMessage, WatcherQueryError } from "./github-error.ts";
 import type * as Types from "./types.ts";
 import { nonEmpty, parsePrNumber } from "./types.ts";
-import { isBoolean, isNumber, isString, matchesNull, matchesUndefined } from "./native-predicates.ts";
+import { isNumber, matchesNull, matchesUndefined } from "./native-predicates.ts";
 import { visitItems } from "./native-iteration.ts";
 
 export const REVIEW_THREADS_QUERY =
@@ -12,64 +14,10 @@ export const PR_COMMIT_STATUS_QUERY =
 export const PR_CHECK_ROLLUP_QUERY =
   "\nquery PrCheckRollup($owner: String!, $repo: String!, $pr: Int!, $after: String) {\n  repository(owner: $owner, name: $repo) {\n    pullRequest(number: $pr) {\n      commits(last: 1) {\n        nodes {\n          commit {\n            statusCheckRollup {\n              contexts(first: 100, after: $after) {\n                pageInfo {\n                  hasNextPage\n                  endCursor\n                }\n                nodes {\n                  __typename\n                  ... on CheckRun {\n                    name\n                    status\n                    conclusion\n                    detailsUrl\n                  }\n                  ... on StatusContext {\n                    context\n                    state\n                    targetUrl\n                  }\n                }\n              }\n            }\n          }\n        }\n      }\n    }\n  }\n}\n";
 
+export { mapRollupNode, parseFastCheck } from "./github-check-decode.ts";
 export { ChecksUnavailable, resolveChecks } from "./github-checks.ts";
 export { errorMessage, WatcherQueryError } from "./github-error.ts";
 
-const raw = function (value: unknown): string {
-  try {
-    return JSON.stringify(value);
-  } catch {
-    return String(value);
-  }
-};
-const missing = function (path: string, value?: unknown): never {
-  throw new WatcherQueryError({
-    kind: "missing-key",
-    retryable: true,
-    detail:
-      matchesUndefined(value)
-        ? `missing ${path}`
-        : `invalid ${path}: ${raw(value)}`,
-    ...(matchesUndefined(value) ? {} : { rawValue: raw(value) }),
-  });
-};
-const isRecord = function (value: unknown): value is Record<string, unknown> {
-  // oxlint-disable-next-line rules/force-predicate -- This native JSON record check keeps GitHub parsing independent of Effect in the standalone Bun watcher.
-  return typeof value === "object" && !matchesNull(value) && !Array.isArray(value);
-};
-const record = (value: unknown, path: string): Record<string, unknown> =>
-  isRecord(value) ? value : missing(path, value);
-const list = (value: unknown, path: string): Readonly<unknown[]> =>
-  Array.isArray(value) ? value : missing(path, value);
-const at = function (value: unknown, path: Readonly<string[]>): unknown {
-  const label = path.join(".");
-  const descend = (current: unknown, [key, ...rest]: Readonly<string[]>): unknown => {
-    if (matchesUndefined(key)) {return current;}
-    const object = record(current, label);
-    if (!(key in object)) {missing(label);}
-    return descend(object[key], rest);
-  };
-  return descend(value, path);
-};
-const string = (value: unknown, path: string): string =>
-  isString(value) ? value : missing(path, value);
-const boolean = (value: unknown, path: string): boolean =>
-  isBoolean(value) ? value : missing(path, value);
-const optionalString = (value: unknown, path: string): string | null =>
-  matchesNull(value) ? null : string(value, path);
-const enumValue = function <const Member extends string>(
-  value: unknown,
-  values: Readonly<Member[]>,
-  path: string
-): Member {
-  const match = isString(value) ? values.find((candidate) => candidate === value) : undefined;
-  return match ?? missing(path, value);
-};
-const nullableEnum = <const Member extends string>(
-  value: unknown,
-  values: Readonly<Member[]>,
-  path: string
-): Member | null => (matchesNull(value) ? null : enumValue(value, values, path));
 const MERGE_STATES = [
   "BEHIND",
   "BLOCKED",
@@ -98,7 +46,7 @@ const REVIEW_DECISIONS = [
 // Would stop a genuinely unexpected rollup state from failing closed.
 const reviewDecision = (value: unknown): Types.ReviewDecision =>
   nullableEnum(
-    value === "" ? null : value,
+    value === "" ? WIRE_NULL : value,
     REVIEW_DECISIONS,
     "pull request.reviewDecision"
   );
@@ -152,91 +100,6 @@ const parsePrUrl = function (value: string): Types.PrContext {
       detail: `could not infer owner/repo from PR URL: ${value} (${errorMessage(error)})`,
     });
   }
-};
-const checkDetails = function (value: Record<string, unknown>, nameKey: string) {
-  return {
-    name: string(value[nameKey], nameKey),
-    description: isString(value.description) ? value.description : "",
-    link:
-      isString(value.link)
-        ? value.link
-        : (isString(value.detailsUrl)
-          ? value.detailsUrl
-          : ""),
-    workflow: isString(value.workflow) ? value.workflow : "",
-  };
-};
-// Every read path classifies the owner-approval gate here, so the rule has one
-// Home. A gate that is pending or waits on an owner approval must not count as
-// Pending or failed, or the watcher waits on a human.
-const gateOr = function gateOr(
-  kind: "pending" | "failed",
-  details: Readonly<{
-    name: string;
-    description: string;
-    link: string;
-    workflow: string;
-  }>,
-  reportedState: string
-): Types.Check {
-  return details.name === "Code Review Gate"
-    ? {
-        ...details,
-        kind: "code-review-gate",
-        name: "Code Review Gate",
-        reportedState,
-      }
-    : { ...details, kind, reportedState };
-};
-export const parseFastCheck = function parseFastCheck(value: unknown): Types.Check {
-  const object = record(value, "check");
-  const details = checkDetails(object, "name");
-  const state = string(object.state, "check.state").toUpperCase();
-  const bucket = string(object.bucket, "check.bucket");
-  if (state === "ACTION_REQUIRED") {return gateOr("failed", details, state);}
-  if (bucket === "fail" || ["FAILURE", "ERROR"].includes(state))
-    {return { ...details, kind: "failed", reportedState: state };}
-  if (bucket === "pending") {return gateOr("pending", details, state);}
-  if (bucket === "pass")
-    {return { ...details, kind: "passed", reportedState: state };}
-  if (bucket === "skipping")
-    {return { ...details, kind: "skipped", reportedState: state };}
-  return { ...details, kind: "failed", reportedState: state };
-};
-export const mapRollupNode = function mapRollupNode(value: unknown): Types.Check | null {
-  const object = record(value, "rollup node");
-  const typename = object.__typename;
-  if (typename !== "CheckRun" && typename !== "StatusContext") {return null;}
-  const details = checkDetails(
-    object,
-    typename === "CheckRun" ? "name" : "context"
-  );
-  const link =
-    isString(object.targetUrl) ? object.targetUrl : details.link;
-  if (typename === "CheckRun") {
-    const status =
-      isString(object.status) ? object.status.toUpperCase() : "";
-    const conclusion =
-      isString(object.conclusion)
-        ? object.conclusion.toUpperCase()
-        : "";
-    if (status !== "COMPLETED")
-      {return gateOr("pending", { ...details, link }, "PENDING");}
-    if (conclusion === "SUCCESS")
-      {return { ...details, link, kind: "passed", reportedState: "SUCCESS" };}
-    if (conclusion === "NEUTRAL" || conclusion === "SKIPPED")
-      {return { ...details, link, kind: "skipped", reportedState: conclusion };}
-    if (conclusion === "ACTION_REQUIRED")
-      {return gateOr("failed", { ...details, link }, conclusion);}
-    return { ...details, link, kind: "failed", reportedState: "FAILURE" };
-  }
-  const state =
-    isString(object.state) ? object.state.toUpperCase() : "";
-  if (state === "PENDING" || state === "EXPECTED")
-    {return gateOr("pending", { ...details, link }, "PENDING");}
-  return state === "SUCCESS"
-    ? { ...details, link, kind: "passed", reportedState: state }
-    : { ...details, link, kind: "failed", reportedState: state || "FAILURE" };
 };
 const parseComment = function (value: unknown): Types.ReviewComment {
   const object = record(value, "review comment");
