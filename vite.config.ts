@@ -8,6 +8,15 @@ const auditVitestFiles = ["catalog", "evaluate", "history-corpus", "ste"].map(
   (name) => `${auditScripts}/${name}.test.mjs`,
 );
 
+type Override = NonNullable<typeof preset.overrides>[number];
+
+const scopeVitest = (override: Override): Override => {
+  if (override.plugins?.includes("vitest") === true && override.files.includes("**/*.test.ts")) {
+    return { ...override, files: auditVitestFiles };
+  }
+  return override;
+};
+
 // oxlint-disable-next-line import/no-default-export -- Vite loads the default configuration export.
 export default defineConfig({
   fmt: {
@@ -21,11 +30,7 @@ export default defineConfig({
     ...preset,
     env: { node: true },
     overrides: [
-      ...(preset.overrides ?? []).map((override) =>
-        override.plugins?.includes("vitest") && override.files.includes("**/*.test.ts")
-          ? { ...override, files: auditVitestFiles }
-          : override,
-      ),
+      ...(preset.overrides ?? []).map((override) => scopeVitest(override)),
       {
         // Node.js 22 and later run these distributed JavaScript files directly.
         files: [`${auditScripts}/*.mjs`],
