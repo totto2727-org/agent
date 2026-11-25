@@ -8,8 +8,6 @@ import path from "node:path";
 import { test } from "node:test";
 // oxlint-disable-next-line rules/no-node-imports -- Statechart's native fixtures use this built-in to preserve the native rendering of the observed diagnostic.
 import { inspect } from "node:util";
-// oxlint-disable-next-line rules/no-node-imports -- Statechart's native fixtures use this built-in to convert local module URLs with the host platform's path rules.
-import { fileURLToPath } from "node:url";
 // oxlint-disable-next-line rules/no-node-imports -- Statechart's native fixtures use this built-in to inspect the native V8 state used by the rendering fixture.
 import v8 from "node:v8";
 // oxlint-disable-next-line rules/no-node-imports -- Statechart's native fixtures use this built-in to evaluate the fixture in the native isolated VM context.
@@ -19,8 +17,8 @@ import { report } from "#statechart/backends/report.ts";
 import { readConfig } from "#statechart/frontends/config.ts";
 import { readChecks, readSany, readSpec } from "#statechart/frontends/spec.ts";
 import { checkView, json } from "#statechart/frontends/view.ts";
-import { EC, hasObjectType, hasSection, key, LEVEL, matchesUndefined, show, stateRules, visitItems } from '#statechart/ir.ts';
-import type { Bug, Graph, Message, PathStep, Rule, Spec, Step, Trace, Value, Vars, View } from '#statechart/ir.ts';
+import { byText, EC, hasObjectType, hasSection, key, LEVEL, matchesUndefined, show, stateRules, visitItems } from '#statechart/ir.ts';
+import type { Bug, Graph, Message, PathStep, Rule, Spec, Trace, Value, Vars, View } from '#statechart/ir.ts';
 import { addPast, deadEnds, finder, lasso, mark } from "#statechart/passes/annotate.ts";
 import { pathGraph } from "#statechart/passes/paths.ts";
 import { bugs, walk } from "#statechart/passes/reach.ts";
@@ -35,7 +33,7 @@ import { fileExists, fileLines } from "#statechart/run.ts";
 import { drawn } from "./drawn.ts";
 import { forEachTlcCase } from "./tlc.ts";
 
-const here = path.dirname(fileURLToPath(import.meta.url));
+const here = import.meta.dirname;
 const corpus = (name: string, file: string): string => path.join(here, "corpus", name, file);
 
 const corpusSpec = async (name: string): Promise<Spec> => {
@@ -62,14 +60,12 @@ const graphOf = (states: StateRow[], steps: StepRow[]): Graph => {
 };
 
 const field = (value: Value, name: string): Value => {
-  if (!hasObjectType(value) || value.kind !== "function")
-    {throw new Error(`${inspect(value)} is not a function.`);}
-  for (let fieldIndex = 0; fieldIndex < value.keys.length; fieldIndex++) {
-    const currentValue = value.keys[fieldIndex];
-    if (currentValue === name || (hasObjectType(currentValue) && currentValue.kind === "model" && currentValue.name === name))
-      {return value.values[fieldIndex];}
-  }
-  throw new Error(`${inspect(value)} has no ${name}.`);
+  const fieldNotFound = -1;
+  assert.ok(hasObjectType(value) && value.kind === "function", `${inspect(value)} is not a function.`);
+  const index = value.keys.findIndex((candidate) =>
+    candidate === name || (hasObjectType(candidate) && candidate.kind === "model" && candidate.name === name));
+  assert.ok(index !== fieldNotFound, `${inspect(value)} has no ${name}.`);
+  return value.values[index];
 };
 
 const fixtureText = (value: Value): string => {
@@ -231,7 +227,8 @@ const replay = async function (name: string, graph: Graph): Promise<void> {
   const names = spec.variables;
   const rules = stateRules(spec);
   const find = finder(graph, names);
-  const marks = readMarks(readMessages(fileLines(corpus(name, "ChartRun.out"))), "chart");
+  const chartOutput = fileLines(corpus(name, "ChartRun.out"));
+  const marks = readMarks(readMessages(chartOutput), "chart");
   const past = mark(graph, marks, { find, names, rules });
   const hasCompleteDrawing = !(await fileExists(corpus(name, "ChartRun.exit")));
   const verdictFiles = await readdir(path.join(here, "corpus", name));
@@ -240,8 +237,7 @@ const replay = async function (name: string, graph: Graph): Promise<void> {
     const messages = [...readMessages(fileLines(corpus(name, file)))];
     const { broke } = readVerdict(messages);
     if (!broke) {return;}
-    let rule: Rule | undefined;
-    visitItems(rules, (currentRule) => {if (currentRule.kind === broke.kind && (broke.kind === "deadlock" || currentRule.name === broke.name)) {rule = currentRule;}});
+    const rule = rules.findLast((current) => current.kind === broke.kind && (broke.kind === "deadlock" || current.name === broke.name));
     if (!rule) {return;}
     if (rule.kind === "deadlock" && hasCompleteDrawing && !hasSection(spec, "CONSTRAINT", "ACTION_CONSTRAINT"))
       {deadEnds(graph, rule);}
@@ -259,8 +255,7 @@ test("each corpus bug path is the shortest way to its rule", async () => {
     const graph = parseDot(fileLines(corpus(name, "graph.dot")));
     await replay(name, graph);
     visitItems(bugs(graph), (bug) => {
-      paths[bug.rule.name] = [];
-      for (const stepItem of bug.path) {paths[bug.rule.name].push(stepItem.action);}
+      paths[bug.rule.name] = bug.path.map((stepItem) => stepItem.action);
     });
   });
   assert.deepEqual(paths.NotSolved, [
@@ -345,10 +340,12 @@ test("a chart of only the bug paths words each one with the view, asked once for
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("the graph that parseDot returns keeps none of the text it read", () => {
   v8.setFlagsFromString("--expose-gc");
-  const gc: () => void = vm.runInNewContext("gc");
+  const garbageCollect: unknown = vm.runInNewContext("gc");
+  // oxlint-disable-next-line rules/force-predicate -- Narrow the VM result at the native host boundary before invoking it.
+  assert.ok(typeof garbageCollect === "function", "The VM exposes native garbage collection.");
   const heapUsed = (): number => {
-    gc();
-    gc();
+    Reflect.apply(garbageCollect, undefined, []);
+    Reflect.apply(garbageCollect, undefined, []);
     return process.memoryUsage().heapUsed;
   };
   const mebibyte = 1_048_576;
@@ -358,8 +355,10 @@ test("the graph that parseDot returns keeps none of the text it read", () => {
   const pieceLines = 1024;
   const commentCharacters = 1020;
   const pieces = 16;
-  const dot = function* dot(): Generator<string, void, unknown> {
-    for (let pieceIndex = 0; pieceIndex < pieces; pieceIndex++) {
+  const dot = function* (): Generator<string, void, unknown> {
+    const pieceIndices = Array.from({ length: pieces }, (_value, index) => index);
+    // oxlint-disable-next-line rules/no-for-loops -- Generate and release one full text chunk at a time for the heap test.
+    for (const pieceIndex of pieceIndices) {
       const id = `-${String(pieceIndex).padStart(stateIdDigits, "7")}`;
       const lines = [
         `${id} [label="n = ${pieceIndex}"];`,
@@ -392,7 +391,7 @@ test("TLC's marks place on their states even when TLC wraps them over lines", as
   assert.equal(unplacedChartMarks(graph, out, spec).size, ALL_MARKS_PLACED);
   const bad: Value[][] = [];
   visitItems(graph.states.values(), (currentState) => {if (currentState.breaks.length)
-      {bad.push([field(currentState.vars.rmState, "r1"), field(currentState.vars.rmState, "r2")].toSorted());}});
+      {bad.push([field(currentState.vars.rmState, "r1"), field(currentState.vars.rmState, "r2")].toSorted((left, right) => byText(fixtureText(left), fixtureText(right))));}});
   assert.deepEqual(bad, [
     ["aborted", "committed"],
     ["aborted", "committed"],
@@ -852,10 +851,10 @@ test("NUL and C1 controls in a label are left out, since a browser draws their c
     [["s0", "s1", "Go"]],
   );
   const { chart } = draw(graph, {
-    state: (variables) => (variables.n === SWITCH_ON ? ["P\0\u0080", "C\u00004Dynamic"] : "\0\x9F"),
-    step: () => "a\0\x80b\x85c\x9Fd",
+    state: (variables) => (variables.n === SWITCH_ON ? ["P\0\u0080", "C\u00004Dynamic"] : "\0\u009F"),
+    step: () => "a\0\u0080b\u0085c\u009Fd",
   });
-  assert.doesNotMatch(chart, /[\0\x80-\x9F]|#0;|#1[2-5]\d;/u);
+  assert.doesNotMatch(chart, /[\0\u0080-\u009F]|#0;|#1[2-5]\d;/u);
   assert.match(chart, /^ {2}s\d+: #32;$/mu);
   assert.match(chart, /^ {2}state "P" as s\d+ \{$/mu);
   assert.match(chart, /^ {4}s\d+: C#52;Dynamic$/mu);
@@ -1083,9 +1082,11 @@ test("a view may hide a step inside a loop, but not a step out of it", () => {
   const found = lasso(graph, keyTrace(), { names: ["pos", "key"] });
   assert.ok(found);
   const loop: Bug = { rule: { kind: "property", name: "Opens" }, ...found };
+  // oxlint-disable-next-line unicorn/no-null -- Use the documented explicit null to hide a step inside the loop.
   const { report: chartReport } = draw(graph, { state: keyStateLabel, step: (actionName) => (actionName === "Tick" ? null : actionName) }, [loop]);
   assert.match(chartReport, /^The run stops in "wait, key off" forever\.$/mu);
   assert.throws(
+    // oxlint-disable-next-line unicorn/no-null -- Exercise the error when the same documented null tries to hide an exit.
     () => draw(graph, { state: keyStateLabel, step: (actionName) => (actionName === "Back" ? null : actionName) }, [loop]),
     /the step Back that changes pos\. It is on the path to the Opens bug or leaves its loop/u,
   );
@@ -1106,17 +1107,11 @@ test("a loop that passes one state twice names it once", () => {
       ["c", "a", "Back"],
     ],
   );
-  const stepsAlongPath: PathStep[] = [];
-  for (const [from, to] of ["ab", "ba", "ac", "ca"]) {
-    let step: Step | undefined;
-    for (const currentStep of graph.steps)
-      {if (currentStep.from === from && currentStep.to === to) {
-        step = currentStep;
-        break;
-      }}
+  const stepsAlongPath = ["ab", "ba", "ac", "ca"].map(([from, to]): PathStep => {
+    const step = graph.steps.find((current) => current.from === from && current.to === to);
     assert.ok(step);
-    stepsAlongPath.push({ action: step.action, state: to, step });
-  }
+    return { action: step.action, state: to, step };
+  });
   const loop: Bug = {
     loop: 0,
     path: stepsAlongPath,
@@ -1181,16 +1176,18 @@ test("checkView takes a full view and refuses each wrong kind and every bad colo
     },
     inspect,
   );
+  // oxlint-disable-next-line unicorn/no-null -- Null is an invalid colors value distinct from the absent optional export.
   assert.throws(() => checkView({ colors: null }, inspect), /\bcolors\b[\s\S]*\bobject\b/u);
   assert.throws(() => checkView({ colors: ["blue"] }, inspect), /\bcolors\b[\s\S]*\bobject\b/u);
   assert.throws(() => checkView({ state: "Busy" }, inspect), /\bstate\b[\s\S]*\bfunction\b/u);
   assert.throws(
     () => checkView({ colors: { Busy: "red", Done: "tan", Idle: "repeats" } }, inspect),
-    (error: unknown) =>
-      error instanceof Error &&
-      /\bBusy\b[\s\S]*"red"/u.test(error.message) &&
-      /\bIdle\b[\s\S]*"repeats"/u.test(error.message) &&
-      !/\bDone\b/u.test(error.message),
+    (caught: unknown) =>
+      // oxlint-disable-next-line rules/no-instanceof-error -- This assertion requires the host Error that checkView documents for invalid input.
+      caught instanceof Error &&
+      /\bBusy\b[\s\S]*"red"/u.test(caught.message) &&
+      /\bIdle\b[\s\S]*"repeats"/u.test(caught.message) &&
+      !/\bDone\b/u.test(caught.message),
   );
 });
 
@@ -1210,7 +1207,7 @@ test("a message writes each value the way JavaScript shows it", () => {
   assert.throws(
     () =>
       checkView(
-        // oxlint-disable-next-line eslint/sort-keys -- This expected error verifies the order of the supplied invalid color keys.
+        // oxlint-disable-next-line eslint/sort-keys, eslint/no-new-wrappers, unicorn/new-for-builtins -- The expected message asserts the invalid keys in this order and includes JavaScript's boxed string format.
         { colors: { Lost: Number.NaN, Far: Infinity, Big: BigInt("7"), Boxed: new String("blue"), Loop: loop } },
         inspect,
       ),
@@ -1225,9 +1222,13 @@ test("a message writes each value the way JavaScript shows it", () => {
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("checkView takes colors only as a plain object", () => {
-  const bare: object = Object.create(null);
-  checkView({ colors: Object.assign(bare, { Busy: "blue" }) }, inspect);
-  const inherited: object = Object.create({ Busy: "blue" });
+  const bare = { Busy: "blue" };
+  // oxlint-disable-next-line unicorn/no-null -- Exercise the accepted native null-prototype color record.
+  Object.setPrototypeOf(bare, null);
+  checkView({ colors: bare }, inspect);
+  const inherited = {};
+  Object.setPrototypeOf(inherited, { Busy: "blue" });
+  // oxlint-disable-next-line eslint/no-new-wrappers, unicorn/new-for-builtins -- A boxed primitive is an object, which the view must refuse as a color map.
   visitItems([new Map([["Busy", "blue"]]), inherited, new String("blue")], (colors) => {assert.throws(() => checkView({ colors }, inspect), {
       message: "The view's colors must be a plain object.",
     });});
@@ -1236,11 +1237,10 @@ test("checkView takes colors only as a plain object", () => {
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("the chart uses the colors that checkView read once from the view's own keys", () => {
   const graph = graphOf([["s0", { x: 0 }, true]], []);
-  let reads = 0;
+  const reads = { Busy: NO_CALLS };
   const flips = {
     get Busy() {
-      reads += ONE_CALL;
-      return reads === ONE_CALL ? "blue" : "breaks";
+      return countQuestion(reads, "Busy") === ONE_CALL ? "blue" : "breaks";
     },
   };
   const changed = { Busy: "blue" };
