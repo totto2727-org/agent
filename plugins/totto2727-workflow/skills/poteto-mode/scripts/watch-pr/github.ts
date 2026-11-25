@@ -1,10 +1,11 @@
 import { mapRollupNode, parseFastCheck } from "./github-check-decode.ts";
 import { parseJson, run, runJson } from "./github-command.ts";
-import { at, boolean, enumValue, list, missing, nullableEnum, optionalString, record, string, WIRE_NULL } from "./github-json.ts";
+import { at, boolean, enumValue, list, nullableEnum, optionalString, record, string, WIRE_NULL } from "./github-json.ts";
 import { errorMessage, WatcherQueryError } from "./github-error.ts";
+import { parseReviewThreadPage } from "./github-review-threads.ts";
 import type * as Types from "./types.ts";
 import { nonEmpty, parsePrNumber } from "./types.ts";
-import { isNumber, matchesNull, matchesUndefined } from "./native-predicates.ts";
+import { matchesNull, matchesUndefined } from "./native-predicates.ts";
 import { visitItems } from "./native-iteration.ts";
 
 export const REVIEW_THREADS_QUERY =
@@ -14,6 +15,7 @@ export const PR_COMMIT_STATUS_QUERY =
 export const PR_CHECK_ROLLUP_QUERY =
   "\nquery PrCheckRollup($owner: String!, $repo: String!, $pr: Int!, $after: String) {\n  repository(owner: $owner, name: $repo) {\n    pullRequest(number: $pr) {\n      commits(last: 1) {\n        nodes {\n          commit {\n            statusCheckRollup {\n              contexts(first: 100, after: $after) {\n                pageInfo {\n                  hasNextPage\n                  endCursor\n                }\n                nodes {\n                  __typename\n                  ... on CheckRun {\n                    name\n                    status\n                    conclusion\n                    detailsUrl\n                  }\n                  ... on StatusContext {\n                    context\n                    state\n                    targetUrl\n                  }\n                }\n              }\n            }\n          }\n        }\n      }\n    }\n  }\n}\n";
 
+export { buildReviewThreads, parseReviewThreadPage, resolveReviewThreads } from "./github-review-threads.ts";
 export { mapRollupNode, parseFastCheck } from "./github-check-decode.ts";
 export { ChecksUnavailable, resolveChecks } from "./github-checks.ts";
 export { errorMessage, WatcherQueryError } from "./github-error.ts";
@@ -100,104 +102,6 @@ const parsePrUrl = function (value: string): Types.PrContext {
       detail: `could not infer owner/repo from PR URL: ${value} (${errorMessage(error)})`,
     });
   }
-};
-const parseComment = function (value: unknown): Types.ReviewComment {
-  const object = record(value, "review comment");
-  const author =
-    matchesNull(object.author)
-      ? null
-      : record(object.author, "review comment.author");
-  return {
-    authorLogin:
-      matchesNull(author)
-        ? null
-        : optionalString(author.login, "review comment.author.login"),
-    body: string(object.body, "review comment.body"),
-    path: optionalString(object.path, "review comment.path"),
-    line:
-      matchesNull(object.line)
-        ? null
-        : (isNumber(object.line) && Number.isInteger(object.line)
-          ? object.line
-          : missing("review comment.line", object.line)),
-    createdAt: string(object.createdAt, "review comment.createdAt"),
-  };
-};
-const isBugbot = function (comment: Types.ReviewComment | null): boolean {
-  if (matchesNull(comment)) {return false;}
-  const author = (comment.authorLogin ?? "").toLowerCase();
-  const body = comment.body.toLowerCase();
-  return (
-    author.includes("bugbot") ||
-    (author === "cursor" &&
-      [
-        "bugbot",
-        "cursor_automation_id",
-        "agentic security review",
-        "description start",
-        "severity",
-      ].some((token) => body.includes(token)))
-  );
-};
-const passKey = function (comment: Types.ReviewComment | null): string | null {
-  if (matchesNull(comment)) {return null;}
-  for (const pattern of [
-    /RUN_ID:\s*([a-zA-Z0-9_.:-]+)/u,
-    /CURSOR_AUTOMATION_ID:\s*([a-zA-Z0-9_.:-]+)/u,
-  ]) {
-    const match = pattern.exec(comment.body);
-    if (match?.[1]) {return match[1];}
-  }
-  return null;
-};
-export const parseReviewThreadPage = function parseReviewThreadPage(value: unknown): Types.ReviewThreadPage {
-  const reviewThreads = record(
-    at(value, ["data", "repository", "pullRequest", "reviewThreads"]),
-    "reviewThreads"
-  );
-  const nodes = list(reviewThreads.nodes, "reviewThreads.nodes");
-  const threads: Types.RawReviewThread[] = [];
-  visitItems(nodes, (node) => {
-    const thread = record(node, "review thread");
-    const resolved = boolean(thread.isResolved, "review thread.isResolved");
-    const comments = list(
-      at(thread, ["comments", "nodes"]),
-      "review thread.comments.nodes"
-    );
-    threads.push({
-      id: string(thread.id, "review thread.id"),
-      firstComment: comments.length === 0 ? null : parseComment(comments[0]),
-      resolved,
-    });
-  });
-  const page = record(reviewThreads.pageInfo, "reviewThreads.pageInfo");
-  const hasNextPage = boolean(page.hasNextPage, "reviewThreads.pageInfo.hasNextPage");
-  const cursor = optionalString(
-    page.endCursor,
-    "reviewThreads.pageInfo.endCursor"
-  );
-  return { threads, endCursor: hasNextPage && cursor ? cursor : null };
-};
-export const buildReviewThreads = function buildReviewThreads(
-  threads: Readonly<Types.RawReviewThread[]>
-): Readonly<Types.ReviewThread[]> {
-  const keys = new Set<string>();
-  let keyless = false;
-  visitItems(threads, (thread) => {
-    if (!isBugbot(thread.firstComment)) {return;}
-    const key = passKey(thread.firstComment);
-    if (matchesNull(key)) {keyless = true;}
-    else {keys.add(key);}
-  });
-  const passes = keys.size > 0 ? keys.size : (keyless ? 1 : 0);
-  return threads
-    .filter((thread) => !thread.resolved)
-    .map(({ id, firstComment }) => ({
-      id,
-      firstComment,
-      isBugbot: isBugbot(firstComment),
-      bugbotReviewPasses: passes,
-    }));
 };
 export const parsePullRequest = function parsePullRequest(
   value: unknown,
@@ -401,19 +305,6 @@ export class GhGitHubReader implements Types.GitHubReader {
   }
 }
 
-export const resolveReviewThreads = async function resolveReviewThreads(
-  reader: Types.GitHubReader,
-  context: Types.PrContext
-): Promise<Readonly<Types.ReviewThread[]>> {
-  const threads: Types.RawReviewThread[] = [];
-  let after: string | null = null;
-  do {
-    const page = await reader.reviewThreadPage(context, after);
-    threads.push(...page.threads);
-    after = page.endCursor;
-  } while (!matchesNull(after));
-  return buildReviewThreads(threads);
-};
 export const resolveContext = async function resolveContext(args: Readonly<{
   reader: Types.GitHubReader;
   owner: string | null;
