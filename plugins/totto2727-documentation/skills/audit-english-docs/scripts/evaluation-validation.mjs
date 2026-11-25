@@ -4,7 +4,7 @@ const kibibyte = 1024;
 const maxEvidenceKibibytes = 48;
 export const MAX_EVIDENCE_BYTES = maxEvidenceKibibytes * kibibyte;
 
-// oxlint-disable-next-line rules/require-tagged-error -- Preserve the native error type for the installed CLI without dependencies.
+// oxlint-disable-next-line rules/require-tagged-error, unicorn/custom-error-definition -- Preserve the exported constructor and native Error name in the standalone CLI without dependencies.
 export class EvaluationError extends Error {}
 
 /** @type {(value: unknown, label: string, message?: string) => Record<string, unknown>} */
@@ -30,3 +30,8 @@ export const bounded = (value, label) => {
   }
   return value;
 };
+
+/** @type {(failure: unknown) => string} */
+export const failureMessage = (failure) =>
+  // oxlint-disable-next-line rules/no-instanceof-error -- The standalone CLI preserves native Error messages without repository dependencies.
+  failure instanceof Error ? failure.message : "Evaluation failed";
