@@ -1,51 +1,83 @@
 import type { Value } from "#statechart/ir.ts";
 import { matchesUndefined, visitItems } from "#statechart/ir.ts";
 
-export const BRACKET = new Int8Array(128);
-visitItems("<{[(", (c) => {BRACKET[c.charCodeAt(0)] = 1;});
-visitItems(">}])", (c) => {BRACKET[c.charCodeAt(0)] = -1;});
-const PUNCT = new Map([
-  [60, "<<"],
-  [62, ">>"],
-  [124, "|->"],
-  [58, ":>"],
-  [64, "@@"],
-  [46, ".."],
-]);
-const SPACE = /\s/u;
-export const isSpace = (c: number): boolean =>
-  c === 32 || (c >= 9 && c <= 13) || (c > 127 && SPACE.test(String.fromCharCode(c)));
-const isDigit = (c: number): boolean => c >= 48 && c <= 57;
-const isWord = (c: number): boolean =>
-  isDigit(c) || (c >= 65 && c <= 90) || (c >= 97 && c <= 122) || c === 95;
-const isLineEnd = (c: number) => c === 10 || c === 13 || c === 0x20_28 || c === 0x20_29;
+const FIRST_OFFSET = 0;
+const CODE_UNIT_WIDTH = 1;
+const ESCAPE_WIDTH = 2;
+const OPEN_BRACKET = 1;
+const CLOSE_BRACKET = -1;
+const NO_TOKEN = -1;
+const LAST_ASCII = 127;
+const FIRST_ASCII_SPACE = 9;
+const LAST_ASCII_SPACE = 13;
+const SPACE = 32;
+const LF = 10;
+const CR = 13;
+const LINE_SEPARATOR = 0x20_28;
+const PARAGRAPH_SEPARATOR = 0x20_29;
+const QUOTE = 34;
+const BACKSLASH = 92;
+const COMMA = 44;
+const MINUS = 45;
+const FIRST_DIGIT = 48;
+const LAST_DIGIT = 57;
+const FIRST_UPPER = 65;
+const LAST_UPPER = 90;
+const FIRST_LOWER = 97;
+const LAST_LOWER = 122;
+const UNDERSCORE = 95;
+const ERROR_PREVIEW_WIDTH = 20;
 
-export const tokenEnd = (s: string, i: number): number => {
-  const c = s.charCodeAt(i);
-  if (c === 34) {
-    for (let j = i + 1; j < s.length; j++) {
-      const d = s.charCodeAt(j);
-      if (d === 34) {return j + 1;}
-      if (d === 92 && (++j >= s.length || isLineEnd(s.charCodeAt(j)))) {return -1;}
+const codeUnit = (text: string, offset: number): number =>
+  // oxlint-disable-next-line unicorn/prefer-code-point -- Token offsets index UTF-16 code units, including unmatched surrogate code units in TLC strings.
+  text.charCodeAt(offset);
+
+export const BRACKET = new Int8Array(LAST_ASCII + CODE_UNIT_WIDTH);
+visitItems("<{[(", (bracket) => {BRACKET[codeUnit(bracket, FIRST_OFFSET)] = OPEN_BRACKET;});
+visitItems(">}])", (bracket) => {BRACKET[codeUnit(bracket, FIRST_OFFSET)] = CLOSE_BRACKET;});
+const PUNCT = new Map(["<<", ">>", "|->", ":>", "@@", ".."].map((token) => [codeUnit(token, FIRST_OFFSET), token]));
+const NON_ASCII_SPACE = /\s/u;
+export const isSpace = (code: number): boolean =>
+  code === SPACE || (code >= FIRST_ASCII_SPACE && code <= LAST_ASCII_SPACE) ||
+  // oxlint-disable-next-line unicorn/prefer-code-point -- Preserve the scanner's code-unit conversion for every numeric input.
+  (code > LAST_ASCII && NON_ASCII_SPACE.test(String.fromCharCode(code)));
+const isDigit = (code: number): boolean => code >= FIRST_DIGIT && code <= LAST_DIGIT;
+const isWord = (code: number): boolean =>
+  isDigit(code) || (code >= FIRST_UPPER && code <= LAST_UPPER) || (code >= FIRST_LOWER && code <= LAST_LOWER) || code === UNDERSCORE;
+const isLineEnd = (code: number): boolean =>
+  code === LF || code === CR || code === LINE_SEPARATOR || code === PARAGRAPH_SEPARATOR;
+
+export const tokenEnd = (text: string, start: number): number => {
+  const leading = codeUnit(text, start);
+  const contentStart = start + CODE_UNIT_WIDTH;
+  if (leading === QUOTE) {
+    for (let offset = contentStart; offset < text.length; offset += CODE_UNIT_WIDTH) {
+      const current = codeUnit(text, offset);
+      if (current === QUOTE) {return offset + CODE_UNIT_WIDTH;}
+      if (current === BACKSLASH) {
+        offset += CODE_UNIT_WIDTH;
+        if (offset >= text.length || isLineEnd(codeUnit(text, offset))) {return NO_TOKEN;}
+      }
     }
-    return -1;
+    return NO_TOKEN;
   }
-  const punct = PUNCT.get(c);
-  if (punct) {return s.startsWith(punct, i) ? i + punct.length : -1;}
-  if (BRACKET[c] || c === 44) {return i + 1;}
-  let j = i + 1;
-  if (c === 45 || isDigit(c)) {
-    while (isDigit(s.charCodeAt(j))) {j++;}
-    return c === 45 && j === i + 1 ? -1 : j;
+  const punct = PUNCT.get(leading);
+  if (punct) {return text.startsWith(punct, start) ? start + punct.length : NO_TOKEN;}
+  if (BRACKET[leading] || leading === COMMA) {return contentStart;}
+  let offset = contentStart;
+  if (leading === MINUS || isDigit(leading)) {
+    while (isDigit(codeUnit(text, offset))) {offset += CODE_UNIT_WIDTH;}
+    return leading === MINUS && offset === contentStart ? NO_TOKEN : offset;
   }
-  if (!isWord(c)) {return -1;}
-  while (isWord(s.charCodeAt(j))) {j++;}
-  return j;
+  if (!isWord(leading)) {return NO_TOKEN;}
+  while (isWord(codeUnit(text, offset))) {offset += CODE_UNIT_WIDTH;}
+  return offset;
 };
 
-export const unreadable = (text: string, pos: number) =>
-  new Error(`cannot read TLA+ value at "${text.slice(pos, pos + 20)}"`);
+export const unreadable = (text: string, position: number): Error =>
+  new Error(`cannot read TLA+ value at "${text.slice(position, position + ERROR_PREVIEW_WIDTH)}"`);
 
+const FIRST_TUPLE_KEY = 1;
 const INT = /^-?\d+$/u;
 const NAME = /^\w*[A-Za-z]\w*$/u;
 const UNESCAPED: Record<string, string> = {
@@ -59,58 +91,65 @@ const UNESCAPED: Record<string, string> = {
 
 const models = new Map<string, Value>();
 const model = (name: string) => {
-  let v = models.get(name);
-  if (matchesUndefined(v)) {models.set(name, (v = { kind: "model", name }));}
-  return v;
+  const cached = models.get(name);
+  if (!matchesUndefined(cached)) {return cached;}
+  const value: Value = { kind: "model", name };
+  models.set(name, value);
+  return value;
 };
 
 export const parseValue = function parseValue(text: string): Value {
   const tokens: string[] = [];
   const starts: number[] = [];
-  for (let pos = 0; ;) {
-    while (pos < text.length && isSpace(text.charCodeAt(pos))) {pos++;}
-    if (pos === text.length) {break;}
-    const end = tokenEnd(text, pos);
-    if (end === -1) {throw unreadable(text, pos);}
-    tokens.push(text.slice(pos, end));
-    starts.push(pos);
-    pos = end;
+  for (let offset = FIRST_OFFSET; ;) {
+    while (offset < text.length && isSpace(codeUnit(text, offset))) {offset += CODE_UNIT_WIDTH;}
+    if (offset === text.length) {break;}
+    const end = tokenEnd(text, offset);
+    if (end === NO_TOKEN) {throw unreadable(text, offset);}
+    tokens.push(text.slice(offset, end));
+    starts.push(offset);
+    offset = end;
   }
-  let i = 0;
+  let tokenIndex = FIRST_OFFSET;
   const fail = (): never => {
-    throw unreadable(text, i < starts.length ? starts[Math.max(i - 1, 0)] : text.length);
+    throw unreadable(text, tokenIndex < starts.length ? starts[Math.max(tokenIndex - CODE_UNIT_WIDTH, FIRST_OFFSET)] : text.length);
   };
-  const next = (): string => (i < tokens.length ? tokens[i++] : fail());
-  const eat = (t: string): void => {
-    if (next() !== t) {fail();}
+  const next = (): string => {
+    if (tokenIndex >= tokens.length) {return fail();}
+    const token = tokens[tokenIndex];
+    tokenIndex += CODE_UNIT_WIDTH;
+    return token;
+  };
+  const eat = (expected: string): void => {
+    if (next() !== expected) {fail();}
   };
   const items = <T>(close: string, item: () => T) => {
     const out: T[] = [];
-    if (tokens[i] === close) {
-      i++;
+    if (tokens[tokenIndex] === close) {
+      tokenIndex += CODE_UNIT_WIDTH;
       return out;
     }
     for (;;) {
       out.push(item());
-      const t = next();
-      if (t === close) {return out;}
-      if (t !== ",") {fail();}
+      const separator = next();
+      if (separator === close) {return out;}
+      if (separator !== ",") {fail();}
     }
   };
-  const string = (t: string): string => {
-    let s = "";
-    for (let j = 1, from = 1; ;) {
-      const k = t.indexOf("\\", j);
-      if (k === -1 || k >= t.length - 1) {return s + t.slice(from, -1);}
-      const c = UNESCAPED[t[k + 1]];
-      if (matchesUndefined(c)) {fail();}
-      s += t.slice(from, k) + c;
-      j = from = k + 2;
+  const string = (token: string): string => {
+    let decoded = "";
+    for (let start = CODE_UNIT_WIDTH; ;) {
+      const escape = token.indexOf("\\", start);
+      if (escape === NO_TOKEN || escape >= token.length - CODE_UNIT_WIDTH) {return decoded + token.slice(start, -CODE_UNIT_WIDTH);}
+      const character = UNESCAPED[token[escape + CODE_UNIT_WIDTH]];
+      if (matchesUndefined(character)) {fail();}
+      decoded += token.slice(start, escape) + character;
+      start = escape + ESCAPE_WIDTH;
     }
   };
   const value = (): Value => {
-    const t = next();
-    switch (t) {
+    const token = next();
+    switch (token) {
       case "TRUE": {
         return true;
       }
@@ -122,8 +161,7 @@ export const parseValue = function parseValue(text: string): Value {
       }
       case "<<": {
         const values = items(">>", value);
-        const keys: Value[] = [];
-        for (let k = 1; k <= values.length; k++) {keys.push(k);}
+        const keys = values.map((_value, index) => index + FIRST_TUPLE_KEY);
         return { kind: "function", printedAs: "tuple", keys, values };
       }
       case "[": {
@@ -146,24 +184,24 @@ export const parseValue = function parseValue(text: string): Value {
           eat(":>");
           values.push(value());
         } while (next() === "@@");
-        if (tokens[i - 1] !== ")") {fail();}
+        if (tokens[tokenIndex - CODE_UNIT_WIDTH] !== ")") {fail();}
         return { kind: "function", printedAs: "pairs", keys, values };
       }
     }
-    if (t.charCodeAt(0) === 34) {return string(t);}
-    if (INT.test(t)) {
-      if (tokens[i] !== "..") {return Number(t);}
-      i++;
+    if (codeUnit(token, FIRST_OFFSET) === QUOTE) {return string(token);}
+    if (INT.test(token)) {
+      if (tokens[tokenIndex] !== "..") {return Number(token);}
+      tokenIndex += CODE_UNIT_WIDTH;
       const hi = next();
       if (!INT.test(hi)) {fail();}
-      return { kind: "interval", lo: Number(t), hi: Number(hi) };
+      return { kind: "interval", lo: Number(token), hi: Number(hi) };
     }
-    if (NAME.test(t)) {return model(t);}
+    if (NAME.test(token)) {return model(token);}
     return fail();
   };
   const out = value();
-  if (i < tokens.length) {
-    i++;
+  if (tokenIndex < tokens.length) {
+    tokenIndex += CODE_UNIT_WIDTH;
     fail();
   }
   return out;
