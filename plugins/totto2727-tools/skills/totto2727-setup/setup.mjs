@@ -304,7 +304,7 @@ const uninstall = async function () {
         )
       : undefined;
     if (
-      (auxiliary !== undefined &&
+      (isText(auxiliary) &&
         path.resolve(auxiliary) !== path.join(dest, name) &&
         (await present(auxiliary))) ||
       JSON.stringify(entries[name]) !== JSON.stringify(record?.lock) ||

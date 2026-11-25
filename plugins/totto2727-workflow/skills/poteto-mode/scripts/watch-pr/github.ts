@@ -2,7 +2,7 @@
 import { spawn } from "node:child_process";
 import type * as T from "./types.ts";
 import { nonEmpty, parsePrNumber } from "./types.ts";
-import { isBoolean, isString, matchesNull, matchesUndefined } from "./native-predicates.ts";
+import { isBoolean, isNumber, isString, matchesNull, matchesUndefined } from "./native-predicates.ts";
 import { visitItems } from "./native-iteration.ts";
 
 export const REVIEW_THREADS_QUERY =
@@ -101,6 +101,7 @@ const missing = function (path: string, value?: unknown): never {
   });
 };
 const isRecord = function (value: unknown): value is Record<string, unknown> {
+  // oxlint-disable-next-line rules/force-predicate -- This native JSON record check keeps GitHub parsing independent of Effect in the standalone Bun watcher.
   return typeof value === "object" && !matchesNull(value) && !Array.isArray(value);
 };
 const record = (value: unknown, path: string): Record<string, unknown> =>
@@ -320,8 +321,8 @@ const parseComment = function (value: unknown): T.ReviewComment {
     line:
       matchesNull(object.line)
         ? null
-        : (Number.isInteger(object.line)
-          ? Number(object.line)
+        : (isNumber(object.line) && Number.isInteger(object.line)
+          ? object.line
           : missing("review comment.line", object.line)),
     createdAt: string(object.createdAt, "review comment.createdAt"),
   };

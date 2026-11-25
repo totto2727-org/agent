@@ -226,8 +226,8 @@ const duplicateFixture = async function ({
     documents: [
       document("guide-a"),
       document("guide-b", {
-        ...(secondAudience === undefined ? {} : { audience: secondAudience }),
-        ...(secondRuleIds === undefined ? {} : { ruleIds: secondRuleIds }),
+        ...(matchesUndefined(secondAudience) ? {} : { audience: secondAudience }),
+        ...(matchesUndefined(secondRuleIds) ? {} : { ruleIds: secondRuleIds }),
       }),
     ],
   };
@@ -242,7 +242,7 @@ const cachedEvaluationOf = function (report, documentId, scope, sectionId = null
     (entry) =>
       entry.documentId === documentId &&
       entry.scope === scope &&
-      (sectionId === null || entry.section?.id === sectionId),
+      (matchesNull(sectionId) || entry.section?.id === sectionId),
   );
   assert(!matchesUndefined(entry), `Missing evaluation for ${documentId} (${scope}).`);
   const { answers, cache, questions } = entry;

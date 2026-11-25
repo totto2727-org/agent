@@ -1,3 +1,5 @@
+import { isNumber } from "./native-predicates.ts";
+
 declare const prNumberBrand: unique symbol;
 export type PrNumber = number & Readonly<{ [prNumberBrand]: "PrNumber" }>;
 export type NonEmpty<T> = Readonly<[T, ...T[]]>;
@@ -5,7 +7,7 @@ export const nonEmpty = function nonEmpty<T>(items: Readonly<T[]>): NonEmpty<T> 
   return items.length === 0 ? null : [items[0], ...items.slice(1)];
 };
 export const parsePrNumber = function parsePrNumber(value: unknown, label = "PR number"): PrNumber {
-  if (typeof value !== "number" || !Number.isInteger(value) || value <= 0)
+  if (!isNumber(value) || !Number.isInteger(value) || value <= 0)
     {throw new Error(`${label} must be a positive integer`);}
   return value as PrNumber;
 };
