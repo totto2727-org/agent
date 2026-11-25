@@ -5,19 +5,19 @@ import { matchesUndefined, visitItems } from "#statechart/ir.ts";
 export type Checks = Pick<Spec, "invariants" | "properties" | "deadlock" | "written">;
 
 export const readChecks = function readChecks({ configFile, config }: { configFile: string; config: Config }): Checks {
-  const refuse = (words: string): Error => new Error(`TLC refuses the config ${configFile}. ${words}`);
-  if (config.spec && (config.init || config.next))
+  const refuse = (words: string): Error =>
+    // oxlint-disable-next-line rules/require-tagged-error -- The standalone CLI reports TLC configuration refusals as native Error objects.
+    new Error(`TLC refuses the config ${configFile}. ${words}`);
+  const hasSpec = Boolean(config.spec);
+  const hasInit = Boolean(config.init);
+  if (hasSpec && (hasInit || Boolean(config.next)))
     {throw refuse("The configuration file cannot specify both INIT/NEXT and SPECIFICATION fields.");}
-  if (!config.spec && !config.init)
+  if (!hasSpec && !hasInit)
     {throw refuse("The configuration file did not specify the initial state predicate.");}
   const written: ConfigSection[] = [];
   visitItems(config.sections, (section) => {if (!["INVARIANT", "PROPERTY", "CHECK_DEADLOCK"].includes(section.key)) {written.push(section);}});
-  return {
-    invariants: config.invariants,
-    properties: config.properties,
-    deadlock: config.checkDeadlock !== false,
-    written,
-  };
+  // oxlint-disable-next-line eslint/sort-keys -- Keep the check fields in their existing order in the serialized spec.
+  return { invariants: config.invariants, properties: config.properties, deadlock: config.checkDeadlock !== false, written };
 };
 
 interface XmlNode { tag: string; text: string; children: XmlNode[] }
@@ -36,8 +36,12 @@ const decode = (text: string): string =>
     return String.fromCodePoint(code);
   });
 
+const xmlNode = (tag: string): XmlNode =>
+  // oxlint-disable-next-line eslint/sort-keys -- XML nodes returned in the parsed definitions retain their serialized field order.
+  ({ tag, text: "", children: [] });
+
 const parseXml = (xml: string): XmlNode => {
-  const document: XmlNode = { tag: "", text: "", children: [] };
+  const document = xmlNode("");
   const open = [document];
   visitItems(xml.matchAll(
     /<(?<close>\/?)(?<tag>[^\s/>?!]+)[^>]*?(?<empty>\/?)>|<[?!][^>]*>|(?<text>[^<]+)/gu,
@@ -47,7 +51,7 @@ const parseXml = (xml: string): XmlNode => {
     if (!matchesUndefined(groups?.text)) {parent.text += decode(groups.text);}
     else if (groups?.close === "/") {open.pop();}
     else if (!matchesUndefined(groups?.tag)) {
-      const node: XmlNode = { tag: groups.tag, text: "", children: [] };
+      const node = xmlNode(groups.tag);
       parent.children.push(node);
       if (groups.empty !== "/") {open.push(node);}
     }
@@ -58,6 +62,7 @@ const parseXml = (xml: string): XmlNode => {
 const child = (node: XmlNode | undefined, tag: string): XmlNode | undefined => node?.children.find((currentChild) => currentChild.tag === tag);
 const textOf = (node: XmlNode | undefined, tag: string): string => child(node, tag)?.text ?? "";
 
+// oxlint-disable-next-line typescript/consistent-type-definitions -- Keep the exported SANY result structurally assignable to record consumers.
 export type Sany = {
   variables: string[];
   definitions: Map<string, XmlNode>;
@@ -65,15 +70,28 @@ export type Sany = {
 
 const VARIABLE_KIND = "3";
 
+const symbolsOf = (modules: XmlNode | undefined): Map<string, XmlNode> => {
+  const symbols = new Map<string, XmlNode>();
+  visitItems(child(modules, "context")?.children ?? [], (entry) => {
+    symbols.set(textOf(entry, "UID"), entry.children[CONTEXT_SYMBOL_INDEX]);
+  });
+  return symbols;
+};
+
+const rootModule = (symbols: Map<string, XmlNode>, root: string): XmlNode | undefined => {
+  const selected: { module?: XmlNode } = {};
+  visitItems(symbols.values(), (node) => {
+    if (node.tag === "ModuleNode" && textOf(node, "uniquename") === root) {selected.module = node;}
+  });
+  return selected.module;
+};
+
 export const readSany = function readSany(xml: string): Sany {
   const modules = child(parseXml(xml), "modules");
-  const symbols = new Map<string, XmlNode>();
-  visitItems(child(modules, "context")?.children ?? [], (entry) => {symbols.set(textOf(entry, "UID"), entry.children[CONTEXT_SYMBOL_INDEX]);});
-  const root = textOf(modules, "RootModule");
-  let module: XmlNode | undefined;
-  visitItems(symbols.values(), (node) => {if (node.tag === "ModuleNode" && textOf(node, "uniquename") === root) {module = node;}});
+  const symbols = symbolsOf(modules);
+  const module = rootModule(symbols, textOf(modules, "RootModule"));
   const definitions = new Map<string, XmlNode>();
-  const variables: { uid: number; name: string }[] = [];
+  const variables: { name: string; uid: number }[] = [];
   visitItems(module?.children ?? [], (ref) => {
     if (ref.tag !== "OpDeclNodeRef" && ref.tag !== "UserDefinedOpKindRef") {return;}
     const uid = textOf(ref, "UID");
@@ -82,10 +100,11 @@ export const readSany = function readSany(xml: string): Sany {
     const name = textOf(node, "uniquename");
     definitions.set(name, node);
     if (node.tag === "OpDeclNode" && textOf(node, "kind") === VARIABLE_KIND)
-      {variables.push({ uid: Number(uid), name });}
+      {variables.push({ name, uid: Number(uid) });}
   });
-  variables.sort((left, right) => left.uid - right.uid);
-  return { variables: variables.map((variable) => variable.name), definitions };
+  const names = variables.toSorted((left, right) => left.uid - right.uid).map((variable) => variable.name);
+  // oxlint-disable-next-line eslint/sort-keys -- Retain the established SANY result field order.
+  return { variables: names, definitions };
 };
 
 export const readSpec = function readSpec({
