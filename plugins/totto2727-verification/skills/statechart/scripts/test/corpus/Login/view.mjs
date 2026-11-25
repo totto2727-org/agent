@@ -1,1 +1,2 @@
-export const state = (v) => v.main.split(".");
+/** @type {(stateValue: { main: string }) => string[]} */
+export const state = (stateValue) => stateValue.main.split(".");
