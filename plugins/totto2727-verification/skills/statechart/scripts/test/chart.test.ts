@@ -77,7 +77,19 @@ const fixtureText = (value: Value): string => {
   return String(value);
 };
 
+const SWITCH_OFF = 0;
 const SWITCH_ON = 1;
+const FIRST = 0;
+const LAST = -1;
+const NO_CALLS = 0;
+const ALL_MARKS_PLACED = 0;
+const ONE_CALL = 1;
+
+const countQuestion = (asked: Record<string, number>, question: string): number => {
+  const count = (asked[question] ?? NO_CALLS) + ONE_CALL;
+  asked[question] = count;
+  return count;
+};
 
 const draw = function (graph: Graph, view: View, loops: Bug[] = []): { chart: string; report: string } {
   const found = [...bugs(graph), ...loops];
@@ -123,8 +135,10 @@ const keyStateLabel = (variables: Vars): string => `${fixtureText(variables.pos)
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("TLA+ values reach the view as the skill says: sequences from 1, sets as arrays", () => {
   assert.deepEqual(stateJson('<<1, "a", <<>>>>'), { 1: 1, 2: "a", 3: {} });
+  // oxlint-disable-next-line eslint/no-magic-numbers -- Match the TLA+ set literal to its native negative integer output.
   assert.deepEqual(stateJson("{r1, -2}"), ["r1", -2]);
   assert.deepEqual(stateJson("{}"), []);
+  // oxlint-disable-next-line eslint/no-magic-numbers -- Assert the expansion of this signed TLA+ range as concrete values.
   assert.deepEqual(stateJson("-1..2"), [-1, 0, 1, 2]);
   assert.deepEqual(stateJson(String.raw`[ok |-> TRUE, msg |-> "say \"hi\""]`), {
     msg: 'say "hi"',
@@ -258,9 +272,10 @@ test("each corpus bug path is the shortest way to its rule", async () => {
     "BigToSmall",
   ]);
   assert.deepEqual(paths.LoudWhenStopped, ["YouTurnItUp"]);
-  assert.equal(paths.SignedInWhileLocked.length, 5);
-  assert.equal(paths.TCConsistent.length, 5);
-  assert.equal(paths.TCConsistent.at(-1), "RMRcvCommitMsg");
+  const loginAndTwoPhasePathLength = 5;
+  assert.equal(paths.SignedInWhileLocked.length, loginAndTwoPhasePathLength);
+  assert.equal(paths.TCConsistent.length, loginAndTwoPhasePathLength);
+  assert.equal(paths.TCConsistent.at(LAST), "RMRcvCommitMsg");
   assert.deepEqual(paths.NotOne, ["Next"]);
   assert.deepEqual(paths.NotOneOrThree, ["Next"]);
   assert.deepEqual(paths.AlsoNotOne, ["Next"]);
@@ -282,14 +297,13 @@ test("a chart of only the bug paths words each one with the view, asked once for
         {paths.push(pathDrawing.bug(rule, readCounterexample(messages)));}});
   });
   const asked: Record<string, number> = {};
-  const count = (question: string): number => (asked[question] = (asked[question] ?? 0) + 1);
   const view: View = {
     state: (variables) => {
-      count(`state ${fixtureText(variables.x)}`);
+      countQuestion(asked, `state ${fixtureText(variables.x)}`);
       return `x is ${fixtureText(variables.x)}`;
     },
     step: (action, from, to) => {
-      count(`step ${fixtureText(from.x)} to ${fixtureText(to.x)}`);
+      countQuestion(asked, `step ${fixtureText(from.x)} to ${fixtureText(to.x)}`);
       return `${action} adds one`;
     },
   };
@@ -337,16 +351,21 @@ test("the graph that parseDot returns keeps none of the text it read", () => {
     gc();
     return process.memoryUsage().heapUsed;
   };
-  const MiB = 1 << 20;
+  const mebibyte = 1_048_576;
+  const keptMebibytesLimit = 4;
+  const displayDecimalPlaces = 1;
+  const stateIdDigits = 18;
+  const pieceLines = 1024;
+  const commentCharacters = 1020;
   const pieces = 16;
   const dot = function* dot(): Generator<string, void, unknown> {
     for (let pieceIndex = 0; pieceIndex < pieces; pieceIndex++) {
-      const id = `-${String(pieceIndex).padStart(18, "7")}`;
+      const id = `-${String(pieceIndex).padStart(stateIdDigits, "7")}`;
       const lines = [
         `${id} [label="n = ${pieceIndex}"];`,
         `${id} -> ${id} [label="StayAtStateNumber${pieceIndex}"];`,
       ];
-      while (lines.length < 1024) {lines.push(`// ${"x".repeat(1020)}`);}
+      while (lines.length < pieceLines) {lines.push(`// ${"x".repeat(commentCharacters)}`);}
       yield* `${lines.join("\n")}\n`.split("\n");
     }
   };
@@ -354,8 +373,15 @@ test("the graph that parseDot returns keeps none of the text it read", () => {
   const graph = parseDot(dot());
   const kept = heapUsed() - before;
   assert.equal(graph.states.size, pieces);
-  assert.ok(kept < 4 * MiB, `the graph keeps ${(kept / MiB).toFixed(1)} MiB of ${pieces} MiB read`);
+  const keptMebibytes = kept / mebibyte;
+  assert.ok(keptMebibytes < keptMebibytesLimit, `the graph keeps ${keptMebibytes.toFixed(displayDecimalPlaces)} MiB of ${pieces} MiB read`);
 });
+
+const unplacedChartMarks = (graph: Graph, output: string, spec: Spec): ReturnType<typeof mark> => {
+  const messages = readMessages(output);
+  const marks = readMarks(messages, "chart");
+  return mark(graph, marks, { names: spec.variables, rules: stateRules(spec) });
+};
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("TLC's marks place on their states even when TLC wraps them over lines", async () => {
@@ -363,10 +389,7 @@ test("TLC's marks place on their states even when TLC wraps them over lines", as
   const out = await readFile(corpus("TwoPhase", "ChartRun.out"), "utf8");
   const graphText = await readFile(corpus("TwoPhase", "graph.dot"), "utf8");
   const graph = parseDot(graphText);
-  assert.equal(
-    mark(graph, readMarks(readMessages(out), "chart"), { names: spec.variables, rules: stateRules(spec) }).size,
-    0,
-  );
+  assert.equal(unplacedChartMarks(graph, out, spec).size, ALL_MARKS_PLACED);
   const bad: Value[][] = [];
   visitItems(graph.states.values(), (currentState) => {if (currentState.breaks.length)
       {bad.push([field(currentState.vars.rmState, "r1"), field(currentState.vars.rmState, "r2")].toSorted());}});
@@ -374,14 +397,9 @@ test("TLC's marks place on their states even when TLC wraps them over lines", as
     ["aborted", "committed"],
     ["aborted", "committed"],
   ]);
-  const cut = out.slice(0, out.indexOf("{r1},"));
+  const cut = out.slice(FIRST, out.indexOf("{r1},"));
   assert.throws(
-    () =>
-      mark(
-        parseDot(graphText),
-        readMarks(readMessages(cut), "chart"),
-        { names: spec.variables, rules: stateRules(spec) },
-      ),
+    () => unplacedChartMarks(parseDot(graphText), cut, spec),
     {
       message: `TLC's output ends inside a marked state, so the command cannot tell which rules it breaks:\n${cut.slice(cut.lastIndexOf('<< "chart",'))}\n`,
     },
@@ -400,7 +418,8 @@ test("a chart tuple that TLC prints inside one of its messages is not a mark", (
     "",
   ].join("\n");
   const marks = [...readMarks(readMessages(out), "chart")];
-  assert.equal(marks.length, 1);
+  const onlyOutsideMessage = 1;
+  assert.equal(marks.length, onlyOutsideMessage);
   assert.deepEqual(marks, [...readMarks(readMessages(`${chart}\n`), "chart")]);
 });
 
@@ -419,6 +438,7 @@ test("a line that the spec prints in the shape of a mark is spec output, not a m
   ].join("\n");
   assert.deepEqual(
     [...readMarks(readMessages(out), "chart-0123")],
+    // oxlint-disable-next-line eslint/no-magic-numbers -- The valid mark carries the literal 3 in the TLC fixture above.
     [{ broken: ["Bad"], values: [3] }],
   );
 });
@@ -428,14 +448,10 @@ const inv: Rule = { kind: "invariant", name: "Inv" };
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a wrapped mark with a model value named constructor places on its state", () => {
   const graph = graphOf([["s0", { x: parseValue("constructor") }, true]], []);
-  assert.equal(
-    mark(
-      graph,
-      readMarks(readMessages('<<"chart",\n<<constructor>>,\n{"Inv"}>>\n'), "chart"),
-      { names: ["x"], rules: [inv] },
-    ).size,
-    0,
-  );
+  const messages = readMessages('<<"chart",\n<<constructor>>,\n{"Inv"}>>\n');
+  const marks = readMarks(messages, "chart");
+  const unplaced = mark(graph, marks, { names: ["x"], rules: [inv] });
+  assert.equal(unplaced.size, ALL_MARKS_PLACED);
   assert.deepEqual(graph.states.get("s0")?.breaks, [inv]);
 });
 
@@ -458,13 +474,25 @@ const ab: View = { state: (variables) => ({ A: `a${fixtureText(variables.a)}`, B
 const bit = (variables: Vars): string => `${fixtureText(variables.a)}${fixtureText(variables.b)}${fixtureText(variables.c)}`;
 const xorStates: StateRow[] = [];
 const xorSteps: StepRow[] = [];
-visitItems([0, 1], (axisA) => {visitItems([0, 1], (axisB) => {for (const axisC of [0, 1]) {
+const switches = [SWITCH_OFF, SWITCH_ON];
+visitItems(switches, (axisA) => {
+  visitItems(switches, (axisB) => {
+    visitItems(switches, (axisC) => {
       const variables = { a: axisA, b: axisB, c: axisC };
-      xorStates.push([bit(variables), variables, axisA === 0]);
-      if (axisA === 0 && axisB !== axisC) {xorSteps.push([bit(variables), bit({ ...variables, a: 1 }), "Go"]);}
-      if (axisB === 0) {xorSteps.push([bit(variables), bit({ ...variables, b: 1 }), "FlipB"]);}
-      if (axisC === 0) {xorSteps.push([bit(variables), bit({ ...variables, c: 1 }), "FlipC"]);}
-    }});});
+      const from = bit(variables);
+      xorStates.push([from, variables, axisA === SWITCH_OFF]);
+      if (axisA === SWITCH_OFF && axisB !== axisC) {
+        xorSteps.push([from, bit({ ...variables, a: SWITCH_ON }), "Go"]);
+      }
+      if (axisB === SWITCH_OFF) {
+        xorSteps.push([from, bit({ ...variables, b: SWITCH_ON }), "FlipB"]);
+      }
+      if (axisC === SWITCH_OFF) {
+        xorSteps.push([from, bit({ ...variables, c: SWITCH_ON }), "FlipC"]);
+      }
+    });
+  });
+});
 const truthGraphs: Record<string, [Graph, View]> = {
   starts: [
     graphOf(
@@ -584,10 +612,7 @@ test("a chart that draws parent states in place of regions still names each regi
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("the view answers once for each state and step, so a chart of parent states agrees with its report", () => {
   const asked: Record<string, number> = {};
-  const answer = (question: string): "first" | "later" => {
-    asked[question] = (asked[question] ?? 0) + 1;
-    return asked[question] === 1 ? "first" : "later";
-  };
+  const answer = (question: string): "first" | "later" => countQuestion(asked, question) === ONE_CALL ? "first" : "later";
   const { chart, report: text } = draw(forkToBug, {
     state: (variables) => {
       const word = answer(`state ${fixtureText(variables.a)}`);
@@ -1046,7 +1071,8 @@ test("a loop's trace finds its states when TLC prints record fields in another o
   assert.equal(bug.start, "idle");
   const moves = bug.path.map((part) => [part.action, part.state]);
   assert.deepEqual(moves, [["Go", "waitKeyOff"]]);
-  assert.equal(bug.loop, 1);
+  const stutteringLoopIndex = 1;
+  assert.equal(bug.loop, stutteringLoopIndex);
   assert.equal(bug.stutters, true);
 });
 
@@ -1211,8 +1237,8 @@ test("the chart uses the colors that checkView read once from the view's own key
   let reads = 0;
   const flips = {
     get Busy() {
-      reads += 1;
-      return reads === 1 ? "blue" : "breaks";
+      reads += ONE_CALL;
+      return reads === ONE_CALL ? "blue" : "breaks";
     },
   };
   const changed = { Busy: "blue" };
@@ -1257,22 +1283,42 @@ test("a chart state with mixed groups gets no color, even when colors names unde
   assert.doesNotMatch(draw(graph, view).chart, /^ {2}class /mu);
 });
 
+const gridRows = (dimension: number): { states: StateRow[]; steps: StepRow[] } => {
+  const cellStride = 1;
+  const lastIndex = dimension - cellStride;
+  const indices = Array.from({ length: dimension }, (_value, index) => index);
+  const states: StateRow[] = [];
+  const steps: StepRow[] = [];
+  visitItems(indices, (column) => {
+    visitItems(indices, (row) => {
+      const far = column === lastIndex && row === lastIndex;
+      const current = `${column},${row}`;
+      states.push([current, { x: column, y: row }, column === FIRST && row === FIRST, far ? ["Safe"] : []]);
+      if (column < lastIndex) {
+        const nextColumn = column + cellStride;
+        steps.push([current, `${nextColumn},${row}`, "Right"]);
+      }
+      if (row < lastIndex) {
+        const nextRow = row + cellStride;
+        steps.push([current, `${column},${nextRow}`, "Down"]);
+      }
+    });
+  });
+  return { states, steps };
+};
+
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a graph of 10,000 states draws in seconds with no view", () => {
   const dimension = 100;
-  const states: StateRow[] = [];
-  const steps: StepRow[] = [];
-  for (let column = 0; column < dimension; column++)
-    {for (let row = 0; row < dimension; row++) {
-      const far = column === dimension - 1 && row === dimension - 1;
-      states.push([`${column},${row}`, { x: column, y: row }, column + row === 0, far ? ["Safe"] : []]);
-      if (column + 1 < dimension) {steps.push([`${column},${row}`, `${column + 1},${row}`, "Right"]);}
-      if (row + 1 < dimension) {steps.push([`${column},${row}`, `${column},${row + 1}`, "Down"]);}
-    }}
+  const millisecondsPerSecond = 1000;
+  const durationLimitSeconds = 5;
+  const displayDecimalPlaces = 1;
+  const { states, steps } = gridRows(dimension);
   const start = performance.now();
-  const { chart, report: text } = draw(graphOf(states, steps), {});
-  const seconds = (performance.now() - start) / 1000;
+  const graph = graphOf(states, steps);
+  const { chart, report: text } = draw(graph, {});
+  const seconds = (performance.now() - start) / millisecondsPerSecond;
   assert.match(text, /^The shortest path has 198 steps:$/mu);
   assert.equal(chart.match(/^ {2}s\d+: /gmu)?.length, dimension * dimension);
-  assert.ok(seconds < 5, `drawing took ${seconds.toFixed(1)} s`);
+  assert.ok(seconds < durationLimitSeconds, `drawing took ${seconds.toFixed(displayDecimalPlaces)} s`);
 });
