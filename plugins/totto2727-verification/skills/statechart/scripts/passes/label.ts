@@ -1,8 +1,8 @@
 import { isRecord, isString, key, list, loopOf, matchesNull, matchesUndefined, must, sortBy, stateText, tupleKey, visitItems } from '#statechart/ir.ts';
 import type { Answers, Bug, Graph, Hidden, Labels, Rule, Shape, Step, Story, Vars, View, Walk } from '#statechart/ir.ts';
 
-const isLabel = (l: unknown): l is string =>
-  isString(l) && l !== "" && !/\bundefined\b|\bNaN\b|\[object Object\]/u.test(l);
+const readLabel = (value: unknown): string | undefined =>
+  isString(value) && value !== "" && !/\bundefined\b|\bNaN\b|\[object Object\]/u.test(value) ? value : undefined;
 
 const shapeOf = (shape: unknown, vars: Vars): Shape => {
   const fail = function (): never {
@@ -10,23 +10,25 @@ const shapeOf = (shape: unknown, vars: Vars): Shape => {
       `The view's state() returned ${JSON.stringify(shape) ?? "undefined"} for the state ${stateText(vars)}. Return a string, an array of strings, or an object of those.`,
     );
   };
-  const path = (p: unknown): string[] => {
+  const path = (value: unknown): string[] => {
     const labels: string[] = [];
-    visitItems([p].flat(), (label) => {
-      labels.push(isLabel(label) ? label : fail());
+    visitItems([value].flat(), (label) => {
+      labels.push(readLabel(label) ?? fail());
     });
     if (!labels.length) {fail();}
     return labels;
   };
   const regions: [string, unknown][] = isRecord(shape) ? Object.entries(shape) : [["", shape]];
   const pairs: [string, string[]][] = [];
-  visitItems(regions, ([k, v]) => {pairs.push([k, path(v)]);});
+  visitItems(regions, ([name, value]) => {pairs.push([name, path(value)]);});
   return pairs.length ? Object.fromEntries(pairs) : fail();
 };
 
-const stepOf = (view: View) => (action: string, from: Vars, to: Vars) => {
-  const label = (view.step ?? ((a: string) => a))(action, from, to);
-  if (matchesNull(label) || isLabel(label)) {return label;}
+const stepOf = (view: View) => (action: string, from: Vars, to: Vars): string | Hidden => {
+  const label = (view.step ?? ((actionName: string) => actionName))(action, from, to);
+  if (matchesNull(label)) {return label;}
+  const text = readLabel(label);
+  if (!matchesUndefined(text)) {return text;}
   throw new Error(
     `The view's step() returned ${JSON.stringify(label) ?? "undefined"} for the step ${action}.`,
   );
@@ -45,32 +47,38 @@ const unlabeled = function (
   );
 };
 
+const FIRST_STATE_INDEX = 0;
+const GROUP_CACHED = 1;
+
 export const ask = function ask(graph: Graph, { states: tla, nameOf, from, to }: Walk, view: View): Answers {
-  const n = nameOf.length;
-  const m = from.length;
-  const {state} = view;
-  const shapes = new Array<Shape>(n);
-  for (let i = 0; i < n; i++)
-    {shapes[i] = shapeOf(state ? state(tla[i].vars) : nameOf[i], tla[i].vars);}
-  const names = Object.keys(shapes[0] ?? { "": [] });
+  const stateCount = nameOf.length;
+  const stepCount = from.length;
+  const { state } = view;
+  const shapes = Array.from({ length: stateCount }, (_, stateIndex) =>
+    shapeOf(state ? state(tla[stateIndex].vars) : nameOf[stateIndex], tla[stateIndex].vars),
+  );
+  const names = Object.keys(shapes[FIRST_STATE_INDEX] ?? { "": [] });
   const regionsKey = tupleKey(names);
-  for (let i = 0; i < n; i++)
-    {if (tupleKey(Object.keys(shapes[i])) !== regionsKey)
-      {throw new Error(
-        `The view's state() returned the regions ${names.join(", ")} for one state and ${Object.keys(shapes[i]).join(", ")} for the state ${stateText(tla[i].vars)}. Return the same regions for every state.`,
-      );}}
-  const step = stepOf(view);
-  const labels = new Array<string | Hidden>(m);
-  for (let j = 0; j < m; j++)
-    {labels[j] = step(graph.steps[j].action, tla[from[j]].vars, tla[to[j]].vars);}
-  const groups = new Array<unknown>(n);
-  const asked = new Uint8Array(n);
-  const group = (i: number) => {
-    if (view.group && !asked[i]) {
-      groups[i] = view.group(tla[i].vars);
-      asked[i] = 1;
+  visitItems(shapes.keys(), (stateIndex) => {
+    const regions = Object.keys(shapes[stateIndex]);
+    if (tupleKey(regions) !== regionsKey) {
+      throw new Error(
+        `The view's state() returned the regions ${names.join(", ")} for one state and ${regions.join(", ")} for the state ${stateText(tla[stateIndex].vars)}. Return the same regions for every state.`,
+      );
     }
-    return groups[i];
+  });
+  const step = stepOf(view);
+  const labels = Array.from({ length: stepCount }, (_, stepIndex) =>
+    step(graph.steps[stepIndex].action, tla[from[stepIndex]].vars, tla[to[stepIndex]].vars),
+  );
+  const groups = new Array<unknown>(stateCount);
+  const asked = new Uint8Array(stateCount);
+  const group = (stateIndex: number): unknown => {
+    if (view.group && asked[stateIndex] !== GROUP_CACHED) {
+      groups[stateIndex] = view.group(tla[stateIndex].vars);
+      asked[stateIndex] = GROUP_CACHED;
+    }
+    return groups[stateIndex];
   };
   return { names, shapes, labels, group };
 };
@@ -79,12 +87,13 @@ export const asParents = function asParents(
   { states: tla }: Walk,
   { names, shapes, labels, group }: Answers,
 ): Answers {
-  const parents = new Array<Shape>(shapes.length);
-  for (let i = 0; i < shapes.length; i++) {
+  const parents = Array.from({ length: shapes.length }, (_, stateIndex) => {
     const path: string[] = [];
-    visitItems(names, (currentName) => {visitItems(shapes[i][currentName], (p) => {path.push(`${currentName} ${p}`);});});
-    parents[i] = shapeOf(path, tla[i].vars);
-  }
+    visitItems(names, (name) => {
+      visitItems(shapes[stateIndex][name], (label) => {path.push(`${name} ${label}`);});
+    });
+    return shapeOf(path, tla[stateIndex].vars);
+  });
   return { names: [""], shapes: parents, labels, group };
 };
 
