@@ -1,127 +1,28 @@
-// oxlint-disable-next-line rules/no-node-imports -- Test the distributed script as a native Node.js subprocess.
-import { execFile } from "node:child_process";
-// oxlint-disable-next-line rules/no-node-imports -- Create and inspect filesystem fixtures for the subprocess.
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
-// oxlint-disable-next-line rules/no-node-imports -- Place subprocess fixtures in the system temporary directory.
-import { tmpdir } from "node:os";
-// oxlint-disable-next-line rules/no-node-imports -- Resolve test fixture paths for the subprocess.
-import { resolve } from "node:path";
-// oxlint-disable-next-line rules/no-node-imports -- Find the distributed entry point relative to this test module.
-import { fileURLToPath } from "node:url";
-// oxlint-disable-next-line rules/no-node-imports -- Await the native subprocess and preserve its exit status in these tests.
-import { promisify } from "node:util";
+/* oxlint-disable eslint/max-lines -- Keep the existing Issue 9 CLI suite discoverable from one of the four Vitest entry files. */
 import { afterEach, assert, describe, expect, test } from "vitest";
-import { readEvaluationReport } from "./evaluation-test-support.mjs";
-import { object } from "./evaluation-validation.mjs";
-import {
-  matchesNull,
-  matchesNumber,
-  matchesString,
-  matchesUndefined,
-} from "./native-predicates.mjs";
+import { checkFor, cleanupFixtures, runSteCli } from "./ste-cli-fixture.mjs";
+import { matchesNull, matchesUndefined } from "./native-predicates.mjs";
 
-const execute = promisify(execFile);
-const script = fileURLToPath(new URL("evaluate.mjs", import.meta.url));
-/** @type {string[]} */
-const directories = [];
-const FRAMING_WORDS = 2;
-const CLI_OK = 0;
-const CLI_INVALID = 2;
-const NO_REQUESTS = 0;
-const FIRST = 0;
-
-/** @typedef {{ check?: Record<string, unknown>, dryRun?: boolean, mechanicalOnly?: boolean, model?: string, rules?: unknown[], scope?: string, sections?: unknown[], ste?: Record<string, unknown>, vocabulary?: object }} CliOptions */
 /** @typedef {import("./evaluation-test-support.mjs").EvaluationReport} EvaluationReport */
 /** @typedef {EvaluationReport["evaluations"][number]} Evaluation */
 /** @typedef {Evaluation["answers"][number]} EvaluationAnswer */
-/** @typedef {Awaited<ReturnType<typeof cli>>} CliResult */
+/** @typedef {import("./ste-cli-fixture.mjs").CliOptions} CliOptions */
+/** @typedef {Awaited<ReturnType<typeof runSteCli>>} CliResult */
+
+const FRAMING_WORDS = 2;
+const NO_REQUESTS = 0;
+const FIRST = 0;
 
 /** @type {(count: number) => string} */
 const sentence = (count) => `Check ${"the ".repeat(count - FRAMING_WORDS)}panel.`;
-/** @type {(mode?: string) => { kind: string, writingMode: string }} */
-const checkFor = (mode = "procedural") => ({ kind: "ste-sentence-length", writingMode: mode });
 
-/** @type {(markdown: string, options?: CliOptions) => Promise<{ answers?: EvaluationAnswer[], exitCode: number, report?: EvaluationReport, stderr?: string }>} */
-const cli = async function (
-  markdown,
-  {
-    check = checkFor(),
-    ste = { writingMode: "procedural" },
-    scope = "page",
-    sections,
-    vocabulary,
-    rules,
-    dryRun = false,
-    mechanicalOnly = true,
-    model,
-  } = {},
-) {
-  const directory = await mkdtemp(resolve(tmpdir(), "ste-public-cli-"));
-  directories.push(directory);
-  await writeFile(resolve(directory, "guide.md"), markdown);
-  if (vocabulary) {
-    await writeFile(resolve(directory, "vocabulary.json"), JSON.stringify(vocabulary));
+/** @type {(markdown: string, options?: CliOptions) => Promise<CliResult>} */
+const cli = async (markdown, options) => {
+  const result = await runSteCli(markdown, options);
+  if (!matchesUndefined(result.report)) {
+    expect(result.report.requestCount).toBe(NO_REQUESTS);
   }
-  const manifest = {
-    ...(model ? { model } : {}),
-    rules: rules ?? [{ id: "ste", engine: "mechanical", scope, check }],
-    documents: [
-      {
-        id: "guide",
-        path: "guide.md",
-        purpose: "Original test example.",
-        audience: "Technician.",
-        sourceLanguage: "en",
-        ste,
-        ...(sections ? { sections } : {}),
-      },
-    ],
-  };
-  const manifestPath = resolve(directory, "manifest.json");
-  const outputPath = resolve(directory, "report.json");
-  await writeFile(manifestPath, JSON.stringify(manifest));
-  let exitCode = CLI_OK;
-  let stderr = "";
-  try {
-    await execute(
-      process.execPath,
-      [
-        script,
-        "--manifest",
-        manifestPath,
-        "--output",
-        outputPath,
-        ...(mechanicalOnly ? ["--mechanical-only"] : []),
-        ...(dryRun ? ["--dry-run"] : []),
-      ],
-      // oxlint-disable-next-line node/no-process-env -- Pass only the parent's PATH to the native, credential-free CLI.
-      { env: { PATH: process.env.PATH } },
-    );
-  } catch (error) {
-    const { code, stderr: output } = object(error, "native CLI failure");
-    assert(matchesNumber(code), "CLI must report a numeric exit code.");
-    exitCode = code;
-    assert(matchesString(output), "CLI must return stderr as text.");
-    stderr = output;
-  }
-  if (exitCode === CLI_INVALID) {
-    return { exitCode, stderr };
-  }
-  const report = await readEvaluationReport(outputPath);
-  expect(report.requestCount).toBe(NO_REQUESTS);
-  const answers = report.evaluations.flatMap(
-    /** @returns {EvaluationAnswer[]} The answers in report order. */
-    (entry) => entry.answers,
-  );
-  return { answers, exitCode, report };
-};
-
-const cleanupFixtures = async () => {
-  await Promise.all(
-    directories
-      .splice(FIRST)
-      .map(async (directory) => rm(directory, { force: true, recursive: true })),
-  );
+  return result;
 };
 
 /** @type {(result: CliResult) => EvaluationReport} */
@@ -148,8 +49,7 @@ const steAnswerOf = (result, index = FIRST) => {
       "lexicalCandidates" in answer,
     "Expected an STE mechanical answer.",
   );
-  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- The CLI serialized an STE answer and each test asserts its selected evidence.
-  return /** @type {import("./mechanical.mjs").SteResult} */ (/** @type {unknown} */ (answer));
+  return answer;
 };
 
 /** @type {(result: CliResult) => Evaluation} */
@@ -159,7 +59,8 @@ const firstEvaluation = (result) => {
   return entry;
 };
 
-const nounGroups = (/** @type {CliResult} */ result) => {
+/** @type {(result: CliResult) => import("./evaluation-evidence.mjs").NounEvidence} */
+const nounGroups = (result) => {
   const entry = firstEvaluation(result);
   assert("state" in entry, "Dry-run evaluation must include its state.");
   const { local } = entry.state.evidence;
@@ -172,24 +73,27 @@ const nounGroups = (/** @type {CliResult} */ result) => {
   return nounGroupCounts;
 };
 
+// oxlint-disable-next-line eslint/max-statements, eslint/max-lines-per-function -- Keep the existing Issue 9 Vitest group and its per-case CLI fixture cleanup.
 describe("mechanical checks for Issue 9 through the real public CLI", () => {
-  afterEach(cleanupFixtures);
+  afterEach(async () => {
+    await cleanupFixtures();
+  });
 
   const nounRule = {
-    id: "noun-count",
     engine: "decision",
-    scope: "paragraph",
-    requiresNounGroupCounts: true,
+    fail: "Supported role violates its numeric limit.",
+    id: "noun-count",
     instructions: "Interpret the supplied local machine noun counts and source-declared role.",
     pass: "Supported role and numeric limit.",
-    fail: "Supported role violates its numeric limit.",
+    requiresNounGroupCounts: true,
+    scope: "paragraph",
   };
 
   test("defers missing noun-group evidence with zero requests even outside mechanical-only mode", async () => {
     const result = await cli("Check the status panel.", {
-      rules: [nounRule],
       mechanicalOnly: false,
       model: "clef-flash",
+      rules: [nounRule],
       ste: {},
     });
     expect(answersOf(result)[0]).toMatchObject({
@@ -211,14 +115,14 @@ describe("mechanical checks for Issue 9 through the real public CLI", () => {
     "computes declared noun group %j rather than accepting model or caller counts",
     async (text, wordCount, hyphenComponentCounts) => {
       const result = await cli(`Check the ${text}.`, {
-        rules: [nounRule],
-        mechanicalOnly: false,
         dryRun: true,
+        mechanicalOnly: false,
         model: "clef-flash",
+        rules: [nounRule],
         ste: {
           nounGroups: [
-            { text, kind: "multi-word", source: "Original local role claim." },
-            { text: "unmatched private group", kind: "official", source: "UNMATCHED-GROUP-SOURCE" },
+            { kind: "multi-word", source: "Original local role claim.", text },
+            { kind: "official", source: "UNMATCHED-GROUP-SOURCE", text: "unmatched private group" },
           ],
         },
       });
@@ -242,13 +146,13 @@ describe("mechanical checks for Issue 9 through the real public CLI", () => {
   test("never collapses an official multiword noun into one arbitrary sentence-level title token", async () => {
     const text = "Upper Control Status Panel";
     const result = await cli(`Inspect the ${text}.`, {
-      rules: [nounRule],
-      mechanicalOnly: false,
       dryRun: true,
+      mechanicalOnly: false,
       model: "clef-flash",
+      rules: [nounRule],
       ste: {
-        nounGroups: [{ text, kind: "official", source: "Original official-name claim." }],
-        wordGroups: [{ text, category: "title" }],
+        nounGroups: [{ kind: "official", source: "Original official-name claim.", text }],
+        wordGroups: [{ category: "title", text }],
       },
     });
     expect(nounGroups(result)[0]).toMatchObject({
@@ -261,12 +165,12 @@ describe("mechanical checks for Issue 9 through the real public CLI", () => {
   test("defers unsupported declared noun syntax without a model request", async () => {
     const text = "panel (upper) assembly";
     const result = await cli(`Check the ${text}.`, {
-      rules: [nounRule],
       mechanicalOnly: false,
       model: "clef-flash",
+      rules: [nounRule],
       ste: {
         nounGroups: [
-          { text, kind: "new-technical", source: "Original role claim requiring review." },
+          { kind: "new-technical", source: "Original role claim requiring review.", text },
         ],
       },
     });
@@ -282,9 +186,9 @@ describe("mechanical checks for Issue 9 through the real public CLI", () => {
       ste: {
         nounGroups: [
           {
-            text: "upper status panel",
             kind: "multi-word",
             source: "Original local role claim.",
+            text: "upper status panel",
             wordCount: 1,
           },
         ],
@@ -295,19 +199,19 @@ describe("mechanical checks for Issue 9 through the real public CLI", () => {
   });
 
   test.each([
-    ["procedural", 20, 20, "pass", 0],
-    ["procedural", 21, 20, "fail", 1],
-    ["descriptive", 25, 25, "pass", 0],
-    ["descriptive", 26, 25, "fail", 1],
+    ["procedural", 20, { choice: "pass", exitCode: 0, limit: 20 }],
+    ["procedural", 21, { choice: "fail", exitCode: 1, limit: 20 }],
+    ["descriptive", 25, { choice: "pass", exitCode: 0, limit: 25 }],
+    ["descriptive", 26, { choice: "fail", exitCode: 1, limit: 25 }],
   ])(
     "enforces the source %s boundary at %i words",
-    async (writingMode, count, limit, exitCodeChoice, exitCode) => {
+    async (writingMode, count, { choice, exitCode, limit }) => {
       const result = await cli(sentence(count), {
         check: checkFor(writingMode),
         ste: { writingMode },
       });
       expect(answersOf(result)[0]).toMatchObject({
-        choice: exitCodeChoice,
+        choice,
         counts: [{ limit, wordCount: count }],
         reviewRequired: false,
       });
@@ -333,10 +237,10 @@ describe("mechanical checks for Issue 9 through the real public CLI", () => {
     [6, "pass"],
     [7, "fail"],
   ])("counts %i actual sentences in a descriptive paragraph", async (count, choice) => {
-    const result = await cli(Array(count).fill("The panel is closed.").join(" "), {
+    const result = await cli("The panel is closed. ".repeat(count).trimEnd(), {
       check: { kind: "ste-paragraph-length" },
-      ste: { writingMode: "descriptive" },
       scope: "paragraph",
+      ste: { writingMode: "descriptive" },
     });
     expect(answersOf(result)[0]).toMatchObject({
       choice,
@@ -400,9 +304,9 @@ describe("mechanical checks for Issue 9 through the real public CLI", () => {
   test("accepts explicit section 8 semantic groups and additional literal measurement units", async () => {
     const result = await cli("Send the panel to North River Works at 4 furlongs.", {
       ste: {
-        writingMode: "procedural",
-        wordGroups: [{ text: "North River Works", category: "proper-noun" }],
         measurementUnits: ["furlongs"],
+        wordGroups: [{ category: "proper-noun", text: "North River Works" }],
+        writingMode: "procedural",
       },
     });
     expect(answersOf(result)[0]).toMatchObject({
@@ -476,8 +380,8 @@ describe("mechanical checks for Issue 9 through the real public CLI", () => {
     const result = await cli(`${sentence(21)}\n\n${sentence(21)}\n`, {
       scope: "paragraph",
       sections: [
-        { startLine: 1, endLine: 1, ste: { writingMode: "descriptive" } },
-        { startLine: 3, endLine: 3 },
+        { endLine: 1, startLine: 1, ste: { writingMode: "descriptive" } },
+        { endLine: 3, startLine: 3 },
       ],
     });
     expect(answersOf(result).map((entry) => entry.choice)).toStrictEqual([
@@ -489,8 +393,8 @@ describe("mechanical checks for Issue 9 through the real public CLI", () => {
   test("abstains on page-level mixed writing modes rather than applying a global limit", async () => {
     const result = await cli(`${sentence(21)}\n\n${sentence(21)}\n`, {
       sections: [
-        { startLine: 1, endLine: 1, ste: { writingMode: "descriptive" } },
-        { startLine: 3, endLine: 3 },
+        { endLine: 1, startLine: 1, ste: { writingMode: "descriptive" } },
+        { endLine: 3, startLine: 3 },
       ],
     });
     expect(answersOf(result)[0]).toMatchObject({
@@ -502,7 +406,7 @@ describe("mechanical checks for Issue 9 through the real public CLI", () => {
   test("does not count a partial paragraph selected by an explicit section", async () => {
     const result = await cli("Check the panel\nand close the latch.\n", {
       scope: "section",
-      sections: [{ startLine: 1, endLine: 1 }],
+      sections: [{ endLine: 1, startLine: 1 }],
     });
     expect(answersOf(result)[0]).toMatchObject({
       choice: "insufficient_context",
@@ -523,24 +427,24 @@ describe("mechanical checks for Issue 9 through the real public CLI", () => {
 
   test("performs literal local vocabulary and inflection lookup without a false contextual compliance decision", async () => {
     const vocabulary = {
-      issue: 9,
-      source: "Original synthetic test vocabulary, not the STE dictionary.",
       entries: [
         {
-          word: "check",
-          forms: ["checks", "checked"],
           approved: true,
-          partOfSpeech: "verb",
+          forms: ["checks", "checked"],
           meaning: "Synthetic test meaning.",
+          partOfSpeech: "verb",
+          word: "check",
         },
         {
-          word: "panel",
-          forms: ["panels"],
           approved: false,
-          partOfSpeech: "noun",
+          forms: ["panels"],
           meaning: "Synthetic candidate meaning.",
+          partOfSpeech: "noun",
+          word: "panel",
         },
       ],
+      issue: 9,
+      source: "Original synthetic test vocabulary, not the STE dictionary.",
       technicalTerms: ["panel"],
     };
     const result = await cli("Checked panels remain unknown.", {
@@ -565,23 +469,23 @@ describe("mechanical checks for Issue 9 through the real public CLI", () => {
 
   test("supports exact multiword entries and their declared forms without generating inflections", async () => {
     const vocabulary = {
-      issue: 9,
-      source: "Original synthetic phrase records for schema testing.",
       entries: [
         {
-          word: "put",
           approved: true,
-          partOfSpeech: "verb",
           meaning: "Synthetic single-word record.",
+          partOfSpeech: "verb",
+          word: "put",
         },
         {
-          word: "put on",
-          forms: ["puts on", "putting on"],
           approved: true,
-          partOfSpeech: "verb",
+          forms: ["puts on", "putting on"],
           meaning: "Synthetic multiword record.",
+          partOfSpeech: "verb",
+          word: "put on",
         },
       ],
+      issue: 9,
+      source: "Original synthetic phrase records for schema testing.",
     };
     const result = await cli("Put on the coat. Puts on the coat. Put-on is a separate token.", {
       check: { kind: "ste-dictionary-membership" },
@@ -649,13 +553,13 @@ describe("mechanical checks for Issue 9 through the real public CLI", () => {
 
   test("retains declared technical noun records as candidates rather than dictionary violations", async () => {
     const vocabulary = {
+      entries: [
+        { approved: true, meaning: "Synthetic meaning.", partOfSpeech: "verb", word: "check" },
+      ],
       issue: 9,
       source: "Original source declarations for tests.",
-      entries: [
-        { word: "check", approved: true, partOfSpeech: "verb", meaning: "Synthetic meaning." },
-      ],
       technicalTerms: [
-        { text: "status panel", kind: "noun", category: 19, source: "Synthetic company glossary." },
+        { category: 19, kind: "noun", source: "Synthetic company glossary.", text: "status panel" },
       ],
     };
     const result = await cli("Check the status panel.", {
@@ -672,9 +576,9 @@ describe("mechanical checks for Issue 9 through the real public CLI", () => {
       steAnswerOf(result).lexicalCandidates.find((entry) => entry.term === "status panel"),
     ).toMatchObject({
       membership: "unlisted",
-      technicalTermCandidate: true,
-      technicalRecords: vocabulary.technicalTerms,
       records: [],
+      technicalRecords: vocabulary.technicalTerms,
+      technicalTermCandidate: true,
     });
   });
 
@@ -724,6 +628,7 @@ describe("mechanical checks for Issue 9 through the real public CLI", () => {
 
   test.each([
     { writingMode: "safety" },
+    // oxlint-disable-next-line eslint/sort-keys -- Vitest interpolates this object into the established case name using its key order.
     { writingMode: "procedural", wordGroups: [{ text: "a", category: "regex" }] },
     { measurementUnits: ["(a+)+"] },
     { vocabularyFile: "" },
