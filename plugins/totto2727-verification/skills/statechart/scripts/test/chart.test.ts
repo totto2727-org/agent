@@ -56,7 +56,7 @@ const graphOf = (states: StateRow[], steps: StepRow[]) => {
   visitItems(states, ([id, vars, start, breaks = []]) => {
     const rules: Rule[] = [];
     visitItems(breaks, (name) => {rules.push({ kind: "invariant", name });});
-    graph.states.set(id, { vars, start: !!start, breaks: rules });
+    graph.states.set(id, { vars, start: start ?? false, breaks: rules });
   });
   visitItems(steps, ([from, to, action]) => {graph.steps.push({ from, to, action });});
   return graph;
@@ -78,6 +78,13 @@ const field = (value: Value, name: string) => {
   }
   throw new Error(`${inspect(value)} has no ${name}.`);
 };
+
+const fixtureText = (value: Value): string => {
+  assert.ok(!hasObjectType(value), "Chart fixture labels use scalar TLA+ values.");
+  return String(value);
+};
+
+const SWITCH_ON = 1;
 
 const draw = function (graph: Graph, view: View, loops: Bug[] = []) {
   const found = [...bugs(graph), ...loops];
@@ -280,11 +287,11 @@ test("a chart of only the bug paths words each one with the view, asked once for
   const count = (question: string): number => (asked[question] = (asked[question] ?? 0) + 1);
   const view: View = {
     state: (variables) => {
-      count(`state ${variables.x}`);
-      return `x is ${variables.x}`;
+      count(`state ${fixtureText(variables.x)}`);
+      return `x is ${fixtureText(variables.x)}`;
     },
     step: (action, from, to) => {
-      count(`step ${from.x} to ${to.x}`);
+      count(`step ${fixtureText(from.x)} to ${fixtureText(to.x)}`);
       return `${action} adds one`;
     },
   };
@@ -449,8 +456,8 @@ test("a tagged line in the wrong shape is an error, not spec output", () => {
     );});
 });
 
-const ab: View = { state: (variables) => ({ A: `a${variables.a}`, B: `b${variables.b}` }) };
-const bit = (variables: Vars): string => `${variables.a}${variables.b}${variables.c}`;
+const ab: View = { state: (variables) => ({ A: `a${fixtureText(variables.a)}`, B: `b${fixtureText(variables.b)}` }) };
+const bit = (variables: Vars): string => `${fixtureText(variables.a)}${fixtureText(variables.b)}${fixtureText(variables.c)}`;
 const xorStates: StateRow[] = [];
 const xorSteps: StepRow[] = [];
 visitItems([0, 1], (axisA) => {visitItems([0, 1], (axisB) => {for (const axisC of [0, 1]) {
@@ -470,11 +477,11 @@ const truthGraphs: Record<string, [Graph, View]> = {
       ],
       [["x0y0", "x1y0", "Step"]],
     ),
-    { state: (variables) => ({ X: `x${variables.x}`, Y: `y${variables.y}` }) },
+    { state: (variables) => ({ X: `x${fixtureText(variables.x)}`, Y: `y${fixtureText(variables.y)}` }) },
   ],
   xor: [
     graphOf(xorStates, xorSteps),
-    { state: (variables) => ({ A: `a${variables.a}`, B: `b${variables.b}`, C: `c${variables.c}` }) },
+    { state: (variables) => ({ A: `a${fixtureText(variables.a)}`, B: `b${fixtureText(variables.b)}`, C: `c${fixtureText(variables.c)}` }) },
   ],
   fork: [
     graphOf(
@@ -585,11 +592,11 @@ test("the view answers once for each state and step, so a chart of parent states
   };
   const { chart, report: text } = draw(forkToBug, {
     state: (variables) => {
-      const word = answer(`state ${variables.a}`);
-      return { A: `a${variables.a} ${word}`, B: `b${variables.b}` };
+      const word = answer(`state ${fixtureText(variables.a)}`);
+      return { A: `a${fixtureText(variables.a)} ${word}`, B: `b${fixtureText(variables.b)}` };
     },
-    step: (action, from, to) => `${action} ${answer(`step ${from.a} to ${to.a}`)}`,
-    group: (variables) => (answer(`group ${variables.a}`) === "first" ? "Calm" : "Busy"),
+    step: (action, from, to) => `${action} ${answer(`step ${fixtureText(from.a)} to ${fixtureText(to.a)}`)}`,
+    group: (variables) => (answer(`group ${fixtureText(variables.a)}`) === "first" ? "Calm" : "Busy"),
     colors: { Calm: "blue", Busy: "orange" },
   });
   assert.match(chart, /^ {2}state "A a2 first" as s\d+ \{$/mu);
@@ -659,10 +666,10 @@ test("a bug-path step that stays in one state is a loop in a flat chart only", (
       ["s0", "s2", "Move"],
     ],
   );
-  const flat = draw(graph, { state: (variables) => `x${variables.x}` });
+  const flat = draw(graph, { state: (variables) => `x${fixtureText(variables.x)}` });
   assert.match(flat.chart, /^ {2}(s\d+) --> \1: Tick$/mu);
   assert.doesNotMatch(flat.report, /does not draw/u);
-  const regions = draw(graph, { state: (variables) => ({ X: `x${variables.x}`, Z: "z" }) });
+  const regions = draw(graph, { state: (variables) => ({ X: `x${fixtureText(variables.x)}`, Z: "z" }) });
   assert.doesNotMatch(regions.chart, /Tick/u);
   assert.match(regions.report, /^The chart does not draw 1 steps that stay in one chart state\.$/mu);
 });
@@ -681,7 +688,7 @@ test("a step that leaves every child of a parent the same way is one arrow from 
       ["y", "done", "Quit"],
     ],
   );
-  const { chart } = draw(graph, { state: (variables) => String(variables.at).split(".") });
+  const { chart } = draw(graph, { state: (variables) => fixtureText(variables.at).split(".") });
   const open = (/^ {2}state "Open" as (s\d+) \{$/mu.exec(chart))?.[1];
   const closed = (/^ {2}(s\d+): Closed$/mu.exec(chart))?.[1];
   const quits = Array.from(
@@ -706,7 +713,7 @@ test("a parent's only way in ends at the parent, and its start marker goes on to
       ["flat", "drawn", "Draw"],
     ],
   );
-  const { chart } = draw(graph, { state: (variables) => String(variables.at).split(".") });
+  const { chart } = draw(graph, { state: (variables) => fixtureText(variables.at).split(".") });
   assert.deepEqual(drawn(chart).arrows.sort(), [
     "Asking --> Layout",
     "Done start --> Drawn",
@@ -731,7 +738,7 @@ test("a parent that two states lead into keeps an arrow from each, since one sta
       ["b", "q", "Right"],
     ],
   );
-  const { chart } = draw(graph, { state: (variables) => String(variables.at).split(".") });
+  const { chart } = draw(graph, { state: (variables) => fixtureText(variables.at).split(".") });
   assert.deepEqual(drawn(chart).arrows.sort(), ["A --> B: Go", "A --> p: Left", "B --> q: Right"]);
 });
 
@@ -745,7 +752,7 @@ test("a label codes only the characters that Mermaid reads as syntax, so TLA+ va
     [["s0", "s1", "Go"]],
   );
   const { chart } = draw(graph, {
-    state: (variables) => (variables.n ? 'x: "1";\nnext' : "a <b> #2"),
+    state: (variables) => (variables.n === SWITCH_ON ? 'x: "1";\nnext' : "a <b> #2"),
     step: () => 'say: <<1, "a">> :> [k |-> {}] @@ 2..3',
   });
   assert.match(chart, /^ {2}s\d+: a #60;b> #35;2$/mu);
@@ -763,7 +770,7 @@ test("a label with %% stays text and cannot open a Mermaid directive", () => {
     [["s0", "s1", "Go"]],
   );
   const { chart } = draw(graph, {
-    state: (variables) => (variables.n ? "%%{init: {}}%%" : "a %%{ b"),
+    state: (variables) => (variables.n === SWITCH_ON ? "%%{init: {}}%%" : "a %%{ b"),
     step: () => "%% go",
   });
   assert.doesNotMatch(chart, /%%/u);
@@ -782,9 +789,9 @@ test("each line break in a label or a colors key is a space, so it cannot start 
     [["s0", "s1", "Go"]],
   );
   const { chart } = draw(graph, {
-    state: (variables) => (variables.n ? "b\r\n\r\v\f\u0085\u2028\u2029\tc" : "a"),
+    state: (variables) => (variables.n === SWITCH_ON ? "b\r\n\r\v\f\u0085\u2028\u2029\tc" : "a"),
     step: () => "go\r  s9: Ghost",
-    group: (variables) => (variables.n ? "Shut\r  s99: Ghost state" : "Open"),
+    group: (variables) => (variables.n === SWITCH_ON ? "Shut\r  s99: Ghost state" : "Open"),
     colors: { Open: "blue", "Shut\r  s99: Ghost state": "pink" },
   });
   assert.doesNotMatch(chart, /[\r\v\f\u0085\u2028\u2029\t]/);
@@ -804,7 +811,7 @@ test("a label of only white space or with a lone surrogate still has text in the
     [["s0", "s1", "Go"]],
   );
   const { chart } = draw(graph, {
-    state: (variables) => (variables.n ? "a\uD800b" : "\t"),
+    state: (variables) => (variables.n === SWITCH_ON ? "a\uD800b" : "\t"),
     step: () => " ",
   });
   assert.match(chart, /^ {2}s\d+: #32;$/mu);
@@ -822,7 +829,7 @@ test("NUL and C1 controls in a label are left out, since a browser draws their c
     [["s0", "s1", "Go"]],
   );
   const { chart } = draw(graph, {
-    state: (variables) => (variables.n ? ["P\0\u0080", "C\u00004Dynamic"] : "\0\x9F"),
+    state: (variables) => (variables.n === SWITCH_ON ? ["P\0\u0080", "C\u00004Dynamic"] : "\0\x9F"),
     step: () => "a\0\x80b\x85c\x9Fd",
   });
   assert.doesNotMatch(chart, /[\0\x80-\x9F]|#0;|#1[2-5]\d;/u);
@@ -842,7 +849,7 @@ test("a label puts a word joiner inside ﬂ° and ¶ß, since Mermaid decodes a 
     [["s0", "s1", "Go"]],
   );
   const { chart } = draw(graph, {
-    state: (variables) => (variables.n ? ["ﬂ\0°lt¶ß", "x"] : "ﬂ°°65¶ßstateß"),
+    state: (variables) => (variables.n === SWITCH_ON ? ["ﬂ\0°lt¶ß", "x"] : "ﬂ°°65¶ßstateß"),
     step: () => "ﬂ ° ¶ ß",
   });
   assert.match(chart, /^ {2}s\d+: ﬂ#8288;#176;#176;65#182;#8288;ßstateß$/m);
@@ -861,7 +868,7 @@ test('a label puts a word joiner inside marker-end=", since Mermaid rewrites mar
   );
   const { chart } = draw(graph, {
     title: 'marker-end="url(a#b',
-    state: (variables) => (variables.n ? ['marker-end="url(p#q', "x"] : 'marker-end="url(a#b'),
+    state: (variables) => (variables.n === SWITCH_ON ? ['marker-end="url(p#q', "x"] : 'marker-end="url(a#b'),
     step: () => 'a="b" = "c"',
   });
   assert.match(chart, /^title: "marker-end=ﬂ°°8288¶ß\\"url\(aﬂ°°35¶ßb"$/m);
@@ -892,7 +899,7 @@ test("a parent or region name with [[fork]], [[join]], or [[choice]] stays text"
     [["s0", "s1", "GoX"]],
   );
   const regions = draw(parallel, {
-    state: (variables) => ({ "[[choice]]": `X${variables.x}`, Other: `Y${variables.y}` }),
+    state: (variables) => ({ "[[choice]]": `X${fixtureText(variables.x)}`, Other: `Y${fixtureText(variables.y)}` }),
   }).chart;
   assert.match(regions, /^ {4}state "#91;\[choice\]\]" as r0 \{$/mu);
   assert.doesNotMatch(parents + regions, /\[\[/u);
@@ -908,7 +915,7 @@ test("a label with C4Container, C4Component, C4Dynamic, or C4Deployment keeps th
     [["s0", "s1", "Go"]],
   );
   const { chart } = draw(graph, {
-    state: (variables) => (variables.n ? ["C4Component", "C4Deployment"] : "aC4Dynamic"),
+    state: (variables) => (variables.n === SWITCH_ON ? ["C4Component", "C4Deployment"] : "aC4Dynamic"),
     step: () => "C4Container C4Context",
   });
   assert.doesNotMatch(chart, /C4(?:Container|Component|Dynamic|Deployment)/u);
@@ -927,7 +934,7 @@ test("a title with < cannot open an HTML tag that rewrites the chart's quotes", 
     ],
     [["s0", "s1", "Go"]],
   );
-  const { chart } = draw(graph, { title: "<a=", state: (variables) => ["P", `S${variables.n}`] });
+  const { chart } = draw(graph, { title: "<a=", state: (variables) => ["P", `S${fixtureText(variables.n)}`] });
   assert.doesNotMatch(chart, /</u);
   assert.match(chart, /^title: "ﬂ°°60¶ßa="$/m);
   assert.match(chart, /^ {2}state "P" as s\d+ \{$/mu);
@@ -942,7 +949,7 @@ test("the title writes each character outside the allow list in the form Mermaid
     ],
     [["s0", "s1", "Go"]],
   );
-  const state = (variables: Vars): string => `S${variables.n}`;
+  const state = (variables: Vars): string => `S${fixtureText(variables.n)}`;
   const title = (titleText: string): string | undefined =>
     (/^---\ntitle: (.*)\n---\n/.exec(draw(graph, { title: titleText, state }).chart))?.[1];
   assert.equal(title("Queue<T> for AT&T"), '"Queueﬂ°°60¶ßT> for ATﬂ°°38¶ßT"');
@@ -996,7 +1003,7 @@ test("a view that cannot give a chart says what to change", () => {
     [["p", "q", "Go"]],
   );
   assert.throws(
-    () => draw(graph, { state: (variables) => String(variables.x).split(".") }),
+    () => draw(graph, { state: (variables) => fixtureText(variables.x).split(".") }),
     /both as a state and as a parent state/u,
   );
   assert.throws(
@@ -1052,7 +1059,7 @@ test("a view may hide a step inside a loop, but not a step out of it", () => {
   const found = lasso(graph, keyTrace(), { names: ["pos", "key"] });
   assert.ok(found);
   const loop: Bug = { rule: { kind: "property", name: "Opens" }, ...found };
-  const state = (variables: Vars): string => `${variables.pos}, key ${field(variables.key, "on") ? "on" : "off"}`;
+  const state = (variables: Vars): string => `${fixtureText(variables.pos)}, key ${field(variables.key, "on") === true ? "on" : "off"}`;
   const { report } = draw(graph, { state, step: (actionName) => (actionName === "Tick" ? null : actionName) }, [loop]);
   assert.match(report, /^The run stops in "wait, key off" forever\.$/mu);
   assert.throws(
@@ -1110,7 +1117,7 @@ test("a chart that draws a way out of a loop that the loop cannot take stops the
   );
   const { chart } = draw(
     graph,
-    { state: (variables) => `${variables.pos}, key ${field(variables.key, "on") ? "on" : "off"}` },
+    { state: (variables) => `${fixtureText(variables.pos)}, key ${field(variables.key, "on") === true ? "on" : "off"}` },
     [loop],
   );
   const wait = (/^ {2}(s\d+): wait, key off$/mu.exec(chart))?.[1];
@@ -1131,7 +1138,7 @@ test("a region named __proto__ is a region like any other", () => {
     ],
   );
   const { chart } = draw(graph, {
-    state: (variables): unknown => JSON.parse(`{"__proto__": "X${variables.x}", "Other": "Y${variables.y}"}`),
+    state: (variables): unknown => JSON.parse(`{"__proto__": "X${fixtureText(variables.x)}", "Other": "Y${fixtureText(variables.y)}"}`),
   });
   assert.match(chart, /^ {4}state "#95;#95;proto#95;#95;" as r0 \{$/mu);
   assert.match(chart, /^ {6}s0 --> s1: GoX \[when Y0\]$/mu);
@@ -1248,7 +1255,7 @@ test("a chart state with mixed groups gets no color, even when colors names unde
   );
   const view: View = {
     state: () => "Same",
-    group: (variables) => (variables.x ? "B" : "A"),
+    group: (variables) => (variables.x === SWITCH_ON ? "B" : "A"),
     colors: { A: "blue", B: "teal", undefined: "pink" },
   };
   assert.doesNotMatch(draw(graph, view).chart, /^ {2}class /mu);
