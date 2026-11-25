@@ -97,6 +97,12 @@ export const asParents = function asParents(
   return { names: [""], shapes: parents, labels, group };
 };
 
+const LEAF_PATH_LENGTH = 1;
+const FIRST_LABEL_INDEX = 0;
+const NO_STEP_INDEX = -1;
+const FLAG_SET = 1;
+const MULTIPLE_REGIONS = 2;
+
 export const labelGraph = function labelGraph(
   graph: Graph,
   { index, from, to, action }: Walk,
@@ -105,104 +111,111 @@ export const labelGraph = function labelGraph(
   found: Bug[],
 ): Labels {
   const { names, shapes, labels: stepLabels } = answers;
-  const n = shapes.length;
-  const m = stepLabels.length;
+  const stateCount = shapes.length;
+  const stepCount = stepLabels.length;
   const onPath = new Set<Step>();
-  visitItems(found, (bug) => {visitItems(bug.path, (currentStep) => {onPath.add(currentStep.step);});});
+  visitItems(found, (bug) => {visitItems(bug.path, (pathStep) => {onPath.add(pathStep.step);});});
   const pathStepIndex = new Map<Step, number>();
-  if (onPath.size)
-    {for (let j = 0; j < m; j++)
-      {if (onPath.has(graph.steps[j])) {pathStepIndex.set(graph.steps[j], j);}}}
-  const R = names.length;
+  if (onPath.size) {
+    visitItems(stepLabels.keys(), (stepIndex) => {
+      const step = graph.steps[stepIndex];
+      if (onPath.has(step)) {pathStepIndex.set(step, stepIndex);}
+    });
+  }
+  const regionCount = names.length;
   const keys: string[][] = [];
   const kinds: Int32Array[] = [];
   const sizes: number[] = [];
   visitItems(names, (name) => {
-    const key = new Array<string>(n);
-    const kind = new Int32Array(n);
+    const kind = new Int32Array(stateCount);
     const tops = new Map<string, number>();
     const nested = new Map<string, number>();
     const keyOf: string[] = [];
-    for (let i = 0; i < n; i++) {
-      const path = shapes[i][name];
-      const top = path.length === 1;
+    const regionKeys = Array.from({ length: stateCount }, (_, stateIndex) => {
+      const path = shapes[stateIndex][name];
+      const top = path.length === LEAF_PATH_LENGTH;
       const seen = top ? tops : nested;
-      const k = top ? path[0] : tupleKey(path);
-      let c = seen.get(k);
-      if (matchesUndefined(c)) {
-        seen.set(k, (c = keyOf.length));
-        keyOf.push(top ? tupleKey(path) : k);
+      const pathKey = top ? path[FIRST_LABEL_INDEX] : tupleKey(path);
+      const cached = seen.get(pathKey);
+      const shapeIndex = cached ?? keyOf.length;
+      if (matchesUndefined(cached)) {
+        seen.set(pathKey, shapeIndex);
+        keyOf.push(top ? tupleKey(path) : pathKey);
       }
-      key[i] = keyOf[c];
-      kind[i] = c;
-    }
-    keys.push(key);
+      kind[stateIndex] = shapeIndex;
+      return keyOf[shapeIndex];
+    });
+    keys.push(regionKeys);
     kinds.push(kind);
     sizes.push(keyOf.length);
   });
-  for (const currentBug of found) {
-    let t: Step | undefined;
-    for (const currentStep of currentBug.path)
-      {if (matchesNull(stepLabels[must(pathStepIndex, currentStep.step)])) {
-        t = currentStep.step;
-        break;
-      }}
-    if (!t) {
-      const inLoop = loopOf(currentBug, index);
-      if (inLoop.size)
-        {for (let j = 0; j < m; j++)
-          {if (inLoop.has(from[j]) && !inLoop.has(to[j]) && matchesNull(stepLabels[j])) {
-            t = graph.steps[j];
-            break;
-          }}}
-    }
-    if (t) {unlabeled(t.action, must(graph.states, t.from).vars, must(graph.states, t.to).vars, currentBug);}
-  }
+
+  const hiddenStep = (bug: Bug): Step | undefined => {
+    const hidden = bug.path.find((pathStep) => matchesNull(stepLabels[must(pathStepIndex, pathStep.step)]));
+    if (!matchesUndefined(hidden)) {return hidden.step;}
+    const inLoop = loopOf(bug, index);
+    if (!inLoop.size) {return undefined;}
+    const leaving = stepLabels.findIndex((label, stepIndex) =>
+      inLoop.has(from[stepIndex]) && !inLoop.has(to[stepIndex]) && matchesNull(label),
+    );
+    return leaving === NO_STEP_INDEX ? undefined : graph.steps[leaving];
+  };
+  visitItems(found, (bug) => {
+    const hidden = hiddenStep(bug);
+    if (!matchesUndefined(hidden)) {unlabeled(hidden.action, must(graph.states, hidden.from).vars, must(graph.states, hidden.to).vars, bug);}
+  });
+
   const drawn: number[] = [];
-  const drawnLabels = new Array<string>(m);
-  for (let j = 0; j < m; j++) {
-    const label = stepLabels[j];
-    if (matchesNull(label)) {continue;}
-    drawn.push(j);
-    drawnLabels[j] = label;
-  }
-  const fromRank = new Int32Array(m);
-  const toRank = new Int32Array(m);
-  for (let j = 0; j < m; j++) {
-    fromRank[j] = rank[from[j]];
-    toRank[j] = rank[to[j]];
-  }
+  const drawnLabels = new Array<string>(stepCount);
+  visitItems(stepLabels.keys(), (stepIndex) => {
+    const label = stepLabels[stepIndex];
+    if (!matchesNull(label)) {
+      drawn.push(stepIndex);
+      drawnLabels[stepIndex] = label;
+    }
+  });
+  const fromRank = new Int32Array(stepCount);
+  const toRank = new Int32Array(stepCount);
+  visitItems(fromRank.keys(), (stepIndex) => {
+    fromRank[stepIndex] = rank[from[stepIndex]];
+    toRank[stepIndex] = rank[to[stepIndex]];
+  });
   const sorted = sortBy(Int32Array.from(drawn), [fromRank, toRank, action]);
-  const pathSteps = new Uint8Array(m);
-  visitItems(pathStepIndex.values(), (j) => {pathSteps[j] = 1;});
+  const pathSteps = new Uint8Array(stepCount);
+  visitItems(pathStepIndex.values(), (stepIndex) => {pathSteps[stepIndex] = FLAG_SET;});
   const byLabel = new Map<string, { changed: Uint8Array; sets: Set<string> }>();
-  if (R > 1)
-    {visitItems(sorted, (j) => {
-      let entry = byLabel.get(drawnLabels[j]);
-      if (!entry)
-        {byLabel.set(drawnLabels[j], (entry = { changed: new Uint8Array(R), sets: new Set() }));}
+  if (regionCount >= MULTIPLE_REGIONS) {
+    visitItems(sorted, (stepIndex) => {
+      const label = drawnLabels[stepIndex];
+      const existing = byLabel.get(label);
+      const entry = existing ?? { changed: new Uint8Array(regionCount), sets: new Set<string>() };
+      if (matchesUndefined(existing)) {byLabel.set(label, entry);}
       const changed: string[] = [];
-      for (let r = 0; r < R; r++)
-        {if (kinds[r][from[j]] !== kinds[r][to[j]]) {
-          changed.push(names[r]);
-          entry.changed[r] = 1;
-        }}
-      if (changed.length > 1) {entry.sets.add(list(changed));}
-    });}
+      visitItems(names.keys(), (regionIndex) => {
+        if (kinds[regionIndex][from[stepIndex]] !== kinds[regionIndex][to[stepIndex]]) {
+          changed.push(names[regionIndex]);
+          entry.changed[regionIndex] = FLAG_SET;
+        }
+      });
+      if (changed.length >= MULTIPLE_REGIONS) {entry.sets.add(list(changed));}
+    });
+  }
   const together = new Set<string>();
   visitItems(byLabel, ([text, { sets }]) => {if (sets.size) {together.add(text);}});
   const notes: string[] = [];
   visitItems(byLabel, ([text, entry]) => {
     const changed: string[] = [];
-    for (let r = 0; r < R; r++) {if (entry.changed[r]) {changed.push(names[r]);}}
-    if (changed.length < 2) {return;}
+    visitItems(entry.changed.keys(), (regionIndex) => {
+      if (entry.changed[regionIndex]) {changed.push(names[regionIndex]);}
+    });
+    if (changed.length < MULTIPLE_REGIONS) {return;}
     if (!together.has(text)) {
       notes.push(`The step ${text} changes only one of ${list(changed)} at a time.`);
       return;
     }
     const sets = [...entry.sets];
     notes.push(
-      `The step ${text} changes ${sets.length > 1 ? `${sets.join(", or ")},` : sets[0]} at the same time.`,
+      `The step ${text} changes ${sets.length >= MULTIPLE_REGIONS ? `${sets.join(", or ")},` : sets[FIRST_LABEL_INDEX]} at the same time.`,
     );
   });
   return {
@@ -225,7 +238,7 @@ const tell = function <Id, B extends Told<Id>>(
   states: ReadonlyMap<Id, { vars: Vars }>,
   found: B[],
   shapeAt: (id: Id) => Shape,
-  labelAt: (bug: B, k: number, from: Id) => string | Hidden,
+  labelAt: (bug: B, pathIndex: number, from: Id) => string | Hidden,
 ) {
   const vars = (id: Id) => must(states, id).vars;
   const stories = new Map<B, Story>();
@@ -253,5 +266,5 @@ export const storiesOf = (
     graph.states,
     found,
     (id) => shapes[must(index, id)],
-    (bug, k) => drawnLabels[must(pathStepIndex, bug.path[k].step)],
+    (bug, pathIndex) => drawnLabels[must(pathStepIndex, bug.path[pathIndex].step)],
   );
