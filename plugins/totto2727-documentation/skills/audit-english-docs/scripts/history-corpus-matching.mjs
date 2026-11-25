@@ -45,6 +45,26 @@ export const indexExpectedScores = (samples) => {
   return { documents, expected };
 };
 
+const NO_MATCHING_TARGET = undefined;
+
+/** @type {(evaluation: Record<string, unknown>, question: Record<string, unknown>, expected: Map<string, ScoringTarget>) => ScoringTarget | undefined} */
+const matchingTarget = (evaluation, question, expected) => {
+  const target = expected.get(targetKey(evaluation.documentId, asRecord(question.rule)?.id));
+  const section = asRecord(evaluation.section);
+  const range = asRecord(section?.sourceRange);
+  if (
+    !target ||
+    evaluation.scope !== target.scope ||
+    (target.scope === "section" &&
+      (section?.id !== "target" ||
+        range?.startLine !== target.sample.startLine ||
+        range.endLine !== target.sample.endLine))
+  ) {
+    return NO_MATCHING_TARGET;
+  }
+  return target;
+};
+
 /** @type {(evaluation: Record<string, unknown>, rawQuestions: unknown[], state: { expected: Map<string, ScoringTarget>, issues: ScoreIssue[] }) => void} */
 const matchQuestions = (evaluation, rawQuestions, { expected, issues }) => {
   const questions = rawQuestions.map((question) => asRecord(question));
@@ -77,17 +97,8 @@ const matchQuestions = (evaluation, rawQuestions, { expected, issues }) => {
       );
       return;
     }
-    const target = expected.get(targetKey(evaluation.documentId, asRecord(question.rule)?.id));
-    const section = asRecord(evaluation.section);
-    const range = asRecord(section?.sourceRange);
-    if (
-      !target ||
-      evaluation.scope !== target.scope ||
-      (target.scope === "section" &&
-        (section?.id !== "target" ||
-          range?.startLine !== target.sample.startLine ||
-          range.endLine !== target.sample.endLine))
-    ) {
+    const target = matchingTarget(evaluation, question, expected);
+    if (!target) {
       issues.push(
         scoreIssue("unexpected_question", {
           documentId: evaluation.documentId,

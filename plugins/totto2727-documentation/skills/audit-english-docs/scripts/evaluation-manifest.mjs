@@ -8,6 +8,7 @@ import { validateRule } from "./evaluation-manifest-rules.mjs";
 
 import { bounded, EvaluationError, object, text } from "./evaluation-validation.mjs";
 import {
+  isEmptyString,
   matchesBoolean,
   matchesNull,
   matchesNumber,
@@ -37,11 +38,11 @@ const validateDocumentMetadata = (document, label, needsLanguage) => {
   text(document.path, `${label}.path`);
   text(document.purpose, `${label}.purpose`);
   text(document.audience, `${label}.audience`);
+  const { context } = document;
   if (
-    !matchesUndefined(document.context) &&
-    !matchesNull(document.context) &&
-    // oxlint-disable-next-line rules/force-string-empty -- The standalone skill accepts just the empty legacy string as absent.
-    document.context !== ""
+    !matchesUndefined(context) &&
+    !matchesNull(context) &&
+    !(matchesString(context) && isEmptyString(context))
   ) {
     throw new EvaluationError(
       `${label}.context is no longer supported: remove legacy context and use purpose, audience, and templateConstraints for task metadata. Evaluation evidence must stay on the same page.`,

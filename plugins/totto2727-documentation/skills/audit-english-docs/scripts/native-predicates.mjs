@@ -28,3 +28,7 @@ export const hasObjectType = (value) => typeof value === "object";
  */
 export const isRecord = (value) =>
   hasObjectType(value) && !matchesNull(value) && !Array.isArray(value);
+
+/** @type {(value: string) => boolean} */
+// oxlint-disable-next-line rules/force-string-empty -- Keep the standalone native string check independent of repository packages.
+export const isEmptyString = (value) => value === "";
