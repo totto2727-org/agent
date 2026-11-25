@@ -1,3 +1,4 @@
+import { classifyPr, selectTierMajorStackDecision } from "./decision.ts";
 import { WatcherQueryError } from "./github.ts";
 import { readSnapshot } from "./snapshot.ts";
 import type * as T from "./types.ts";
@@ -6,135 +7,20 @@ import { matchesNull, matchesUndefined } from "./native-predicates.ts";
 
 export { assessGitHubMerge, readSnapshot } from "./snapshot.ts";
 
-const conflictBlocker = (row: T.PrSnapshot): T.MergeBlocker | null =>
-  row.kind === "open" &&
-  (row.facts.mergeable === "CONFLICTING" ||
-    row.facts.mergeStateStatus === "DIRTY" ||
-    row.facts.mergeStateStatus === "CONFLICTING")
-    ? { kind: "merge-conflicts", pr: row.context, facts: row.facts }
-    : null;
-const threadBlocker = function (row: T.PrSnapshot): T.MergeBlocker | null {
-  if (row.kind !== "open") {return null;}
-  const threads = nonEmpty(row.threads);
-  return matchesNull(threads)
-    ? null
-    : { kind: "review-threads", pr: row.context, threads };
-};
-const ciBlocker = (row: T.PrSnapshot): T.MergeBlocker | null =>
-  row.kind === "open" &&
-  (row.ci.kind === "ci-failing" || row.ci.kind === "ci-github-rejected")
-    ? { kind: "failing-checks", pr: row.context, ci: row.ci }
-    : null;
-const gateReason = function (
-  row: T.PrSnapshot,
-  allowDraft: boolean
-): T.MergeGateReason | null {
-  if (row.kind === "merged") {return null;}
-  if (row.kind === "closed") {return "closed-without-merge";}
-  if (row.facts.isDraft && !allowDraft) {return "draft-pr";}
-  return row.facts.reviewDecision === "CHANGES_REQUESTED"
-    ? "changes-requested"
-    : null;
-};
-const gateBlocker = function (
-  row: T.PrSnapshot,
-  allowDraft: boolean
-): T.MergeBlocker | null {
-  const reason = gateReason(row, allowDraft);
-  return matchesNull(reason) ||
-    (reason === "draft-pr" &&
-      row.kind === "open" &&
-      row.ci.kind === "ci-pending")
-    ? null
-    : { kind: "merge-gate", pr: row.context, reason };
-};
-const readyContribution = function (
-  row: T.PrSnapshot,
-  allowDraft: boolean
-): T.ReadyPr | T.MergedPr | null {
-  if (row.kind === "merged")
-    {return {
-      kind: "merged-pr",
-      context: row.context,
-      mergedAt: row.facts.mergedAt,
-    };}
-  if (
-    row.kind !== "open" ||
-    row.ci.kind !== "ci-clean" ||
-    row.threads.length !== 0 ||
-    !matchesNull(conflictBlocker(row)) ||
-    !matchesNull(gateReason(row, allowDraft))
-  )
-    {return null;}
-  const {reviewDecision} = row.facts;
-  if (reviewDecision === "CHANGES_REQUESTED") {return null;}
-  return {
-    kind: "ready-pr",
-    context: row.context,
-    proof: {
-      mergeability: "clear",
-      threads: [],
-      ci: row.ci,
-      gate: {
-        state: "OPEN",
-        reviewDecision,
-        draft: row.facts.isDraft ? "draft-allowed" : "not-draft",
-      },
-    },
-  };
-};
-export const classifyPr = function classifyPr(
-  row: T.PrSnapshot,
-  allowDraft = false
-): T.PrDecision {
-  for (const blocker of [
-    conflictBlocker(row),
-    threadBlocker(row),
-    ciBlocker(row),
-    gateBlocker(row, allowDraft),
-  ])
-    {if (!matchesNull(blocker)) {return { kind: "blocker", blocker };}}
-  if (row.kind === "open" && row.ci.kind === "ci-pending")
-    {return { kind: "waiting", frontier: row.context, pending: row.ci.pending };}
-  const ready = readyContribution(row, allowDraft);
-  if (matchesNull(ready)) {throw new Error("snapshot has no classified decision");}
-  return ready.kind === "merged-pr"
-    ? { kind: "merged", pr: ready }
-    : { kind: "ready", pr: ready };
-};
-export const selectTierMajorStackDecision = function selectTierMajorStackDecision(
-  rows: T.NonEmpty<T.PrSnapshot>,
-  allowDraft = false
-): T.StackDecision {
-  for (const tier of [conflictBlocker, threadBlocker, ciBlocker])
-    {for (const row of rows) {
-      const blocker = tier(row);
-      if (!matchesNull(blocker)) {return { kind: "blocker", blocker };}
-    }}
-  for (const row of rows) {
-    const blocker = gateBlocker(row, allowDraft);
-    if (!matchesNull(blocker)) {return { kind: "blocker", blocker };}
-  }
-  for (const row of rows)
-    {if (row.kind === "open" && row.ci.kind === "ci-pending")
-      {return {
-        kind: "waiting",
-        frontier: row.context,
-        pending: row.ci.pending,
-      };}}
-  const prs = nonEmpty(
-    rows
-      .map((row) => readyContribution(row, allowDraft))
-      .filter((row): row is T.ReadyPr | T.MergedPr => !matchesNull(row))
-  );
-  if (matchesNull(prs) || prs.length !== rows.length)
-    {throw new Error("stack has no classified decision");}
-  return { kind: "clear", prs };
-};
+export { classifyPr, selectTierMajorStackDecision } from "./decision.ts";
+
+const BACKOFF_MINIMUM_SECONDS = 60;
+const BACKOFF_MAXIMUM_SECONDS = 300;
+const BACKOFF_MULTIPLIER = 2;
+const INITIAL_FAILURE_COUNT = 1;
+
 export const queryBackoffSeconds = (
   interval: number,
   failures: number
-): number => Math.min(Math.max(interval, 60) * 2 ** (failures - 1), 300);
+): number => Math.min(
+  Math.max(interval, BACKOFF_MINIMUM_SECONDS) * BACKOFF_MULTIPLIER ** (failures - INITIAL_FAILURE_COUNT),
+  BACKOFF_MAXIMUM_SECONDS,
+);
 type Envelope<M extends T.WatchMode> = Readonly<{
   schemaVersion: 1;
   sequence: number;
