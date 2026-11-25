@@ -265,12 +265,27 @@ export const visitItems = <Item>(source: Iterable<Item>, visit: (item: Item) => 
   for (const item of source) {visit(item);}
 };
 
-export const PART = 1 << 24;
+// Native stream reads use 16 MiB slices.
+export const PART = 16_777_216;
 
-export const byText = (a: string, b: string) => (a < b ? -1 : (a > b ? 1 : 0));
+const PRECEDES = -1;
+const SAME_POSITION = 0;
+const FOLLOWS = 1;
+const FIRST_INDEX = 0;
+const NEXT_INDEX = 1;
+const LAST_INDEX = -1;
+const LIST_PAIR = 2;
+
+type TextOrder = typeof PRECEDES | typeof SAME_POSITION | typeof FOLLOWS;
+
+export const byText = (left: string, right: string): TextOrder => {
+  if (left < right) {return PRECEDES;}
+  if (left > right) {return FOLLOWS;}
+  return SAME_POSITION;
+};
 
 export const list = (items: string[], and = "and"): string =>
-  items.length < 2 ? items.join("") : `${items.slice(0, -1).join(", ")} ${and} ${items.at(-1)}`;
+  items.length < LIST_PAIR ? items.join("") : `${items.slice(FIRST_INDEX, LAST_INDEX).join(", ")} ${and} ${items.at(LAST_INDEX)}`;
 
 const ESCAPES: Record<string, string> = {
   '"': String.raw`\"`,
@@ -358,25 +373,63 @@ export const stateText = (vars: Vars): string => {
   return parts.join(String.raw` /\ `);
 };
 
-export const count = (n: number) => {
-  const items = new Int32Array(n);
-  for (let i = 0; i < n; i++) {items[i] = i;}
+export const count = (length: number): Int32Array => {
+  const items = new Int32Array(length);
+  const cursor = { index: FIRST_INDEX };
+  while (cursor.index < items.length) {
+    items[cursor.index] = cursor.index;
+    cursor.index += NEXT_INDEX;
+  }
   return items;
 };
 
-export const sortBy = (items: Int32Array, keys: Int32Array[]) => {
-  for (let k = keys.length - 1; k >= 0; k--) {
-    const key = keys[k];
-    let size = 0;
-    for (let p = 0; p < items.length; p++) {if (key[items[p]] >= size) {size = key[items[p]] + 1;}}
-    const start = new Int32Array(size + 1);
-    for (let p = 0; p < items.length; p++) {start[key[items[p]] + 1]++;}
-    for (let v = 0; v < size; v++) {start[v + 1] += start[v];}
-    const sorted = new Int32Array(items.length);
-    for (let p = 0; p < items.length; p++) {sorted[start[key[items[p]]]++] = items[p];}
-    items = sorted;
+const bucketCount = (items: Int32Array, keys: Int32Array): number => {
+  const cursor = { highest: FIRST_INDEX, index: FIRST_INDEX };
+  while (cursor.index < items.length) {
+    const bucket = keys[items[cursor.index]];
+    if (bucket >= cursor.highest) {cursor.highest = bucket + NEXT_INDEX;}
+    cursor.index += NEXT_INDEX;
   }
-  return items;
+  return cursor.highest;
+};
+
+const bucketStarts = (items: Int32Array, keys: Int32Array): Int32Array => {
+  const total = bucketCount(items, keys);
+  const starts = new Int32Array(total + NEXT_INDEX);
+  const cursor = { bucket: FIRST_INDEX, index: FIRST_INDEX };
+  while (cursor.index < items.length) {
+    starts[keys[items[cursor.index]] + NEXT_INDEX] += NEXT_INDEX;
+    cursor.index += NEXT_INDEX;
+  }
+  while (cursor.bucket < total) {
+    starts[cursor.bucket + NEXT_INDEX] += starts[cursor.bucket];
+    cursor.bucket += NEXT_INDEX;
+  }
+  return starts;
+};
+
+const sortByKey = (items: Int32Array, keys: Int32Array): Int32Array => {
+  const starts = bucketStarts(items, keys);
+  const sorted = new Int32Array(items.length);
+  const cursor = { index: FIRST_INDEX };
+  while (cursor.index < items.length) {
+    const bucket = keys[items[cursor.index]];
+    const offset = starts[bucket];
+    starts[bucket] = offset + NEXT_INDEX;
+    sorted[offset] = items[cursor.index];
+    cursor.index += NEXT_INDEX;
+  }
+  return sorted;
+};
+
+export const sortBy = (items: Int32Array, keyColumns: Int32Array[]): Int32Array => {
+  const pass = { index: keyColumns.length, items };
+  // Apply the least significant keys first. The counting pass keeps equal keys in input order.
+  while (pass.index > FIRST_INDEX) {
+    pass.index -= NEXT_INDEX;
+    pass.items = sortByKey(pass.items, keyColumns[pass.index]);
+  }
+  return pass.items;
 };
 
 export const tupleKey = (parts: unknown[]): string => JSON.stringify(parts);
@@ -498,15 +551,20 @@ export const stateKey = (values: Value[]): string => {
   return k;
 };
 
-export const memo = <K, V>(make: (k: K) => V, limit = 1 << 16) => {
-  const cache = new Map<K, V>();
-  return (k: K) => {
-    let v = cache.get(k);
-    if (matchesUndefined(v)) {
-      if (cache.size >= limit) {cache.clear();}
-      cache.set(k, (v = make(k)));
-    }
-    return v;
+const DEFAULT_CACHE_LIMIT = 65_536;
+
+export const memo = <CacheKey, Result>(
+  make: (input: CacheKey) => Result,
+  limit = DEFAULT_CACHE_LIMIT,
+): (input: CacheKey) => Result => {
+  const cache = new Map<CacheKey, Result>();
+  return (input: CacheKey): Result => {
+    const cached = cache.get(input);
+    if (!matchesUndefined(cached)) {return cached;}
+    if (cache.size >= limit) {cache.clear();}
+    const result = make(input);
+    cache.set(input, result);
+    return result;
   };
 };
 
