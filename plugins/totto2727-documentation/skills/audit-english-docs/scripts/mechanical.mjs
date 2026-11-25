@@ -1,11 +1,14 @@
+import { paragraphUnits } from "./mechanical-paragraphs.mjs";
 import { inspectMarkdown } from "./mechanical-source.mjs";
 import { sourceRange } from "./mechanical-source-range.mjs";
-import { analyzeSteProse, countDeclaredNounGroup } from "./ste.mjs";
+import { analyzeSteProse } from "./ste.mjs";
 import { hasObjectType, matchesNull, matchesString } from "./native-predicates.mjs";
 
 export { validateMechanicalCheck } from "./mechanical-criteria.mjs";
 export { sourceRange } from "./mechanical-source-range.mjs";
 export { inspectMarkdown } from "./mechanical-source.mjs";
+export { nounGroupCounts } from "./mechanical-nouns.mjs";
+export { paragraphUnits } from "./mechanical-paragraphs.mjs";
 
 /** @typedef {import("./mechanical-source-range.mjs").SourceRange} SourceRange */
 /** @typedef {import("./mechanical-source.mjs").TextRange} TextRange */
@@ -14,7 +17,7 @@ export { inspectMarkdown } from "./mechanical-source.mjs";
 /** @typedef {import("./mechanical-source.mjs").Exclusion} Exclusion */
 /** @typedef {import("./mechanical-source.mjs").Uncertainty} Uncertainty */
 /** @typedef {import("./mechanical-source.mjs").RecordExclusion} RecordExclusion */
-/** @typedef {{ hyphenComponentCounts: number[] | null, sourceRange: SourceRange, status: "counted" | "insufficient_context", wordCount: number | null }} NounGroupEvidence */
+/** @typedef {import("./mechanical-nouns.mjs").NounGroupEvidence} NounGroupEvidence */
 /** @typedef {import("./mechanical-criteria.mjs").SteCheck} SteCheck */
 /** @typedef {import("./mechanical-criteria.mjs").MechanicalCheck} MechanicalCheck */
 /** @typedef {import("./ste.mjs").VocabularyEntry} VocabularyEntry */
@@ -31,122 +34,8 @@ export { inspectMarkdown } from "./mechanical-source.mjs";
 /** @typedef {MechanicalResult & { counts: ProseCount[], coverage: Coverage & { declaredWordGroups: import("./ste.mjs").DeclaredWordGroup[], writingMode: MechanicalContext["writingMode"] | null }, lexicalCandidates: LexicalCandidate[] }} SteResult */
 /**
  * @template Context
- * @typedef {{ headingPath: string[], id: string, sourceRange: SourceRange, ste: Context | undefined, text: string }} Paragraph
+ * @typedef {import("./mechanical-paragraphs.mjs").Paragraph<Context>} Paragraph
  */
-
-/**
- * @template {{ text: string }} Group
- * @param {string} markdown - The complete source document.
- * @param {SourceRange} targetRange - The range in which to look for noun groups.
- * @param {Group[]} [groups] - The caller's declarations and their literal text.
- * @returns {Array<Group & NounGroupEvidence>} Evidence for matching declarations.
- */
-export const nounGroupCounts = function nounGroupCounts(markdown, targetRange, groups = []) {
-  const { visible, uncertainties } = inspectMarkdown(markdown);
-  /** @type {Array<Group & NounGroupEvidence>} */
-  const selected = [];
-  Iterator.from(groups).forEach((group) => {
-    let at = 0;
-    while ((at = visible.indexOf(group.text, at)) !== -1) {
-      const end = at + group.text.length;
-      const range = sourceRange(markdown, at, end);
-      if (
-        range.startByte >= targetRange.startByte &&
-        range.endByte <= targetRange.endByte &&
-        !/[\p{L}\p{N}_'-]/u.test(visible[at - 1] ?? "") &&
-        !/[\p{L}\p{N}_'-]/u.test(visible[end] ?? "")
-      ) {
-        const counts = uncertainties.some((entry) => at < entry.end && end > entry.start)
-          ? null
-          : countDeclaredNounGroup(group.text);
-        selected.push({
-          ...group,
-          status: counts ? "counted" : "insufficient_context",
-          ...(counts ?? { wordCount: null, hyphenComponentCounts: null }),
-          sourceRange: range,
-        });
-      }
-      at = end;
-    }
-  });
-  return selected;
-};
-
-/**
- * @template Context
- * @param {string} markdown - The complete Markdown document.
- * @param {Array<{ headingPath: string[], id?: unknown, sourceRange: SourceRange, ste?: Context }>} sections - Sections eligible for paragraph checks.
- * @returns {Paragraph<Context>[]} Whole paragraphs contained in those sections.
- */
-export const paragraphUnits = function paragraphUnits(markdown, sections) {
-  const { fences, frontmatter } = inspectMarkdown(markdown);
-  const lines = [...markdown.matchAll(/[^\n]*(?:\n|$)/g)].filter((line) => line[0].length);
-  /** @type {Paragraph<Context>[]} */
-  const units = [];
-  /** @type {number | null} */
-  let start = null;
-  let end = 0;
-  const flush = () => {
-    if (matchesNull(start)) {
-      return;
-    }
-    const range = sourceRange(markdown, start, end);
-    const partial = sections.find(
-      (candidate) =>
-        candidate.sourceRange.startByte < range.endByte &&
-        candidate.sourceRange.endByte > range.startByte &&
-        (candidate.sourceRange.startByte > range.startByte ||
-          candidate.sourceRange.endByte < range.endByte),
-    );
-    if (partial) {
-      throw new Error(
-        `Section ${partial.id} selects only part of a paragraph (paragraph lines ${range.startLine}-${range.endLine}). Expand the source range to include the complete paragraph.`,
-      );
-    }
-    const section = sections.find(
-      (candidate) =>
-        candidate.sourceRange.startByte <= range.startByte &&
-        candidate.sourceRange.endByte >= range.endByte,
-    );
-    if (section) {
-      units.push({
-        id: `paragraph-${units.length + 1}`,
-        headingPath: section.headingPath,
-        ste: section.ste,
-        text: markdown.slice(start, end),
-        sourceRange: range,
-      });
-    }
-    start = null;
-  };
-  Iterator.from(lines).forEach((line) => {
-    if (frontmatter && line.index < frontmatter.end) {
-      return;
-    }
-    const fence = fences.find(
-      (candidate) => line.index >= candidate.start && line.index < candidate.end,
-    );
-    if (fence) {
-      if (line.index === fence.start) {
-        flush();
-        start = fence.start;
-        end = fence.end;
-        flush();
-      }
-      return;
-    }
-    if (/^\s*$/u.test(line[0]) || /^ {0,3}#{1,6}\s/u.test(line[0])) {
-      flush();
-      if (/^\s*$/u.test(line[0]) || /^ {0,3}#{1,6}\s/u.test(line[0])) {
-        return;
-      }
-    }
-    start ??= line.index;
-    end = line.index + line[0].length;
-  });
-  flush();
-  return units;
-};
 
 /**
  * @param {SteCheck} check - The selected mechanical criterion.
