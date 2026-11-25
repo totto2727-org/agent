@@ -20,6 +20,7 @@ import { EvaluationError } from "./evaluation-validation.mjs";
 import { validateResponse } from "./evaluation-response.mjs";
 
 import { loadManifest, parseArguments } from "./evaluation-manifest.mjs";
+import { pooled } from "./evaluation-scheduler.mjs";
 import { reportBaseFor, stateFor } from "./evaluation-state.mjs";
 import { buildWork } from "./evaluation-work.mjs";
 
@@ -46,36 +47,9 @@ export { validateResponse } from "./evaluation-response.mjs";
 /** @typedef {{ concurrency?: number, dryRun?: boolean, environment?: Record<string, string | undefined>, manifestPath: string, mechanicalOnly?: boolean, outputPath: string }} EvaluationOptions */
 /** @typedef {{ cacheStatus: ReturnType<typeof import("./evaluation-transport.mjs").parseCacheStatus>, ray: ReturnType<typeof import("./evaluation-transport.mjs").parseTraceId>, validated: ReturnType<typeof validateResponse> }} ValidatedOutcome */
 
-const firstQueueIndex = 0;
-const nextQueueIndex = 1;
 const defaultConcurrency = 4;
 const minimumConcurrency = 1;
 const maximumConcurrency = 32;
-
-/**
- * @template Input, Output
- * @param {Input[]} items - The ordered evaluation targets.
- * @param {number} concurrency - The worker limit.
- * @param {(item: Input) => Promise<Output>} run - Evaluate a single target.
- * @returns {Promise<Output[]>} Results in the original target order.
- */
-const pooled = async (items, concurrency, run) => {
-  /** @type {Output[]} */
-  const results = new Array(items.length);
-  // oxlint-disable-next-line rules/no-let -- Workers claim each index synchronously before awaiting its evaluation.
-  let next = firstQueueIndex;
-  await Promise.all(
-    Array.from({ length: Math.min(concurrency, items.length) }, async () => {
-      while (next < items.length) {
-        const index = next;
-        next += nextQueueIndex;
-        // oxlint-disable-next-line eslint/no-await-in-loop -- Wait for the current result before this worker takes another target.
-        results[index] = await run(items[index]);
-      }
-    }),
-  );
-  return results;
-};
 
 /** @type {(answer: { choice: import("./evaluation-response.mjs").Choice, confidence: number }, threshold: number | null) => boolean} */
 const reviewFor = (answer, threshold) => {
