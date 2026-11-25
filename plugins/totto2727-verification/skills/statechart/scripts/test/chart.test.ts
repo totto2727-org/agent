@@ -213,7 +213,7 @@ const replay = async function (name: string, graph: Graph): Promise<void> {
   const rules = stateRules(spec);
   const find = finder(graph, names);
   const marks = readMarks(readMessages(fileLines(corpus(name, "ChartRun.out"))), "chart");
-  const past = mark(graph, marks, names, rules, find);
+  const past = mark(graph, marks, { find, names, rules });
   const drawn = !(await fileExists(corpus(name, "ChartRun.exit")));
   const verdictFiles = await readdir(path.join(here, "corpus", name));
   visitItems(verdictFiles.sort(), (file) => {
@@ -227,16 +227,9 @@ const replay = async function (name: string, graph: Graph): Promise<void> {
     if (rule.kind === "deadlock" && drawn && !hasSection(spec, "CONSTRAINT", "ACTION_CONSTRAINT"))
       {deadEnds(graph, rule);}
     const counterexample = readCounterexample(messages);
-    if (drawn || lasso(graph, { seq: counterexample, loop: undefined }, names, find))
-      {addPast(
-        graph,
-        counterexample,
-        names,
-        rule,
-        past,
-        hasSection(spec, "ACTION_CONSTRAINT"),
-        find,
-      );}
+    if (drawn || lasso(graph, { seq: counterexample, loop: undefined }, { find, names })) {
+      addPast(graph, counterexample, { excludes: hasSection(spec, "ACTION_CONSTRAINT"), find, names, past, rule });
+    }
   });
 };
 
@@ -366,7 +359,7 @@ test("TLC's marks place on their states even when TLC wraps them over lines", as
   const graphText = await readFile(corpus("TwoPhase", "graph.dot"), "utf8");
   const graph = parseDot(graphText);
   assert.equal(
-    mark(graph, readMarks(readMessages(out), "chart"), spec.variables, stateRules(spec)).size,
+    mark(graph, readMarks(readMessages(out), "chart"), { names: spec.variables, rules: stateRules(spec) }).size,
     0,
   );
   const bad: Value[][] = [];
@@ -382,8 +375,7 @@ test("TLC's marks place on their states even when TLC wraps them over lines", as
       mark(
         parseDot(graphText),
         readMarks(readMessages(cut), "chart"),
-        spec.variables,
-        stateRules(spec),
+        { names: spec.variables, rules: stateRules(spec) },
       ),
     {
       message: `TLC's output ends inside a marked state, so the command cannot tell which rules it breaks:\n${cut.slice(cut.lastIndexOf('<< "chart",'))}\n`,
@@ -435,8 +427,7 @@ test("a wrapped mark with a model value named constructor places on its state", 
     mark(
       graph,
       readMarks(readMessages('<<"chart",\n<<constructor>>,\n{"Inv"}>>\n'), "chart"),
-      ["x"],
-      [inv],
+      { names: ["x"], rules: [inv] },
     ).size,
     0,
   );
@@ -1046,7 +1037,7 @@ const keyTrace = () =>
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a loop's trace finds its states when TLC prints record fields in another order", () => {
   const graph = keyGraph();
-  const bug = lasso(graph, keyTrace(), ["pos", "key"]);
+  const bug = lasso(graph, keyTrace(), { names: ["pos", "key"] });
   assert.ok(bug);
   assert.equal(bug.start, "idle");
   const moves = bug.path.map((part) => [part.action, part.state]);
@@ -1058,7 +1049,7 @@ test("a loop's trace finds its states when TLC prints record fields in another o
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a view may hide a step inside a loop, but not a step out of it", () => {
   const graph = keyGraph();
-  const found = lasso(graph, keyTrace(), ["pos", "key"]);
+  const found = lasso(graph, keyTrace(), { names: ["pos", "key"] });
   assert.ok(found);
   const loop: Bug = { rule: { kind: "property", name: "Opens" }, ...found };
   const state = (v: Vars): string => `${v.pos}, key ${field(v.key, "on") ? "on" : "off"}`;
@@ -1110,7 +1101,7 @@ test("a loop that passes one state twice names it once", () => {
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a chart that draws a way out of a loop that the loop cannot take stops the command", () => {
   const graph = keyGraph();
-  const found = lasso(graph, keyTrace(), ["pos", "key"]);
+  const found = lasso(graph, keyTrace(), { names: ["pos", "key"] });
   assert.ok(found);
   const loop: Bug = { rule: { kind: "property", name: "Opens" }, ...found };
   assert.throws(

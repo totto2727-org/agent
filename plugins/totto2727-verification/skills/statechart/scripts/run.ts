@@ -462,7 +462,7 @@ export const check = async function check(specFile: string, configFile: string):
         const broken = new Set<string>();
         visitItems(verdicts.values(), ({ rule, outcome }) => {if (rule.kind === "invariant" && outcome === "broken") {broken.add(rule.name);}});
         const marks = only(readMarks(readMessages(fileLines(drawn.stdout)), tag), broken);
-        const past = mark(graph, marks, spec.variables, rules, find);
+        const past = mark(graph, marks, { find, names: spec.variables, rules });
         const excludes = hasSection(spec, "ACTION_CONSTRAINT");
         visitItems(rules, (rule) => {
           const { outcome, messages } = must(verdicts, ruleKey(rule));
@@ -477,11 +477,11 @@ export const check = async function check(specFile: string, configFile: string):
           const counterexample = readCounterexample(messages);
           if (
             !drawing ||
-            lasso(graph, { seq: counterexample, loop: undefined }, spec.variables, find)
+            lasso(graph, { seq: counterexample, loop: undefined }, { find, names: spec.variables })
           )
-            {addPast(graph, counterexample, spec.variables, rule, past, excludes, find);}
+            {addPast(graph, counterexample, { excludes, find, names: spec.variables, past, rule });}
         });
-        const properties = propertiesWith((trace) => lasso(graph, trace, spec.variables, find));
+        const properties = propertiesWith((trace) => lasso(graph, trace, { find, names: spec.variables }));
         return {
           ...common,
           graph,
