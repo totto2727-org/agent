@@ -62,19 +62,19 @@ const graphOf = (states: StateRow[], steps: StepRow[]) => {
   return graph;
 };
 
-const lookup = <K, V>(map: ReadonlyMap<K, V>, k: K) => {
-  const v = map.get(k);
-  assert.ok(!matchesUndefined(v), `${inspect(k)} is missing`);
-  return v;
+const lookup = <K, V>(map: ReadonlyMap<K, V>, mapKey: K) => {
+  const foundValue = map.get(mapKey);
+  assert.ok(!matchesUndefined(foundValue), `${inspect(mapKey)} is missing`);
+  return foundValue;
 };
 
 const field = (value: Value, name: string) => {
   if (!hasObjectType(value) || value.kind !== "function")
     {throw new Error(`${inspect(value)} is not a function.`);}
-  for (let i = 0; i < value.keys.length; i++) {
-    const currentValue = value.keys[i];
+  for (let fieldIndex = 0; fieldIndex < value.keys.length; fieldIndex++) {
+    const currentValue = value.keys[fieldIndex];
     if (currentValue === name || (hasObjectType(currentValue) && currentValue.kind === "model" && currentValue.name === name))
-      {return value.values[i];}
+      {return value.values[fieldIndex];}
   }
   throw new Error(`${inspect(value)} has no ${name}.`);
 };
@@ -188,7 +188,7 @@ test("equal TLA+ values share one key and unequal ones do not, as TLC compares t
     ["{A, B}", "{B, A}"],
     ['{"b", "a"}', '{"a", "b"}'],
   ];
-  visitItems(same, ([a, b]) => {assert.equal(key(parseValue(a)), key(parseValue(b)), `${a} = ${b}`);});
+  visitItems(same, ([left, right]) => {assert.equal(key(parseValue(left)), key(parseValue(right)), `${left} = ${right}`);});
   const apart = [
     ['"A"', "A"],
     ["<<0>>", '("1" :> 0)'],
@@ -204,7 +204,7 @@ test("equal TLA+ values share one key and unequal ones do not, as TLC compares t
     ["[a |-> 1]", "[a |-> 2]"],
     ["{<<1>>}", "{<<2>>}"],
   ];
-  visitItems(apart, ([a, b]) => {assert.notEqual(key(parseValue(a)), key(parseValue(b)), `${a} # ${b}`);});
+  visitItems(apart, ([left, right]) => {assert.notEqual(key(parseValue(left)), key(parseValue(right)), `${left} # ${right}`);});
 });
 
 const replay = async function (name: string, graph: Graph): Promise<void> {
@@ -279,9 +279,9 @@ test("a chart of only the bug paths words each one with the view, asked once for
   const asked: Record<string, number> = {};
   const count = (question: string): number => (asked[question] = (asked[question] ?? 0) + 1);
   const view: View = {
-    state: (v) => {
-      count(`state ${v.x}`);
-      return `x is ${v.x}`;
+    state: (variables) => {
+      count(`state ${variables.x}`);
+      return `x is ${variables.x}`;
     },
     step: (action, from, to) => {
       count(`step ${from.x} to ${to.x}`);
@@ -335,11 +335,11 @@ test("the graph that parseDot returns keeps none of the text it read", () => {
   const MiB = 1 << 20;
   const pieces = 16;
   const dot = function* dot() {
-    for (let i = 0; i < pieces; i++) {
-      const id = `-${String(i).padStart(18, "7")}`;
+    for (let pieceIndex = 0; pieceIndex < pieces; pieceIndex++) {
+      const id = `-${String(pieceIndex).padStart(18, "7")}`;
       const lines = [
-        `${id} [label="n = ${i}"];`,
-        `${id} -> ${id} [label="StayAtStateNumber${i}"];`,
+        `${id} [label="n = ${pieceIndex}"];`,
+        `${id} -> ${id} [label="StayAtStateNumber${pieceIndex}"];`,
       ];
       while (lines.length < 1024) {lines.push(`// ${"x".repeat(1020)}`);}
       yield* `${lines.join("\n")}\n`.split("\n");
@@ -449,16 +449,16 @@ test("a tagged line in the wrong shape is an error, not spec output", () => {
     );});
 });
 
-const ab: View = { state: (v) => ({ A: `a${v.a}`, B: `b${v.b}` }) };
-const bit = (v: Vars): string => `${v.a}${v.b}${v.c}`;
+const ab: View = { state: (variables) => ({ A: `a${variables.a}`, B: `b${variables.b}` }) };
+const bit = (variables: Vars): string => `${variables.a}${variables.b}${variables.c}`;
 const xorStates: StateRow[] = [];
 const xorSteps: StepRow[] = [];
-visitItems([0, 1], (a) => {visitItems([0, 1], (b) => {for (const c of [0, 1]) {
-      const v = { a, b, c };
-      xorStates.push([bit(v), v, a === 0]);
-      if (a === 0 && b !== c) {xorSteps.push([bit(v), bit({ ...v, a: 1 }), "Go"]);}
-      if (b === 0) {xorSteps.push([bit(v), bit({ ...v, b: 1 }), "FlipB"]);}
-      if (c === 0) {xorSteps.push([bit(v), bit({ ...v, c: 1 }), "FlipC"]);}
+visitItems([0, 1], (axisA) => {visitItems([0, 1], (axisB) => {for (const axisC of [0, 1]) {
+      const variables = { a: axisA, b: axisB, c: axisC };
+      xorStates.push([bit(variables), variables, axisA === 0]);
+      if (axisA === 0 && axisB !== axisC) {xorSteps.push([bit(variables), bit({ ...variables, a: 1 }), "Go"]);}
+      if (axisB === 0) {xorSteps.push([bit(variables), bit({ ...variables, b: 1 }), "FlipB"]);}
+      if (axisC === 0) {xorSteps.push([bit(variables), bit({ ...variables, c: 1 }), "FlipC"]);}
     }});});
 const truthGraphs: Record<string, [Graph, View]> = {
   starts: [
@@ -470,11 +470,11 @@ const truthGraphs: Record<string, [Graph, View]> = {
       ],
       [["x0y0", "x1y0", "Step"]],
     ),
-    { state: (v) => ({ X: `x${v.x}`, Y: `y${v.y}` }) },
+    { state: (variables) => ({ X: `x${variables.x}`, Y: `y${variables.y}` }) },
   ],
   xor: [
     graphOf(xorStates, xorSteps),
-    { state: (v) => ({ A: `a${v.a}`, B: `b${v.b}`, C: `c${v.c}` }) },
+    { state: (variables) => ({ A: `a${variables.a}`, B: `b${variables.b}`, C: `c${variables.c}` }) },
   ],
   fork: [
     graphOf(
@@ -584,12 +584,12 @@ test("the view answers once for each state and step, so a chart of parent states
     return asked[question] === 1 ? "first" : "later";
   };
   const { chart, report: text } = draw(forkToBug, {
-    state: (v) => {
-      const word = answer(`state ${v.a}`);
-      return { A: `a${v.a} ${word}`, B: `b${v.b}` };
+    state: (variables) => {
+      const word = answer(`state ${variables.a}`);
+      return { A: `a${variables.a} ${word}`, B: `b${variables.b}` };
     },
     step: (action, from, to) => `${action} ${answer(`step ${from.a} to ${to.a}`)}`,
-    group: (v) => (answer(`group ${v.a}`) === "first" ? "Calm" : "Busy"),
+    group: (variables) => (answer(`group ${variables.a}`) === "first" ? "Calm" : "Busy"),
     colors: { Calm: "blue", Busy: "orange" },
   });
   assert.match(chart, /^ {2}state "A a2 first" as s\d+ \{$/mu);
@@ -659,10 +659,10 @@ test("a bug-path step that stays in one state is a loop in a flat chart only", (
       ["s0", "s2", "Move"],
     ],
   );
-  const flat = draw(graph, { state: (v) => `x${v.x}` });
+  const flat = draw(graph, { state: (variables) => `x${variables.x}` });
   assert.match(flat.chart, /^ {2}(s\d+) --> \1: Tick$/mu);
   assert.doesNotMatch(flat.report, /does not draw/u);
-  const regions = draw(graph, { state: (v) => ({ X: `x${v.x}`, Z: "z" }) });
+  const regions = draw(graph, { state: (variables) => ({ X: `x${variables.x}`, Z: "z" }) });
   assert.doesNotMatch(regions.chart, /Tick/u);
   assert.match(regions.report, /^The chart does not draw 1 steps that stay in one chart state\.$/mu);
 });
@@ -681,7 +681,7 @@ test("a step that leaves every child of a parent the same way is one arrow from 
       ["y", "done", "Quit"],
     ],
   );
-  const { chart } = draw(graph, { state: (v) => String(v.at).split(".") });
+  const { chart } = draw(graph, { state: (variables) => String(variables.at).split(".") });
   const open = (/^ {2}state "Open" as (s\d+) \{$/mu.exec(chart))?.[1];
   const closed = (/^ {2}(s\d+): Closed$/mu.exec(chart))?.[1];
   const quits = Array.from(
@@ -706,7 +706,7 @@ test("a parent's only way in ends at the parent, and its start marker goes on to
       ["flat", "drawn", "Draw"],
     ],
   );
-  const { chart } = draw(graph, { state: (v) => String(v.at).split(".") });
+  const { chart } = draw(graph, { state: (variables) => String(variables.at).split(".") });
   assert.deepEqual(drawn(chart).arrows.sort(), [
     "Asking --> Layout",
     "Done start --> Drawn",
@@ -731,7 +731,7 @@ test("a parent that two states lead into keeps an arrow from each, since one sta
       ["b", "q", "Right"],
     ],
   );
-  const { chart } = draw(graph, { state: (v) => String(v.at).split(".") });
+  const { chart } = draw(graph, { state: (variables) => String(variables.at).split(".") });
   assert.deepEqual(drawn(chart).arrows.sort(), ["A --> B: Go", "A --> p: Left", "B --> q: Right"]);
 });
 
@@ -745,7 +745,7 @@ test("a label codes only the characters that Mermaid reads as syntax, so TLA+ va
     [["s0", "s1", "Go"]],
   );
   const { chart } = draw(graph, {
-    state: (v) => (v.n ? 'x: "1";\nnext' : "a <b> #2"),
+    state: (variables) => (variables.n ? 'x: "1";\nnext' : "a <b> #2"),
     step: () => 'say: <<1, "a">> :> [k |-> {}] @@ 2..3',
   });
   assert.match(chart, /^ {2}s\d+: a #60;b> #35;2$/mu);
@@ -763,7 +763,7 @@ test("a label with %% stays text and cannot open a Mermaid directive", () => {
     [["s0", "s1", "Go"]],
   );
   const { chart } = draw(graph, {
-    state: (v) => (v.n ? "%%{init: {}}%%" : "a %%{ b"),
+    state: (variables) => (variables.n ? "%%{init: {}}%%" : "a %%{ b"),
     step: () => "%% go",
   });
   assert.doesNotMatch(chart, /%%/u);
@@ -782,9 +782,9 @@ test("each line break in a label or a colors key is a space, so it cannot start 
     [["s0", "s1", "Go"]],
   );
   const { chart } = draw(graph, {
-    state: (v) => (v.n ? "b\r\n\r\v\f\u0085\u2028\u2029\tc" : "a"),
+    state: (variables) => (variables.n ? "b\r\n\r\v\f\u0085\u2028\u2029\tc" : "a"),
     step: () => "go\r  s9: Ghost",
-    group: (v) => (v.n ? "Shut\r  s99: Ghost state" : "Open"),
+    group: (variables) => (variables.n ? "Shut\r  s99: Ghost state" : "Open"),
     colors: { Open: "blue", "Shut\r  s99: Ghost state": "pink" },
   });
   assert.doesNotMatch(chart, /[\r\v\f\u0085\u2028\u2029\t]/);
@@ -804,7 +804,7 @@ test("a label of only white space or with a lone surrogate still has text in the
     [["s0", "s1", "Go"]],
   );
   const { chart } = draw(graph, {
-    state: (v) => (v.n ? "a\uD800b" : "\t"),
+    state: (variables) => (variables.n ? "a\uD800b" : "\t"),
     step: () => " ",
   });
   assert.match(chart, /^ {2}s\d+: #32;$/mu);
@@ -822,7 +822,7 @@ test("NUL and C1 controls in a label are left out, since a browser draws their c
     [["s0", "s1", "Go"]],
   );
   const { chart } = draw(graph, {
-    state: (v) => (v.n ? ["P\0\u0080", "C\u00004Dynamic"] : "\0\x9F"),
+    state: (variables) => (variables.n ? ["P\0\u0080", "C\u00004Dynamic"] : "\0\x9F"),
     step: () => "a\0\x80b\x85c\x9Fd",
   });
   assert.doesNotMatch(chart, /[\0\x80-\x9F]|#0;|#1[2-5]\d;/u);
@@ -842,7 +842,7 @@ test("a label puts a word joiner inside ﬂ° and ¶ß, since Mermaid decodes a 
     [["s0", "s1", "Go"]],
   );
   const { chart } = draw(graph, {
-    state: (v) => (v.n ? ["ﬂ\0°lt¶ß", "x"] : "ﬂ°°65¶ßstateß"),
+    state: (variables) => (variables.n ? ["ﬂ\0°lt¶ß", "x"] : "ﬂ°°65¶ßstateß"),
     step: () => "ﬂ ° ¶ ß",
   });
   assert.match(chart, /^ {2}s\d+: ﬂ#8288;#176;#176;65#182;#8288;ßstateß$/m);
@@ -861,7 +861,7 @@ test('a label puts a word joiner inside marker-end=", since Mermaid rewrites mar
   );
   const { chart } = draw(graph, {
     title: 'marker-end="url(a#b',
-    state: (v) => (v.n ? ['marker-end="url(p#q', "x"] : 'marker-end="url(a#b'),
+    state: (variables) => (variables.n ? ['marker-end="url(p#q', "x"] : 'marker-end="url(a#b'),
     step: () => 'a="b" = "c"',
   });
   assert.match(chart, /^title: "marker-end=ﬂ°°8288¶ß\\"url\(aﬂ°°35¶ßb"$/m);
@@ -880,7 +880,7 @@ test("a parent or region name with [[fork]], [[join]], or [[choice]] stays text"
     [["x", "y", "Go"]],
   );
   const parents = draw(nested, {
-    state: (v) => [["a [[fork]]", "[[JOIN]]"][Number(v.n)], "In"],
+    state: (variables) => [["a [[fork]]", "[[JOIN]]"][Number(variables.n)], "In"],
   }).chart;
   assert.match(parents, /^ {2}state "a #91;\[fork\]\]" as s\d+ \{$/mu);
   assert.match(parents, /^ {2}state "#91;\[JOIN\]\]" as s\d+ \{$/mu);
@@ -892,7 +892,7 @@ test("a parent or region name with [[fork]], [[join]], or [[choice]] stays text"
     [["s0", "s1", "GoX"]],
   );
   const regions = draw(parallel, {
-    state: (v) => ({ "[[choice]]": `X${v.x}`, Other: `Y${v.y}` }),
+    state: (variables) => ({ "[[choice]]": `X${variables.x}`, Other: `Y${variables.y}` }),
   }).chart;
   assert.match(regions, /^ {4}state "#91;\[choice\]\]" as r0 \{$/mu);
   assert.doesNotMatch(parents + regions, /\[\[/u);
@@ -908,7 +908,7 @@ test("a label with C4Container, C4Component, C4Dynamic, or C4Deployment keeps th
     [["s0", "s1", "Go"]],
   );
   const { chart } = draw(graph, {
-    state: (v) => (v.n ? ["C4Component", "C4Deployment"] : "aC4Dynamic"),
+    state: (variables) => (variables.n ? ["C4Component", "C4Deployment"] : "aC4Dynamic"),
     step: () => "C4Container C4Context",
   });
   assert.doesNotMatch(chart, /C4(?:Container|Component|Dynamic|Deployment)/u);
@@ -927,7 +927,7 @@ test("a title with < cannot open an HTML tag that rewrites the chart's quotes", 
     ],
     [["s0", "s1", "Go"]],
   );
-  const { chart } = draw(graph, { title: "<a=", state: (v) => ["P", `S${v.n}`] });
+  const { chart } = draw(graph, { title: "<a=", state: (variables) => ["P", `S${variables.n}`] });
   assert.doesNotMatch(chart, /</u);
   assert.match(chart, /^title: "ﬂ°°60¶ßa="$/m);
   assert.match(chart, /^ {2}state "P" as s\d+ \{$/mu);
@@ -942,9 +942,9 @@ test("the title writes each character outside the allow list in the form Mermaid
     ],
     [["s0", "s1", "Go"]],
   );
-  const state = (v: Vars): string => `S${v.n}`;
-  const title = (t: string): string | undefined =>
-    (/^---\ntitle: (.*)\n---\n/.exec(draw(graph, { title: t, state }).chart))?.[1];
+  const state = (variables: Vars): string => `S${variables.n}`;
+  const title = (titleText: string): string | undefined =>
+    (/^---\ntitle: (.*)\n---\n/.exec(draw(graph, { title: titleText, state }).chart))?.[1];
   assert.equal(title("Queue<T> for AT&T"), '"Queueﬂ°°60¶ßT> for ATﬂ°°38¶ßT"');
   assert.equal(title("ﬂ°°65¶ß"), '"ﬂﬂ°°8288¶ßﬂ°°176¶ßﬂ°°176¶ß65ﬂ°°182¶ßﬂ°°8288¶ßß"');
   assert.equal(title('a\0b\u0080\n"c"'), String.raw`"ab \"c\""`);
@@ -974,9 +974,9 @@ test("labels write the space between direction and LR, RL, TB, or BT as #32;", (
     Go: "go",
   };
   const { chart } = draw(graph, {
-    state: (v) =>
-      ["Idle", "Facing direction TB", "Redirection\tlrx", "Up DIRECTION  BT"][Number(v.n)],
-    step: (a) => steps[a],
+    state: (variables) =>
+      ["Idle", "Facing direction TB", "Redirection\tlrx", "Up DIRECTION  BT"][Number(variables.n)],
+    step: (actionName) => steps[actionName],
   });
   assert.doesNotMatch(chart, /direction\s+(?:LR|RL|TB|BT)/i);
   assert.match(chart, /^ {2}s\d+: Facing direction#32;TB$/mu);
@@ -996,11 +996,11 @@ test("a view that cannot give a chart says what to change", () => {
     [["p", "q", "Go"]],
   );
   assert.throws(
-    () => draw(graph, { state: (v) => String(v.x).split(".") }),
+    () => draw(graph, { state: (variables) => String(variables.x).split(".") }),
     /both as a state and as a parent state/u,
   );
   assert.throws(
-    () => draw(graph, { state: (v) => (v.x === "A" ? { R: "x" } : { S: "y" }) }),
+    () => draw(graph, { state: (variables) => (variables.x === "A" ? { R: "x" } : { S: "y" }) }),
     /Return the same regions for every state/u,
   );
   assert.throws(() => draw(graph, { state: () => [] }), /Return a string, an array of strings/u);
@@ -1052,11 +1052,11 @@ test("a view may hide a step inside a loop, but not a step out of it", () => {
   const found = lasso(graph, keyTrace(), { names: ["pos", "key"] });
   assert.ok(found);
   const loop: Bug = { rule: { kind: "property", name: "Opens" }, ...found };
-  const state = (v: Vars): string => `${v.pos}, key ${field(v.key, "on") ? "on" : "off"}`;
-  const { report } = draw(graph, { state, step: (a) => (a === "Tick" ? null : a) }, [loop]);
+  const state = (variables: Vars): string => `${variables.pos}, key ${field(variables.key, "on") ? "on" : "off"}`;
+  const { report } = draw(graph, { state, step: (actionName) => (actionName === "Tick" ? null : actionName) }, [loop]);
   assert.match(report, /^The run stops in "wait, key off" forever\.$/mu);
   assert.throws(
-    () => draw(graph, { state, step: (a) => (a === "Back" ? null : a) }, [loop]),
+    () => draw(graph, { state, step: (actionName) => (actionName === "Back" ? null : actionName) }, [loop]),
     /the step Back that changes pos\. It is on the path to the Opens bug or leaves its loop/u,
   );
 });
@@ -1094,7 +1094,7 @@ test("a loop that passes one state twice names it once", () => {
     loop: 0,
     stutters: false,
   };
-  const { report } = draw(graph, { state: (v) => v.pos }, [loop]);
+  const { report } = draw(graph, { state: (variables) => variables.pos }, [loop]);
   assert.match(report, /^The run loops through "a", "b" and "c" forever\.$/mu);
 });
 
@@ -1105,12 +1105,12 @@ test("a chart that draws a way out of a loop that the loop cannot take stops the
   assert.ok(found);
   const loop: Bug = { rule: { kind: "property", name: "Opens" }, ...found };
   assert.throws(
-    () => draw(graph, { state: (v) => v.pos }, [loop]),
+    () => draw(graph, { state: (variables) => variables.pos }, [loop]),
     /draws the step Open out of wait, but the Opens loop cannot take it there/u,
   );
   const { chart } = draw(
     graph,
-    { state: (v) => `${v.pos}, key ${field(v.key, "on") ? "on" : "off"}` },
+    { state: (variables) => `${variables.pos}, key ${field(variables.key, "on") ? "on" : "off"}` },
     [loop],
   );
   const wait = (/^ {2}(s\d+): wait, key off$/mu.exec(chart))?.[1];
@@ -1131,7 +1131,7 @@ test("a region named __proto__ is a region like any other", () => {
     ],
   );
   const { chart } = draw(graph, {
-    state: (v): unknown => JSON.parse(`{"__proto__": "X${v.x}", "Other": "Y${v.y}"}`),
+    state: (variables): unknown => JSON.parse(`{"__proto__": "X${variables.x}", "Other": "Y${variables.y}"}`),
   });
   assert.match(chart, /^ {4}state "#95;#95;proto#95;#95;" as r0 \{$/mu);
   assert.match(chart, /^ {6}s0 --> s1: GoX \[when Y0\]$/mu);
@@ -1143,8 +1143,8 @@ test("checkView takes a full view and refuses each wrong kind and every bad colo
   checkView({}, inspect);
   checkView(
     {
-      state: (v: Vars) => v.x,
-      step: (a: string) => a,
+      state: (variables: Vars) => variables.x,
+      step: (actionName: string) => actionName,
       group: () => "Busy",
       colors: { Busy: "blue" },
       title: "T",
@@ -1248,7 +1248,7 @@ test("a chart state with mixed groups gets no color, even when colors names unde
   );
   const view: View = {
     state: () => "Same",
-    group: (v) => (v.x ? "B" : "A"),
+    group: (variables) => (variables.x ? "B" : "A"),
     colors: { A: "blue", B: "teal", undefined: "pink" },
   };
   assert.doesNotMatch(draw(graph, view).chart, /^ {2}class /mu);
@@ -1256,20 +1256,20 @@ test("a chart state with mixed groups gets no color, even when colors names unde
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a graph of 10,000 states draws in seconds with no view", () => {
-  const n = 100;
+  const dimension = 100;
   const states: StateRow[] = [];
   const steps: StepRow[] = [];
-  for (let x = 0; x < n; x++)
-    {for (let y = 0; y < n; y++) {
-      const far = x === n - 1 && y === n - 1;
-      states.push([`${x},${y}`, { x, y }, x + y === 0, far ? ["Safe"] : []]);
-      if (x + 1 < n) {steps.push([`${x},${y}`, `${x + 1},${y}`, "Right"]);}
-      if (y + 1 < n) {steps.push([`${x},${y}`, `${x},${y + 1}`, "Down"]);}
+  for (let column = 0; column < dimension; column++)
+    {for (let row = 0; row < dimension; row++) {
+      const far = column === dimension - 1 && row === dimension - 1;
+      states.push([`${column},${row}`, { x: column, y: row }, column + row === 0, far ? ["Safe"] : []]);
+      if (column + 1 < dimension) {steps.push([`${column},${row}`, `${column + 1},${row}`, "Right"]);}
+      if (row + 1 < dimension) {steps.push([`${column},${row}`, `${column},${row + 1}`, "Down"]);}
     }}
   const start = performance.now();
   const { chart, report: text } = draw(graphOf(states, steps), {});
   const seconds = (performance.now() - start) / 1000;
   assert.match(text, /^The shortest path has 198 steps:$/mu);
-  assert.equal(chart.match(/^ {2}s\d+: /gmu)?.length, n * n);
+  assert.equal(chart.match(/^ {2}s\d+: /gmu)?.length, dimension * dimension);
   assert.ok(seconds < 5, `drawing took ${seconds.toFixed(1)} s`);
 });
