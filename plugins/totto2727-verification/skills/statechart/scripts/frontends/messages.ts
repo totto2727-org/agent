@@ -6,7 +6,7 @@ const START = /@!@!@STARTMSG (?<code>\d+):(?<level>\d+) @!@!@$/u;
 const END = /^@!@!@ENDMSG \d+ @!@!@$/u;
 
 const FIRST_FRAME = 0;
-const FRAME_STEP = 1;
+const ROOT_FRAME_COUNT = 1;
 const LAST_FRAME = -1;
 const EMPTY_LENGTH = 0;
 const START_LINE = 0;
@@ -16,37 +16,57 @@ const NO_BLANK_LINE = -1;
 const isCutMarker = (lastLine: string): boolean => lastLine.startsWith("@!@!@");
 
 const cutMessage = (open: Message[]): Message | undefined => {
-  let frameIndex = open.length - FRAME_STEP;
-  while (frameIndex > FIRST_FRAME && open[frameIndex].body.length === EMPTY_LENGTH) {
-    open[frameIndex - FRAME_STEP].body.pop();
-    frameIndex -= FRAME_STEP;
+  while (open.length > ROOT_FRAME_COUNT && open.at(LAST_FRAME)?.body.length === EMPTY_LENGTH) {
+    open.pop();
+    open.at(LAST_FRAME)?.body.pop();
   }
   const root = open[FIRST_FRAME];
   return !matchesUndefined(root) && root.body.length > EMPTY_LENGTH ? root : undefined;
 };
 
-export const readMessages = function* readMessages(tlcOut: string | Iterable<string>): Generator<Part> {
+const openMessage = (start: RegExpExecArray, line: string, open: Message[]): void => {
+  const { groups, index } = start;
+  // oxlint-disable-next-line eslint/sort-keys -- Keep the TLC message's established protocol key order.
+  const message: Message = { code: Number(groups?.code), level: Number(groups?.level), body: [] };
+  if (index > START_LINE) {message.beforeMarker = line.slice(START_LINE, index);}
+  open.at(LAST_FRAME)?.body.push(message);
+  open.push(message);
+};
+
+const closeMessage = (open: Message[]): Message | undefined => {
+  const done = open.pop();
+  return open.length === EMPTY_LENGTH ? done : undefined;
+};
+
+const readLine = (line: string, open: Message[]): Part | undefined => {
+  const start = START.exec(line);
+  if (!matchesNull(start)) {
+    openMessage(start, line, open);
+    return undefined;
+  }
+  if (END.test(line)) {return closeMessage(open);}
+  const frame = open.at(LAST_FRAME);
+  frame?.body.push(line);
+  return matchesUndefined(frame) ? line : undefined;
+};
+
+const readParts = function* (lines: Iterator<string>, open: Message[]): Generator<Part> {
+  // oxlint-disable-next-line rules/no-let -- Keep one native lookahead result so the final incomplete marker is recognized without buffering TLC output.
+  let next = lines.next();
+  while (next.done !== true) {
+    const line = next.value;
+    next = lines.next();
+    if (next.done === true && (!line || isCutMarker(line))) {break;}
+    const part = readLine(line, open);
+    if (!matchesUndefined(part)) {yield part;}
+  }
+};
+
+export const readMessages = function* (tlcOut: string | Iterable<string>): Generator<Part> {
   const lines = linesOf(tlcOut)[Symbol.iterator]();
   const open: Message[] = [];
   try {
-    let next = lines.next();
-    while (!next.done) {
-      const line = next.value;
-      next = lines.next();
-      if (next.done && (!line || isCutMarker(line))) {break;}
-      const start = START.exec(line);
-      if (!matchesNull(start)) {
-        const { groups, index } = start;
-        const message: Message = { code: Number(groups?.code), level: Number(groups?.level), body: [] };
-        if (index > START_LINE) {message.beforeMarker = line.slice(START_LINE, index);}
-        open.at(LAST_FRAME)?.body.push(message);
-        open.push(message);
-      } else if (END.test(line)) {
-        const done = open.pop();
-        if (!matchesUndefined(done) && open.length === EMPTY_LENGTH) {yield done;}
-      } else if (open.length > EMPTY_LENGTH) {open.at(LAST_FRAME)?.body.push(line);}
-      else {yield line;}
-    }
+    yield* readParts(lines, open);
   } finally {
     lines.return?.();
   }
