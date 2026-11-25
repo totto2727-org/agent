@@ -1,199 +1,84 @@
-// oxlint-disable-next-line rules/no-node-imports -- Test the distributed script as a native Node.js subprocess.
-import { execFile } from "node:child_process";
-// oxlint-disable-next-line rules/no-node-imports -- Create and inspect filesystem fixtures for the subprocess.
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-// oxlint-disable-next-line rules/no-node-imports -- Place subprocess fixtures in the system temporary directory.
-import { tmpdir } from "node:os";
-// oxlint-disable-next-line rules/no-node-imports -- Resolve test fixture paths for the subprocess.
-import { resolve } from "node:path";
-// oxlint-disable-next-line rules/no-node-imports -- Find the distributed entry point relative to this test module.
-import { fileURLToPath } from "node:url";
-// oxlint-disable-next-line rules/no-node-imports -- Await the native subprocess and preserve its exit status in these tests.
-import { promisify } from "node:util";
+/* oxlint-disable eslint/max-lines -- Keep both existing history test groups discoverable from one Vitest entry file. */
+// oxlint-disable-next-line rules/no-node-imports -- Inspect the history CLI's filesystem artifacts.
+import { readFile, writeFile } from "node:fs/promises";
+// oxlint-disable-next-line rules/no-node-imports -- Inspect the history CLI artifacts at their native locations.
+import path from "node:path";
 import { afterEach, assert, describe, expect, test } from "vitest";
-
 import { evaluate } from "./evaluate.mjs";
 import { object } from "./evaluation-validation.mjs";
+import {
+  cleanupFixtures,
+  evaluation,
+  repositoryFixture,
+  runHistoryCli,
+  sample,
+  score,
+  temporaryDirectory,
+} from "./history-corpus-fixture.mjs";
 import { parseArguments, prepareCorpus, scoreCorpus, scoreReport } from "./history-corpus.mjs";
 import { matchesUndefined } from "./native-predicates.mjs";
 
-const execute = promisify(execFile);
-const script = fileURLToPath(new URL("history-corpus.mjs", import.meta.url));
-/** @type {string[]} */
-const directories = [];
-const revision = "a".repeat(40);
+// oxlint-disable-next-line unicorn/no-null -- A page-scoped report has JSON null in its section field.
+const PAGE_SECTION = null;
 
-const temporaryDirectory = async function () {
-  // oxlint-disable-next-line node/no-process-env -- The CLI fixture uses the scratch directory selected by the test host.
-  const scratch = process.env.JCODE_SCRATCH_DIR ?? tmpdir();
-  const directory = await mkdtemp(resolve(scratch, "history-corpus-test-"));
-  directories.push(directory);
-  return directory;
-};
+/** @type {(fixture: Awaited<ReturnType<typeof repositoryFixture>>) => object} */
+const expectedManifest = (fixture) => ({
+  documents: [
+    {
+      audience: fixture.samples[0].audience,
+      id: "sample-0001",
+      path: "sample-0001.md",
+      purpose: fixture.samples[0].purpose,
+      ruleIds: ["direct"],
+      sections: [{ endLine: 4, headingPath: [], id: "target", startLine: 3 }],
+    },
+  ],
+  model: "typesafe/jev",
+  rulesFile: fixture.rulesPath,
+  threshold: 0.8,
+});
 
-/** @typedef {{ audience: string, documentId?: string, endLine: number, expected: Record<string, string>, family: string, id: string, path: string, purpose: string, revision: string, ruleIds: string[], ruleScopes: Record<string, string>, split: string, startLine: number }} SampleFixture */
-/** @typedef {{ choice: string, confidence: number, questionId: string, reviewRequired?: boolean }} AnswerFixture */
-/** @typedef {{ id: string, rule: { id: string, scope?: string } }} QuestionFixture */
-/** @typedef {{ answers: AnswerFixture[], documentId: string, questions: QuestionFixture[], scope: string, section: { id: string, sourceRange: { endLine: number, startLine: number } } | null, status: string }} EvaluationFixture */
-
-/** @type {(overrides?: Partial<SampleFixture>) => SampleFixture} */
-const sample = function (overrides = {}) {
+/** @type {(report: Awaited<ReturnType<typeof evaluate>>, revision: string) => object} */
+const dryRunState = (report, revision) => {
+  const [entry] = report.evaluations;
+  assert(!matchesUndefined(entry), "Dry-run report needs its evaluation.");
+  assert("state" in entry, "Dry-run evaluation needs its state.");
+  const serialized = JSON.stringify(entry.state);
   return {
-    id: "historical-negative",
-    documentId: "sample-0001",
-    family: "guide-family",
-    split: "calibration",
-    revision,
-    path: "guide.md",
-    startLine: 3,
-    endLine: 4,
-    purpose: "Help the reader configure the tool.",
-    audience: "A new user.",
-    ruleIds: ["direct"],
-    expected: { direct: "fail" },
-    ruleScopes: { direct: "section" },
-    ...overrides,
+    evaluationCount: report.evaluations.length,
+    leakedLabels: ["historical-negative", revision].filter((label) => serialized.includes(label)),
+    markdown: entry.state.evidence.page.markdown,
+    section: entry.section,
   };
 };
 
-/** @type {(overrides?: Partial<EvaluationFixture>) => EvaluationFixture} */
-const evaluation = function (overrides = {}) {
-  return {
-    documentId: "sample-0001",
-    scope: "section",
-    section: { id: "target", sourceRange: { startLine: 3, endLine: 4 } },
-    questions: [{ id: "q-1", rule: { id: "direct", scope: "section" } }],
-    answers: [{ questionId: "q-1", choice: "fail", confidence: 0.95, reviewRequired: true }],
-    status: "complete",
-    ...overrides,
-  };
-};
-
-/** @type {(entries: EvaluationFixture[], samples?: SampleFixture[]) => ReturnType<typeof scoreReport>} */
-const score = function (entries, samples = [sample()]) {
-  return scoreReport({ threshold: 0.8, evaluations: entries }, { version: 1, samples });
-};
-
-const repositoryFixture = async function () {
-  const repository = await temporaryDirectory();
-  /** @type {(...args: string[]) => Promise<{ stderr: string, stdout: string }>} */
-  const git = async (...args) => execute("git", ["-C", repository, ...args]);
-  await git("init", "--quiet");
-  const page =
-    "# Guide\n\n## Configure\nSet the configuration.\n\n## Reference\nFull-page context.\n";
-  await writeFile(resolve(repository, "guide.md"), page);
-  await git("add", "guide.md");
-  await git(
-    "-c",
-    "user.name=totto2727-ai",
-    "-c",
-    "user.email=2000.0727.hayato+ai@gmail.com",
-    "-c",
-    "commit.gpgsign=false",
-    "-c",
-    "core.hooksPath=/dev/null",
-    "commit",
-    "--quiet",
-    "-m",
-    "Create test history",
-  );
-  const { stdout } = await git("rev-parse", "HEAD");
-  const samples = [
-    sample({ revision: stdout.trim() }),
-    sample({
-      id: "independent-positive",
-      family: "independent-family",
-      split: "holdout",
-      revision: stdout.trim(),
-      expected: { direct: "pass" },
-    }),
-  ];
-  Iterator.from(samples).forEach((item) => {
-    delete item.documentId;
-  });
-  const specPath = resolve(repository, "corpus.json");
-  const rulesPath = resolve(repository, "rules.json");
-  await writeFile(specPath, JSON.stringify(samples));
-  await writeFile(
-    rulesPath,
-    JSON.stringify([
-      {
-        id: "direct",
-        scope: "section",
-        instructions: "Evaluate directness.",
-        pass: "Direct.",
-        fail: "Indirect.",
-      },
-    ]),
-  );
-  await writeFile(resolve(repository, "guide.md"), "Worktree content must not be used.\n");
-  return {
-    repository,
-    page,
-    samples,
-    specPath,
-    rulesPath,
-    outputDir: resolve(repository, "prepared"),
-  };
-};
-
-const cleanupFixtures = async () => {
-  await Promise.all(
-    directories.splice(0).map(async (directory) => rm(directory, { force: true, recursive: true })),
-  );
-};
-
+// oxlint-disable-next-line eslint/max-lines-per-function -- The real Git preparation cases share this Vitest group name and cleanup hook.
 describe("historical document preparation", () => {
-  afterEach(cleanupFixtures);
+  afterEach(async () => {
+    await cleanupFixtures();
+  });
 
   test("extracts pinned full pages, hides labels, preserves ranges, and feeds the evaluator", async () => {
     const fixture = await repositoryFixture();
     const { manifest, labels } = await prepareCorpus({ ...fixture, split: "calibration" });
     const { documents, model, rulesFile, threshold } = manifest;
-    expect({ documents, model, rulesFile, threshold }).toStrictEqual({
-      documents: [
-        {
-          id: "sample-0001",
-          path: "sample-0001.md",
-          purpose: fixture.samples[0].purpose,
-          audience: fixture.samples[0].audience,
-          ruleIds: ["direct"],
-          sections: [{ id: "target", startLine: 3, endLine: 4, headingPath: [] }],
-        },
-      ],
-      model: "typesafe/jev",
-      rulesFile: fixture.rulesPath,
-      threshold: 0.8,
-    });
-    await expect(readFile(resolve(fixture.outputDir, "sample-0001.md"), "utf8")).resolves.toBe(
+    expect({ documents, model, rulesFile, threshold }).toStrictEqual(expectedManifest(fixture));
+    await expect(readFile(path.resolve(fixture.outputDir, "sample-0001.md"), "utf8")).resolves.toBe(
       fixture.page,
     );
     expect(labels.samples[0]).toMatchObject({
-      id: "historical-negative",
       documentId: "sample-0001",
       expected: { direct: "fail" },
+      id: "historical-negative",
       revision: fixture.samples[0].revision,
     });
     const report = await evaluate({
-      manifestPath: resolve(fixture.outputDir, "manifest.json"),
-      outputPath: resolve(fixture.outputDir, "dry-run.json"),
       dryRun: true,
       environment: {},
+      manifestPath: path.resolve(fixture.outputDir, "manifest.json"),
+      outputPath: path.resolve(fixture.outputDir, "dry-run.json"),
     });
-    const [evaluation] = report.evaluations;
-    assert(
-      !matchesUndefined(evaluation) && "state" in evaluation,
-      "Dry-run evaluation needs its state.",
-    );
-    const serialized = JSON.stringify(evaluation.state);
-    expect({
-      evaluationCount: report.evaluations.length,
-      leakedLabels: ["historical-negative", fixture.samples[0].revision].filter((label) =>
-        serialized.includes(label),
-      ),
-      markdown: evaluation.state.evidence.page.markdown,
-      section: evaluation.section,
-    }).toMatchObject({
+    expect(dryRunState(report, fixture.samples[0].revision)).toMatchObject({
       evaluationCount: 1,
       leakedLabels: [],
       markdown: fixture.page,
@@ -223,13 +108,13 @@ describe("historical document preparation", () => {
   test.each([
     ["unpinned revision", { revision: "HEAD" }, "full Git object ID"],
     ["out-of-range excerpt", { endLine: 500 }, "Source range exceeds page"],
-    ["unknown rule", { ruleIds: ["missing"], expected: {} }, "Unknown rule"],
+    ["unknown rule", { expected: {}, ruleIds: ["missing"] }, "Unknown rule"],
     ["unselected label", { expected: { other: "pass" } }, "selected rules"],
   ])("rejects %s before creating artifacts", async (_name, change, message) => {
     const fixture = await repositoryFixture();
     await writeFile(fixture.specPath, JSON.stringify([{ ...fixture.samples[0], ...change }]));
     await expect(prepareCorpus(fixture)).rejects.toThrow(message);
-    await expect(readFile(resolve(fixture.outputDir, "manifest.json"))).rejects.toMatchObject({
+    await expect(readFile(path.resolve(fixture.outputDir, "manifest.json"))).rejects.toMatchObject({
       code: "ENOENT",
     });
   });
@@ -245,8 +130,7 @@ describe("historical document preparation", () => {
 
   test("runs the prepare CLI with explicit spec and rule paths", async () => {
     const fixture = await repositoryFixture();
-    await execute(process.execPath, [
-      script,
+    await runHistoryCli([
       "prepare",
       "--repository",
       fixture.repository,
@@ -259,23 +143,27 @@ describe("historical document preparation", () => {
       "--rules",
       fixture.rulesPath,
     ]);
-    const manifest = object(
-      JSON.parse(await readFile(resolve(fixture.outputDir, "manifest.json"), "utf8")),
-      "prepared manifest",
-    );
+    const manifestText = await readFile(path.resolve(fixture.outputDir, "manifest.json"), "utf8");
+    const manifest = object(JSON.parse(manifestText), "prepared manifest");
     expect(manifest.documents).toHaveLength(2);
   });
 });
 
-describe("historical judgment scoring", () => {
-  afterEach(cleanupFixtures);
+/** @type {[string, string, keyof ReturnType<typeof score>["totals"]][]} */
+const confusionCases = [
+  ["fail", "fail", "truePositive"],
+  ["pass", "pass", "trueNegative"],
+  ["fail", "pass", "falseAcceptance"],
+  ["pass", "fail", "falseRejection"],
+];
 
-  test.each([
-    ["fail", "fail", "truePositive"],
-    ["pass", "pass", "trueNegative"],
-    ["fail", "pass", "falseAcceptance"],
-    ["pass", "fail", "falseRejection"],
-  ])(
+// oxlint-disable-next-line eslint/max-lines-per-function -- Keep the current scoring cases under their Vitest group name and cleanup hook.
+describe("historical judgment scoring", () => {
+  afterEach(async () => {
+    await cleanupFixtures();
+  });
+
+  test.each(confusionCases)(
     "counts expected %s / predicted %s as %s without mistaking fail review for abstention",
     (expected, predicted, counter) => {
       const result = score(
@@ -283,9 +171,9 @@ describe("historical judgment scoring", () => {
           evaluation({
             answers: [
               {
-                questionId: "q-1",
                 choice: predicted,
                 confidence: 0.8,
+                questionId: "q-1",
                 reviewRequired: predicted === "fail",
               },
             ],
@@ -313,7 +201,7 @@ describe("historical judgment scoring", () => {
     ["fail", 0.79],
   ])("keeps %s at confidence %s out of pass/fail statistics", (choice, confidence) => {
     const result = score([
-      evaluation({ answers: [{ questionId: "q-1", choice, confidence, reviewRequired: true }] }),
+      evaluation({ answers: [{ choice, confidence, questionId: "q-1", reviewRequired: true }] }),
     ]);
     expect(result.totals).toMatchObject({
       abstention: 1,
@@ -332,17 +220,17 @@ describe("historical judgment scoring", () => {
   });
 
   test.each([
-    ["error", evaluation({ status: "error", answers: [] }), "evaluation_error"],
-    ["dry run", evaluation({ status: "dry_run", answers: [] }), "not_evaluated"],
+    ["error", evaluation({ answers: [], status: "error" }), "evaluation_error"],
+    ["dry run", evaluation({ answers: [], status: "dry_run" }), "not_evaluated"],
     ["missing answer", evaluation({ answers: [] }), "missing"],
     [
       "invalid confidence",
-      evaluation({ answers: [{ questionId: "q-1", choice: "pass", confidence: 2 }] }),
+      evaluation({ answers: [{ choice: "pass", confidence: 2, questionId: "q-1" }] }),
       "malformed_answer",
     ],
     [
       "unknown choice",
-      evaluation({ answers: [{ questionId: "q-1", choice: "maybe", confidence: 0.9 }] }),
+      evaluation({ answers: [{ choice: "maybe", confidence: 0.9, questionId: "q-1" }] }),
       "malformed_answer",
     ],
   ])("records %s as infrastructure instead of model error", (_name, entry, reason) => {
@@ -363,7 +251,9 @@ describe("historical judgment scoring", () => {
       exact: false,
       missing: 1,
     });
-    expect(score([evaluation({ scope: "page", section: null })]).coverage.exact).toBe(false);
+    expect(score([evaluation({ scope: "page", section: PAGE_SECTION })]).coverage.exact).toBe(
+      false,
+    );
   });
 
   test("rejects ambiguous question identities and mismatched source ranges", () => {
@@ -377,14 +267,14 @@ describe("historical judgment scoring", () => {
     expect(result.coverage).toMatchObject({ exact: false, expected: 2, missing: 2 });
     expect(result.totals.infrastructureError).toBe(2);
     const wrongRange = evaluation({
-      section: { id: "target", sourceRange: { startLine: 1, endLine: 4 } },
+      section: { id: "target", sourceRange: { endLine: 4, startLine: 1 } },
     });
     expect(score([wrongRange]).coverage).toMatchObject({ exact: false, missing: 1 });
     const extraAnswer = evaluation();
-    extraAnswer.answers.push({ questionId: "unknown", choice: "pass", confidence: 1 });
+    extraAnswer.answers.push({ choice: "pass", confidence: 1, questionId: "unknown" });
     expect(score([extraAnswer]).issues).toContainEqual({
-      kind: "unexpected_answer",
       documentId: "sample-0001",
+      kind: "unexpected_answer",
       questionId: "unknown",
     });
   });
@@ -395,10 +285,10 @@ describe("historical judgment scoring", () => {
       ruleScopes: { direct: "section", flow: "page" },
     });
     const entry = evaluation({
-      scope: "page",
-      section: null,
+      answers: [{ choice: "pass", confidence: 0.9, questionId: "q-2", reviewRequired: false }],
       questions: [{ id: "q-2", rule: { id: "flow" } }],
-      answers: [{ questionId: "q-2", choice: "pass", confidence: 0.9, reviewRequired: false }],
+      scope: "page",
+      section: PAGE_SECTION,
     });
     const result = score([evaluation(), entry], [item]);
     expect(result.coverage).toMatchObject({ exact: true, expected: 2, exploratory: 1, labeled: 1 });
@@ -420,14 +310,13 @@ describe("historical judgment scoring", () => {
 
   test("writes incomplete coverage from the public CLI and exits nonzero", async () => {
     const directory = await temporaryDirectory();
-    const reportPath = resolve(directory, "report.json");
-    const labelsPath = resolve(directory, "labels.json");
-    const outputPath = resolve(directory, "score.json");
+    const reportPath = path.resolve(directory, "report.json");
+    const labelsPath = path.resolve(directory, "labels.json");
+    const outputPath = path.resolve(directory, "score.json");
     await writeFile(reportPath, JSON.stringify({ evaluations: [] }));
     await writeFile(labelsPath, JSON.stringify({ samples: [sample()] }));
     await expect(
-      execute(process.execPath, [
-        script,
+      runHistoryCli([
         "score",
         "--report",
         reportPath,
@@ -442,7 +331,7 @@ describe("historical judgment scoring", () => {
       exact: false,
       missing: 1,
     });
-    await expect(scoreCorpus({ reportPath, labelsPath, outputPath })).rejects.toMatchObject({
+    await expect(scoreCorpus({ labelsPath, outputPath, reportPath })).rejects.toMatchObject({
       code: "EEXIST",
     });
   });

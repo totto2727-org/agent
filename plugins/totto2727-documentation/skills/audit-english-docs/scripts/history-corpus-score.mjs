@@ -74,6 +74,7 @@ const addCount = function (count, row) {
   }
 };
 
+/** @typedef {import("./history-corpus-labels.mjs").CorpusSplit} CorpusSplit */
 /** @typedef {{ choice?: PredictedChoice, confidence?: number, documentId: string, expected: unknown, family: string, outcome: ScoreOutcome, reason?: string, ruleId: string, sampleId: string, split: CorpusSplit }} ScoreRow */
 /** @typedef {{ duplicates: number, missing: number }} Counts */
 /** @typedef {import("./history-corpus-matching.mjs").ScoreIssue} ScoreIssue */
