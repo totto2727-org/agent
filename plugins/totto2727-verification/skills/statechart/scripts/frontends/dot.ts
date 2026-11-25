@@ -1,31 +1,14 @@
-import type { Graph, State, Step, Value, Vars } from '#statechart/ir.ts';
+import type { Graph, State, Step, Value, Vars } from "#statechart/ir.ts";
 import { parseValue } from "./value.ts";
 import { isString, matchesUndefined, visitItems } from "#statechart/ir.ts";
 
 const FIRST_OFFSET = 0;
 const CODE_UNIT_WIDTH = 1;
-const ESCAPE_WIDTH = 2;
-const NO_ESCAPE = -1;
 const CONJUNCTION = String.raw`/\ `;
+const DOT_ESCAPE = /\\(?<character>.)/gu;
 
-const unescapeDot = (text: string): string => {
-  let escape = text.indexOf("\\");
-  if (escape === NO_ESCAPE) {return text;}
-  let decoded = "";
-  let start = FIRST_OFFSET;
-  while (escape !== NO_ESCAPE && escape + CODE_UNIT_WIDTH < text.length) {
-    const character = text[escape + CODE_UNIT_WIDTH];
-    if (character === "\n" || character === "\r" || character === "\u2028" || character === "\u2029") {
-      escape += CODE_UNIT_WIDTH;
-    } else {
-      decoded += text.slice(start, escape) + (character === "n" ? "\n" : character);
-      escape += ESCAPE_WIDTH;
-      start = escape;
-    }
-    escape = text.indexOf("\\", escape);
-  }
-  return decoded + text.slice(start);
-};
+const unescapeDot = (text: string): string =>
+  text.replaceAll(DOT_ESCAPE, (_match, character: string) => character === "n" ? "\n" : character);
 
 export const parseState = (label: string, parsed = new Map<string, [string, Value]>()): Vars => {
   const pairs: [string, Value][] = [];
@@ -37,7 +20,10 @@ export const parseState = (label: string, parsed = new Map<string, [string, Valu
       return;
     }
     const assignment = /^(?<name>\w+)\s*=\s*(?<value>[\s\S]*)$/u.exec(part)?.groups;
-    if (matchesUndefined(assignment)) {throw new Error(`cannot read the TLC state line "${part}"`);}
+    if (matchesUndefined(assignment)) {
+      // oxlint-disable-next-line rules/require-tagged-error -- The standalone DOT parser reports malformed input with the native Error consumed by Statechart.
+      throw new Error(`cannot read the TLC state line "${part}"`);
+    }
     const pair: [string, Value] = [assignment.name, parseValue(assignment.value)];
     parsed.set(part, pair);
     pairs.push(pair);
@@ -60,6 +46,7 @@ export const parseDot = function parseDot(input: Lines): Graph {
   const own = (text: string): string => {
     const cached = owned.get(text);
     if (!matchesUndefined(cached)) {return cached;}
+    // oxlint-disable-next-line unicorn/prefer-structured-clone -- Reparse the string to detach captured identifiers from the much larger DOT input.
     const copy = String(JSON.parse(JSON.stringify(text)));
     owned.set(copy, copy);
     return copy;
@@ -68,25 +55,21 @@ export const parseDot = function parseDot(input: Lines): Graph {
     const edge = /^(?<from>-?\d+) -> (?<to>-?\d+) \[label="(?<action>[^"]*)"/u.exec(line)?.groups;
     if (!matchesUndefined(edge)) {
       const { from, to, action } = edge;
-      steps.set(`${from} ${to} ${action}`, {
-        from: own(from),
-        to: own(to),
-        action: own(action),
-      });
+      // oxlint-disable-next-line eslint/sort-keys -- Retain the edge field order used in serialized Statechart graphs.
+      steps.set(`${from} ${to} ${action}`, { from: own(from), to: own(to), action: own(action) });
       return;
     }
     const node = /^(?<id>-?\d+) \[label="(?<state>(?:[^"\\]|\\.)*)"(?<start>,style = filled)?/u.exec(line)?.groups;
     if (!matchesUndefined(node)) {
-      states.set(own(node.id), {
-        vars: parseState(unescapeDot(node.state), parsed),
-        start: !matchesUndefined(node.start),
-        breaks: [],
-      });
+      // oxlint-disable-next-line eslint/sort-keys -- Retain the state field order used in serialized Statechart graphs.
+      states.set(own(node.id), { vars: parseState(unescapeDot(node.state), parsed), start: !matchesUndefined(node.start), breaks: [] });
     }
   });
-  visitItems(steps.values(), (loose) => {if (!states.has(loose.from) || !states.has(loose.to))
-      {throw new Error(
-        `The TLC graph dump has a step ${loose.action} to or from a state that it does not list.`,
-      );}});
+  visitItems(steps.values(), (loose) => {
+    if (!states.has(loose.from) || !states.has(loose.to)) {
+      // oxlint-disable-next-line rules/require-tagged-error -- The standalone DOT parser reports a missing graph endpoint through its native error boundary.
+      throw new Error(`The TLC graph dump has a step ${loose.action} to or from a state that it does not list.`);
+    }
+  });
   return { states, steps: [...steps.values()] };
 };
