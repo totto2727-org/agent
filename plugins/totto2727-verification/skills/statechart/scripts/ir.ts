@@ -288,54 +288,68 @@ export const list = (items: string[], and = "and"): string =>
   items.length < LIST_PAIR ? items.join("") : `${items.slice(FIRST_INDEX, LAST_INDEX).join(", ")} ${and} ${items.at(LAST_INDEX)}`;
 
 const ESCAPES: Record<string, string> = {
+  "\t": String.raw`\t`,
+  "\n": String.raw`\n`,
+  "\f": String.raw`\f`,
+  "\r": String.raw`\r`,
   '"': String.raw`\"`,
   "\\": String.raw`\\`,
-  "\n": String.raw`\n`,
-  "\t": String.raw`\t`,
-  "\r": String.raw`\r`,
-  "\f": String.raw`\f`,
 };
-const quote = (s: string): string => `"${s.replaceAll(/["\\\n\t\r\f]/gu, (c) => ESCAPES[c])}"`;
+const quote = (value: string): string => `"${value.replaceAll(/["\\\n\t\r\f]/gu, (character) => ESCAPES[character])}"`;
 
-const joined = (items: Value[], sep: string): string => {
-  let s = "";
-  for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {s += (itemIndex ? sep : "") + show(items[itemIndex]);}
-  return s;
-};
+type ValuePrinter = (value: Value) => string;
 
-export const show = (v: Value): string => {
-  switch (typeof v) {
-    case "boolean": {
-      return v ? "TRUE" : "FALSE";
-    }
-    case "number": {
-      return String(v);
-    }
-    case "string": {
-      return quote(v);
-    }
+const joined = (items: Value[], separator: string, print: ValuePrinter): string => {
+  const cursor = { index: FIRST_INDEX, text: "" };
+  while (cursor.index < items.length) {
+    cursor.text += (cursor.index ? separator : "") + print(items[cursor.index]);
+    cursor.index += NEXT_INDEX;
   }
-  switch (v.kind) {
-    case "model": {
-      return v.name;
-    }
-    case "interval": {
-      return `${v.lo}..${v.hi}`;
-    }
-    case "set": {
-      return `{${joined(v.members, ", ")}}`;
-    }
+  return cursor.text;
+};
+
+type TlcFunction = Extract<Value, { kind: "function" }>;
+
+const TLA_RECORD = { close: "]", entry: ", ", open: "[", value: " |-> " };
+const TLA_PAIRS = { close: ")", entry: " @@ ", open: "(", value: " :> " };
+
+const showFunction = (value: TlcFunction, print: ValuePrinter): string => {
+  const record = value.printedAs === "record";
+  const format = record ? TLA_RECORD : TLA_PAIRS;
+  const cursor = { index: FIRST_INDEX, text: format.open };
+  while (cursor.index < value.keys.length) {
+    const name = value.keys[cursor.index];
+    // oxlint-disable-next-line typescript/no-base-to-string -- Preserve string coercion for keys in the existing TLC record representation.
+    const keyText = record ? String(name) : print(name);
+    cursor.text += `${cursor.index ? format.entry : ""}${keyText}${format.value}${print(value.values[cursor.index])}`;
+    cursor.index += NEXT_INDEX;
+  }
+  return cursor.text + format.close;
+};
+
+// oxlint-disable-next-line rules/force-predicate, typescript/explicit-function-return-type -- Infer the standalone tool's native Boolean guard without loading Effect.
+const isBoolean = (value: unknown) => typeof value === "boolean";
+
+// oxlint-disable-next-line typescript/consistent-return -- The declared TLC variants are exhaustive. Retain the existing fallthrough for a malformed value.
+const showObject = (value: Extract<Value, object>, print: ValuePrinter): string => {
+  // oxlint-disable-next-line eslint/default-case -- Each supported TLC object variant has an explicit rendering.
+  switch (value.kind) {
+    case "model": {return value.name;}
+    case "interval": {return `${value.lo}..${value.hi}`;}
+    case "set": {return `{${joined(value.members, ", ", print)}}`;}
     case "function": {
-      if (v.printedAs === "tuple") {return `<<${joined(v.values, ", ")}>>`;}
-      const record = v.printedAs === "record";
-      let s = record ? "[" : "(";
-      for (let i = 0; i < v.keys.length; i++)
-        {s += record
-          ? `${i ? ", " : ""}${String(v.keys[i])} |-> ${show(v.values[i])}`
-          : `${i ? " @@ " : ""}${show(v.keys[i])} :> ${show(v.values[i])}`;}
-      return s + (record ? "]" : ")");
+      return value.printedAs === "tuple"
+        ? `<<${joined(value.values, ", ", print)}>>`
+        : showFunction(value, print);
     }
   }
+};
+
+export const show = (value: Value): string => {
+  if (isBoolean(value)) {return value ? "TRUE" : "FALSE";}
+  if (isNumber(value)) {return String(value);}
+  if (isString(value)) {return quote(value);}
+  return showObject(value, show);
 };
 
 export const must = <K, V>(map: ReadonlyMap<K, V>, key: K): V => {
@@ -359,19 +373,19 @@ export const seqOf = (bug: Bug, index: ReadonlyMap<string, number>): number[] =>
 export const loopOf = (bug: Bug, index: ReadonlyMap<string, number>) =>
   new Set(matchesUndefined(bug.loop) ? [] : seqOf(bug, index).slice(bug.loop));
 
+const SINGLE_VARIABLE = 1;
+
 export const defaultState = (vars: Vars): string => {
   const entries = Object.entries(vars);
-  if (entries.length === 1) {return show(entries[0][1]);}
-  const parts: string[] = [];
-  visitItems(entries, ([k, v]) => {parts.push(`${k}=${show(v)}`);});
-  return parts.join(" ");
+  if (entries.length === SINGLE_VARIABLE) {
+    const [[, value]] = entries;
+    return show(value);
+  }
+  return entries.map(([name, value]) => `${name}=${show(value)}`).join(" ");
 };
 
-export const stateText = (vars: Vars): string => {
-  const parts: string[] = [];
-  Object.entries(vars).forEach(([key, value]) => {parts.push(`${key} = ${show(value)}`);});
-  return parts.join(String.raw` /\ `);
-};
+export const stateText = (vars: Vars): string =>
+  Object.entries(vars).map(([name, value]) => `${name} = ${show(value)}`).join(String.raw` /\ `);
 
 export const count = (length: number): Int32Array => {
   const items = new Int32Array(length);
