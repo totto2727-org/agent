@@ -55,9 +55,9 @@ const graphOf = (states: StateRow[], steps: StepRow[]): Graph => {
   visitItems(states, ([id, vars, start, breaks = []]) => {
     const rules: Rule[] = [];
     visitItems(breaks, (name) => {rules.push({ kind: "invariant", name });});
-    graph.states.set(id, { vars, start: start ?? false, breaks: rules });
+    graph.states.set(id, { breaks: rules, start: start ?? false, vars });
   });
-  visitItems(steps, ([from, to, action]) => {graph.steps.push({ from, to, action });});
+  visitItems(steps, ([from, to, action]) => {graph.steps.push({ action, from, to });});
   return graph;
 };
 
@@ -95,22 +95,22 @@ const draw = function (graph: Graph, view: View, loops: Bug[] = []): { chart: st
   const found = [...bugs(graph), ...loops];
   const { chart, stories } = project(graph, walk(graph), { found, view });
   const spec: Spec = {
-    module: "Test",
-    variables: [],
-    invariants: [],
-    properties: [],
     deadlock: false,
+    invariants: [],
+    module: "Test",
+    properties: [],
+    variables: [],
     written: [],
   };
   const result = {
-    spec,
+    drawing: undefined,
     graph,
     paths: undefined,
-    rules: [],
     properties: [],
+    rules: [],
+    spec,
+    states: { complete: true, cut: false, distinct: graph.states.size, initial: 1 },
     stop: undefined,
-    drawing: undefined,
-    states: { distinct: graph.states.size, initial: 1, complete: true, cut: false },
   };
   return { chart: mermaid(chart), report: report(result, { chart, found, stories }) };
 };
@@ -246,7 +246,7 @@ const replay = async function (name: string, graph: Graph): Promise<void> {
     if (rule.kind === "deadlock" && hasCompleteDrawing && !hasSection(spec, "CONSTRAINT", "ACTION_CONSTRAINT"))
       {deadEnds(graph, rule);}
     const counterexample = readCounterexample(messages);
-    if (hasCompleteDrawing || lasso(graph, { seq: counterexample, loop: undefined }, { find, names })) {
+    if (hasCompleteDrawing || lasso(graph, { loop: undefined, seq: counterexample }, { find, names })) {
       addPast(graph, counterexample, { excludes: hasSection(spec, "ACTION_CONSTRAINT"), find, names, past, rule });
     }
   });
@@ -309,16 +309,16 @@ test("a chart of only the bug paths words each one with the view, asked once for
   };
   const { report: text, files } = compile(
     {
-      spec: { ...spec, folder: "" },
-      graph: pathDrawing.graph,
-      paths,
-      rules: [],
-      properties: [],
-      exit: 1,
-      stop: undefined,
       drawing: undefined,
-      states: { distinct: 1234, initial: 1, complete: true, cut: false },
+      exit: 1,
+      graph: pathDrawing.graph,
       messages: [],
+      paths,
+      properties: [],
+      rules: [],
+      spec: { ...spec, folder: "" },
+      states: { complete: true, cut: false, distinct: 1234, initial: 1 },
+      stop: undefined,
     },
     checkView(view, inspect),
   );
@@ -494,21 +494,6 @@ visitItems(switches, (axisA) => {
   });
 });
 const truthGraphs: Record<string, [Graph, View]> = {
-  starts: [
-    graphOf(
-      [
-        ["x0y0", { x: 0, y: 0 }, true],
-        ["x1y1", { x: 1, y: 1 }, true],
-        ["x1y0", { x: 1, y: 0 }],
-      ],
-      [["x0y0", "x1y0", "Step"]],
-    ),
-    { state: (variables) => ({ X: `x${fixtureText(variables.x)}`, Y: `y${fixtureText(variables.y)}` }) },
-  ],
-  xor: [
-    graphOf(xorStates, xorSteps),
-    { state: (variables) => ({ A: `a${fixtureText(variables.a)}`, B: `b${fixtureText(variables.b)}`, C: `c${fixtureText(variables.c)}` }) },
-  ],
   fork: [
     graphOf(
       [
@@ -520,30 +505,6 @@ const truthGraphs: Record<string, [Graph, View]> = {
         ["a0b0", "a1b1", "Sync"],
         ["a0b0", "a2b2", "Sync"],
       ],
-    ),
-    ab,
-  ],
-  partial: [
-    graphOf(
-      [
-        ["a0b0", { a: 0, b: 0 }, true],
-        ["a1b1", { a: 1, b: 1 }],
-        ["a1b0", { a: 1, b: 0 }],
-      ],
-      [
-        ["a0b0", "a1b1", "Act"],
-        ["a0b0", "a1b0", "Act"],
-      ],
-    ),
-    ab,
-  ],
-  lockstep: [
-    graphOf(
-      [
-        ["a0b0", { a: 0, b: 0 }, true],
-        ["a1b1", { a: 1, b: 1 }],
-      ],
-      [["a0b0", "a1b1", "Act"]],
     ),
     ab,
   ],
@@ -563,6 +524,45 @@ const truthGraphs: Record<string, [Graph, View]> = {
       ],
     ),
     ab,
+  ],
+  lockstep: [
+    graphOf(
+      [
+        ["a0b0", { a: 0, b: 0 }, true],
+        ["a1b1", { a: 1, b: 1 }],
+      ],
+      [["a0b0", "a1b1", "Act"]],
+    ),
+    ab,
+  ],
+  partial: [
+    graphOf(
+      [
+        ["a0b0", { a: 0, b: 0 }, true],
+        ["a1b1", { a: 1, b: 1 }],
+        ["a1b0", { a: 1, b: 0 }],
+      ],
+      [
+        ["a0b0", "a1b1", "Act"],
+        ["a0b0", "a1b0", "Act"],
+      ],
+    ),
+    ab,
+  ],
+  starts: [
+    graphOf(
+      [
+        ["x0y0", { x: 0, y: 0 }, true],
+        ["x1y1", { x: 1, y: 1 }, true],
+        ["x1y0", { x: 1, y: 0 }],
+      ],
+      [["x0y0", "x1y0", "Step"]],
+    ),
+    { state: (variables) => ({ X: `x${fixtureText(variables.x)}`, Y: `y${fixtureText(variables.y)}` }) },
+  ],
+  xor: [
+    graphOf(xorStates, xorSteps),
+    { state: (variables) => ({ A: `a${fixtureText(variables.a)}`, B: `b${fixtureText(variables.b)}`, C: `c${fixtureText(variables.c)}` }) },
   ],
 };
 
@@ -614,13 +614,13 @@ test("the view answers once for each state and step, so a chart of parent states
   const asked: Record<string, number> = {};
   const answer = (question: string): "first" | "later" => countQuestion(asked, question) === ONE_CALL ? "first" : "later";
   const { chart, report: text } = draw(forkToBug, {
+    colors: { Busy: "orange", Calm: "blue" },
+    group: (variables) => (answer(`group ${fixtureText(variables.a)}`) === "first" ? "Calm" : "Busy"),
     state: (variables) => {
       const word = answer(`state ${fixtureText(variables.a)}`);
       return { A: `a${fixtureText(variables.a)} ${word}`, B: `b${fixtureText(variables.b)}` };
     },
     step: (action, from, to) => `${action} ${answer(`step ${fixtureText(from.a)} to ${fixtureText(to.a)}`)}`,
-    group: (variables) => (answer(`group ${fixtureText(variables.a)}`) === "first" ? "Calm" : "Busy"),
-    colors: { Calm: "blue", Busy: "orange" },
   });
   assert.match(chart, /^ {2}state "A a2 first" as s\d+ \{$/mu);
   assert.doesNotMatch(chart, /later|orange/u);
@@ -812,10 +812,10 @@ test("each line break in a label or a colors key is a space, so it cannot start 
     [["s0", "s1", "Go"]],
   );
   const { chart } = draw(graph, {
+    colors: { Open: "blue", "Shut\r  s99: Ghost state": "pink" },
+    group: (variables) => (variables.n === SWITCH_ON ? "Shut\r  s99: Ghost state" : "Open"),
     state: (variables) => (variables.n === SWITCH_ON ? "b\r\n\r\v\f\u0085\u2028\u2029\tc" : "a"),
     step: () => "go\r  s9: Ghost",
-    group: (variables) => (variables.n === SWITCH_ON ? "Shut\r  s99: Ghost state" : "Open"),
-    colors: { Open: "blue", "Shut\r  s99: Ghost state": "pink" },
   });
   assert.doesNotMatch(chart, /[\r\v\f\u0085\u2028\u2029\t]/u);
   assert.match(chart, /^ {2}s\d+: b {9}c$/mu);
@@ -890,9 +890,9 @@ test('a label puts a word joiner inside marker-end=", since Mermaid rewrites mar
     [["s0", "s1", "Go"]],
   );
   const { chart } = draw(graph, {
-    title: 'marker-end="url(a#b',
     state: (variables) => (variables.n === SWITCH_ON ? ['marker-end="url(p#q', "x"] : 'marker-end="url(a#b'),
     step: () => 'a="b" = "c"',
+    title: 'marker-end="url(a#b',
   });
   assert.match(chart, /^title: "marker-end=ﬂ°°8288¶ß\\"url\(aﬂ°°35¶ßb"$/mu);
   assert.match(chart, /^ {2}s\d+: marker-end=#8288;"url\(a#35;b$/mu);
@@ -922,6 +922,7 @@ test("a parent or region name with [[fork]], [[join]], or [[choice]] stays text"
     [["s0", "s1", "GoX"]],
   );
   const regions = draw(parallel, {
+    // oxlint-disable-next-line eslint/sort-keys -- This fixture assigns the escaped region r0 by declaring it first.
     state: (variables) => ({ "[[choice]]": `X${fixtureText(variables.x)}`, Other: `Y${fixtureText(variables.y)}` }),
   }).chart;
   assert.match(regions, /^ {4}state "#91;\[choice\]\]" as r0 \{$/mu);
@@ -957,7 +958,7 @@ test("a title with < cannot open an HTML tag that rewrites the chart's quotes", 
     ],
     [["s0", "s1", "Go"]],
   );
-  const { chart } = draw(graph, { title: "<a=", state: (variables) => ["P", `S${fixtureText(variables.n)}`] });
+  const { chart } = draw(graph, { state: (variables) => ["P", `S${fixtureText(variables.n)}`], title: "<a=" });
   assert.doesNotMatch(chart, /</u);
   assert.match(chart, /^title: "ﬂ°°60¶ßa="$/mu);
   assert.match(chart, /^ {2}state "P" as s\d+ \{$/mu);
@@ -998,9 +999,9 @@ test("labels write the space between direction and LR, RL, TB, or BT as #32;", (
     ],
   );
   const steps: Record<string, string> = {
-    Turn: "turn direction LR",
     Back: "back direction rl",
     Go: "go",
+    Turn: "turn direction LR",
   };
   const { chart } = draw(graph, {
     state: (variables) =>
@@ -1038,10 +1039,10 @@ test("a view that cannot give a chart says what to change", () => {
 const keyGraph = (): Graph =>
   graphOf(
     [
-      ["idle", { pos: "idle", key: parseValue("[on |-> FALSE, at |-> 0]") }, true],
-      ["waitKeyOff", { pos: "wait", key: parseValue("[on |-> FALSE, at |-> 0]") }],
-      ["waitKeyOn", { pos: "wait", key: parseValue("[on |-> TRUE, at |-> 0]") }],
-      ["done", { pos: "done", key: parseValue("[on |-> TRUE, at |-> 0]") }],
+      ["idle", { key: parseValue("[on |-> FALSE, at |-> 0]"), pos: "idle" }, true],
+      ["waitKeyOff", { key: parseValue("[on |-> FALSE, at |-> 0]"), pos: "wait" }],
+      ["waitKeyOn", { key: parseValue("[on |-> TRUE, at |-> 0]"), pos: "wait" }],
+      ["done", { key: parseValue("[on |-> TRUE, at |-> 0]"), pos: "done" }],
     ],
     [
       ["idle", "waitKeyOff", "Go"],
@@ -1052,15 +1053,15 @@ const keyGraph = (): Graph =>
     ],
   );
 const keyState = (header: string, pos: string): Message => ({
+  body: [header, `/\\ pos = "${pos}"`, String.raw`/\ key = [at |-> 0, on |-> FALSE]`, ""],
   code: EC.TLC_STATE_PRINT2,
   level: LEVEL.STATE,
-  body: [header, `/\\ pos = "${pos}"`, String.raw`/\ key = [at |-> 0, on |-> FALSE]`, ""],
 });
 const keyTrace = (): Trace =>
   readTrace([
     keyState("1: <Initial predicate>", "idle"),
     keyState("2: <Go line 9, col 3 to line 9, col 20 of module Key>", "wait"),
-    { code: EC.TLC_STATE_PRINT3, level: LEVEL.STATE, body: ["3: Stuttering"] },
+    { body: ["3: Stuttering"], code: EC.TLC_STATE_PRINT3, level: LEVEL.STATE },
   ]);
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
@@ -1117,10 +1118,10 @@ test("a loop that passes one state twice names it once", () => {
     stepsAlongPath.push({ action: step.action, state: to, step });
   }
   const loop: Bug = {
+    loop: 0,
+    path: stepsAlongPath,
     rule: { kind: "property", name: "Settles" },
     start: "a",
-    path: stepsAlongPath,
-    loop: 0,
     stutters: false,
   };
   const { report: chartReport } = draw(graph, { state: (variables) => variables.pos }, [loop]);
@@ -1172,10 +1173,10 @@ test("checkView takes a full view and refuses each wrong kind and every bad colo
   checkView({}, inspect);
   checkView(
     {
+      colors: { Busy: "blue" },
+      group: () => "Busy",
       state: (variables: Vars) => variables.x,
       step: (actionName: string) => actionName,
-      group: () => "Busy",
-      colors: { Busy: "blue" },
       title: "T",
     },
     inspect,
@@ -1184,7 +1185,7 @@ test("checkView takes a full view and refuses each wrong kind and every bad colo
   assert.throws(() => checkView({ colors: ["blue"] }, inspect), /\bcolors\b[\s\S]*\bobject\b/u);
   assert.throws(() => checkView({ state: "Busy" }, inspect), /\bstate\b[\s\S]*\bfunction\b/u);
   assert.throws(
-    () => checkView({ colors: { Busy: "red", Idle: "repeats", Done: "tan" } }, inspect),
+    () => checkView({ colors: { Busy: "red", Done: "tan", Idle: "repeats" } }, inspect),
     (error: unknown) =>
       error instanceof Error &&
       /\bBusy\b[\s\S]*"red"/u.test(error.message) &&
@@ -1197,7 +1198,7 @@ test("checkView takes a full view and refuses each wrong kind and every bad colo
 test("a group named like an Object method still needs its own color", () => {
   const graph = graphOf([["s0", { x: 0 }, true]], []);
   assert.throws(
-    () => draw(graph, checkView({ group: () => "toString", colors: {} }, inspect)),
+    () => draw(graph, checkView({ colors: {}, group: () => "toString" }, inspect)),
     /group\(\) returned "toString"/u,
   );
 });
@@ -1209,6 +1210,7 @@ test("a message writes each value the way JavaScript shows it", () => {
   assert.throws(
     () =>
       checkView(
+        // oxlint-disable-next-line eslint/sort-keys -- This expected error verifies the order of the supplied invalid color keys.
         { colors: { Lost: Number.NaN, Far: Infinity, Big: BigInt("7"), Boxed: new String("blue"), Loop: loop } },
         inspect,
       ),
@@ -1216,7 +1218,7 @@ test("a message writes each value the way JavaScript shows it", () => {
   );
   const graph = graphOf([["s0", { x: 0 }, true]], []);
   assert.throws(
-    () => draw(graph, checkView({ group: () => Number.NaN, colors: {} }, inspect)),
+    () => draw(graph, checkView({ colors: {}, group: () => Number.NaN }, inspect)),
     /group\(\) returned NaN,/u,
   );
 });
@@ -1246,9 +1248,9 @@ test("the chart uses the colors that checkView read once from the view's own key
     changed.Busy = "breaks";
     return "Busy";
   };
-  visitItems([
-    { group: () => "Busy", colors: flips },
-    { group: changes, colors: changed },
+  visitItems<View>([
+    { colors: flips, group: () => "Busy" },
+    { colors: changed, group: changes },
   ], (view) => {
     const { chart } = draw(graph, checkView(view, inspect));
     assert.match(chart, /^ {2}class s\d+ blue$/mu);
@@ -1256,12 +1258,12 @@ test("the chart uses the colors that checkView read once from the view's own key
   });
   const hidden = Object.defineProperty({}, "Busy", { value: "breaks" });
   assert.throws(
-    () => draw(graph, checkView({ group: () => "Busy", colors: hidden }, inspect)),
+    () => draw(graph, checkView({ colors: hidden, group: () => "Busy" }, inspect)),
     /group\(\) returned "Busy", which colors does not name/u,
   );
   const groupKey = Symbol("Busy");
   assert.throws(
-    () => draw(graph, checkView({ group: () => groupKey, colors: { [groupKey]: "breaks" } }, inspect)),
+    () => draw(graph, checkView({ colors: { [groupKey]: "breaks" }, group: () => groupKey }, inspect)),
     /group\(\) returned Symbol\(Busy\), which colors does not name/u,
   );
 });
@@ -1276,9 +1278,9 @@ test("a chart state with mixed groups gets no color, even when colors names unde
     [["s0", "s1", "Go"]],
   );
   const view: View = {
-    state: () => "Same",
-    group: (variables) => (variables.x === SWITCH_ON ? "B" : "A"),
     colors: { A: "blue", B: "teal", undefined: "pink" },
+    group: (variables) => (variables.x === SWITCH_ON ? "B" : "A"),
+    state: () => "Same",
   };
   assert.doesNotMatch(draw(graph, view).chart, /^ {2}class /mu);
 });
