@@ -109,9 +109,9 @@ const run = async function (
       env: {
         ...hostEnvironment(),
         JAVA: java,
-        TLA2TOOLS: "tla2tools.jar",
-        STATECHART_REPLAY: dir,
         STATECHART_LOG: log,
+        STATECHART_REPLAY: dir,
+        TLA2TOOLS: "tla2tools.jar",
         ...env,
       },
     },
@@ -120,9 +120,9 @@ const run = async function (
   const files = (await fileExists(out)) ? await readdir(out) : [];
   return {
     ...commandResult,
-    out,
-    files: files.toSorted(),
     configs,
+    files: files.toSorted(),
+    out,
     report: files.includes("report.md") ? await readFile(path.join(out, "report.md"), "utf8") : "",
   };
 };
@@ -368,8 +368,8 @@ const startCommand = async function (
       env: {
         ...hostEnvironment(),
         JAVA: java,
-        TLA2TOOLS: "tla2tools.jar",
         STATECHART_REPLAY: dir,
+        TLA2TOOLS: "tla2tools.jar",
         TMPDIR: tmpdir,
       },
       stdio: ["ignore", "pipe", "pipe"],
@@ -659,7 +659,7 @@ spawn(process.execPath, ["-e", ${JSON.stringify(sendWhileRead)}, dot, command, $
 `,
       { mode: 0o755 },
     );
-    const result = await run(path.join(corpus, "Login"), { java, env: { TMPDIR: tmpdir } });
+    const result = await run(path.join(corpus, "Login"), { env: { TMPDIR: tmpdir }, java });
     assert.equal(result.stderr, `${signal} stopped the check, so the command wrote nothing.\n`);
     assert.equal(result.status, SIGNAL_STATUS_OFFSET + os.constants.signals[signal]);
     assert.deepEqual(await fs.promises.readdir(tmpdir), []);
@@ -885,12 +885,12 @@ syncBuiltinESMExports();
   const java = path.join(tmp, "java");
   const spec = path.join(corpus, "Login", "Login.tla");
   const result = await run(path.dirname(spec), {
-    java,
     command: [
       process.execPath,
       `--import=${pathToFileURL(noClose).href}`,
       path.join(here, "../statechart.ts"),
     ],
+    java,
   });
   assert.equal(result.stderr, `SANY could not read ${spec} (exit null):\nspawn ${java} ENOENT\n`);
   assert.equal(result.status, COMMAND_ERROR);
@@ -1101,26 +1101,17 @@ visitItems([
   [
     "a parent-state view keeps a label with U+0000 apart from the parent path it spells",
     {
-      base: "Counter",
-      view: byX([["a\0b"], ["a", "b"], ["c"], ["d"]]),
-      status: CHECK_PASSED,
-      states: ["ab", "a", "b", "c", "d"],
       arrows: ["a start --> b", "ab --> a: Inc", "b --> c: Inc", "c --> d: Inc"],
+      base: "Counter",
       says: /^TLC reached 4 states and 3 steps\. The chart draws 4 states and 3 arrows\.$/mu,
+      states: ["ab", "a", "b", "c", "d"],
+      status: CHECK_PASSED,
+      view: byX([["a\0b"], ["a", "b"], ["c"], ["d"]]),
     },
   ],
   [
     "a regions view keeps a label with U+0000 apart from the parent path it spells, and the report names it as written",
     {
-      base: "Counter",
-      fanOut: 2,
-      view: byX([
-        { R: "f", S: "p" },
-        { R: ["a\0b"], S: "q" },
-        { R: ["a", "b"], S: "r" },
-      ]),
-      status: CHECK_PASSED,
-      states: ["R f", "S p", "R ab", "S q", "R a", "R b", "S r"],
       arrows: [
         "R f start --> S p",
         "R ab start --> S q",
@@ -1129,101 +1120,97 @@ visitItems([
         "S p --> R ab: Inc",
         "S p --> R a: Inc",
       ],
+      base: "Counter",
+      fanOut: 2,
       says: /^The regions chart lets R f, S p go to R a\0b, S r by Inc, which the model never does\. So the chart draws parent states in place of regions\.$/mu,
+      states: ["R f", "S p", "R ab", "S q", "R a", "R b", "S r"],
+      status: CHECK_PASSED,
+      view: byX([
+        { R: "f", S: "p" },
+        { R: ["a\0b"], S: "q" },
+        { R: ["a", "b"], S: "r" },
+      ]),
     },
   ],
   [
     "a flat view with U+0001 in a label draws each arrow between the states it joins",
     {
-      base: "Counter",
-      view: byX(["a\u0001b", "a", "b", "c"]),
-      status: CHECK_PASSED,
-      states: ["a\u0001b", "a", "b", "c"],
       arrows: ["a\u0001b --> a: Inc", "a --> b: Inc", "b --> c: Inc"],
+      base: "Counter",
       says: /^TLC reached 4 states and 3 steps\. The chart draws 4 states and 3 arrows\.$/mu,
+      states: ["a\u0001b", "a", "b", "c"],
+      status: CHECK_PASSED,
+      view: byX(["a\u0001b", "a", "b", "c"]),
     },
   ],
   [
     "a parent-state view with U+0001 in a label draws the chart",
     {
-      base: "Counter",
-      view: byX([["a\u0001b"], ["a", "b"], ["c"], ["d"]]),
-      status: CHECK_PASSED,
-      states: ["a\u0001b", "a", "b", "c", "d"],
       arrows: ["a start --> b", "a\u0001b --> a: Inc", "b --> c: Inc", "c --> d: Inc"],
+      base: "Counter",
       says: /^TLC reached 4 states and 3 steps\. The chart draws 4 states and 3 arrows\.$/mu,
+      states: ["a\u0001b", "a", "b", "c", "d"],
+      status: CHECK_PASSED,
+      view: byX([["a\u0001b"], ["a", "b"], ["c"], ["d"]]),
     },
   ],
   [
     "a regions view with U+0001 in a label draws the chart",
     {
+      arrows: ["a\u0001b --> c: Inc", "c --> d: Inc", "d --> e: Inc"],
       base: "Counter",
+      says: /^TLC reached 4 states and 3 steps\. The chart draws 5 states and 3 arrows\.$/mu,
+      states: ["a\u0001b", "c", "d", "e", "p"],
+      status: CHECK_PASSED,
       view: byX([
         { R: "a\u0001b", S: "p" },
         { R: "c", S: "p" },
         { R: "d", S: "p" },
         { R: "e", S: "p" },
       ]),
-      status: CHECK_PASSED,
-      states: ["a\u0001b", "c", "d", "e", "p"],
-      arrows: ["a\u0001b --> c: Inc", "c --> d: Inc", "d --> e: Inc"],
-      says: /^TLC reached 4 states and 3 steps\. The chart draws 5 states and 3 arrows\.$/mu,
     },
   ],
   [
     "a flat view reports a state with U+0002 in its label that breaks a rule",
     {
-      base: "FirstRule",
-      view: byX(["a", "b\u0002c", "d", "e"]),
-      status: RULE_BROKEN,
-      states: ["a", "b\u0002c", "d", "e"],
       arrows: ["a --> b\u0002c: Next", "b\u0002c --> d: Next", "d --> e: Next"],
+      base: "FirstRule",
       says: /^## NotOne breaks\nThe shortest path has 1 step:\n0\. a\n1\. Next: b\cBc$/mu,
+      states: ["a", "b\u0002c", "d", "e"],
+      status: RULE_BROKEN,
+      view: byX(["a", "b\u0002c", "d", "e"]),
     },
   ],
   [
     "a parent-state view reports a state with U+0002 in its label that breaks a rule",
     {
-      base: "FirstRule",
-      view: byX([["a"], ["P", "b\u0002c"], ["d"], ["e"]]),
-      status: RULE_BROKEN,
-      states: ["a", "P", "b\u0002c", "d", "e"],
       arrows: ["P start --> b\u0002c", "a --> P: Next", "b\u0002c --> d: Next", "d --> e: Next"],
+      base: "FirstRule",
       says: /^## NotOne breaks\nThe shortest path has 1 step:\n0\. a\n1\. Next: P \/ b\cBc$/mu,
+      states: ["a", "P", "b\u0002c", "d", "e"],
+      status: RULE_BROKEN,
+      view: byX([["a"], ["P", "b\u0002c"], ["d"], ["e"]]),
     },
   ],
   [
     "a regions view reports a state with U+0002 in its label that breaks a rule",
     {
+      arrows: ["a --> b\u0002c: Next", "b\u0002c --> d: Next", "d --> e: Next"],
       base: "FirstRule",
+      says: /^## NotOne breaks\nThe shortest path has 1 step:\n0\. R a, S p\n1\. Next: R b\cBc, S p$/mu,
+      states: ["a", "b\u0002c", "d", "e", "p"],
+      status: RULE_BROKEN,
       view: byX([
         { R: "a", S: "p" },
         { R: "b\u0002c", S: "p" },
         { R: "d", S: "p" },
         { R: "e", S: "p" },
       ]),
-      status: RULE_BROKEN,
-      states: ["a", "b\u0002c", "d", "e", "p"],
-      arrows: ["a --> b\u0002c: Next", "b\u0002c --> d: Next", "d --> e: Next"],
-      says: /^## NotOne breaks\nThe shortest path has 1 step:\n0\. R a, S p\n1\. Next: R b\cBc, S p$/mu,
     },
   ],
   [
     "a regions view with U+0003 in labels draws parent states when the regions chart would invent a move",
     {
-      base: "Counter",
-      fanOut: 4,
-      view:
-        `${byX([
-          { R: "f", S: "p" },
-          { R: "a", S: "r" },
-          { R: "b", S: "q" },
-          { R: "X\u0003a", S: "q" },
-          { R: "X\u0003b", S: "r" },
-        ])
-        }export const step = (action, from, to) => (to.x <= 2 ? ${JSON.stringify("Go\u0003X")} : "Go");\n`,
-      status: CHECK_PASSED,
-      states: ["R f", "S p", "R a", "S r", "R b", "S q", "R X\u0003a", "S q", "R X\u0003b", "S r"],
       arrows: [
         "R f start --> S p",
         "R a start --> S r",
@@ -1235,7 +1222,20 @@ visitItems([
         "S p --> R X\u0003a: Go",
         "S p --> R X\u0003b: Go",
       ],
+      base: "Counter",
+      fanOut: 4,
       says: /^The regions chart lets R f, S p go to R a, S q by Go\cCX, which the model never does\. So the chart draws parent states in place of regions\.$/mu,
+      states: ["R f", "S p", "R a", "S r", "R b", "S q", "R X\u0003a", "S q", "R X\u0003b", "S r"],
+      status: CHECK_PASSED,
+      view:
+        `${byX([
+          { R: "f", S: "p" },
+          { R: "a", S: "r" },
+          { R: "b", S: "q" },
+          { R: "X\u0003a", S: "q" },
+          { R: "X\u0003b", S: "r" },
+        ])
+        }export const step = (action, from, to) => (to.x <= 2 ? ${JSON.stringify("Go\u0003X")} : "Go");\n`,
     },
   ],
 ] satisfies [
@@ -1262,8 +1262,8 @@ visitItems([
     assert.equal(result.status, chartCase.status);
     const chart = read(path.join(result.out, "chart.mmd"));
     assert.deepEqual(drawn(chart), {
-      states: chartCase.states,
       arrows: chartCase.arrows,
+      states: chartCase.states,
     });
     assert.match(result.report, chartCase.says);
   });
