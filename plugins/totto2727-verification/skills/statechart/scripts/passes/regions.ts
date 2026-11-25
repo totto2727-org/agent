@@ -1,16 +1,292 @@
-import { loopOf, matchesUndefined, seqOf, visitItems } from "#statechart/ir.ts";
-import type { Arrow, Bug, Chart, ChartState, ChartStep, Labels, Region, View, Walk } from "#statechart/ir.ts";
-import { arrowsOfRegion } from "./region-arrows.ts";
-import type { RegionMove } from "./region-arrows.ts";
-import { statesOfRegion } from "./region-states.ts";
-import type { RegionStates, StateFlags } from "./region-states.ts";
+// oxlint-disable eslint/max-lines -- This pass keeps state grouping and arrow projection together so it depends only on the shared statechart IR.
+import { append, byText, hasRule, holds, loopOf, matchesUndefined, must, ruleKey, seqOf, tupleKey, unkey, visitItems } from "#statechart/ir.ts";
+import type { Arrow, Bug, Chart, ChartState, ChartStep, Condition, Labels, Region, Rule, View, Walk } from "#statechart/ir.ts";
 
-const FIRST_REGION_INDEX = 0;
 const FIRST_PATH_POSITION = 0;
 const SINGLE_REGION = 1;
+const FLAG_SET = 1;
+const SINGLE_CHOICE = 1;
+
+
+interface RegionStates {
+  keyOf: string[];
+  objectOf: ChartState[];
+  position: Int32Array;
+  states: Map<string, ChartState>;
+}
+
+interface StateFlags {
+  clean: Uint8Array;
+  lead: Uint8Array;
+  looped: Uint8Array;
+}
+
+interface RegionStateInput {
+  labels: Labels;
+  order: Int32Array;
+  walk: Walk;
+}
+
+interface RegionMember {
+  key: string;
+  kind: number;
+  name: string;
+  stateIndex: number;
+}
+
+const chartState = (path: string[]): ChartState =>
+  // oxlint-disable-next-line eslint/sort-keys -- Preserve established chart-state field order for renderers and snapshots.
+  ({ path, start: false, members: [], works: false, lead: false, repeats: false, breaks: [], group: undefined });
+
+const collectMember = ({ key, kind, name, stateIndex }: RegionMember, region: RegionStates, labels: Labels): ChartState => {
+  const existing = region.objectOf[kind];
+  if (!matchesUndefined(existing)) {return existing;}
+  const state = chartState(labels.shapes[stateIndex][name]);
+  region.objectOf[kind] = state;
+  region.keyOf[kind] = key;
+  region.position[kind] = region.states.size;
+  region.states.set(key, state);
+  return state;
+};
+
+const markMember = (state: ChartState, entry: { index: number; start: boolean }, { clean, lead, looped }: StateFlags): void => {
+  state.start ||= entry.start;
+  state.works ||= clean[entry.index] === FLAG_SET;
+  state.lead ||= lead[entry.index] === FLAG_SET;
+  state.repeats ||= looped[entry.index] === FLAG_SET;
+  state.members.push(entry.index);
+};
+
+const parentPaths = (states: Iterable<ChartState>): Set<string> => {
+  const parents = new Set<string>();
+  visitItems(states, (state) => {
+    visitItems(state.path.keys(), (depth) => {
+      if (depth > FIRST_PATH_POSITION) {parents.add(tupleKey(state.path.slice(FIRST_PATH_POSITION, depth)));}
+    });
+  });
+  return parents;
+};
+
+const stateRules = (state: ChartState, input: Walk["states"]): Rule[] => {
+  const rules = new Map<string, Rule>();
+  visitItems(state.members, (stateIndex) => {
+    visitItems(input[stateIndex].breaks, (rule) => {rules.set(ruleKey(rule), rule);});
+  });
+  return [...rules.values()].toSorted((left, right) => byText(left.name, right.name) || byText(left.kind, right.kind));
+};
+
+const stateGroup = (state: ChartState, group: Labels["group"]): unknown => {
+  const groups = new Set<unknown>();
+  visitItems(state.members, (stateIndex) => {groups.add(group(stateIndex));});
+  return groups.size === SINGLE_CHOICE ? groups.values().next().value : undefined;
+};
+
+const decorateStates = (name: string, states: Map<string, ChartState>, { labels, walk }: RegionStateInput): void => {
+  const parents = parentPaths(states.values());
+  visitItems(states.values(), (state) => {
+    if (parents.size && parents.has(tupleKey(state.path))) {
+      // oxlint-disable-next-line rules/require-tagged-error -- The standalone chart command exposes the existing synchronous view-validation error.
+      throw new Error(`The view's state() returned ${state.path.join(" / ")} both as a state and as a parent state${name ? ` in ${name}` : ""}. Give that state a child name of its own.`);
+    }
+    state.breaks = stateRules(state, walk.states).map((rule) => {
+      const always = state.members.every((stateIndex) => hasRule(walk.states[stateIndex].breaks, rule));
+      // oxlint-disable-next-line eslint/sort-keys -- Preserve the serialized order of each rule and its occurrence flag.
+      return { rule, always };
+    });
+    state.group = stateGroup(state, labels.group);
+  });
+};
+
+const statesOfRegion = (regionIndex: number, input: RegionStateInput, flags: StateFlags): RegionStates => {
+  const { labels, order, walk } = input;
+  const name = labels.names[regionIndex];
+  const kind = labels.kinds[regionIndex];
+  const keys = labels.keys[regionIndex];
+  const region: RegionStates = { keyOf: [], objectOf: [], position: new Int32Array(labels.sizes[regionIndex]), states: new Map() };
+  visitItems(order, (stateIndex) => {
+    const state = collectMember({ key: keys[stateIndex], kind: kind[stateIndex], name, stateIndex }, region, labels);
+    markMember(state, { index: stateIndex, start: walk.states[stateIndex].start }, flags);
+  });
+  decorateStates(name, region.states, input);
+  return region;
+};
+
+const FIRST_PART = 0;
+const ANY_REST: Condition = { kind: "and", otherKeys: [] };
+
+interface RegionMove {
+  fromKind: number;
+  group: number[];
+  other: RegionMove | undefined;
+  text: string;
+  toKind: number;
+}
+
+interface ArrowInput {
+  from: Walk["from"];
+  keyOf: string[];
+  labels: Labels;
+  moves: RegionMove[];
+  order: Int32Array;
+}
+
+interface Edge {
+  from: string;
+  label: string;
+  to: string;
+}
+
+const edgeOf = (move: RegionMove, keys: string[]): Edge =>
+  // oxlint-disable-next-line eslint/sort-keys -- Retain from, to and label order in chart arrows.
+  ({ from: keys[move.fromKind], to: keys[move.toKind], label: move.text });
+
+type Takes = (candidate: string[]) => boolean;
+
+interface Options {
+  all: Set<string>[];
+  and: Set<string>[];
+  or: Set<string>[];
+}
+
+interface OtherOptions {
+  all: Set<string>;
+  and: Set<string>;
+  or: Set<string>;
+}
+
+const optionsAt = (seen: string[][], takes: Takes, otherIndex: number): OtherOptions => {
+  const values = new Set<string>();
+  const taken = new Set<string>();
+  const untaken = new Set<string>();
+  visitItems(seen, (candidate) => {
+    const value = candidate[otherIndex];
+    values.add(value);
+    if (takes(candidate)) {taken.add(value);}
+    else {untaken.add(value);}
+  });
+  const only = new Set<string>();
+  visitItems(values, (value) => {if (!untaken.has(value)) {only.add(value);}});
+  return { all: values, and: taken, or: only };
+};
+
+const optionsIn = (others: number[], seen: string[][], takes: Takes): Options => {
+  const options: Options = { all: [], and: [], or: [] };
+  visitItems(others.keys(), (index) => {
+    const { all, and, or } = optionsAt(seen, takes, index);
+    options.all.push(all);
+    options.and.push(and);
+    options.or.push(or);
+  });
+  return options;
+};
+
+class OtherRegions {
+  #labels: Labels;
+  #others: number[];
+  #two: boolean;
+  #states = new Map<number, number[]>();
+  #seen = new Map<number, string[][]>();
+
+  public constructor(labels: Labels, regionIndex: number, order: Int32Array) {
+    this.#labels = labels;
+    this.#others = [...labels.names.keys()].filter((index) => index !== regionIndex);
+    this.#two = this.#others.length === SINGLE_REGION;
+    const kind = labels.kinds[regionIndex];
+    visitItems(order, (stateIndex) => {append(this.#states, kind[stateIndex], stateIndex);});
+  }
+
+  #tuple(stateIndex: number): string[] {
+    return this.#others.map((index) => this.#labels.keys[index][stateIndex]);
+  }
+
+  #candidates(kind: number): string[][] {
+    const existing = this.#seen.get(kind);
+    if (!matchesUndefined(existing)) {return existing;}
+    const seen: string[][] = [];
+    const known = new Set<string>();
+    visitItems(must(this.#states, kind), (stateIndex) => {
+      const candidate = this.#tuple(stateIndex);
+      const tuple = tupleKey(candidate);
+      if (known.has(tuple)) {return;}
+      known.add(tuple);
+      seen.push(candidate);
+    });
+    this.#seen.set(kind, seen);
+    return seen;
+  }
+
+  #words(values: Iterable<string>): string {
+    const paths = Array.from(values, (value) => unkey(value).join(" / "));
+    return paths.toSorted(byText).join(this.#two ? " or " : ", ");
+  }
+
+  #include(regionIndex: number, values: Set<string>): string {
+    const words = this.#words(values);
+    if (this.#two) {return `when ${words}`;}
+    const choice = values.size > SINGLE_CHOICE ? "one of " : "";
+    return `${this.#labels.names[regionIndex]} is ${choice}${words}`;
+  }
+
+  #exclude(regionIndex: number, values: string[]): string {
+    const words = this.#words(values);
+    if (this.#two) {return `unless ${words}`;}
+    const choice = values.length > SINGLE_CHOICE ? "none of" : "not";
+    return `${this.#labels.names[regionIndex]} is ${choice} ${words}`;
+  }
+
+  #andWords({ all, and }: Options): string | undefined {
+    const parts: string[] = [];
+    visitItems(this.#others.keys(), (index) => {
+      const regionIndex = this.#others[index];
+      const taken = and[index];
+      const excluded = [...all[index]].filter((value) => !taken.has(value));
+      if (excluded.length) {
+        parts.push(taken.size <= excluded.length ? this.#include(regionIndex, taken) : this.#exclude(regionIndex, excluded));
+      }
+    });
+    if (!parts.length) {return undefined;}
+    return this.#two ? parts[FIRST_PART] : `when ${parts.join(" and ")}`;
+  }
+
+  #orWords({ or }: Options): string {
+    const parts: string[] = [];
+    visitItems(this.#others.keys(), (index) => {
+      const taken = or[index];
+      if (taken.size) {parts.push(this.#include(this.#others[index], taken));}
+    });
+    return `when ${parts.join(" or ")}`;
+  }
+
+  public arrow(move: RegionMove, edge: Edge, from: Walk["from"]): Arrow {
+    const ok = new Set<string>();
+    visitItems(move.group, (stepIndex) => {ok.add(tupleKey(this.#tuple(from[stepIndex])));});
+    const takes = (candidate: string[]): boolean => ok.has(tupleKey(candidate));
+    const seen = this.#candidates(move.fromKind);
+    const options = optionsIn(this.#others, seen, takes);
+    return this.#condition(edge, { ok, options, seen, takes });
+  }
+
+  #condition(edge: Edge, { ok, options, seen, takes }: { ok: Set<string>; options: Options; seen: string[][]; takes: Takes }): Arrow {
+    const fits = (condition: Condition): boolean => seen.every((candidate) => holds(condition, candidate) === takes(candidate));
+    const and: Condition = { kind: "and", otherKeys: options.and };
+    if (fits(and)) {return { ...edge, condition: and, when: this.#andWords(options) };}
+    const or: Condition = { kind: "or", otherKeys: options.or };
+    if (fits(or)) {return { ...edge, condition: or, when: this.#orWords(options) };}
+    return { ...edge, condition: { kind: "tuples", otherTuples: ok } };
+  }
+}
+
+const arrowsOfRegion = (regionIndex: number, { from, keyOf, labels, moves, order }: ArrowInput): Arrow[] => {
+  if (labels.names.length === SINGLE_REGION) {
+    return moves.map((move) => ({ ...edgeOf(move, keyOf), condition: ANY_REST, when: undefined }));
+  }
+  const others = new OtherRegions(labels, regionIndex, order);
+  return moves.map((move) => others.arrow(move, edgeOf(move, keyOf), from));
+};
+
+const FIRST_REGION_INDEX = 0;
 const NO_INSIDE_STEPS = 0;
 const INSIDE_STEP_INCREMENT = 1;
-const FLAG_SET = 1;
 const FLAG_CLEAR = 0;
 
 interface PathFlags {

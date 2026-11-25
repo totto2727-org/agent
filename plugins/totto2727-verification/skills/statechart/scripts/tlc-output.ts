@@ -2,7 +2,6 @@ import { plainText } from "./backends/plain-text.ts";
 import { readMessages } from "./frontends/messages.ts";
 import { readVerdict } from "./frontends/verdict.ts";
 import { LEVEL, isNumber, isString, visitItems } from "./ir.ts";
-import { CHECK_FAILED, CHECK_PASSED, CHECK_VIOLATION } from "./ir-model.ts";
 import type { CheckResult, Output, Part, Stop } from "./ir.ts";
 import { CHILD_SUCCESS, outputLines } from "./native-process.ts";
 import type { FileResult } from "./native-process.ts";
@@ -14,7 +13,9 @@ const TLC_DEADLOCK = 11;
 const TLC_SAFETY_VIOLATION = 12;
 const TLC_LIVENESS_VIOLATION = 13;
 const TLC_VIOLATION_STATUSES = new Set([TLC_DEADLOCK, TLC_SAFETY_VIOLATION, TLC_LIVENESS_VIOLATION]);
-export { CHECK_FAILED } from "./ir-model.ts";
+const CHECK_PASSED = 0;
+const CHECK_VIOLATION = 1;
+export const CHECK_FAILED = 2;
 export const messagesOf = (output: Output): Iterable<Part> => ({
   [Symbol.iterator]: () => readMessages(outputLines(output)),
 });
