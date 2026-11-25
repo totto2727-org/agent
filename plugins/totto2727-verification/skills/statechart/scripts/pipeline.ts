@@ -51,7 +51,7 @@ export const compile = function compile(result: CheckResult, view: CheckedView) 
     found.length || !result.paths
       ? project(result.graph, walked, view, found)
       : { chart: undefined, stories: new Map<Bug, Story>() };
-  const text = report(result, found, chart, stories);
+  const text = report(result, { chart, found, stories });
   const files = new Map<string, Iterable<string | Uint8Array>>();
   if (chart) {files.set("chart.mmd", inParts(mermaidLines(chart)));}
   files.set("report.md", [text]);

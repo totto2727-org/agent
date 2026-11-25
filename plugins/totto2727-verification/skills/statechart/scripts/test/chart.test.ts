@@ -100,7 +100,7 @@ const draw = function (graph: Graph, view: View, loops: Bug[] = []) {
     drawing: undefined,
     states: { distinct: graph.states.size, initial: 1, complete: true, cut: false },
   };
-  return { chart: mermaid(chart), report: report(result, found, chart, stories) };
+  return { chart: mermaid(chart), report: report(result, { chart, found, stories }) };
 };
 
 const marked = (chart: string) => {
