@@ -47,34 +47,49 @@ const isWord = (code: number): boolean =>
 const isLineEnd = (code: number): boolean =>
   code === LF || code === CR || code === LINE_SEPARATOR || code === PARAGRAPH_SEPARATOR;
 
-export const tokenEnd = (text: string, start: number): number => {
-  const leading = codeUnit(text, start);
-  const contentStart = start + CODE_UNIT_WIDTH;
-  if (leading === QUOTE) {
-    for (let offset = contentStart; offset < text.length; offset += CODE_UNIT_WIDTH) {
-      const current = codeUnit(text, offset);
-      if (current === QUOTE) {return offset + CODE_UNIT_WIDTH;}
-      if (current === BACKSLASH) {
-        offset += CODE_UNIT_WIDTH;
-        if (offset >= text.length || isLineEnd(codeUnit(text, offset))) {return NO_TOKEN;}
-      }
+const quotedEnd = (text: string, start: number): number => {
+  // oxlint-disable-next-line rules/no-let -- The native string scanner advances by one code unit or a full escape.
+  let offset = start;
+  while (offset < text.length) {
+    const current = codeUnit(text, offset);
+    if (current === QUOTE) {return offset + CODE_UNIT_WIDTH;}
+    if (current === BACKSLASH && (offset + CODE_UNIT_WIDTH >= text.length || isLineEnd(codeUnit(text, offset + CODE_UNIT_WIDTH)))) {
+      return NO_TOKEN;
     }
-    return NO_TOKEN;
+    offset += current === BACKSLASH ? ESCAPE_WIDTH : CODE_UNIT_WIDTH;
   }
-  const punct = PUNCT.get(leading);
-  if (punct) {return text.startsWith(punct, start) ? start + punct.length : NO_TOKEN;}
-  if (BRACKET[leading] || leading === COMMA) {return contentStart;}
-  let offset = contentStart;
-  if (leading === MINUS || isDigit(leading)) {
-    while (isDigit(codeUnit(text, offset))) {offset += CODE_UNIT_WIDTH;}
-    return leading === MINUS && offset === contentStart ? NO_TOKEN : offset;
-  }
-  if (!isWord(leading)) {return NO_TOKEN;}
-  while (isWord(codeUnit(text, offset))) {offset += CODE_UNIT_WIDTH;}
+  return NO_TOKEN;
+};
+
+const scanWhile = (text: string, start: number, matches: (code: number) => boolean): number => {
+  // oxlint-disable-next-line rules/no-let -- Count native UTF-16 offsets directly without allocating a copy of the token.
+  let offset = start;
+  while (matches(codeUnit(text, offset))) {offset += CODE_UNIT_WIDTH;}
   return offset;
 };
 
+const numberEnd = (text: string, start: number, leading: number): number => {
+  const end = scanWhile(text, start, isDigit);
+  return leading === MINUS && end === start ? NO_TOKEN : end;
+};
+
+const wordEnd = (text: string, start: number, leading: number): number => {
+  if (leading === MINUS || isDigit(leading)) {return numberEnd(text, start, leading);}
+  return isWord(leading) ? scanWhile(text, start, isWord) : NO_TOKEN;
+};
+
+export const tokenEnd = (text: string, start: number): number => {
+  const leading = codeUnit(text, start);
+  const contentStart = start + CODE_UNIT_WIDTH;
+  if (leading === QUOTE) {return quotedEnd(text, contentStart);}
+  const punct = PUNCT.get(leading);
+  if (!matchesUndefined(punct)) {return text.startsWith(punct, start) ? start + punct.length : NO_TOKEN;}
+  if (BRACKET[leading] || leading === COMMA) {return contentStart;}
+  return wordEnd(text, contentStart, leading);
+};
+
 export const unreadable = (text: string, position: number): Error =>
+  // oxlint-disable-next-line rules/require-tagged-error -- The standalone parser reports native errors without adding an Effect runtime dependency.
   new Error(`cannot read TLA+ value at "${text.slice(position, position + ERROR_PREVIEW_WIDTH)}"`);
 
 const FIRST_TUPLE_KEY = 1;
@@ -83,14 +98,14 @@ const NAME = /^\w*[A-Za-z]\w*$/u;
 const UNESCAPED: Record<string, string> = {
   '"': '"',
   "\\": "\\",
-  n: "\n",
-  t: "\t",
-  r: "\r",
   f: "\f",
+  n: "\n",
+  r: "\r",
+  t: "\t",
 };
 
 const models = new Map<string, Value>();
-const model = (name: string) => {
+const model = (name: string): Value => {
   const cached = models.get(name);
   if (!matchesUndefined(cached)) {return cached;}
   const value: Value = { kind: "model", name };
@@ -98,111 +113,166 @@ const model = (name: string) => {
   return value;
 };
 
-export const parseValue = function parseValue(text: string): Value {
-  const tokens: string[] = [];
-  const starts: number[] = [];
-  for (let offset = FIRST_OFFSET; ;) {
-    while (offset < text.length && isSpace(codeUnit(text, offset))) {offset += CODE_UNIT_WIDTH;}
-    if (offset === text.length) {break;}
+interface ValueTokens {
+  starts: number[];
+  tokens: string[];
+}
+
+const tokenizeValue = (text: string): ValueTokens => {
+  const result: ValueTokens = { starts: [], tokens: [] };
+  // oxlint-disable-next-line rules/no-let -- Each string or punctuation token ends at a computed native offset.
+  let offset = scanWhile(text, FIRST_OFFSET, isSpace);
+  while (offset < text.length) {
     const end = tokenEnd(text, offset);
     if (end === NO_TOKEN) {throw unreadable(text, offset);}
-    tokens.push(text.slice(offset, end));
-    starts.push(offset);
-    offset = end;
+    result.tokens.push(text.slice(offset, end));
+    result.starts.push(offset);
+    offset = scanWhile(text, end, isSpace);
   }
-  let tokenIndex = FIRST_OFFSET;
-  const fail = (): never => {
-    throw unreadable(text, tokenIndex < starts.length ? starts[Math.max(tokenIndex - CODE_UNIT_WIDTH, FIRST_OFFSET)] : text.length);
-  };
-  const next = (): string => {
-    if (tokenIndex >= tokens.length) {return fail();}
-    const token = tokens[tokenIndex];
-    tokenIndex += CODE_UNIT_WIDTH;
+  return result;
+};
+
+class ValueReader {
+  #text: string;
+  #tokens: string[];
+  #starts: number[];
+  #position = FIRST_OFFSET;
+
+  public constructor(text: string) {
+    this.#text = text;
+    const { starts, tokens } = tokenizeValue(text);
+    this.#starts = starts;
+    this.#tokens = tokens;
+  }
+
+  public read(): Value {
+    const value = this.#value();
+    if (this.#position < this.#tokens.length) {
+      this.#position += CODE_UNIT_WIDTH;
+      this.#fail();
+    }
+    return value;
+  }
+
+  #fail(): never {
+    const position = this.#position < this.#tokens.length
+      ? this.#starts[Math.max(this.#position - CODE_UNIT_WIDTH, FIRST_OFFSET)]
+      : this.#text.length;
+    throw unreadable(this.#text, position);
+  }
+
+  #readToken(): string {
+    const token = this.#tokens[this.#position];
+    if (matchesUndefined(token)) {return this.#fail();}
+    this.#position += CODE_UNIT_WIDTH;
     return token;
-  };
-  const eat = (expected: string): void => {
-    if (next() !== expected) {fail();}
-  };
-  const items = <T>(close: string, item: () => T) => {
+  }
+
+  #eat(expected: string): void {
+    if (this.#readToken() !== expected) {this.#fail();}
+  }
+
+  #hasMore(close: string): boolean {
+    const separator = this.#readToken();
+    if (separator === close) {return false;}
+    if (separator !== ",") {this.#fail();}
+    return true;
+  }
+
+  #items<T>(close: string, item: () => T): T[] {
     const out: T[] = [];
-    if (tokens[tokenIndex] === close) {
-      tokenIndex += CODE_UNIT_WIDTH;
+    if (this.#tokens[this.#position] === close) {
+      this.#position += CODE_UNIT_WIDTH;
       return out;
     }
-    for (;;) {
-      out.push(item());
-      const separator = next();
-      if (separator === close) {return out;}
-      if (separator !== ",") {fail();}
-    }
-  };
-  const string = (token: string): string => {
-    let decoded = "";
-    for (let start = CODE_UNIT_WIDTH; ;) {
+    do {out.push(item());} while (this.#hasMore(close));
+    return out;
+  }
+
+  #escaped(code: string): string {
+    const character = UNESCAPED[code];
+    if (matchesUndefined(character)) {this.#fail();}
+    return character;
+  }
+
+  #string(token: string): string {
+    const segments: string[] = [];
+    const close = token.length - CODE_UNIT_WIDTH;
+    // oxlint-disable-next-line rules/no-let -- Continue at each literal escape's next UTF-16 offset.
+    let start = CODE_UNIT_WIDTH;
+    while (start < close) {
       const escape = token.indexOf("\\", start);
-      if (escape === NO_TOKEN || escape >= token.length - CODE_UNIT_WIDTH) {return decoded + token.slice(start, -CODE_UNIT_WIDTH);}
-      const character = UNESCAPED[token[escape + CODE_UNIT_WIDTH]];
-      if (matchesUndefined(character)) {fail();}
-      decoded += token.slice(start, escape) + character;
+      if (escape === NO_TOKEN || escape >= close) {break;}
+      segments.push(token.slice(start, escape), this.#escaped(token[escape + CODE_UNIT_WIDTH]));
       start = escape + ESCAPE_WIDTH;
     }
-  };
-  const value = (): Value => {
-    const token = next();
-    switch (token) {
-      case "TRUE": {
-        return true;
-      }
-      case "FALSE": {
-        return false;
-      }
-      case "{": {
-        return { kind: "set", members: items("}", value) };
-      }
-      case "<<": {
-        const values = items(">>", value);
-        const keys = values.map((_value, index) => index + FIRST_TUPLE_KEY);
-        return { kind: "function", printedAs: "tuple", keys, values };
-      }
-      case "[": {
-        const keys: Value[] = [];
-        const values: Value[] = [];
-        items("]", () => {
-          const name = next();
-          if (!NAME.test(name)) {fail();}
-          eat("|->");
-          keys.push(name);
-          values.push(value());
-        });
-        return { kind: "function", printedAs: "record", keys, values };
-      }
-      case "(": {
-        const keys: Value[] = [];
-        const values: Value[] = [];
-        do {
-          keys.push(value());
-          eat(":>");
-          values.push(value());
-        } while (next() === "@@");
-        if (tokens[tokenIndex - CODE_UNIT_WIDTH] !== ")") {fail();}
-        return { kind: "function", printedAs: "pairs", keys, values };
-      }
-    }
-    if (codeUnit(token, FIRST_OFFSET) === QUOTE) {return string(token);}
-    if (INT.test(token)) {
-      if (tokens[tokenIndex] !== "..") {return Number(token);}
-      tokenIndex += CODE_UNIT_WIDTH;
-      const hi = next();
-      if (!INT.test(hi)) {fail();}
-      return { kind: "interval", lo: Number(token), hi: Number(hi) };
-    }
-    if (NAME.test(token)) {return model(token);}
-    return fail();
-  };
-  const out = value();
-  if (tokenIndex < tokens.length) {
-    tokenIndex += CODE_UNIT_WIDTH;
-    fail();
+    return segments.join("") + token.slice(start, close);
   }
-  return out;
+
+  #tuple(): Value {
+    const values = this.#items(">>", () => this.#value());
+    const keys = values.map((_value, index) => index + FIRST_TUPLE_KEY);
+    // oxlint-disable-next-line eslint/sort-keys -- Retain the serialized tuple field order in Statechart's IR.
+    return { kind: "function", printedAs: "tuple", keys, values };
+  }
+
+  #record(): Value {
+    const keys: Value[] = [];
+    const values: Value[] = [];
+    this.#items("]", () => {
+      const name = this.#readToken();
+      if (!NAME.test(name)) {this.#fail();}
+      this.#eat("|->");
+      keys.push(name);
+      values.push(this.#value());
+    });
+    // oxlint-disable-next-line eslint/sort-keys -- Retain the serialized record field order in Statechart's IR.
+    return { kind: "function", printedAs: "record", keys, values };
+  }
+
+  #pairs(): Value {
+    const keys: Value[] = [];
+    const values: Value[] = [];
+    do {
+      keys.push(this.#value());
+      this.#eat(":>");
+      values.push(this.#value());
+    } while (this.#readToken() === "@@");
+    if (this.#tokens[this.#position - CODE_UNIT_WIDTH] !== ")") {this.#fail();}
+    // oxlint-disable-next-line eslint/sort-keys -- Retain the serialized function field order in Statechart's IR.
+    return { kind: "function", printedAs: "pairs", keys, values };
+  }
+
+  #number(token: string): Value {
+    if (this.#tokens[this.#position] !== "..") {return Number(token);}
+    this.#position += CODE_UNIT_WIDTH;
+    const hi = this.#readToken();
+    if (!INT.test(hi)) {this.#fail();}
+    // oxlint-disable-next-line eslint/sort-keys -- Retain lower-bound-first field order in the serialized interval.
+    return { kind: "interval", lo: Number(token), hi: Number(hi) };
+  }
+
+  #atom(token: string): Value {
+    if (codeUnit(token, FIRST_OFFSET) === QUOTE) {return this.#string(token);}
+    if (INT.test(token)) {return this.#number(token);}
+    if (NAME.test(token)) {return model(token);}
+    return this.#fail();
+  }
+
+  #value(): Value {
+    const token = this.#readToken();
+    switch (token) {
+      case "TRUE": {return true;}
+      case "FALSE": {return false;}
+      case "{": {return { kind: "set", members: this.#items("}", () => this.#value()) };}
+      case "<<": {return this.#tuple();}
+      case "[": {return this.#record();}
+      case "(": {return this.#pairs();}
+      default: {return this.#atom(token);}
+    }
+  }
+}
+
+export const parseValue = function parseValue(text: string): Value {
+  return new ValueReader(text).read();
 };
