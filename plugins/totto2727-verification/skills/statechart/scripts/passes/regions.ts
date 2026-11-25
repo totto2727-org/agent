@@ -2,6 +2,14 @@ import { append, byText, hasRule, holds, loopOf, matchesUndefined, must, ruleKey
 import type { Arrow, Bug, Chart, ChartState, ChartStep, Condition, Labels, Region, Rule, View, Walk } from '#statechart/ir.ts';
 
 const anyRest: Condition = { kind: "and", otherKeys: [] };
+const FIRST_REGION_INDEX = 0;
+const FIRST_PATH_POSITION = 0;
+const REGION_INDEX_STEP = 1;
+const SINGLE_REGION = 1;
+const NO_INSIDE_STEPS = 0;
+const INSIDE_STEP_INCREMENT = 1;
+const FLAG_SET = 1;
+const FLAG_CLEAR = 0;
 
 interface RegionMove {
   f: number;
@@ -18,38 +26,53 @@ export const drawRegions = function drawRegions(
   found: Bug[],
   view: View,
 ): Chart {
-  const n = shapes.length;
-  const m = drawnLabels.length;
-  const R = names.length;
-  const lead = new Uint8Array(n);
-  const looped = new Uint8Array(n);
+  const stateCount = shapes.length;
+  const stepCount = drawnLabels.length;
+  const regionCount = names.length;
+  const lead = new Uint8Array(stateCount);
+  const looped = new Uint8Array(stateCount);
   visitItems(found, (bug) => {
-    visitItems(seqOf(bug, index).slice(0, bug.loop), (i) => {lead[i] = 1;});
-    visitItems(loopOf(bug, index), (i) => {looped[i] = 1;});
+    visitItems(seqOf(bug, index).slice(FIRST_PATH_POSITION, bug.loop), (stateIndex) => {lead[stateIndex] = FLAG_SET;});
+    visitItems(loopOf(bug, index), (stateIndex) => {looped[stateIndex] = FLAG_SET;});
   });
-  const loop = (j: number): boolean => R === 1 && pathSteps[j] === 1;
-  const stays = (j: number): boolean => {
-    for (let r = 0; r < R; r++) {if (kinds[r][from[j]] !== kinds[r][to[j]]) {return false;}}
+  const loop = (stepIndex: number): boolean => regionCount === SINGLE_REGION && pathSteps[stepIndex] === FLAG_SET;
+  const stays = (stepIndex: number): boolean => {
+    let regionIndex = FIRST_REGION_INDEX;
+    while (regionIndex < regionCount) {
+      if (kinds[regionIndex][from[stepIndex]] !== kinds[regionIndex][to[stepIndex]]) {return false;}
+      regionIndex += REGION_INDEX_STEP;
+    }
     return true;
   };
-  let inside = 0;
-  visitItems(sorted, (j) => {if (stays(j) && !loop(j)) {inside++;}});
-  const comboOf =
-    R === 1
-      ? (i: number) => kinds[0][i]
-      : (i: number) => {
-          let c = "";
-          for (let r = 0; r < R; r++) {c += (r ? "," : "") + kinds[r][i];}
-          return c;
-        };
+  let inside = NO_INSIDE_STEPS;
+  visitItems(sorted, (stepIndex) => {
+    if (stays(stepIndex) && !loop(stepIndex)) {inside += INSIDE_STEP_INCREMENT;}
+  });
+  const comboOf = regionCount === SINGLE_REGION
+    ? (stateIndex: number): number => kinds[FIRST_REGION_INDEX][stateIndex]
+    : (stateIndex: number): string => {
+        let combined = "";
+        let regionIndex = FIRST_REGION_INDEX;
+        while (regionIndex < regionCount) {
+          const separator = regionIndex === FIRST_REGION_INDEX ? "" : ",";
+          combined += separator + kinds[regionIndex][stateIndex];
+          regionIndex += REGION_INDEX_STEP;
+        }
+        return combined;
+      };
   const dirty = new Map<number | string, number>();
-  visitItems(order, (i) => {if (tla[i].breaks.length) {
-      const c = comboOf(i);
-      if (!dirty.has(c)) {dirty.set(c, i);}
-    }});
-  const clean = new Uint8Array(n);
-  if (dirty.size) {for (let i = 0; i < n; i++) {clean[i] = dirty.has(comboOf(i)) ? 0 : 1;}}
-  else {clean.fill(1);}
+  visitItems(order, (stateIndex) => {
+    if (tla[stateIndex].breaks.length) {
+      const combined = comboOf(stateIndex);
+      if (!dirty.has(combined)) {dirty.set(combined, stateIndex);}
+    }
+  });
+  const clean = new Uint8Array(stateCount);
+  if (dirty.size) {
+    visitItems(clean.keys(), (stateIndex) => {
+      clean[stateIndex] = dirty.has(comboOf(stateIndex)) ? FLAG_CLEAR : FLAG_SET;
+    });
+  } else {clean.fill(FLAG_SET);}
   const regions: Region[] = [];
   const objects: ChartState[][] = [];
   for (const [index, name] of names.entries()) {
@@ -79,9 +102,9 @@ export const drawRegions = function drawRegions(
         states.set(key[i], stateItem);
       }
       stateItem.start ||= currentState.start;
-      stateItem.works ||= clean[i] === 1;
-      stateItem.lead ||= lead[i] === 1;
-      stateItem.repeats ||= looped[i] === 1;
+      stateItem.works ||= clean[i] === FLAG_SET;
+      stateItem.lead ||= lead[i] === FLAG_SET;
+      stateItem.repeats ||= looped[i] === FLAG_SET;
       stateItem.members.push(i);
     });
     const parents = new Set<string>();
@@ -106,7 +129,7 @@ export const drawRegions = function drawRegions(
       state.group = groups.size === 1 ? [...groups][0] : undefined;
     });
     const others: number[] = [];
-    for (let o = 0; o < R; o++) {if (o !== index) {others.push(o);}}
+    for (let o = 0; o < regionCount; o++) {if (o !== index) {others.push(o);}}
     const tuple = (i: number): string[] => {
       const t: string[] = [];
       visitItems(others, (o) => {t.push(keys[o][i]);});
@@ -140,16 +163,16 @@ export const drawRegions = function drawRegions(
         pairs.set(pair, move);
         moves.push(move);
       }
-      if (R > 1) {move.group.push(j);}
+      if (regionCount > SINGLE_REGION) {move.group.push(j);}
     });
     const tuplesAt = new Map<number, number[]>();
     const seenAt = new Map<number, string[][]>();
-    if (R > 1) {visitItems(order, (i) => {append(tuplesAt, kind[i], i);});}
+    if (regionCount > SINGLE_REGION) {visitItems(order, (i) => {append(tuplesAt, kind[i], i);});}
     const arrows: Arrow[] = [];
     visitItems(moves, (move) => {
       const fromKey = keyOf[move.f];
       const toKey = keyOf[move.t];
-      if (R === 1) {
+      if (regionCount === SINGLE_REGION) {
         arrows.push({
           from: fromKey,
           to: toKey,
@@ -245,18 +268,17 @@ export const drawRegions = function drawRegions(
     objects.push(objectOf);
   }
   const hidden: ChartState[][] = [];
-  visitItems(dirty.values(), (i) => {
-    const ps: ChartState[] = [];
-    for (let r = 0; r < R; r++) {ps.push(objects[r][kinds[r][i]]);}
-    let works = true;
-    visitItems(ps, (currentState) => {works &&= currentState.works;});
-    if (works) {hidden.push(ps);}
+  visitItems(dirty.values(), (stateIndex) => {
+    const matching = objects.map((states, regionIndex) => states[kinds[regionIndex][stateIndex]]);
+    if (matching.every((state) => state.works)) {hidden.push(matching);}
   });
-  visitItems(hidden, (ps) => {visitItems(ps, (currentState) => {currentState.works = false;});});
+  visitItems(hidden, (matching) => {
+    visitItems(matching, (currentState) => {currentState.works = false;});
+  });
   const paths: string[] = [];
   const loops: string[] = [];
   visitItems(found, (bug) => {
-    if (bug.loop !== 0) {paths.push(bug.rule.name);}
+    if (bug.loop !== FIRST_PATH_POSITION) {paths.push(bug.rule.name);}
     if (!matchesUndefined(bug.loop)) {loops.push(bug.rule.name);}
   });
   return {
@@ -264,7 +286,7 @@ export const drawRegions = function drawRegions(
     regions,
     notes,
     inside,
-    quiet: m - sorted.length,
+    quiet: stepCount - sorted.length,
     colors: view.colors ?? {},
     paths,
     loops,
