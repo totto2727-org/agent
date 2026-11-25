@@ -81,7 +81,7 @@ const field = (value: Value, name: string) => {
 
 const draw = function (graph: Graph, view: View, loops: Bug[] = []) {
   const found = [...bugs(graph), ...loops];
-  const { chart, stories } = project(graph, walk(graph), view, found);
+  const { chart, stories } = project(graph, walk(graph), { found, view });
   const spec: Spec = {
     module: "Test",
     variables: [],

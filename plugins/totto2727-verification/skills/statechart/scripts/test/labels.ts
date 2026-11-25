@@ -645,7 +645,7 @@ const check = async function (c: Case, labels: string[], tools: Tools): Promise<
   let chart: Chart;
   let text: string;
   try {
-    ({ chart } = project(graph, walk(graph), checked, []));
+    ({ chart } = project(graph, walk(graph), { found: [], view: checked }));
     text = chartText(chart);
   } catch (error) {
     if (!(error instanceof Error)) {throw error;}

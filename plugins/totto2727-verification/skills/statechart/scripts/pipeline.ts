@@ -10,31 +10,38 @@ import { bugs, drawOrder, walk } from "./passes/reach.ts";
 import { regionsLie } from "./passes/region-check.ts";
 import { drawRegions } from "./passes/regions.ts";
 
-const inParts = function* inParts(lines: string[]) {
-  let start = 0;
-  let size = 0;
-  for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
-    size += lines[lineIndex].length + 1;
-    if (size > PART || lineIndex === lines.length - 1) {
-      yield (start ? "\n" : "") + lines.slice(start, lineIndex + 1).join("\n");
-      start = lineIndex + 1;
-      size = 0;
+const FIRST_LINE = 0;
+const NEXT_LINE = 1;
+const EMPTY_PART = 0;
+const LINE_FEED = "\n";
+
+const inParts = function* (lines: string[]): Generator<string> {
+  const part = { size: EMPTY_PART, start: FIRST_LINE };
+  // oxlint-disable-next-line rules/no-for-loops -- Yield each completed chart part lazily without buffering the remaining parts.
+  for (const [index, line] of lines.entries()) {
+    const end = index + NEXT_LINE;
+    part.size += line.length + LINE_FEED.length;
+    if (part.size > PART || end === lines.length) {
+      const prefix = part.start === FIRST_LINE ? "" : LINE_FEED;
+      yield prefix + lines.slice(part.start, end).join(LINE_FEED);
+      part.start = end;
+      part.size = EMPTY_PART;
     }
   }
 };
 
-const shortestFirst = (a: { path: unknown[] }, b: { path: unknown[] }): number =>
-  a.path.length - b.path.length;
+const shortestFirst = (left: { path: unknown[] }, right: { path: unknown[] }): number =>
+  left.path.length - right.path.length;
 
-export const project = function project(graph: Graph, walked: Walk, view: View, found: Bug[]) {
+export const project = function project(graph: Graph, walked: Walk, { found, view }: { found: Bug[]; view: View }): { chart: Chart; stories: Map<Bug, Story> } {
   const { order, rank } = drawOrder(walked);
-  const draw = (answers: Answers) => {
+  const draw = (answers: Answers): { chart: Chart; labels: ReturnType<typeof labelGraph> } => {
     const labels = labelGraph(graph, walked, answers, rank, found);
-    return { labels, chart: drawRegions(walked, labels, order, found, view) };
+    return { chart: drawRegions(walked, labels, order, found, view), labels };
   };
   const answers = ask(graph, walked, view);
   const first = draw(answers);
-  const lie = regionsLie({ labels: first.labels, order, regions: first.chart.regions, walk: walked });
+  const lie = regionsLie({ labels: first.labels, order, regions: first.chart.regions, walk: walked }) ?? "";
   const { labels, chart } = lie ? draw(asParents(walked, answers)) : first;
   loopCheck(chart, labels, { found, walk: walked });
   return {
@@ -43,22 +50,31 @@ export const project = function project(graph: Graph, walked: Walk, view: View, 
   };
 };
 
-export const compile = function compile(result: CheckResult, view: CheckedView) {
+type OutputFiles = Map<string, Iterable<string | Uint8Array>>;
+
+const addCounterexamples = ({ rules, properties }: CheckResult, found: Bug[], files: OutputFiles): void => {
+  const drawn = new Set(found.filter((bug) => bug.rule.kind !== "property").map((bug) => ruleKey(bug.rule)));
+  visitItems([...rules, ...properties], ({ rule, outcome, messages }) => {
+    if (outcome === "broken" && messages && !drawn.has(ruleKey(rule))) {
+      files.set(`tlc-${rule.name}.out`, plainText(messages));
+    }
+  });
+};
+
+export const compile = function compile(result: CheckResult, view: CheckedView): { exit: CheckResult["exit"]; files: OutputFiles; report: string } {
   const walked = walk(result.graph);
-  const found = [...(result.paths ?? bugs(result.graph, walked))].sort(shortestFirst);
+  const found = (result.paths ?? bugs(result.graph, walked)).toSorted(shortestFirst);
   visitItems(result.properties, (property) => {if (property.bug) {found.push({ rule: property.rule, ...property.bug });}});
   const { chart, stories } =
     found.length || !result.paths
-      ? project(result.graph, walked, view, found)
+      ? project(result.graph, walked, { found, view })
       : { chart: undefined, stories: new Map<Bug, Story>() };
   const text = report(result, { chart, found, stories });
-  const files = new Map<string, Iterable<string | Uint8Array>>();
-  if (chart) {files.set("chart.mmd", inParts(mermaidLines(chart)));}
-  files.set("report.md", [text]);
-  files.set("tlc.out", plainText(result.messages));
-  const drawn = new Set<string>();
-  visitItems(found, (bug) => {if (bug.rule.kind !== "property") {drawn.add(ruleKey(bug.rule));}});
-  visitItems([...result.rules, ...result.properties], ({ rule, outcome, messages }) => {if (outcome === "broken" && messages && !drawn.has(ruleKey(rule)))
-      {files.set(`tlc-${rule.name}.out`, plainText(messages));}});
+  const files: OutputFiles = new Map(chart ? [["chart.mmd", inParts(mermaidLines(chart))]] : []);
+  files
+    .set("report.md", [text])
+    .set("tlc.out", plainText(result.messages));
+  addCounterexamples(result, found, files);
+  // oxlint-disable-next-line eslint/sort-keys -- Keep the compile result's established key order for callers that inspect it.
   return { report: text, files, exit: result.exit };
 };

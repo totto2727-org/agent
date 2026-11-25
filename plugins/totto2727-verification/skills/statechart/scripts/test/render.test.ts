@@ -128,7 +128,7 @@ test("an arrow into a parent from its only way in stays out of the parent's titl
     ["parents", "Array"],
     ["regions", "Object"],
   ], ([to, action]) => {graph.steps.push({ from: "ask", to, action });});
-  const { chart } = project(graph, walk(graph), { state: (v) => String(v.at).split("/") }, []);
+  const { chart } = project(graph, walk(graph), { found: [], view: { state: (v) => String(v.at).split("/") } });
   const { svg } = render(chartText(chart));
   const bars = [
     ...svg.matchAll(
