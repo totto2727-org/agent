@@ -1,29 +1,21 @@
 // oxlint-disable-next-line rules/no-node-imports -- Statechart's Node suite uses native assertions for chart and subprocess results.
 import assert from "node:assert/strict";
-// oxlint-disable-next-line rules/no-node-imports -- Statechart's native fixtures use this built-in to launch the real programs whose stdout, stderr and status are consumed.
-import { spawn } from "node:child_process";
-// oxlint-disable-next-line rules/no-node-imports -- Statechart's native fixtures use this built-in to await the actual child and stream events.
-import { once } from "node:events";
-// oxlint-disable-next-line rules/no-node-imports -- Statechart's native fixtures use this built-in to inspect or write files through the host filesystem.
-import fs from "node:fs";
-// oxlint-disable-next-line rules/no-node-imports -- Statechart's native fixtures use this built-in to select the host's real temporary directory.
-import os from "node:os";
-// oxlint-disable-next-line rules/no-node-imports -- Statechart's native fixtures use this built-in to resolve paths using the host platform's filesystem conventions.
+// oxlint-disable-next-line rules/no-node-imports -- Read the actual recorded files produced by the JVM and the standalone skill.
+import fs from "node:fs/promises";
+// oxlint-disable-next-line rules/no-node-imports -- Statechart uses the native host's filesystem path syntax.
 import path from "node:path";
 // oxlint-disable-next-line rules/no-node-imports -- Statechart runs these fixtures with Node's test runner as part of the standalone skill.
 import { test } from "node:test";
-// oxlint-disable-next-line rules/no-node-imports -- Statechart's native fixtures use this built-in to convert local module URLs with the host platform's path rules.
-import { fileURLToPath } from "node:url";
 import { plainText } from "#statechart/backends/plain-text.ts";
 import { readMessages } from "#statechart/frontends/messages.ts";
-import { visitItems } from "#statechart/ir.ts";
-import { hostEnvironment } from "#statechart/host-env.ts";
+import { fileExists } from "#statechart/run.ts";
+import { forEachTlcCase, skip } from "./tlc.ts";
+import { corpus, readPlainAndTool } from "./tlc-out-run.ts";
+import type { TwinFolders } from "./tlc-out-run.ts";
 
-const here = path.dirname(fileURLToPath(import.meta.url));
-const corpus = path.join(here, "corpus");
-const skip = !hostEnvironment().TLA2TOOLS && "set TLA2TOOLS to the path of tla2tools.jar to run TLC";
-const read = (file: string): string => fs.readFileSync(file, "utf8");
-const maybe = (file: string): string => (fs.existsSync(file) ? read(file) : "");
+const CORPUS_CONCURRENCY = 4;
+
+const maybe = async (file: string): Promise<string> => (await fileExists(file)) ? fs.readFile(file, "utf8") : "";
 const plain = (text: string): string => [...plainText(readMessages(text))].join("");
 
 const steady = (text: string): string =>
@@ -35,65 +27,54 @@ const steady = (text: string): string =>
     .replaceAll(/ \([\d,]+ d?s\/min\)/gu, "")
     .replaceAll(/ in (?:\d+d \d\dh|\d\dh \d\dmin|\d\dmin \d\ds|\d\ds) at /gu, " in _ at ");
 
+const compareRecordings = async ({ tool, twin }: TwinFolders, run: string): Promise<void> => {
+  const exit = run.replace(/\.out$/u, ".exit");
+  const recordedExit = await maybe(path.join(tool, exit));
+  const plainExit = await maybe(path.join(twin, exit));
+  assert.equal(recordedExit, plainExit, exit);
+  const recorded = await fs.readFile(path.join(tool, run), "utf8");
+  const terminal = await fs.readFile(path.join(twin, run), "utf8");
+  assert.equal(steady(plain(recorded)), steady(terminal), run);
+};
+
+const compareVerdicts = async ({ out, twin }: TwinFolders, runs: string[]): Promise<void> => {
+  const primary = await fs.readFile(path.join(out, "tlc.out"), "utf8");
+  const direct = await fs.readFile(path.join(twin, "verdict-1.out"), "utf8");
+  assert.equal(steady(primary), steady(`${direct}\n`));
+  const verdicts = new Set<string>();
+  await forEachTlcCase(runs, async (run) => {
+    if (run.startsWith("verdict-")) {
+      const text = await fs.readFile(path.join(twin, run), "utf8");
+      verdicts.add(steady(`${text}\n`));
+    }
+  });
+  const files = await fs.readdir(out);
+  await forEachTlcCase(files, async (file) => {
+    if (/^tlc-\w+\.out$/u.test(file)) {
+      const text = await fs.readFile(path.join(out, file), "utf8");
+      assert.ok(verdicts.has(steady(text)), file);
+    }
+  });
+};
+
+const compareTwin = async (name: string): Promise<void> => {
+  const { folders, stderr } = await readPlainAndTool(name);
+  assert.equal(stderr, "");
+  const recorded = await fs.readdir(folders.twin);
+  const runs = recorded.filter((file) => file.endsWith(".out"));
+  assert.ok(runs.includes("ChartRun.out"), "the drawing run has a plain twin");
+  await forEachTlcCase(runs, async (run) => {await compareRecordings(folders, run);});
+  await compareVerdicts(folders, runs);
+};
+
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test(
   "each corpus spec's TLC output reads as plain TLC prints it at -workers 1",
-  { concurrency: 4, skip },
+  { concurrency: CORPUS_CONCURRENCY, skip },
   async (testContext) => {
-    await Promise.all(
-      (await fs.promises.readdir(corpus)).map((name) =>
-        testContext.test(name, async () => {
-          const dir = path.join(corpus, name);
-          const tmp = await fs.promises.mkdtemp(path.join(os.tmpdir(), "statechart-plain-"));
-          const [tool, twin, out] = ["tool", "plain", "out"].map((f) => path.join(tmp, f));
-          await fs.promises.mkdir(tool);
-          await fs.promises.mkdir(twin);
-          const view = path.join(dir, "view.mjs");
-          const child = spawn(
-            process.execPath,
-            [
-              path.join(here, "../statechart.ts"),
-              path.join(dir, `${name}.tla`),
-              ...(fs.existsSync(view) ? ["--view", view] : []),
-              "--out",
-              out,
-            ],
-            {
-              env: {
-                ...hostEnvironment(),
-                JAVA: path.join(here, "java.ts"),
-                STATECHART_JAVA: hostEnvironment().JAVA ?? "java",
-                STATECHART_RECORD: tool,
-                STATECHART_PLAIN: twin,
-              },
-              stdio: ["ignore", "ignore", "pipe"],
-            },
-          );
-          let stderr = "";
-          child.stderr.on("data", (chunk: Buffer) => (stderr += chunk));
-          await once(child, "close");
-          assert.equal(stderr, "");
-          const runs = (await fs.promises.readdir(twin)).filter((fileName) => fileName.endsWith(".out"));
-          assert.ok(runs.includes("ChartRun.out"), "the drawing run has a plain twin");
-          visitItems(runs, (run) => {
-            const exit = run.replace(/\.out$/u, ".exit");
-            assert.equal(maybe(path.join(tool, exit)), maybe(path.join(twin, exit)), exit);
-            assert.equal(
-              steady(plain(read(path.join(tool, run)))),
-              steady(read(path.join(twin, run))),
-              run,
-            );
-          });
-          assert.equal(
-            steady(read(path.join(out, "tlc.out"))),
-            steady(`${read(path.join(twin, "verdict-1.out"))}\n`),
-          );
-          const verdicts = new Set<string>();
-          visitItems(runs, (run) => {if (run.startsWith("verdict-")) {verdicts.add(steady(`${read(path.join(twin, run))}\n`));}});
-          visitItems(await fs.promises.readdir(out), (fileName) => {if (/^tlc-\w+\.out$/u.test(fileName))
-              {assert.ok(verdicts.has(steady(read(path.join(out, fileName)))), fileName);}});
-        }),
-      ),
-    );
+    const names = await fs.readdir(corpus);
+    await Promise.all(names.map(async (name) => {
+      await testContext.test(name, async () => {await compareTwin(name);});
+    }));
   },
 );
