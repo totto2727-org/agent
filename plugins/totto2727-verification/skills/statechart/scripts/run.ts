@@ -99,6 +99,7 @@ const TLC_TOOL =
   "http:tla2tools[url=https://github.com/tlaplus/tlaplus/releases/download/v1.7.4/tla2tools.jar,checksum=sha256:936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88]@1.7.4";
 const JAVA_TOOL = "java@temurin-25";
 export const PINNED_FLAGS = ["-workers", "1", "-fp", "0", "-lncheck", "final"];
+const CHART_TAG_BYTES = 16;
 const SANY_ERRORS = /^\*\*\* ?(?:Errors|Abort messages|Parse Error)/mu;
 
 interface ChildResult {
@@ -117,6 +118,10 @@ interface ChildOptions {
 
 const MAX_CAPTURE_BYTES = 1_073_741_824;
 const CHILD_SUCCESS = 0;
+const TLC_VIOLATION_STATUSES = new Set([11, 12, 13]);
+const CHECK_PASSED = 0;
+const CHECK_VIOLATION = 1;
+const CHECK_FAILED = 2;
 // oxlint-disable-next-line unicorn/no-null -- Native subprocess results report a null status for signal or launch failure.
 const NO_NATIVE_STATUS = null;
 
@@ -186,16 +191,16 @@ const joined = (files: string[]): Output => {
 const utf8 = new TextDecoder("utf-8", { ignoreBOM: true });
 
 const outputLines = function* outputLines(output: Output) {
-  let rest: Uint8Array = new Uint8Array(0);
+  let rest: Uint8Array = new Uint8Array();
   for (const part of output) {
     const buf = rest.length ? Buffer.concat([rest, part]) : part;
-    const cut = buf.lastIndexOf(10);
-    if (cut === -1) {
+    const cut = buf.lastIndexOf(LINE_FEED_BYTE);
+    if (cut === NO_LINE_FEED) {
       rest = buf;
       continue;
     }
-    yield* splitLines(utf8.decode(buf.subarray(0, cut)));
-    rest = buf.subarray(cut + 1);
+    yield* splitLines(utf8.decode(buf.subarray(BUFFER_START, cut)));
+    rest = buf.subarray(cut + NEXT_BYTE);
   }
   yield* splitLines(utf8.decode(rest));
 };
@@ -252,9 +257,9 @@ const findTlc = async function (cwd: string) {
   const where = () =>
     Promise.all([mise("where", TLC_TOOL), mise("which", "java", "--tool", JAVA_TOOL)]);
   let found = await where();
-  if (found.some((r) => r.status !== 0)) {
+  if (found.some((r) => r.status !== CHILD_SUCCESS)) {
     const r = await mise("install", JAVA_TOOL, TLC_TOOL);
-    if (r.status !== 0)
+    if (r.status !== CHILD_SUCCESS)
       {throw new Error(
         `Cannot find TLC: mise install failed: ${r.error?.message ?? r.stderr.trim()}\nOr set TLA2TOOLS to the path of tla2tools.jar, and JAVA to a java binary (Java 11 or later).`,
       );}
@@ -266,8 +271,16 @@ const findTlc = async function (cwd: string) {
   };
 };
 
-const exitClass = (status: number | null): CheckResult["exit"] =>
-  status === 0 ? 0 : (status === 11 || status === 12 || status === 13 ? 1 : 2);
+const exitClass = (status: number | null): CheckResult["exit"] => {
+  if (status === CHILD_SUCCESS) {return CHECK_PASSED;}
+  if (isNumber(status) && TLC_VIOLATION_STATUSES.has(status)) {return CHECK_VIOLATION;}
+  return CHECK_FAILED;
+};
+
+const MAX_TAIL_CHARACTERS = 268_435_456;
+const TAIL_LINE_COUNT = 30;
+const HEAD_LINE_COUNT = 40;
+const SEARCH_MISS = -1;
 
 const tail = (r: FileResult): string => {
   if (r.error) {return r.error.message;}
@@ -276,14 +289,14 @@ const tail = (r: FileResult): string => {
   visitItems(plainText(messagesOf(r.output)), (chunk) => {
     kept.push(chunk);
     size += chunk.length;
-    while (size - kept[0].length >= 1 << 28) {size -= kept.shift()!.length;}
+    while (size - kept[0].length >= MAX_TAIL_CHARACTERS) {size -= kept.shift()!.length;}
   });
-  return kept.join("").trim().split("\n").slice(-30).join("\n");
+  return kept.join("").trim().split("\n").slice(-TAIL_LINE_COUNT).join("\n");
 };
 
 const firstLines = (text: string): string => {
   const lines = text.trim().split("\n");
-  if (lines.length > 40) {lines.splice(40, Infinity, `... ${lines.length - 40} more lines`);}
+  if (lines.length > HEAD_LINE_COUNT) {lines.splice(HEAD_LINE_COUNT, Infinity, `... ${lines.length - HEAD_LINE_COUNT} more lines`);}
   return lines.join("\n");
 };
 
@@ -304,7 +317,7 @@ const sanyErrors = (r: FileResult): string | undefined => {
   if (r.error) {return undefined;}
   const text = [...plainText(messagesOf(r.output))].join("");
   const at = text.search(SANY_ERRORS);
-  return at === -1 ? undefined : firstLines(text.slice(at));
+  return at === SEARCH_MISS ? undefined : firstLines(text.slice(at));
 };
 
 const names = (rules: Rule[], kind: Rule["kind"]): string[] => {
@@ -372,7 +385,7 @@ export const check = async function check(specFile: string, configFile: string):
       ["-o", "-I", folder, path.resolve(specFile)],
       ["-XX:TieredStopAtLevel=1"],
     );
-    if (xml.status !== 0) {
+    if (xml.status !== CHILD_SUCCESS) {
       const errors = xml.error
         ? undefined
         : sanyErrors(
@@ -431,14 +444,14 @@ export const check = async function check(specFile: string, configFile: string):
         states.initial = Math.max(states.initial, initial);
         const rule = broke && brokenRule(group, broke);
         const cut = bounded && distinct >= RERUN_STATES;
-        if (exitClass(r.status) === 2) {
+        if (exitClass(r.status) === CHECK_FAILED) {
           stop = stopOf(r);
           break;
         } else if (rule) {decide(rule, "broken", r);}
-        else if (cut && (r.status === 0 || broke?.kind === "temporal")) {
+        else if (cut && (r.status === CHILD_SUCCESS || broke?.kind === "temporal")) {
           states.cut = true;
           visitItems(group, (rule) => {decide(rule, "not checked");});
-        } else if (r.status === 0) {
+        } else if (r.status === CHILD_SUCCESS) {
           states.complete = true;
           visitItems(group, (rule) => {decide(rule, "holds");});
         } else if (broke && properties.length) {
@@ -479,7 +492,7 @@ export const check = async function check(specFile: string, configFile: string):
       });
       return properties;
     };
-    if (exit === 2) {throw failed(judged.first);}
+    if (exit === CHECK_FAILED) {throw failed(judged.first);}
     const checked: Verdict[] = [];
     visitItems(rules, (rule) => {checked.push(must(verdicts, ruleKey(rule)));});
     const common = {
@@ -491,7 +504,7 @@ export const check = async function check(specFile: string, configFile: string):
       rules: checked,
     };
     if (judged.states.distinct <= CHART_STATES) {
-      const tag = `chart-${randomBytes(16).toString("hex")}`;
+      const tag = `chart-${randomBytes(CHART_TAG_BYTES).toString("hex")}`;
       await writeFile(path.join(dir, "ChartRun.tla"), chartRun(spec, tag));
       const drawn = await runJava("ChartRun", "tlc2.TLC", [
         "-tool",
@@ -508,7 +521,7 @@ export const check = async function check(specFile: string, configFile: string):
       if (readVerdict(messagesOf(drawn.output)).distinct <= CHART_STATES) {
         const graph = parseDot(fileLines(file));
         const find = finder(graph, spec.variables);
-        const drawing = drawn.status === 0 ? undefined : { status: drawn.status };
+        const drawing = drawn.status === CHILD_SUCCESS ? undefined : { status: drawn.status };
         const broken = new Set<string>();
         visitItems(verdicts.values(), ({ rule, outcome }) => {if (rule.kind === "invariant" && outcome === "broken") {broken.add(rule.name);}});
         const marks = only(readMarks(readMessages(fileLines(drawn.stdout)), tag), broken);
