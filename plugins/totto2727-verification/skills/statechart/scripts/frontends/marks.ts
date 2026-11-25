@@ -3,82 +3,143 @@ import type { Mark, Part, TraceState, Value } from '#statechart/ir.ts';
 import { actionOf, messageState } from "./messages.ts";
 import { BRACKET, isSpace, parseValue, tokenEnd, unreadable } from "./value.ts";
 
-const markTexts = (chunk: string, top: number[], inner: number[]) => {
-  if (top.length !== 2) {return undefined;}
-  const [a, b] = top;
-  const open = chunk.indexOf("<<", a);
-  const close = chunk.lastIndexOf(">>", b);
-  const end = chunk.trimEnd().length - 2;
-  if (open === -1 || chunk.slice(a + 1, open).trim() || chunk.slice(close + 2, b).trim())
-    {return undefined;}
-  if (!chunk.startsWith(">>", end)) {return undefined;}
-  const cuts = [open + 1];
-  visitItems(inner, (k) => {if (k > open && k < close) {cuts.push(k);}});
-  cuts.push(close);
-  const texts: string[] = [];
-  for (let k = 1; k < cuts.length; k++) {texts.push(chunk.slice(cuts[k - 1] + 1, cuts[k]));}
-  return { values: texts, rules: chunk.slice(b + 1, end) };
+const TUPLE_OPEN = "<<";
+const TUPLE_CLOSE = ">>";
+const FIRST_COLUMN = 0;
+const NEXT_COLUMN = 1;
+const NOT_FOUND = -1;
+const TUPLE_COMMAS = 2;
+const OUTSIDE_TUPLE = 0;
+const MARK_DEPTH = 1;
+const VALUE_DEPTH = 2;
+const COMMA_CODE_UNIT = 44;
+const MAX_REPORTED_TEXT = 2000;
+
+interface MarkScan {
+  chunk: string;
+  depth: number;
+  inner: number[];
+  top: number[];
+}
+
+interface LineCursor {
+  base: number;
+  lastEnd: number;
+  offset: number;
+}
+
+const markBounds = ({ chunk, top }: MarkScan): { close: number; end: number; open: number; valuesEnd: number } | undefined => {
+  if (top.length !== TUPLE_COMMAS) {return undefined;}
+  const [tagEnd, valuesEnd] = top;
+  const open = chunk.indexOf(TUPLE_OPEN, tagEnd);
+  const close = chunk.lastIndexOf(TUPLE_CLOSE, valuesEnd);
+  const end = chunk.trimEnd().length - TUPLE_CLOSE.length;
+  if (
+    open === NOT_FOUND ||
+    chunk.slice(tagEnd + NEXT_COLUMN, open).trim() ||
+    chunk.slice(close + TUPLE_CLOSE.length, valuesEnd).trim() ||
+    !chunk.startsWith(TUPLE_CLOSE, end)
+  ) {
+    return undefined;
+  }
+  return { close, end, open, valuesEnd };
+};
+
+const markTexts = (scan: MarkScan): { rules: string; values: string[] } | undefined => {
+  const bounds = markBounds(scan);
+  if (matchesUndefined(bounds)) {return undefined;}
+  const { close, end, open, valuesEnd } = bounds;
+  const { chunk, inner } = scan;
+  const cuts = [open + NEXT_COLUMN, ...inner.filter((column) => column > open && column < close), close];
+  const values = cuts.slice(NEXT_COLUMN).map((column, index) => chunk.slice(cuts[index] + NEXT_COLUMN, column));
+  return { rules: chunk.slice(valuesEnd + NEXT_COLUMN, end), values };
 };
 
 const ruleNames = (currentValue: Value): string[] | undefined => {
   if (!hasObjectType(currentValue) || currentValue.kind !== "set") {return undefined;}
-  const names: string[] = [];
-  for (const valueItem of currentValue.members) {
-    if (!isString(valueItem)) {return undefined;}
-    names.push(valueItem);
-  }
-  return names;
+  const names = [...currentValue.members];
+  return names.every((name) => isString(name)) ? names : undefined;
 };
 
-export const readMarks = function* readMarks(messages: Iterable<Part>, tag: string): Generator<Mark> {
+const markError = (message: string, chunk: string): Error => (
+  // oxlint-disable-next-line rules/require-tagged-error -- The standalone CLI reports malformed TLC output as a native Error across Node, Bun, and Deno.
+  new Error(`${message}\n${chunk.slice(FIRST_COLUMN, MAX_REPORTED_TEXT)}`)
+);
+
+const markFrom = (scan: MarkScan, read: (source: string) => Value): Mark => {
+  const texts = markTexts(scan);
+  const values = texts?.values.map((source) => read(source)) ?? [];
+  const broken = texts && ruleNames(read(texts.rules));
+  if (!broken) {
+    throw markError("TLC printed a mark that the command cannot read:", scan.chunk);
+  }
+  // oxlint-disable-next-line eslint/sort-keys -- Keep the field order of the decoded TLC mark.
+  return { values, broken };
+};
+
+const recordToken = (scan: MarkScan, codeUnit: number, offset: number): void => {
+  if (codeUnit === COMMA_CODE_UNIT && scan.depth === MARK_DEPTH) {scan.top.push(offset);}
+  else if (codeUnit === COMMA_CODE_UNIT && scan.depth === VALUE_DEPTH) {scan.inner.push(offset);}
+  scan.depth += BRACKET[codeUnit];
+};
+
+const scanToken = (line: string, cursor: LineCursor, scan: MarkScan): void => {
+  // oxlint-disable-next-line unicorn/prefer-code-point -- The lexer and stored offsets use UTF-16 code units, and the bracket table is indexed by code unit.
+  const codeUnit = line.charCodeAt(cursor.offset);
+  if (isSpace(codeUnit)) {
+    cursor.offset += NEXT_COLUMN;
+    return;
+  }
+  const end = tokenEnd(line, cursor.offset);
+  if (end === NOT_FOUND) {throw unreadable(`${line}\n`, cursor.lastEnd);}
+  recordToken(scan, codeUnit, cursor.base + cursor.offset);
+  cursor.offset = end;
+  cursor.lastEnd = end;
+};
+
+const resetTokens = (scan: MarkScan): void => {
+  scan.depth = OUTSIDE_TUPLE;
+  scan.top = [];
+  scan.inner = [];
+};
+
+const scanLine = (line: string, scan: MarkScan): void => {
+  const cursor = { base: scan.chunk.length, lastEnd: FIRST_COLUMN, offset: FIRST_COLUMN };
+  scan.chunk += `${line}\n`;
+  while (cursor.offset < line.length) {scanToken(line, cursor, scan);}
+};
+
+const scanPart = (part: Part, prefix: string, scan: MarkScan): boolean => {
+  if (!isString(part)) {return false;}
+  if (!scan.chunk) {
+    if (!part.startsWith(TUPLE_OPEN) || !part.slice(TUPLE_OPEN.length).trimStart().startsWith(prefix)) {return false;}
+    resetTokens(scan);
+  }
+  scanLine(part, scan);
+  return !(scan.depth > OUTSIDE_TUPLE);
+};
+
+export const readMarks = function* (messages: Iterable<Part>, tag: string): Generator<Mark> {
   const read = memo(parseValue);
-  const start = `"${tag}",`;
-  let chunk = "";
-  let depth = 0;
-  let top: number[] = [];
-  let inner: number[] = [];
-  for (const line of messages) {
-    if (!isString(line)) {continue;}
-    if (!chunk) {
-      if (!line.startsWith("<<") || !line.slice(2).trimStart().startsWith(start)) {continue;}
-      depth = 0;
-      top = [];
-      inner = [];
+  const prefix = `"${tag}",`;
+  const scan: MarkScan = { chunk: "", depth: OUTSIDE_TUPLE, inner: [], top: [] };
+  // oxlint-disable-next-line rules/no-for-loops -- Yield complete marks without consuming the next part of TLC's output.
+  for (const part of messages) {
+    if (scanPart(part, prefix, scan)) {
+      const mark = markFrom(scan, read);
+      scan.chunk = "";
+      yield mark;
     }
-    const base = chunk.length;
-    chunk += `${line  }\n`;
-    let i = 0;
-    let last = 0;
-    while (i < line.length) {
-      const c = line.charCodeAt(i);
-      if (isSpace(c)) {
-        i++;
-        continue;
-      }
-      const j = tokenEnd(line, i);
-      if (j === -1) {throw unreadable(`${line  }\n`, last);}
-      if (c === 44 && depth === 1) {top.push(base + i);}
-      else if (c === 44 && depth === 2) {inner.push(base + i);}
-      depth += BRACKET[c];
-      i = last = j;
-    }
-    if (depth > 0) {continue;}
-    const texts = markTexts(chunk, top, inner);
-    const values: Value[] = [];
-    if (texts) {visitItems(texts.values, (value) => {values.push(read(value));});}
-    const broken = texts && ruleNames(read(texts.rules));
-    if (!broken)
-      {throw new Error(`TLC printed a mark that the command cannot read:\n${chunk.slice(0, 2000)}`);}
-    chunk = "";
-    yield { values, broken };
   }
-  if (chunk)
-    {throw new Error(
-      `TLC's output ends inside a marked state, so the command cannot tell which rules it breaks:\n${chunk.slice(0, 2000)}`,
-    );}
+  if (scan.chunk) {
+    throw markError(
+      "TLC's output ends inside a marked state, so the command cannot tell which rules it breaks:",
+      scan.chunk,
+    );
+  }
 };
 
-export const readCounterexample = function readCounterexample(messages: Iterable<Part>) {
+export const readCounterexample = function readCounterexample(messages: Iterable<Part>): TraceState[] {
   const trace: TraceState[] = [];
   visitItems(messages, (message) => {
     if (isString(message)) {return;}
