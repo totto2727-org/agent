@@ -1,3 +1,4 @@
+import { runLocalMechanical } from "./mechanical-local.mjs";
 import { paragraphUnits } from "./mechanical-paragraphs.mjs";
 import { inspectMarkdown } from "./mechanical-source.mjs";
 import { sourceRange } from "./mechanical-source-range.mjs";
@@ -442,87 +443,5 @@ export const runMechanical = function runMechanical(check, markdown, targetRange
   if (check.kind !== "fenced-code-language" && check.kind !== "prohibited-terms") {
     return runSteMechanical(check, markdown, targetRange, context);
   }
-  const { visible, exclusions, fences, uncertainties } = inspectMarkdown(markdown);
-  /** @type {(start: number, end: number) => boolean} */
-  const within = (start, end) => {
-    const range = sourceRange(markdown, start, end);
-    return range.startByte >= targetRange.startByte && range.endByte <= targetRange.endByte;
-  };
-  /** @type {Finding[]} */
-  const findings = [];
-  let applicable = false;
-  if (check.kind === "fenced-code-language") {
-    Iterator.from(fences).forEach((fence) => {
-      if (uncertainties.some((range) => fence.start < range.end && fence.end > range.start)) {
-        return;
-      }
-      if (!within(fence.start, fence.end)) {
-        return;
-      }
-      applicable = true;
-      if (!fence.closed) {
-        findings.push({
-          defect: "unclosed-fence",
-          message: "Fenced code block is unclosed, even if its language info string is present.",
-          sourceRange: sourceRange(markdown, fence.start, fence.end),
-        });
-      } else if (!fence.language) {
-        findings.push({
-          defect: "missing-language",
-          message: "Fenced code block has no language info string.",
-          sourceRange: sourceRange(markdown, fence.start, fence.openingEnd),
-        });
-      }
-    });
-  } else {
-    /** @type {(term: string) => string} */
-    const normalize = (term) => (check.caseSensitive ? term : term.toLowerCase());
-    const prohibited = new Set(check.terms.map(normalize));
-    const protectedTerms = new Set((check.protectedTerms ?? []).map(normalize));
-    Iterator.from(visible.matchAll(/[\p{L}\p{N}_]+/gu)).forEach((token) => {
-      if (!within(token.index, token.index + token[0].length)) {
-        return;
-      }
-      applicable = true;
-      if (prohibited.has(normalize(token[0])) && !protectedTerms.has(normalize(token[0]))) {
-        findings.push({
-          term: token[0],
-          basis: "exact-project-restriction",
-          message: `Explicitly prohibited project token: ${token[0]}`,
-          sourceRange: sourceRange(markdown, token.index, token.index + token[0].length),
-        });
-      }
-    });
-  }
-  const parserWarnings = uncertainties
-    .filter(({ start, end }) => {
-      const range = sourceRange(markdown, start, end);
-      return range.startByte < targetRange.endByte && range.endByte > targetRange.startByte;
-    })
-    .map(({ start, end, reason }) => ({ reason, sourceRange: sourceRange(markdown, start, end) }));
-  const choice = findings.length
-    ? "fail"
-    : parserWarnings.length
-      ? "insufficient_context"
-      : applicable
-        ? "pass"
-        : "not_applicable";
-  return {
-    type: "choice",
-    choice,
-    confidence: 1,
-    reviewRequired: parserWarnings.length > 0,
-    findings,
-    coverage: {
-      claim:
-        "Only the declared local supplemental criterion, not STE dictionary or full STE compliance.",
-      parserWarnings,
-      excluded: exclusions
-        .filter(({ start, end }) => {
-          const range = sourceRange(markdown, start, end);
-          return range.startByte < targetRange.endByte && range.endByte > targetRange.startByte;
-        })
-        .map(({ start, end, kind }) => ({ kind, sourceRange: sourceRange(markdown, start, end) })),
-    },
-  };
+  return runLocalMechanical(check, markdown, targetRange);
 };
