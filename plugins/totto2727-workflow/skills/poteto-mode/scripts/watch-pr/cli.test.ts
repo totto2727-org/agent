@@ -1,11 +1,23 @@
 import { describe, expect, it } from "bun:test";
-import { main, parseArgs } from './cli.ts';
-import type { CliRuntime } from './cli.ts';
+import { main, parseArgs } from "./cli.ts";
+import type { CliRuntime } from "./cli.ts";
 import { fakeReader, passingCheck } from "./fakes.test-helper.ts";
 import { renderJson, renderPretty } from "./render.ts";
 import type { GitHubReader, WatcherVerdict } from "./types.ts";
 import { parsePrNumber } from "./types.ts";
 
+const SUCCESS = 0;
+const ONE_RESULT = 1;
+const USAGE_ERROR = 64;
+const HIDDEN_CI_REFUSAL = 4;
+const FIRST_PULL = 1;
+const BASE_PULL = 10;
+const MIDDLE_PULL = 11;
+const TIP_PULL = 12;
+const QUEUED_NUMBERS = [BASE_PULL, MIDDLE_PULL, TIP_PULL];
+const OBSERVED_AT = "2026-07-26T00:00:00.000Z";
+// oxlint-disable-next-line unicorn/no-null -- A missing CLI owner, repository, or PR is represented as null.
+const UNSPECIFIED = null;
 
 const testRuntime = function (reader: GitHubReader): Readonly<{
   runtime: CliRuntime;
@@ -15,63 +27,67 @@ const testRuntime = function (reader: GitHubReader): Readonly<{
   const stdout: string[] = [];
   const stderr: string[] = [];
   return {
-    stdout,
-    stderr,
     runtime: {
-      reader,
       clock: {
-        now: () => 0,
-        observedAt: () => "2026-07-26T00:00:00.000Z",
+        now: () => SUCCESS,
+        observedAt: () => OBSERVED_AT,
         async sleep() {
-          throw new Error("test unexpectedly slept");
+          // oxlint-disable-next-line rules/require-tagged-error -- This harness failure describes an unexpected wait in a one-shot CLI test.
+          await Promise.reject(new Error("test unexpectedly slept"));
         },
       },
-      stdout: (value) => stdout.push(value),
-      stderr: (value) => stderr.push(value),
+      reader,
+      stderr: (value) => {stderr.push(value);},
+      stdout: (value) => {stdout.push(value);},
     },
+    stderr,
+    stdout,
   };
 };
 
+const DEFAULT_ARGUMENTS = {
+  mode: "single",
+  owner: UNSPECIFIED,
+  polling: {
+    allowDraft: false,
+    interval: 60,
+    maxQueryErrors: 5,
+    sweepInterval: 300,
+    timeout: 0,
+  },
+  pr: UNSPECIFIED,
+  pretty: false,
+  repo: UNSPECIFIED,
+  stackPrs: [],
+  statusOnly: false,
+};
+
+const FROZEN_STACK_ARGS = [
+  "--queued-stack", "--stack-prs", "#10, 11,#12",
+  "--interval", "2.5", "--sweep-interval", "30", "--timeout", "0",
+  "--max-query-errors", "3", "--allow-draft", "--pretty",
+];
+
+const INVALID_ARGUMENTS = [
+  ["--unknown"],
+  ["--interval", "0"],
+  ["--sweep-interval", "-1"],
+  ["--timeout", "-1"],
+  ["--max-query-errors", "1.5"],
+  ["--stack", "--queued-stack"],
+  ["--stack-prs", "1,2"],
+  ["--queued-stack", "--stack-prs", "1,1"],
+];
+
 describe("parseArgs", () => {
   it("uses the specified defaults", () => {
-    expect(parseArgs([])).toMatchObject({
-      mode: "single",
-      owner: null,
-      polling: {
-        allowDraft: false,
-        interval: 60,
-        maxQueryErrors: 5,
-        sweepInterval: 300,
-        timeout: 0,
-      },
-      pr: null,
-      pretty: false,
-      repo: null,
-      stackPrs: [],
-      statusOnly: false,
-    });
+    expect(parseArgs([])).toMatchObject(DEFAULT_ARGUMENTS);
   });
 
   it("parses a frozen queued stack bottom-to-top", () => {
-    const parsed = parseArgs(
-      [
-        "--queued-stack",
-        "--stack-prs",
-        "#10, 11,#12",
-        "--interval",
-        "2.5",
-        "--sweep-interval",
-        "30",
-        "--timeout",
-        "0",
-        "--max-query-errors",
-        "3",
-        "--allow-draft",
-        "--pretty",
-      ]
-    );
+    const parsed = parseArgs(FROZEN_STACK_ARGS);
     expect(parsed.mode).toBe("queued-stack");
-    expect(parsed.stackPrs.map(Number)).toEqual([10, 11, 12]);
+    expect(parsed.stackPrs.map(Number)).toEqual(QUEUED_NUMBERS);
     expect(parsed.polling).toEqual({
       allowDraft: true,
       interval: 2.5,
@@ -83,60 +99,77 @@ describe("parseArgs", () => {
   });
 
   it("rejects every invalid mode and numeric shape as usage", async () => {
-    const invalid = [
-      ["--unknown"],
-      ["--interval", "0"],
-      ["--sweep-interval", "-1"],
-      ["--timeout", "-1"],
-      ["--max-query-errors", "1.5"],
-      ["--stack", "--queued-stack"],
-      ["--stack-prs", "1,2"],
-      ["--queued-stack", "--stack-prs", "1,1"],
-    ];
-    for (const argv of invalid) {
+    // oxlint-disable-next-line rules/no-for-loops -- Run each full CLI invocation to completion before starting the next fixture.
+    for (const argv of INVALID_ARGUMENTS) {
       const harness = testRuntime(fakeReader());
-      expect(await main(argv, harness.runtime)).toBe(64);
+      // oxlint-disable-next-line eslint/no-await-in-loop -- A measured CLI invocation must finish before the next fixture starts.
+      expect(await main(argv, harness.runtime)).toBe(USAGE_ERROR);
       expect(harness.stdout).toEqual([]);
       expect(harness.stderr.join("")).toContain("error:");
     }
   });
 });
 
-describe("rendering", () => {
-  const context = {
-    owner: "owner",
-    repo: "repo",
-    number: parsePrNumber(1),
-  };
-  const status = {
-    schemaVersion: 1,
-    sequence: 1,
-    observedAt: "2026-07-26T00:00:00.000Z",
-    mode: "single",
-    kind: "STATUS",
-    terminal: true,
-    exitCode: 0,
-    reason: "status-only",
-    rows: [
-      {
-        kind: "merged",
-        context,
-        facts: {
-          context,
-          mergeable: "MERGEABLE",
-          mergeStateStatus: "CLEAN",
-          reviewDecision: "APPROVED",
-          headRefOid: "head",
-          headRefName: "feature",
-          baseRefName: "main",
-          state: "MERGED",
-          mergedAt: "now",
-          isDraft: false,
-        },
-      },
-    ],
-  } satisfies WatcherVerdict;
+const pull = {
+  number: parsePrNumber(FIRST_PULL),
+  owner: "owner",
+  repo: "repo",
+};
 
+const status = {
+  exitCode: 0,
+  kind: "STATUS",
+  mode: "single",
+  observedAt: OBSERVED_AT,
+  reason: "status-only",
+  rows: [{
+    context: pull,
+    facts: {
+      baseRefName: "main",
+      context: pull,
+      headRefName: "feature",
+      headRefOid: "head",
+      isDraft: false,
+      mergeStateStatus: "CLEAN",
+      mergeable: "MERGEABLE",
+      mergedAt: "now",
+      reviewDecision: "APPROVED",
+      state: "MERGED",
+    },
+    kind: "merged",
+  }],
+  schemaVersion: 1,
+  sequence: 1,
+  terminal: true,
+} satisfies WatcherVerdict;
+
+const reviewBlocker = {
+  blocker: {
+    kind: "review-threads",
+    pr: pull,
+    threads: [{
+      bugbotReviewPasses: 0,
+      firstComment: {
+        authorLogin: "evil\u001B[2K\ruser",
+        body: "\u001B[31mDangerous\u001B[0m\r\nSecond line",
+        createdAt: OBSERVED_AT,
+        line: 12,
+        path: "src/\u001B[31minvalid\u001B[0m\u0000path.ts",
+      },
+      id: "thread_1",
+      isBugbot: false,
+    }],
+  },
+  exitCode: 3,
+  kind: "BLOCKER",
+  mode: "single",
+  observedAt: OBSERVED_AT,
+  schemaVersion: 1,
+  sequence: 1,
+  terminal: true,
+} satisfies WatcherVerdict;
+
+describe("rendering", () => {
   it("emits compact valid JSON by default", () => {
     const rendered = renderJson(status);
     expect(rendered.endsWith("\n")).toBe(true);
@@ -152,49 +185,33 @@ describe("rendering", () => {
   });
 
   it("sanitizes review thread paths, authors, and comment bodies in blocker output", () => {
-    const blockerVerdict = {
-      schemaVersion: 1,
-      sequence: 1,
-      observedAt: "2026-07-26T00:00:00.000Z",
-      mode: "single",
-      kind: "BLOCKER",
-      terminal: true,
-      exitCode: 3,
-      blocker: {
-        kind: "review-threads",
-        pr: context,
-        threads: [
-          {
-            id: "thread_1",
-            isBugbot: false,
-            bugbotReviewPasses: 0,
-            firstComment: {
-              authorLogin: "evil\x1B[2K\ruser",
-              body: "\x1B[31mDangerous\x1B[0m\r\nSecond line",
-              createdAt: "2026-07-26T00:00:00.000Z",
-              path: "src/\x1B[31minvalid\x1B[0m\x00path.ts",
-              line: 12,
-            },
-          },
-        ],
-      },
-    } satisfies WatcherVerdict;
-
-    const rendered = renderPretty(blockerVerdict);
+    const rendered = renderPretty(reviewBlocker);
     expect(rendered).toContain("BLOCKER: review-threads");
     expect(rendered).toContain(
       "thread_1 src/invalidpath.ts 12 eviluser isBugBot=false bugbotReviewPasses=0 Dangerous"
     );
-    expect(rendered).not.toContain("\x1B");
+    expect(rendered).not.toContain("\u001B");
     expect(rendered).not.toContain("\r");
     expect(rendered).not.toContain("Second line");
   });
 });
 
+const REPOSITORY_FLAGS = ["--owner", "owner", "--repo", "repo"];
+const QUEUED_STATUS_FLAGS = [...REPOSITORY_FLAGS, "--queued-stack", "--stack-prs", "1", "--status-only"];
+const CI_REFUSAL_FLAGS = [...REPOSITORY_FLAGS, "--pr", "1"];
+const ciRefusal = {
+  blocker: {
+    ci: { kind: "ci-github-rejected" },
+    kind: "failing-checks",
+  },
+  exitCode: HIDDEN_CI_REFUSAL,
+  kind: "BLOCKER",
+};
+
 describe("main", () => {
   it("returns EX_USAGE 64 and writes usage errors only to stderr", async () => {
     const harness = testRuntime(fakeReader());
-    expect(await main(["--interval", "0"], harness.runtime)).toBe(64);
+    expect(await main(["--interval", "0"], harness.runtime)).toBe(USAGE_ERROR);
     expect(harness.stdout).toEqual([]);
     expect(harness.stderr.join("")).toContain(
       "--interval: 0 must be greater than zero"
@@ -204,21 +221,9 @@ describe("main", () => {
   it("bypasses the queue machine for queued-stack status-only", async () => {
     const reader = fakeReader();
     const harness = testRuntime(reader);
-    const code = await main(
-      [
-        "--owner",
-        "owner",
-        "--repo",
-        "repo",
-        "--queued-stack",
-        "--stack-prs",
-        "1",
-        "--status-only",
-      ],
-      harness.runtime
-    );
-    expect(code).toBe(0);
-    expect(harness.stdout).toHaveLength(1);
+    const code = await main(QUEUED_STATUS_FLAGS, harness.runtime);
+    expect(code).toBe(SUCCESS);
+    expect(harness.stdout).toHaveLength(ONE_RESULT);
     const verdict: unknown = JSON.parse(harness.stdout[0]);
     expect(verdict).toMatchObject({
       exitCode: 0,
@@ -231,31 +236,21 @@ describe("main", () => {
 
   it("returns exit 4 for a hidden GitHub-side CI refusal", async () => {
     const reader = fakeReader({
-      facts: { mergeStateStatus: "BLOCKED" },
-      fastPath: { kind: "checks", checks: [passingCheck()] },
       commitRollups: [{ oid: "head", state: "FAILURE" }],
+      facts: { mergeStateStatus: "BLOCKED" },
+      fastPath: { checks: [passingCheck()], kind: "checks" },
     });
     const harness = testRuntime(reader);
-    const code = await main(
-      ["--owner", "owner", "--repo", "repo", "--pr", "1"],
-      harness.runtime
-    );
-    expect(code).toBe(4);
-    expect(harness.stdout).toHaveLength(1);
-    expect(JSON.parse(harness.stdout[0])).toMatchObject({
-      blocker: {
-        ci: { kind: "ci-github-rejected" },
-        kind: "failing-checks",
-      },
-      exitCode: 4,
-      kind: "BLOCKER",
-    });
+    const code = await main(CI_REFUSAL_FLAGS, harness.runtime);
+    expect(code).toBe(HIDDEN_CI_REFUSAL);
+    expect(harness.stdout).toHaveLength(ONE_RESULT);
+    expect(JSON.parse(harness.stdout[0])).toMatchObject(ciRefusal);
   });
 
   it("shows help without touching the reader", async () => {
     const reader = fakeReader();
     const harness = testRuntime(reader);
-    expect(await main(["--help"], harness.runtime)).toBe(0);
+    expect(await main(["--help"], harness.runtime)).toBe(SUCCESS);
     expect(harness.stdout.join("")).toContain("JSON (NDJSON while polling)");
     expect(reader.calls).toEqual([]);
   });
