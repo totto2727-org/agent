@@ -1,123 +1,11 @@
-import { append, byText, matchesUndefined, tupleKey, visitItems } from '#statechart/ir.ts';
+import { append, byText, isString, matchesUndefined, tupleKey, visitItems } from '#statechart/ir.ts';
 import type { Chart, ChartState, Region } from '#statechart/ir.ts';
+import { escapeLabel, escapeTitle } from "#statechart/backends/mermaid-labels.ts";
 
-const BLANK = /\p{White_Space}/u;
-const SAFE = /^[\p{L}\p{N} !'()+,\-./=?[\]"_|@{}:\\^%<>]$/u;
-const HAZARD =
-  /:(?=:|$|\S*#)|\\(?=n)|%(?=%)|<(?=[\p{L}/!?])|_(?![\p{L}\p{N}])|(?<![\p{L}\p{N}])_/giu;
-const DIRECTION = /(direction)\s+(?=LR|RL|TB|BT)/giu;
-const DOUBLE_BRACKET = /\[(?=\[)/gu;
-const C4 = /C4(?=Container|Component|Dynamic|Deployment)/gu;
-const UNDRAWN = /[\0\u0080-\u009F]/u;
-const REWRITTEN = ["ﬂ°", "¶ß"];
-const MARKER = /(?<=marker-end=)"/gu;
-const FIRST_CODE_UNIT = 0;
-const ASCII_LIMIT = 128;
-const FIRST_SURROGATE = 0xD8_00;
-const LAST_SURROGATE = 0xDF_FF;
-const REPLACEMENT = 0xFF_FD;
-const WORD_JOINER = 0x20_60;
-const NO_PREVIOUS_CHARACTER = -1;
+const or = (names: Iterable<string>): string => [...names].toSorted(byText).join(" or ");
 
-const firstOf = new Map<number, number>(
-  REWRITTEN.map((pair) => {
-    const [first, second] = [...pair].map((character) => character.codePointAt(FIRST_CODE_UNIT) ?? FIRST_CODE_UNIT);
-    return [second, first];
-  }),
-);
-
-const KEPT = 0;
-const BLANKED = 1;
-const DROPPED = 2;
-const CODED = 3;
-
-const kindOf = (codePoint: number): number => {
-  const character = String.fromCodePoint(codePoint);
-  if (character === " ") {
-    return KEPT;
-  }
-  if (BLANK.test(character)) {
-    return BLANKED;
-  }
-  if (UNDRAWN.test(character)) {
-    return DROPPED;
-  }
-  return SAFE.test(character) ? KEPT : CODED;
-};
-
-const ASCII = Uint8Array.from({ length: ASCII_LIMIT }, (_unused, codePoint) => kindOf(codePoint));
-const wide = new Map<number, number>();
-const kindAt = (codePoint: number): number => {
-  if (codePoint < ASCII_LIMIT) {
-    return ASCII[codePoint];
-  }
-  const cached = wide.get(codePoint);
-  if (!matchesUndefined(cached)) {
-    return cached;
-  }
-  const kind = kindOf(codePoint);
-  wide.set(codePoint, kind);
-  return kind;
-};
-
-const scalar = (character: string): number => {
-  const codePoint = character.codePointAt(FIRST_CODE_UNIT) ?? FIRST_CODE_UNIT;
-  return codePoint >= FIRST_SURROGATE && codePoint <= LAST_SURROGATE ? REPLACEMENT : codePoint;
-};
-
-const encode = (text: string, ref: (codePoint: number) => string): string => {
-  const position = {
-    end: FIRST_CODE_UNIT,
-    last: NO_PREVIOUS_CHARACTER,
-    output: "",
-    spanStart: FIRST_CODE_UNIT,
-  };
-  // oxlint-disable-next-line rules/no-for-loops -- Iterate Unicode characters without copying potentially long labels or losing their UTF-16 offsets.
-  for (const character of text) {
-    const offset = position.end;
-    position.end += character.length;
-    const codePoint = scalar(character);
-    const kind = kindAt(codePoint);
-    if (kind === DROPPED) {
-      position.output += text.slice(position.spanStart, offset);
-      position.spanStart = position.end;
-    } else {
-      const joined = firstOf.get(codePoint) === position.last;
-      if (joined || kind !== KEPT) {
-        position.output += text.slice(position.spanStart, offset);
-        if (joined) {
-          position.output += ref(WORD_JOINER);
-        }
-        if (kind === KEPT) {
-          position.spanStart = offset;
-        } else {
-          position.output += kind === BLANKED ? " " : ref(codePoint);
-          position.spanStart = position.end;
-        }
-      }
-      position.last = codePoint;
-    }
-  }
-  return position.output + text.slice(position.spanStart);
-};
-
-const code = (text: string, ref: (codePoint: number) => string): string =>
-  encode(text, ref)
-    .replaceAll(MARKER, `${ref(WORD_JOINER)}"`)
-    .replaceAll(HAZARD, (character) => ref(scalar(character)));
-
-const esc = (text: string, quoted = false): string => {
-  const plain = code(text, (codePoint) => `#${codePoint};`);
-  const out = quoted ? plain.replaceAll('"', "#34;") : plain;
-  if (!out.trim()) {
-    return "#32;";
-  }
-  const turned = out.replaceAll(DIRECTION, "$1#32;");
-  const opened = turned.includes("[[") ? turned.replaceAll(DOUBLE_BRACKET, "#91;") : turned;
-  return opened.includes("C4") ? opened.replaceAll(C4, "C#52;") : opened;
-};
-
-const or = (names: Iterable<string>): string => [...names].sort(byText).join(" or ");
+const FIRST_INDEX = 0;
+const SINGLE_ITEM = 1;
 
 interface Edge {
   from: string[];
@@ -143,7 +31,7 @@ const connection = (
 const parentPaths = (states: ChartState[]): string[][] => {
   const parents = new Map<string, string[]>();
   states.forEach(({ path }) => {
-    const prefixes = Array.from({ length: path.length - 1 }, (_unused, index) => path.slice(0, index + 1));
+    const prefixes = Array.from({ length: path.length - SINGLE_ITEM }, (_unused, index) => path.slice(FIRST_INDEX, index + SINGLE_ITEM));
     prefixes.forEach((prefix) => { parents.set(tupleKey(prefix), prefix); });
   });
   // oxlint-disable-next-line unicorn/no-array-sort -- This fresh array can be sorted in place.
@@ -158,11 +46,11 @@ const groupParentEntry = (edges: Edge[], parent: string[]): Edge[] => {
   if (matchesUndefined(first) || !incoming.every((edge) => wayIn(edge) === wayIn(first))) {
     return edges;
   }
-  const singleEntry = incoming.length === 1;
+  const singleEntry = incoming.length === SINGLE_ITEM;
   const remaining = edges.filter((edge) => !incoming.includes(edge));
   remaining.splice(
     edges.indexOf(first),
-    0,
+    FIRST_INDEX,
     connection(first.from, parent, { label: singleEntry ? first.label : undefined, start: first.start }),
     ...incoming.map((edge) =>
       connection(parent, edge.to, { label: singleEntry ? undefined : edge.label, start: true }),
@@ -177,7 +65,7 @@ export const drawnEdges = (region: Region): Edge[] => {
     .map((state) => connection([], state.path, { start: true }));
   const transitions = region.steps.map((step) =>
     connection(step.from, step.to, {
-      label: step.label + (step.when ? ` [${step.when}]` : ""),
+      label: step.label + ((step.when ?? "") ? ` [${step.when}]` : ""),
       start: false,
     }),
   );
@@ -185,65 +73,72 @@ export const drawnEdges = (region: Region): Edge[] => {
   return parentPaths(region.states).reduce((edges, parent) => groupParentEntry(edges, parent), [...starts, ...transitions]);
 };
 
+const violationMark = (reasons: ChartState["breaks"]): "breaks" | "mayBreak" =>
+  reasons.some((reason) => reason.always) ? "breaks" : "mayBreak";
+
 const MARK_STYLES = {
   breaks: "fill:#ffecee,stroke:#e72e3b,stroke-width:2.5px,color:#cd2834",
   mayBreak: "fill:#fff3e6,stroke:#e8730c,stroke-width:2.5px,color:#b85a06",
 };
 
 export const mermaidLines = function mermaidLines(chart: Chart): string[] {
-  let next = 0;
+  const numbering = { next: FIRST_INDEX };
   const marks: string[] = [];
   const used = new Set<string>();
   const rules = { breaks: new Set<string>(), mayBreak: new Set<string>() };
-  const region = (region: Region): string[] => {
+  const regionLines = (region: Region): string[] => {
     const out: string[] = [];
     const topIds = new Map<string, string>();
     const nestedIds = new Map<string, string>();
     const id = (path: string[]): string => {
-      const top = path.length === 1;
+      const top = path.length === SINGLE_ITEM;
       const named = top ? topIds : nestedIds;
-      const k = top ? path[0] : tupleKey(path);
-      let s = named.get(k);
-      if (matchesUndefined(s)) {named.set(k, (s = `s${next++}`));}
-      return s;
+      const key = top ? path[FIRST_INDEX] : tupleKey(path);
+      const cached = named.get(key);
+      if (!matchesUndefined(cached)) {return cached;}
+      const name = `s${numbering.next}`;
+      numbering.next += SINGLE_ITEM;
+      named.set(key, name);
+      return name;
     };
     const known = new Map<string[], string>();
     const idOf = (path: string[]): string => {
-      let s = known.get(path);
-      if (matchesUndefined(s)) {known.set(path, (s = id(path)));}
-      return s;
+      const cached = known.get(path);
+      if (!matchesUndefined(cached)) {return cached;}
+      const name = id(path);
+      known.set(path, name);
+      return name;
     };
     const drawn = drawnEdges(region);
-    const line = (e: Edge, indent: string): string =>
-      `${indent}${e.start ? "[*]" : idOf(e.from)} --> ${idOf(e.to)}${matchesUndefined(e.label) ? "" : `: ${esc(e.label)}`}`;
+    const line = (edge: Edge, indent: string): string =>
+      `${indent}${edge.start ? "[*]" : idOf(edge.from)} --> ${idOf(edge.to)}${matchesUndefined(edge.label) ? "" : `: ${escapeLabel(edge.label)}`}`;
     const tree = (prefix: string[], indent: string, below: ChartState[]): void => {
       const heads = new Map<string, ChartState[]>();
       visitItems(below, (chartState) => {append(heads, chartState.path[prefix.length], chartState);});
       visitItems(heads, ([head, under]) => {
         const path = [...prefix, head];
-        let leaf: ChartState | undefined;
-        const inner: ChartState[] = [];
-        visitItems(under, (currentState) => {if (currentState.path.length > path.length) {inner.push(currentState);}
-          else {leaf = currentState;}});
+        const contents: { inner: ChartState[]; leaf: ChartState | undefined } = { inner: [], leaf: undefined };
+        visitItems(under, (currentState) => {if (currentState.path.length > path.length) {contents.inner.push(currentState);}
+          else {contents.leaf = currentState;}});
+        const { inner, leaf } = contents;
         if (inner.length) {
-          out.push(`${indent}state "${esc(head, true)}" as ${id(path)} {`);
+          out.push(`${indent}state "${escapeLabel(head, true)}" as ${id(path)} {`);
           tree(path, `${indent  }  `, inner);
           const key = tupleKey(path);
           visitItems(drawn, (currentEdge) => {if (currentEdge.start && tupleKey(currentEdge.from) === key) {out.push(line(currentEdge, `${indent}  `));}});
           out.push(`${indent}}`);
         } else if (leaf) {
           const sid = idOf(leaf.path);
-          out.push(`${indent}${sid}: ${esc(head)}`);
-          let mark: "breaks" | "mayBreak" | undefined =
-            leaf.breaks.length && !leaf.works ? "mayBreak" : undefined;
-          if (mark) {visitItems(leaf.breaks, (branch) => {if (branch.always) {mark = "breaks";}});}
+          out.push(`${indent}${sid}: ${escapeLabel(head)}`);
+          const mark = leaf.breaks.length && !leaf.works ? violationMark(leaf.breaks) : undefined;
           if (mark) {
             const ruleNames = rules[mark];
             visitItems(leaf.breaks, (branch) => {ruleNames.add(branch.rule.name);});
           }
           const trail = [leaf.lead && "bugPath", leaf.repeats && "repeats"];
+          // oxlint-disable-next-line typescript/no-base-to-string -- View groups accept arbitrary values and use their JavaScript string keys to look up colors.
           const color = matchesUndefined(leaf.group) ? undefined : chart.colors[String(leaf.group)];
-          visitItems([color, mark, ...trail], (cls) => {if (cls) {
+          visitItems([color, mark, ...trail], (cls) => {if (isString(cls) && cls) {
               used.add(cls);
               marks.push(`  class ${sid} ${cls}`);
             }});
@@ -251,20 +146,21 @@ export const mermaidLines = function mermaidLines(chart: Chart): string[] {
       });
     };
     tree([], "  ", region.states);
-    visitItems(drawn, (e) => {if (!e.start || !e.from.length) {out.push(line(e, "  "));}});
+    visitItems(drawn, (edge) => {if (!edge.start || !edge.from.length) {out.push(line(edge, "  "));}});
     return out;
   };
-  let body: string[];
-  if (chart.regions.length > 1) {
-    body = [`  state "At the same time" as all {`];
+  const parallel = chart.regions.length > SINGLE_ITEM;
+  const body = parallel ? [] : regionLines(chart.regions[FIRST_INDEX]);
+  if (parallel) {
+    body.push(`  state "At the same time" as all {`);
     visitItems(chart.regions.entries(), ([index, item]) => {
       if (index) {body.push("    --");}
-      body.push(`    state "${esc(item.name, true)}" as r${index} {`);
-      visitItems(region(item), (line) => {body.push(`    ${line}`);});
+      body.push(`    state "${escapeLabel(item.name, true)}" as r${index} {`);
+      visitItems(regionLines(item), (line) => {body.push(`    ${line}`);});
       body.push("    }");
     });
     body.push("  }");
-  } else {body = region(chart.regions[0]);}
+  }
   const legend: string[][] = [];
   visitItems([
     ...Object.entries(chart.colors),
@@ -274,13 +170,14 @@ export const mermaidLines = function mermaidLines(chart: Chart): string[] {
     [`Repeats forever, so ${or(chart.loops)} breaks`, "repeats"],
   ], (entry) => {if (used.has(entry[1])) {legend.push(entry);}});
   const lines: string[] = [];
-  const title = chart.title && code(chart.title, (n) => `ﬂ°°${n}¶ß`).replaceAll("<", "ﬂ°°60¶ß");
+  const titleSource = chart.title ?? "";
+  const title = titleSource ? escapeTitle(titleSource) : "";
   if (title) {lines.push("---", `title: ${JSON.stringify(title)}`, "---");}
   lines.push("stateDiagram-v2");
-  if (chart.regions.length > 1) {lines.push("  direction LR");}
+  if (parallel) {lines.push("  direction LR");}
   if (legend.length) {
     lines.push(`  state "Legend" as legend {`);
-    visitItems(legend.entries(), ([index, [text]]) => {lines.push(`    lg${index}: ${esc(text)}`);});
+    visitItems(legend.entries(), ([index, [text]]) => {lines.push(`    lg${index}: ${escapeLabel(text)}`);});
     lines.push("  }");
     visitItems(legend.entries(), ([index, [, cls]]) => {lines.push(`  class lg${index} ${cls}`);});
   }
