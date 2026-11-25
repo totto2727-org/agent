@@ -23,6 +23,13 @@ const late = [
 const lateCfg = (mode: string, rules: string): string =>
   `CONSTANT Mode = "${mode}"\nINIT Init\nNEXT Next\nINVARIANTS ${rules}\n`;
 
+const CHECKED = 0;
+const RULE_VIOLATED = 1;
+const NO_VERDICT = 2;
+const FIRST_STEP = 1;
+const SECOND_STEP = 2;
+const THIRD_STEP = 3;
+
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test(
   "a rule that breaks before another rule fails to evaluate breaks in either order",
@@ -30,8 +37,8 @@ test(
   async () => {
     const first = await agrees("Late", { Late: late }, lateCfg("none", "Below InDomain"));
     const last = await agrees("Late", { Late: late }, lateCfg("none", "InDomain Below"));
-    assert.equal(first.status, 1);
-    assert.deepEqual(first.breaks, new Map([["Below", 2]]));
+    assert.equal(first.status, RULE_VIOLATED);
+    assert.deepEqual(first.breaks, new Map([["Below", SECOND_STEP]]));
     assert.deepEqual(first.holds, []);
     assert.deepEqual(first.unchecked, ["InDomain", "NoDeadlock"]);
     assert.deepEqual(last, first);
@@ -42,8 +49,8 @@ test(
 test("a rule that breaks before a step fails to evaluate breaks", { skip }, async () => {
   await forEachTlcCase(["div", "assert"], async (mode) => {
     const verdict = await agrees("Late", { Late: late }, lateCfg(mode, "Small"));
-    assert.equal(verdict.status, 1);
-    assert.deepEqual(verdict.breaks, new Map([["Small", 1]]));
+    assert.equal(verdict.status, RULE_VIOLATED);
+    assert.deepEqual(verdict.breaks, new Map([["Small", FIRST_STEP]]));
     assert.deepEqual(verdict.unchecked, ["NoDeadlock"]);
   });
 });
@@ -68,8 +75,8 @@ test("a rule that breaks before it fails to evaluate breaks", { skip }, async ()
     { WarnPath: warnPath(String.raw`One \/ Two`) },
     "INIT Init\nNEXT Next\nINVARIANT Zero\n",
   );
-  assert.equal(verdict.status, 1);
-  assert.equal(verdict.breaks.get("Zero"), 1);
+  assert.equal(verdict.status, RULE_VIOLATED);
+  assert.equal(verdict.breaks.get("Zero"), FIRST_STEP);
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
@@ -80,7 +87,7 @@ test("a rule that fails to evaluate before TLC reaches a break exits 2", { skip 
       { WarnPath: warnPath(String.raw`Two \/ One`) },
       `INIT Init\nNEXT Next\nINVARIANT Zero\n${deadlock}`,
     );
-    assert.equal(verdict.status, 2);
+    assert.equal(verdict.status, NO_VERDICT);
     assert.deepEqual(verdict.holds, []);
   });
 });
@@ -106,8 +113,8 @@ test("a rule that no verdict run checks stays not checked under a SYMMETRY", { s
     },
     "CONSTANTS a = a b = b S = {a, b}\nSYMMETRY Perms\nINIT Init\nNEXT Next\nINVARIANTS Early Boom Bad\n",
   );
-  assert.equal(verdict.status, 1);
-  assert.deepEqual(verdict.breaks, new Map([["Early", 1]]));
+  assert.equal(verdict.status, RULE_VIOLATED);
+  assert.deepEqual(verdict.breaks, new Map([["Early", FIRST_STEP]]));
   assert.deepEqual(verdict.holds, []);
   assert.deepEqual(verdict.unchecked, ["Bad", "Boom", "NoDeadlock"]);
 });
@@ -131,7 +138,7 @@ test("a deadlock breaks whatever shape the SPECIFICATION has", { skip }, async (
     },
     "SPECIFICATION LiveSpec\nINVARIANT TypeOK\n",
   );
-  assert.deepEqual(live.breaks, new Map([["NoDeadlock", 2]]));
+  assert.deepEqual(live.breaks, new Map([["NoDeadlock", SECOND_STEP]]));
   assert.deepEqual(live.holds, ["TypeOK"]);
   await forEachTlcCase([String.raw`[][Next \/ Tick]_vars`, String.raw`[][\E i \in 1..2 : Step(i)]_vars`], async (next) => {
     const verdict = await agrees(
@@ -152,7 +159,7 @@ test("a deadlock breaks whatever shape the SPECIFICATION has", { skip }, async (
       },
       "SPECIFICATION Spec\n",
     );
-    assert.equal(verdict.status, 1);
+    assert.equal(verdict.status, RULE_VIOLATED);
     assert.ok(verdict.breaks.has("NoDeadlock"));
   });
 });
@@ -179,7 +186,7 @@ test("a SPECIFICATION from an INSTANCE checks deadlock and finds none", { skip }
     },
     "SPECIFICATION Spec\n",
   );
-  assert.equal(verdict.status, 0);
+  assert.equal(verdict.status, CHECKED);
   assert.deepEqual(verdict.holds, ["NoDeadlock"]);
 });
 
@@ -200,7 +207,7 @@ test("a state at a CONSTRAINT bound is no deadlock", { skip }, async () => {
     },
     "INIT Init\nNEXT Next\nCONSTRAINT Small\n",
   );
-  assert.equal(verdict.status, 0);
+  assert.equal(verdict.status, CHECKED);
   assert.deepEqual(verdict.holds, ["NoDeadlock"]);
   assert.doesNotMatch(verdict.chart, /^ {2}class s\d+ breaks$/mu);
 });
@@ -225,7 +232,7 @@ test(
       },
       "INIT Init\nNEXT Next\nINVARIANT Small\n",
     );
-    assert.equal(verdict.status, 0);
+    assert.equal(verdict.status, CHECKED);
     assert.deepEqual(verdict.holds, ["NoDeadlock", "Small"]);
     assert.match(
       verdict.report,
@@ -255,8 +262,8 @@ test(
       },
       "SPECIFICATION Spec\nINVARIANT Early\nPROPERTY Back\n",
     );
-    assert.equal(verdict.status, 1);
-    assert.deepEqual(verdict.breaks, new Map([["Early", 3]]));
+    assert.equal(verdict.status, RULE_VIOLATED);
+    assert.deepEqual(verdict.breaks, new Map([["Early", THIRD_STEP]]));
     assert.deepEqual(verdict.holds, []);
     assert.deepEqual(verdict.unchecked, ["Back", "NoDeadlock"]);
     assert.match(
