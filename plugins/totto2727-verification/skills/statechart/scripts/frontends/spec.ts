@@ -5,7 +5,7 @@ import { matchesUndefined, visitItems } from "#statechart/ir.ts";
 export type Checks = Pick<Spec, "invariants" | "properties" | "deadlock" | "written">;
 
 export const readChecks = function readChecks({ configFile, config }: { configFile: string; config: Config }): Checks {
-  const refuse = (words: string) => new Error(`TLC refuses the config ${configFile}. ${words}`);
+  const refuse = (words: string): Error => new Error(`TLC refuses the config ${configFile}. ${words}`);
   if (config.spec && (config.init || config.next))
     {throw refuse("The configuration file cannot specify both INIT/NEXT and SPECIFICATION fields.");}
   if (!config.spec && !config.init)
@@ -24,32 +24,38 @@ interface XmlNode { tag: string; text: string; children: XmlNode[] }
 
 const ENTITIES: Record<string, string> = { amp: "&", apos: "'", gt: ">", lt: "<", quot: '"' };
 
-const decode = (text: string): string =>
-  text.replaceAll(/&(#x?)?(\w+);/gu, (_, number: string | undefined, name: string) =>
-    number
-      ? String.fromCodePoint(Number.parseInt(name, number === "#x" ? 16 : 10))
-      : ENTITIES[name],
-  );
+const DECIMAL_RADIX = 10;
+const HEX_RADIX = 16;
+const LAST_OPEN_NODE = -1;
+const CONTEXT_SYMBOL_INDEX = 1;
 
-const parseXml = function (xml: string) {
+const decode = (text: string): string =>
+  text.replaceAll(/&(?<numeric>#x?)?(?<entity>\w+);/gu, (_match, numeric: string | undefined, entity: string) => {
+    if (matchesUndefined(numeric)) {return ENTITIES[entity];}
+    const code = numeric === "#x" ? Number.parseInt(entity, HEX_RADIX) : Number.parseInt(entity, DECIMAL_RADIX);
+    return String.fromCodePoint(code);
+  });
+
+const parseXml = (xml: string): XmlNode => {
   const document: XmlNode = { tag: "", text: "", children: [] };
   const open = [document];
   visitItems(xml.matchAll(
-    /<(\/?)([^\s/>?!]+)[^>]*?(\/?)>|<[?!][^>]*>|([^<]+)/g,
-  ), ([, close, tag, empty, text]) => {
-    const parent = open[open.length - 1];
-    if (!matchesUndefined(text)) {parent.text += decode(text);}
-    else if (close) {open.pop();}
-    else if (tag) {
-      const node: XmlNode = { tag, text: "", children: [] };
+    /<(?<close>\/?)(?<tag>[^\s/>?!]+)[^>]*?(?<empty>\/?)>|<[?!][^>]*>|(?<text>[^<]+)/gu,
+  ), (match) => {
+    const { groups } = match;
+    const parent = open[open.length + LAST_OPEN_NODE];
+    if (!matchesUndefined(groups?.text)) {parent.text += decode(groups.text);}
+    else if (groups?.close === "/") {open.pop();}
+    else if (!matchesUndefined(groups?.tag)) {
+      const node: XmlNode = { tag: groups.tag, text: "", children: [] };
       parent.children.push(node);
-      if (!empty) {open.push(node);}
+      if (groups.empty !== "/") {open.push(node);}
     }
   });
   return document;
 };
 
-const child = (node: XmlNode | undefined, tag: string) => node?.children.find((currentChild) => currentChild.tag === tag);
+const child = (node: XmlNode | undefined, tag: string): XmlNode | undefined => node?.children.find((currentChild) => currentChild.tag === tag);
 const textOf = (node: XmlNode | undefined, tag: string): string => child(node, tag)?.text ?? "";
 
 export type Sany = {
@@ -62,7 +68,7 @@ const VARIABLE_KIND = "3";
 export const readSany = function readSany(xml: string): Sany {
   const modules = child(parseXml(xml), "modules");
   const symbols = new Map<string, XmlNode>();
-  visitItems(child(modules, "context")?.children ?? [], (entry) => {symbols.set(textOf(entry, "UID"), entry.children[1]);});
+  visitItems(child(modules, "context")?.children ?? [], (entry) => {symbols.set(textOf(entry, "UID"), entry.children[CONTEXT_SYMBOL_INDEX]);});
   const root = textOf(modules, "RootModule");
   let module: XmlNode | undefined;
   visitItems(symbols.values(), (node) => {if (node.tag === "ModuleNode" && textOf(node, "uniquename") === root) {module = node;}});
@@ -95,13 +101,19 @@ export const readSpec = function readSpec({
 };
 
 const STATE_LEVEL = 1;
+const FIRST_SUBSTITUTION_TOKEN = 1;
+const TOKEN_STEP = 1;
 
-export const initialOnlyProperties = function initialOnlyProperties({ definitions }: Sany, { written, properties }: Spec) {
+export const initialOnlyProperties = function initialOnlyProperties({ definitions }: Sany, { written, properties }: Spec): Set<string> {
   const replaced = new Map<string, string>();
-  visitItems(written, (section) => {if (section.key === "CONSTANT")
-      {for (let i = 1; i + 1 < section.tokens.length; i++)
-        {if (section.tokens[i] === "<-" && NAME.test(section.tokens[i + 1]))
-          {replaced.set(section.tokens[i - 1], section.tokens[i + 1]);}}}});
+  visitItems(written, ({ key, tokens }) => {
+    if (key !== "CONSTANT") {return;}
+    visitItems(tokens.keys(), (index) => {
+      if (index < FIRST_SUBSTITUTION_TOKEN || index + TOKEN_STEP >= tokens.length || tokens[index] !== "<-") {return;}
+      const operator = tokens[index + TOKEN_STEP];
+      if (NAME.test(operator)) {replaced.set(tokens[index - TOKEN_STEP], operator);}
+    });
+  });
   const names = new Set<string>();
   visitItems(properties, (name) => {
     const definition = definitions.get(replaced.get(name) ?? name);
