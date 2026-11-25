@@ -10,10 +10,11 @@ const NO_INSIDE_STEPS = 0;
 const INSIDE_STEP_INCREMENT = 1;
 const FLAG_SET = 1;
 const FLAG_CLEAR = 0;
+const SINGLE_CHOICE = 1;
 
 interface RegionMove {
-  f: number;
-  t: number;
+  fromKind: number;
+  toKind: number;
   text: string;
   group: number[];
   other: RegionMove | undefined;
@@ -75,103 +76,104 @@ export const drawRegions = function drawRegions(
   } else {clean.fill(FLAG_SET);}
   const regions: Region[] = [];
   const objects: ChartState[][] = [];
-  for (const [index, name] of names.entries()) {
-    const key = keys[index];
-    const kind = kinds[index];
+  for (const [regionIndex, name] of names.entries()) {
+    const regionKeys = keys[regionIndex];
+    const kind = kinds[regionIndex];
     const states = new Map<string, ChartState>();
-    const objectOf = new Array<ChartState>(sizes[index]);
-    const keyOf = new Array<string>(sizes[index]);
-    const position = new Int32Array(sizes[index]);
-    visitItems(order, (i) => {
-      const currentState = tla[i];
-      let stateItem = objectOf[kind[i]];
-      if (!stateItem) {
-        stateItem = {
-          path: shapes[i][name],
-          start: false,
-          members: [],
-          works: false,
-          lead: false,
-          repeats: false,
-          breaks: [],
-          group: undefined,
-        };
-        objectOf[kind[i]] = stateItem;
-        keyOf[kind[i]] = key[i];
-        position[kind[i]] = states.size;
-        states.set(key[i], stateItem);
+    const objectOf: ChartState[] = [];
+    const keyOf: string[] = [];
+    const position = new Int32Array(sizes[regionIndex]);
+    visitItems(order, (stateIndex) => {
+      const currentState = tla[stateIndex];
+      const stateKind = kind[stateIndex];
+      const existing = objectOf[stateKind];
+      const stateItem = existing ?? {
+        path: shapes[stateIndex][name],
+        start: false,
+        members: [],
+        works: false,
+        lead: false,
+        repeats: false,
+        breaks: [],
+        group: undefined,
+      };
+      if (matchesUndefined(existing)) {
+        objectOf[stateKind] = stateItem;
+        keyOf[stateKind] = regionKeys[stateIndex];
+        position[stateKind] = states.size;
+        states.set(regionKeys[stateIndex], stateItem);
       }
       stateItem.start ||= currentState.start;
-      stateItem.works ||= clean[i] === FLAG_SET;
-      stateItem.lead ||= lead[i] === FLAG_SET;
-      stateItem.repeats ||= looped[i] === FLAG_SET;
-      stateItem.members.push(i);
+      stateItem.works ||= clean[stateIndex] === FLAG_SET;
+      stateItem.lead ||= lead[stateIndex] === FLAG_SET;
+      stateItem.repeats ||= looped[stateIndex] === FLAG_SET;
+      stateItem.members.push(stateIndex);
     });
     const parents = new Set<string>();
-    visitItems(states.values(), (state) => {for (let i = 1; i < state.path.length; i++) {parents.add(tupleKey(state.path.slice(0, i)));}});
+    visitItems(states.values(), (state) => {
+      visitItems(state.path.keys(), (depth) => {
+        if (depth > FIRST_PATH_POSITION) {parents.add(tupleKey(state.path.slice(FIRST_PATH_POSITION, depth)));}
+      });
+    });
     visitItems(states.values(), (state) => {
       if (parents.size && parents.has(tupleKey(state.path)))
         {throw new Error(
           `The view's state() returned ${state.path.join(" / ")} both as a state and as a parent state${name ? ` in ${name}` : ""}. Give that state a child name of its own.`,
         );}
       const rules = new Map<string, Rule>();
-      visitItems(state.members, (i) => {for (const rule of tla[i].breaks) {rules.set(ruleKey(rule), rule);}});
+      visitItems(state.members, (stateIndex) => {
+        visitItems(tla[stateIndex].breaks, (rule) => {rules.set(ruleKey(rule), rule);});
+      });
       state.breaks = [];
       visitItems([...rules.values()].sort(
         (left, right) => byText(left.name, right.name) || byText(left.kind, right.kind),
       ), (rule) => {
-        let always = true;
-        for (const i of state.members) {always &&= hasRule(tla[i].breaks, rule);}
+        const always = state.members.every((stateIndex) => hasRule(tla[stateIndex].breaks, rule));
         state.breaks.push({ rule, always });
       });
       const groups = new Set<unknown>();
-      visitItems(state.members, (i) => {groups.add(group(i));});
-      state.group = groups.size === 1 ? [...groups][0] : undefined;
+      visitItems(state.members, (stateIndex) => {groups.add(group(stateIndex));});
+      state.group = groups.size === SINGLE_CHOICE ? groups.values().next().value : undefined;
     });
-    const others: number[] = [];
-    for (let o = 0; o < regionCount; o++) {if (o !== index) {others.push(o);}}
-    const tuple = (i: number): string[] => {
-      const t: string[] = [];
-      visitItems(others, (o) => {t.push(keys[o][i]);});
-      return t;
-    };
-    const two = others.length === 1;
-    const words = (vs: Iterable<string>): string => {
+    const others = [...names.keys()].filter((otherRegion) => otherRegion !== regionIndex);
+    const tuple = (stateIndex: number): string[] => others.map((otherRegion) => keys[otherRegion][stateIndex]);
+    const two = others.length === SINGLE_REGION;
+    const words = (values: Iterable<string>): string => {
       const texts: string[] = [];
-      visitItems(vs, (v) => {texts.push(unkey(v).join(" / "));});
+      visitItems(values, (value) => {texts.push(unkey(value).join(" / "));});
       return texts.sort(byText).join(two ? " or " : ", ");
     };
-    const is = (o: number, vs: Set<string>): string =>
-      two ? `when ${words(vs)}` : `${names[o]} is ${vs.size > 1 ? "one of " : ""}${words(vs)}`;
-    const isNot = (o: number, vs: string[]): string =>
+    const is = (otherRegion: number, values: Set<string>): string =>
+      two ? `when ${words(values)}` : `${names[otherRegion]} is ${values.size > SINGLE_CHOICE ? "one of " : ""}${words(values)}`;
+    const isNot = (otherRegion: number, values: string[]): string =>
       two
-        ? `unless ${words(vs)}`
-        : `${names[o]} is ${vs.length > 1 ? "none of" : "not"} ${words(vs)}`;
+        ? `unless ${words(values)}`
+        : `${names[otherRegion]} is ${values.length > SINGLE_CHOICE ? "none of" : "not"} ${words(values)}`;
     const moves: RegionMove[] = [];
     const pairs = new Map<number, RegionMove>();
-    const size = sizes[index];
-    visitItems(sorted, (j) => {
-      const f = kind[from[j]];
-      const t = kind[to[j]];
-      if (f === t && !loop(j)) {return;}
-      const text = drawnLabels[j];
-      const pair = position[f] * size + position[t];
+    const size = sizes[regionIndex];
+    visitItems(sorted, (stepIndex) => {
+      const fromKind = kind[from[stepIndex]];
+      const toKind = kind[to[stepIndex]];
+      if (fromKind === toKind && !loop(stepIndex)) {return;}
+      const text = drawnLabels[stepIndex];
+      const pair = position[fromKind] * size + position[toKind];
       let move = pairs.get(pair);
       while (move && move.text !== text) {move = move.other;}
       if (!move) {
-        move = { f, t, text, group: [], other: pairs.get(pair) };
+        move = { fromKind, toKind, text, group: [], other: pairs.get(pair) };
         pairs.set(pair, move);
         moves.push(move);
       }
-      if (regionCount > SINGLE_REGION) {move.group.push(j);}
+      if (regionCount > SINGLE_REGION) {move.group.push(stepIndex);}
     });
     const tuplesAt = new Map<number, number[]>();
     const seenAt = new Map<number, string[][]>();
-    if (regionCount > SINGLE_REGION) {visitItems(order, (i) => {append(tuplesAt, kind[i], i);});}
+    if (regionCount > SINGLE_REGION) {visitItems(order, (stateIndex) => {append(tuplesAt, kind[stateIndex], stateIndex);});}
     const arrows: Arrow[] = [];
     visitItems(moves, (move) => {
-      const fromKey = keyOf[move.f];
-      const toKey = keyOf[move.t];
+      const fromKey = keyOf[move.fromKind];
+      const toKey = keyOf[move.toKind];
       if (regionCount === SINGLE_REGION) {
         arrows.push({
           from: fromKey,
@@ -183,65 +185,69 @@ export const drawRegions = function drawRegions(
         return;
       }
       const ok = new Set<string>();
-      visitItems(move.group, (j) => {ok.add(tupleKey(tuple(from[j])));});
-      const takes = (t: string[]): boolean => ok.has(tupleKey(t));
-      let seen = seenAt.get(move.f);
-      if (!seen) {
-        const uniqueTuples: string[][] = [];
-        seen = uniqueTuples;
+      visitItems(move.group, (stepIndex) => {ok.add(tupleKey(tuple(from[stepIndex])));});
+      const takes = (candidate: string[]): boolean => ok.has(tupleKey(candidate));
+      const existing = seenAt.get(move.fromKind);
+      const seen = existing ?? [];
+      if (matchesUndefined(existing)) {
         const seenKeys = new Set<string>();
-        visitItems(must(tuplesAt, move.f), (i) => {
-          const t = tuple(i);
-          const k = tupleKey(t);
-          if (seenKeys.has(k)) {return;}
-          seenKeys.add(k);
-          uniqueTuples.push(t);
+        visitItems(must(tuplesAt, move.fromKind), (stateIndex) => {
+          const candidate = tuple(stateIndex);
+          const tupleId = tupleKey(candidate);
+          if (seenKeys.has(tupleId)) {return;}
+          seenKeys.add(tupleId);
+          seen.push(candidate);
         });
-        seenAt.set(move.f, seen);
+        seenAt.set(move.fromKind, seen);
       }
       const all: Set<string>[] = [];
       const and: Set<string>[] = [];
       const or: Set<string>[] = [];
-      for (let j = 0; j < others.length; j++) {
+      visitItems(others.keys(), (otherIndex) => {
         const values = new Set<string>();
         const taken = new Set<string>();
         const untaken = new Set<string>();
-        visitItems(seen, (t) => {
-          values.add(t[j]);
-          if (takes(t)) {taken.add(t[j]);}
-          else {untaken.add(t[j]);}
+        visitItems(seen, (candidate) => {
+          const value = candidate[otherIndex];
+          values.add(value);
+          if (takes(candidate)) {taken.add(value);}
+          else {untaken.add(value);}
         });
         const only = new Set<string>();
         visitItems(values, (value) => {if (!untaken.has(value)) {only.add(value);}});
         all.push(values);
         and.push(taken);
         or.push(only);
-      }
-      const fits = (condition: Condition): boolean => {
-        for (const t of seen) {if (holds(condition, t) !== takes(t)) {return false;}}
-        return true;
-      };
+      });
+      const fits = (condition: Condition): boolean =>
+        seen.every((candidate) => holds(condition, candidate) === takes(candidate));
       const andHolds: Condition = { kind: "and", otherKeys: and };
       const orHolds: Condition = { kind: "or", otherKeys: or };
       const {text} = move;
       if (fits(andHolds)) {
         const parts: string[] = [];
-        for (let j = 0; j < others.length; j++) {
-          const no: string[] = [];
-          visitItems(all[j], (v) => {if (!and[j].has(v)) {no.push(v);}});
-          if (no.length)
-            {parts.push(and[j].size <= no.length ? is(others[j], and[j]) : isNot(others[j], no));}
-        }
+        visitItems(others.keys(), (otherIndex) => {
+          const excluded: string[] = [];
+          const taken = and[otherIndex];
+          visitItems(all[otherIndex], (value) => {if (!taken.has(value)) {excluded.push(value);}});
+          if (excluded.length) {
+            const otherRegion = others[otherIndex];
+            parts.push(taken.size <= excluded.length ? is(otherRegion, taken) : isNot(otherRegion, excluded));
+          }
+        });
         arrows.push({
           from: fromKey,
           to: toKey,
           label: text,
           condition: andHolds,
-          when: parts.length ? (two ? parts[0] : `when ${parts.join(" and ")}`) : undefined,
+          when: parts.length ? (two ? parts[FIRST_PATH_POSITION] : `when ${parts.join(" and ")}`) : undefined,
         });
       } else if (fits(orHolds)) {
         const parts: string[] = [];
-        for (let j = 0; j < others.length; j++) {if (or[j].size) {parts.push(is(others[j], or[j]));}}
+        visitItems(others.keys(), (otherIndex) => {
+          const taken = or[otherIndex];
+          if (taken.size) {parts.push(is(others[otherIndex], taken));}
+        });
         arrows.push({
           from: fromKey,
           to: toKey,
@@ -259,8 +265,8 @@ export const drawRegions = function drawRegions(
     });
     const steps: ChartStep[] = [];
     visitItems(arrows.entries(), ([itemIndex, item]) => {steps.push({
-        from: objectOf[moves[itemIndex].f].path,
-        to: objectOf[moves[itemIndex].t].path,
+        from: objectOf[moves[itemIndex].fromKind].path,
+        to: objectOf[moves[itemIndex].toKind].path,
         label: item.label,
         when: item.label.endsWith("]") ? undefined : item.when,
       });});
