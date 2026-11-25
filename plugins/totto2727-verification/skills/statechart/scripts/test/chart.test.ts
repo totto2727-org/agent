@@ -112,10 +112,12 @@ const draw = function (graph: Graph, view: View, loops: Bug[] = []) {
 
 const marked = (chart: string) => {
   const out: Record<string, string> = {};
-  visitItems(chart.matchAll(/^ {2}class (s\d+) (breaks|mayBreak)$/gmu), ([, id, cls]) => {
-    const label = (new RegExp(`^\\s*${id}: (.*)$`, "m").exec(chart))?.[1];
+  visitItems(chart.matchAll(/^ {2}class (?<id>s\d+) (?<kind>breaks|mayBreak)$/gmu), (match) => {
+    assert.ok(match.groups);
+    const { id, kind } = match.groups;
+    const label = new RegExp(`^\\s*${id}: (?<label>.*)$`, "mu").exec(chart)?.groups?.label;
     assert.ok(!matchesUndefined(label), `${id} has no label`);
-    out[label] = cls;
+    out[label] = kind;
   });
   return out;
 };
@@ -317,7 +319,7 @@ test("a chart of only the bug paths words each one with the view, asked once for
   assert.ok(files.has("chart.mmd"));
   visitItems(["NotOne", "NotOneOrThree", "AlsoNotOne"], (rule) => {assert.match(
       text,
-      new RegExp(`^## ${rule} breaks\\n.*\\n0\\. x is 0\\n1\\. Next adds one: x is 1$`, "m"),
+      new RegExp(`^## ${rule} breaks\\n.*\\n0\\. x is 0\\n1\\. Next adds one: x is 1$`, "mu"),
     );});
   assert.deepEqual(asked, {
     "state 0": 1,
@@ -667,7 +669,7 @@ test("a bug-path step that stays in one state is a loop in a flat chart only", (
     ],
   );
   const flat = draw(graph, { state: (variables) => `x${fixtureText(variables.x)}` });
-  assert.match(flat.chart, /^ {2}(s\d+) --> \1: Tick$/mu);
+  assert.match(flat.chart, /^ {2}(?<state>s\d+) --> \k<state>: Tick$/mu);
   assert.doesNotMatch(flat.report, /does not draw/u);
   const regions = draw(graph, { state: (variables) => ({ X: `x${fixtureText(variables.x)}`, Z: "z" }) });
   assert.doesNotMatch(regions.chart, /Tick/u);
@@ -689,11 +691,11 @@ test("a step that leaves every child of a parent the same way is one arrow from 
     ],
   );
   const { chart } = draw(graph, { state: (variables) => fixtureText(variables.at).split(".") });
-  const open = (/^ {2}state "Open" as (s\d+) \{$/mu.exec(chart))?.[1];
-  const closed = (/^ {2}(s\d+): Closed$/mu.exec(chart))?.[1];
+  const open = /^ {2}state "Open" as (?<open>s\d+) \{$/mu.exec(chart)?.groups?.open;
+  const closed = /^ {2}(?<closed>s\d+): Closed$/mu.exec(chart)?.groups?.closed;
   const quits = Array.from(
-    chart.matchAll(/^ {2}(s\d+) --> (s\d+): Quit$/gmu),
-    (match) => [match[1], match[2]],
+    chart.matchAll(/^ {2}(?<from>s\d+) --> (?<to>s\d+): Quit$/gmu),
+    (match) => [match.groups?.from, match.groups?.to],
   );
   assert.deepEqual(quits, [[open, closed]]);
 });
@@ -794,7 +796,7 @@ test("each line break in a label or a colors key is a space, so it cannot start 
     group: (variables) => (variables.n === SWITCH_ON ? "Shut\r  s99: Ghost state" : "Open"),
     colors: { Open: "blue", "Shut\r  s99: Ghost state": "pink" },
   });
-  assert.doesNotMatch(chart, /[\r\v\f\u0085\u2028\u2029\t]/);
+  assert.doesNotMatch(chart, /[\r\v\f\u0085\u2028\u2029\t]/u);
   assert.match(chart, /^ {2}s\d+: b {9}c$/mu);
   assert.match(chart, /^ {2}s\d+ --> s\d+: go {3}s9: Ghost$/mu);
   assert.match(chart, /^ {4}lg1: Shut {3}s99: Ghost state$/mu);
@@ -852,9 +854,9 @@ test("a label puts a word joiner inside ﬂ° and ¶ß, since Mermaid decodes a 
     state: (variables) => (variables.n === SWITCH_ON ? ["ﬂ\0°lt¶ß", "x"] : "ﬂ°°65¶ßstateß"),
     step: () => "ﬂ ° ¶ ß",
   });
-  assert.match(chart, /^ {2}s\d+: ﬂ#8288;#176;#176;65#182;#8288;ßstateß$/m);
-  assert.match(chart, /^ {2}state "ﬂ#8288;#176;lt#182;#8288;ß" as s\d+ \{$/m);
-  assert.match(chart, /^ {2}s\d+ --> s\d+: ﬂ #176; #182; ß$/m);
+  assert.match(chart, /^ {2}s\d+: ﬂ#8288;#176;#176;65#182;#8288;ßstateß$/mu);
+  assert.match(chart, /^ {2}state "ﬂ#8288;#176;lt#182;#8288;ß" as s\d+ \{$/mu);
+  assert.match(chart, /^ {2}s\d+ --> s\d+: ﬂ #176; #182; ß$/mu);
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
@@ -871,7 +873,7 @@ test('a label puts a word joiner inside marker-end=", since Mermaid rewrites mar
     state: (variables) => (variables.n === SWITCH_ON ? ['marker-end="url(p#q', "x"] : 'marker-end="url(a#b'),
     step: () => 'a="b" = "c"',
   });
-  assert.match(chart, /^title: "marker-end=ﬂ°°8288¶ß\\"url\(aﬂ°°35¶ßb"$/m);
+  assert.match(chart, /^title: "marker-end=ﬂ°°8288¶ß\\"url\(aﬂ°°35¶ßb"$/mu);
   assert.match(chart, /^ {2}s\d+: marker-end=#8288;"url\(a#35;b$/mu);
   assert.match(chart, /^ {2}state "marker-end=#8288;#34;url\(p#35;q" as s\d+ \{$/mu);
   assert.match(chart, /^ {2}s\d+ --> s\d+: a="b" = "c"$/mu);
@@ -936,7 +938,7 @@ test("a title with < cannot open an HTML tag that rewrites the chart's quotes", 
   );
   const { chart } = draw(graph, { title: "<a=", state: (variables) => ["P", `S${fixtureText(variables.n)}`] });
   assert.doesNotMatch(chart, /</u);
-  assert.match(chart, /^title: "ﬂ°°60¶ßa="$/m);
+  assert.match(chart, /^title: "ﬂ°°60¶ßa="$/mu);
   assert.match(chart, /^ {2}state "P" as s\d+ \{$/mu);
 });
 
@@ -951,7 +953,7 @@ test("the title writes each character outside the allow list in the form Mermaid
   );
   const state = (variables: Vars): string => `S${fixtureText(variables.n)}`;
   const title = (titleText: string): string | undefined =>
-    (/^---\ntitle: (.*)\n---\n/.exec(draw(graph, { title: titleText, state }).chart))?.[1];
+    /^---\ntitle: (?<title>.*)\n---\n/u.exec(draw(graph, { title: titleText, state }).chart)?.groups?.title;
   assert.equal(title("Queue<T> for AT&T"), '"Queueﬂ°°60¶ßT> for ATﬂ°°38¶ßT"');
   assert.equal(title("ﬂ°°65¶ß"), '"ﬂﬂ°°8288¶ßﬂ°°176¶ßﬂ°°176¶ß65ﬂ°°182¶ßﬂ°°8288¶ßß"');
   assert.equal(title('a\0b\u0080\n"c"'), String.raw`"ab \"c\""`);
@@ -985,7 +987,7 @@ test("labels write the space between direction and LR, RL, TB, or BT as #32;", (
       ["Idle", "Facing direction TB", "Redirection\tlrx", "Up DIRECTION  BT"][Number(variables.n)],
     step: (actionName) => steps[actionName],
   });
-  assert.doesNotMatch(chart, /direction\s+(?:LR|RL|TB|BT)/i);
+  assert.doesNotMatch(chart, /direction\s+(?:LR|RL|TB|BT)/iu);
   assert.match(chart, /^ {2}s\d+: Facing direction#32;TB$/mu);
   assert.match(chart, /^ {2}s\d+: Redirection#32;lrx$/mu);
   assert.match(chart, /^ {2}s\d+: Up DIRECTION#32;BT$/mu);
@@ -1120,8 +1122,8 @@ test("a chart that draws a way out of a loop that the loop cannot take stops the
     { state: (variables) => `${fixtureText(variables.pos)}, key ${field(variables.key, "on") === true ? "on" : "off"}` },
     [loop],
   );
-  const wait = (/^ {2}(s\d+): wait, key off$/mu.exec(chart))?.[1];
-  assert.match(chart, new RegExp(`^ {2}class ${wait} repeats$`, "m"));
+  const wait = /^ {2}(?<wait>s\d+): wait, key off$/mu.exec(chart)?.groups?.wait;
+  assert.match(chart, new RegExp(`^ {2}class ${wait} repeats$`, "mu"));
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
@@ -1158,15 +1160,15 @@ test("checkView takes a full view and refuses each wrong kind and every bad colo
     },
     inspect,
   );
-  assert.throws(() => checkView({ colors: null }, inspect), /\bcolors\b[\s\S]*\bobject\b/);
-  assert.throws(() => checkView({ colors: ["blue"] }, inspect), /\bcolors\b[\s\S]*\bobject\b/);
-  assert.throws(() => checkView({ state: "Busy" }, inspect), /\bstate\b[\s\S]*\bfunction\b/);
+  assert.throws(() => checkView({ colors: null }, inspect), /\bcolors\b[\s\S]*\bobject\b/u);
+  assert.throws(() => checkView({ colors: ["blue"] }, inspect), /\bcolors\b[\s\S]*\bobject\b/u);
+  assert.throws(() => checkView({ state: "Busy" }, inspect), /\bstate\b[\s\S]*\bfunction\b/u);
   assert.throws(
     () => checkView({ colors: { Busy: "red", Idle: "repeats", Done: "tan" } }, inspect),
     (error: unknown) =>
       error instanceof Error &&
-      /\bBusy\b[\s\S]*"red"/.test(error.message) &&
-      /\bIdle\b[\s\S]*"repeats"/.test(error.message) &&
+      /\bBusy\b[\s\S]*"red"/u.test(error.message) &&
+      /\bIdle\b[\s\S]*"repeats"/u.test(error.message) &&
       !/\bDone\b/u.test(error.message),
   );
 });
