@@ -13,7 +13,7 @@ import { test } from "node:test";
 // oxlint-disable-next-line rules/no-node-imports -- Statechart's native fixtures use this built-in to convert local module URLs with the host platform's path rules.
 import { fileURLToPath } from "node:url";
 import fc from "fast-check";
-import { visitItems } from "#statechart/ir.ts";
+import { matchesNull, matchesUndefined, visitItems } from "#statechart/ir.ts";
 import { hostEnvironment } from "#statechart/host-env.ts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -215,7 +215,7 @@ const caseOf = function (m: Model): Case {
   const p = m.property;
   const f = p?.fairness;
   const fair = f
-    ? ` /\\ ${f.strong ? "SF" : "WF"}_vars(${f.on === null ? "Next" : actions[f.on % actions.length]})`
+    ? ` /\\ ${f.strong ? "SF" : "WF"}_vars(${matchesNull(f.on) ? "Next" : actions[f.on % actions.length]})`
     : "";
   defs.push(`Spec == Init /\\ [][Next]_vars${fair}`);
   base.push(m.initNext && !p ? "INIT Init\nNEXT Next" : "SPECIFICATION Spec");
@@ -314,7 +314,7 @@ interface Claim { breaks: boolean; steps?: number }
 
 const claimOf = (r: Run, breaks: number[], traced: boolean): Claim => {
   if (r.status === 0) {return { breaks: false };}
-  if (r.status === null || !breaks.includes(r.status))
+  if (matchesNull(r.status) || !breaks.includes(r.status))
     {throw new Error(`plain TLC exited ${r.status}:\n${r.stdout}${r.stderr}`);}
   if (!traced) {return { breaks: true };}
   const states = r.stdout.split("@!@!@STARTMSG 2217:").length - 1;
@@ -379,7 +379,7 @@ const answer = async function (c: Case): Promise<string> {
   try {
     await fs.promises.writeFile(path.join(dir, `${c.module}.tla`), c.tla);
     await fs.promises.writeFile(path.join(dir, `${c.module}.cfg`), configOf(c));
-    if (c.view !== undefined) {await fs.promises.writeFile(path.join(dir, "view.mjs"), c.view);}
+    if (!matchesUndefined(c.view)) {await fs.promises.writeFile(path.join(dir, "view.mjs"), c.view);}
     const compile = (view: string[]) =>
       run(
         process.execPath,
@@ -387,11 +387,11 @@ const answer = async function (c: Case): Promise<string> {
         dir,
       );
     const [viewed, plain] = await Promise.all([
-      compile(c.view === undefined ? [] : ["--view", "view.mjs"]),
+      compile(matchesUndefined(c.view) ? [] : ["--view", "view.mjs"]),
       plainAnswers(dir, c),
     ]);
     const refused =
-      c.view !== undefined &&
+      !matchesUndefined(c.view) &&
       viewed.status === 2 &&
       /^(?:The view's |The chart draws the step )/u.test(viewed.stderr);
     const compiled = refused ? await compile([]) : viewed;

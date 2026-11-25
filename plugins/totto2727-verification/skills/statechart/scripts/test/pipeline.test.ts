@@ -15,7 +15,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 // oxlint-disable-next-line rules/no-node-imports -- Statechart's native fixtures use this built-in to preserve the native rendering of the observed diagnostic.
 import { inspect } from "node:util";
 import { checkView } from "#statechart/frontends/view.ts";
-import { EC, LEVEL, stateRules, visitItems } from '#statechart/ir.ts';
+import { EC, isString, LEVEL, stateRules, visitItems } from '#statechart/ir.ts';
 import type { CheckResult, Rule, Spec, Verdict } from '#statechart/ir.ts';
 import { compile } from "#statechart/pipeline.ts";
 
@@ -175,7 +175,7 @@ const twoStates = (breaks: Rule[], property = "Settles"): CheckResult => ({
 
 const body = (files: Map<string, Iterable<string | Uint8Array>>, name: string): string => {
   let text = "";
-  visitItems(files.get(name) ?? [], (part) => {text += typeof part === "string" ? part : new TextDecoder().decode(part);});
+  visitItems(files.get(name) ?? [], (part) => {text += isString(part) ? part : new TextDecoder().decode(part);});
   return text;
 };
 

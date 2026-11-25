@@ -13,7 +13,7 @@ import { test } from "node:test";
 // oxlint-disable-next-line rules/no-node-imports -- Statechart's native fixtures use this built-in to convert local module URLs with the host platform's path rules.
 import { fileURLToPath } from "node:url";
 import { check, PINNED_FLAGS } from "#statechart/run.ts";
-import { visitItems } from "#statechart/ir.ts";
+import { matchesUndefined, visitItems } from "#statechart/ir.ts";
 import { hostEnvironment } from "#statechart/host-env.ts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -449,7 +449,7 @@ test(
       await check(`${login}.tla`, `${login}.cfg`);
       await assert.rejects(check(`${base}.tla`, `${base}.cfg`), /SANY could not read/u);
     } finally {
-      if (saved === undefined) {delete hostEnvironment().TMPDIR;}
+      if (matchesUndefined(saved)) {delete hostEnvironment().TMPDIR;}
       else {hostEnvironment().TMPDIR = saved;}
     }
     assert.deepEqual(await fs.promises.readdir(tmp), []);

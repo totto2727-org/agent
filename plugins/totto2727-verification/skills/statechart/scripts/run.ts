@@ -26,7 +26,7 @@ import { initialOnlyProperties, readChecks, readSany, readSpec } from "./fronten
 import { readTrace } from "./frontends/trace.ts";
 import { readVerdict } from './frontends/verdict.ts';
 import type { Break } from './frontends/verdict.ts';
-import { CHART_STATES, LEVEL, PART, RERUN_STATES, hasSection, isString, matchesNull, matchesUndefined, must, ruleKey, stateRules, visitItems } from './ir.ts';
+import { CHART_STATES, LEVEL, PART, RERUN_STATES, hasObjectType, hasSection, isNumber, isString, matchesNull, matchesUndefined, must, ruleKey, stateRules, visitItems } from './ir.ts';
 import type { Bug, CheckResult, ConfigSection, Lasso, Mark, Outcome, Output, Part, Property, Rule, Stop, Trace, Verdict } from './ir.ts';
 import { addPast, deadEnds, finder, lasso, mark } from "./passes/annotate.ts";
 import { pathGraph } from "./passes/paths.ts";
@@ -94,7 +94,7 @@ export const runChild = (file: string, args: string[], options: ChildOptions): P
       { encoding: "utf8", maxBuffer: 1 << 30, windowsHide: true, ...options },
       (error, stdout, stderr) => {
         resolve({
-          status: error ? (typeof error.code === "number" ? error.code : null) : 0,
+          status: error ? (isNumber(error.code) ? error.code : null) : 0,
           stdout,
           stderr,
           error: isString(error?.code) ? error : undefined,
@@ -104,7 +104,7 @@ export const runChild = (file: string, args: string[], options: ChildOptions): P
   });
 
 export const messageOf = (error: unknown): string =>
-  typeof error === "object" &&
+  hasObjectType(error) &&
   !matchesNull(error) &&
   "message" in error &&
   isString(error.message)

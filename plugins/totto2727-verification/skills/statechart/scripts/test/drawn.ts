@@ -1,4 +1,4 @@
-import { visitItems } from "#statechart/ir.ts";
+import { matchesUndefined, visitItems } from "#statechart/ir.ts";
 
 const shown = (text: string): string => text.replaceAll(/#(\d+);/gu, (_, n) => String.fromCodePoint(Number(n)));
 
@@ -13,9 +13,9 @@ export const drawn = (chart: string) => {
     if (/^ *\}$/u.test(line)) {blocks.pop();}
     const regexMatch = /^ *(s\d+|\[\*\]) --> (s\d+)(?:: (.*))?$/.exec(line);
     const parent = names.get(blocks.at(-1) ?? "");
-    if (!regexMatch || (regexMatch[1] === "[*]" && parent === undefined)) {return;}
+    if (!regexMatch || (regexMatch[1] === "[*]" && matchesUndefined(parent))) {return;}
     const from = regexMatch[1] === "[*]" ? `${parent} start` : names.get(regexMatch[1]);
-    arrows.push(`${from} --> ${names.get(regexMatch[2])}${regexMatch[3] === undefined ? "" : `: ${shown(regexMatch[3])}`}`);
+    arrows.push(`${from} --> ${names.get(regexMatch[2])}${matchesUndefined(regexMatch[3]) ? "" : `: ${shown(regexMatch[3])}`}`);
   });
   return { states: [...names.values()], arrows };
 };

@@ -1,4 +1,4 @@
-import { EC, isString, matchesUndefined, memo, visitItems } from '#statechart/ir.ts';
+import { EC, hasObjectType, isString, matchesUndefined, memo, visitItems } from '#statechart/ir.ts';
 import type { Mark, Part, TraceState, Value } from '#statechart/ir.ts';
 import { actionOf, messageState } from "./messages.ts";
 import { BRACKET, isSpace, parseValue, tokenEnd, unreadable } from "./value.ts";
@@ -21,7 +21,7 @@ const markTexts = (chunk: string, top: number[], inner: number[]) => {
 };
 
 const ruleNames = (currentValue: Value): string[] | undefined => {
-  if (typeof currentValue !== "object" || currentValue.kind !== "set") {return undefined;}
+  if (!hasObjectType(currentValue) || currentValue.kind !== "set") {return undefined;}
   const names: string[] = [];
   for (const valueItem of currentValue.members) {
     if (!isString(valueItem)) {return undefined;}

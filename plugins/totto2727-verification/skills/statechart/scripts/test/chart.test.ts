@@ -19,7 +19,7 @@ import { report } from "#statechart/backends/report.ts";
 import { readConfig } from "#statechart/frontends/config.ts";
 import { readChecks, readSany, readSpec } from "#statechart/frontends/spec.ts";
 import { checkView, json } from "#statechart/frontends/view.ts";
-import { EC, hasSection, key, LEVEL, ruleKey, show, stateRules, visitItems } from '#statechart/ir.ts';
+import { EC, hasObjectType, hasSection, key, LEVEL, matchesUndefined, ruleKey, show, stateRules, visitItems } from '#statechart/ir.ts';
 import type { Bug, Graph, Lasso, PathStep, Rule, Spec, State, Step, Value, Vars, View } from '#statechart/ir.ts';
 import { addPast, deadEnds, finder, lasso, mark } from "#statechart/passes/annotate.ts";
 import { pathGraph } from "#statechart/passes/paths.ts";
@@ -64,16 +64,16 @@ const graphOf = (states: StateRow[], steps: StepRow[]) => {
 
 const lookup = <K, V>(map: ReadonlyMap<K, V>, k: K) => {
   const v = map.get(k);
-  assert.ok(v !== undefined, `${inspect(k)} is missing`);
+  assert.ok(!matchesUndefined(v), `${inspect(k)} is missing`);
   return v;
 };
 
 const field = (value: Value, name: string) => {
-  if (typeof value !== "object" || value.kind !== "function")
+  if (!hasObjectType(value) || value.kind !== "function")
     {throw new Error(`${inspect(value)} is not a function.`);}
   for (let i = 0; i < value.keys.length; i++) {
     const currentValue = value.keys[i];
-    if (currentValue === name || (typeof currentValue === "object" && currentValue.kind === "model" && currentValue.name === name))
+    if (currentValue === name || (hasObjectType(currentValue) && currentValue.kind === "model" && currentValue.name === name))
       {return value.values[i];}
   }
   throw new Error(`${inspect(value)} has no ${name}.`);
@@ -107,7 +107,7 @@ const marked = (chart: string) => {
   const out: Record<string, string> = {};
   visitItems(chart.matchAll(/^ {2}class (s\d+) (breaks|mayBreak)$/gmu), ([, id, cls]) => {
     const label = (new RegExp(`^\\s*${id}: (.*)$`, "m").exec(chart))?.[1];
-    assert.ok(label !== undefined, `${id} has no label`);
+    assert.ok(!matchesUndefined(label), `${id} has no label`);
     out[label] = cls;
   });
   return out;

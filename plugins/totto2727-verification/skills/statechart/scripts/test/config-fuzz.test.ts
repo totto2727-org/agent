@@ -16,7 +16,7 @@ import { configText } from "#statechart/backends/cfg.ts";
 import { readConfig } from "#statechart/frontends/config.ts";
 import { readChecks } from '#statechart/frontends/spec.ts';
 import type { Checks } from '#statechart/frontends/spec.ts';
-import { visitItems } from "#statechart/ir.ts";
+import { isRecord, visitItems } from "#statechart/ir.ts";
 import { hostEnvironment } from "#statechart/host-env.ts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -99,9 +99,6 @@ const MODEL = [
 ];
 
 type Reading = Record<string, unknown>;
-
-const isRecord = (v: unknown): v is Reading =>
-  typeof v === "object" && v !== null && !Array.isArray(v);
 
 const tableOf = (reading: Reading) => {
   if (!isRecord(reading.table)) {throw new Error(`TLC printed no table: ${JSON.stringify(reading)}`);}
