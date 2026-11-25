@@ -1,4 +1,4 @@
-import { append, byText, isString, matchesUndefined, tupleKey, visitItems } from '#statechart/ir.ts';
+import { append, byText, matchesUndefined, tupleKey, visitItems } from '#statechart/ir.ts';
 import type { Chart, ChartState, Region } from '#statechart/ir.ts';
 import { escapeLabel, escapeTitle } from "#statechart/backends/mermaid-labels.ts";
 
@@ -81,110 +81,167 @@ const MARK_STYLES = {
   mayBreak: "fill:#fff3e6,stroke:#e8730c,stroke-width:2.5px,color:#b85a06",
 };
 
-export const mermaidLines = function mermaidLines(chart: Chart): string[] {
-  const numbering = { next: FIRST_INDEX };
-  const marks: string[] = [];
-  const used = new Set<string>();
-  const rules = { breaks: new Set<string>(), mayBreak: new Set<string>() };
-  const regionLines = (region: Region): string[] => {
-    const out: string[] = [];
-    const topIds = new Map<string, string>();
-    const nestedIds = new Map<string, string>();
-    const id = (path: string[]): string => {
-      const top = path.length === SINGLE_ITEM;
-      const named = top ? topIds : nestedIds;
-      const key = top ? path[FIRST_INDEX] : tupleKey(path);
-      const cached = named.get(key);
-      if (!matchesUndefined(cached)) {return cached;}
-      const name = `s${numbering.next}`;
-      numbering.next += SINGLE_ITEM;
-      named.set(key, name);
-      return name;
-    };
-    const known = new Map<string[], string>();
-    const idOf = (path: string[]): string => {
-      const cached = known.get(path);
-      if (!matchesUndefined(cached)) {return cached;}
-      const name = id(path);
-      known.set(path, name);
-      return name;
-    };
-    const drawn = drawnEdges(region);
-    const line = (edge: Edge, indent: string): string =>
-      `${indent}${edge.start ? "[*]" : idOf(edge.from)} --> ${idOf(edge.to)}${matchesUndefined(edge.label) ? "" : `: ${escapeLabel(edge.label)}`}`;
-    const tree = (prefix: string[], indent: string, below: ChartState[]): void => {
-      const heads = new Map<string, ChartState[]>();
-      visitItems(below, (chartState) => {append(heads, chartState.path[prefix.length], chartState);});
-      visitItems(heads, ([head, under]) => {
-        const path = [...prefix, head];
-        const contents: { inner: ChartState[]; leaf: ChartState | undefined } = { inner: [], leaf: undefined };
-        visitItems(under, (currentState) => {if (currentState.path.length > path.length) {contents.inner.push(currentState);}
-          else {contents.leaf = currentState;}});
-        const { inner, leaf } = contents;
-        if (inner.length) {
-          out.push(`${indent}state "${escapeLabel(head, true)}" as ${id(path)} {`);
-          tree(path, `${indent  }  `, inner);
-          const key = tupleKey(path);
-          visitItems(drawn, (currentEdge) => {if (currentEdge.start && tupleKey(currentEdge.from) === key) {out.push(line(currentEdge, `${indent}  `));}});
-          out.push(`${indent}}`);
-        } else if (leaf) {
-          const sid = idOf(leaf.path);
-          out.push(`${indent}${sid}: ${escapeLabel(head)}`);
-          const mark = leaf.breaks.length && !leaf.works ? violationMark(leaf.breaks) : undefined;
-          if (mark) {
-            const ruleNames = rules[mark];
-            visitItems(leaf.breaks, (branch) => {ruleNames.add(branch.rule.name);});
-          }
-          const trail = [leaf.lead && "bugPath", leaf.repeats && "repeats"];
-          // oxlint-disable-next-line typescript/no-base-to-string -- View groups accept arbitrary values and use their JavaScript string keys to look up colors.
-          const color = matchesUndefined(leaf.group) ? undefined : chart.colors[String(leaf.group)];
-          visitItems([color, mark, ...trail], (cls) => {if (isString(cls) && cls) {
-              used.add(cls);
-              marks.push(`  class ${sid} ${cls}`);
-            }});
-        }
-      });
-    };
-    tree([], "  ", region.states);
-    visitItems(drawn, (edge) => {if (!edge.start || !edge.from.length) {out.push(line(edge, "  "));}});
-    return out;
+interface StateNumbering {
+  next: number;
+}
+
+interface DiagramClasses {
+  colors: Chart["colors"];
+  marks: string[];
+  rules: Record<keyof typeof MARK_STYLES, Set<string>>;
+  used: Set<string>;
+}
+
+const stateIds = (numbering: StateNumbering): { id: (path: string[]) => string; idOf: (path: string[]) => string } => {
+  const topIds = new Map<string, string>();
+  const nestedIds = new Map<string, string>();
+  const id = (path: string[]): string => {
+    const top = path.length === SINGLE_ITEM;
+    const named = top ? topIds : nestedIds;
+    const key = top ? path[FIRST_INDEX] : tupleKey(path);
+    const cached = named.get(key);
+    if (!matchesUndefined(cached)) {return cached;}
+    const name = `s${numbering.next}`;
+    numbering.next += SINGLE_ITEM;
+    named.set(key, name);
+    return name;
   };
-  const parallel = chart.regions.length > SINGLE_ITEM;
-  const body = parallel ? [] : regionLines(chart.regions[FIRST_INDEX]);
-  if (parallel) {
-    body.push(`  state "At the same time" as all {`);
-    visitItems(chart.regions.entries(), ([index, item]) => {
-      if (index) {body.push("    --");}
-      body.push(`    state "${escapeLabel(item.name, true)}" as r${index} {`);
-      visitItems(regionLines(item), (line) => {body.push(`    ${line}`);});
-      body.push("    }");
-    });
-    body.push("  }");
+  const known = new Map<string[], string>();
+  const idOf = (path: string[]): string => {
+    const cached = known.get(path);
+    if (!matchesUndefined(cached)) {return cached;}
+    const name = id(path);
+    known.set(path, name);
+    return name;
+  };
+  return { id, idOf };
+};
+
+const markState = (state: ChartState, stateId: string, classes: DiagramClasses): void => {
+  const mark = state.breaks.length && !state.works ? violationMark(state.breaks) : undefined;
+  if (mark) {
+    const ruleNames = classes.rules[mark];
+    visitItems(state.breaks, (branch) => {ruleNames.add(branch.rule.name);});
   }
-  const legend: string[][] = [];
-  visitItems([
+  const trail = [state.lead && "bugPath", state.repeats && "repeats"];
+  // oxlint-disable-next-line typescript/no-base-to-string -- View groups accept arbitrary values and use their JavaScript string keys to look up colors.
+  const color = matchesUndefined(state.group) ? undefined : classes.colors[String(state.group)];
+  visitItems([color, mark, ...trail], (className) => {
+    // oxlint-disable-next-line typescript/strict-boolean-expressions -- The color lookup can return inherited values, so preserve JavaScript truthiness when emitting the chart's styles.
+    if (className) {
+      classes.used.add(className);
+      classes.marks.push(`  class ${stateId} ${className}`);
+    }
+  });
+};
+
+interface BranchContents {
+  inner: ChartState[];
+  leaf: ChartState | undefined;
+}
+
+const branchContents = (states: ChartState[], depth: number): BranchContents => {
+  const contents: BranchContents = { inner: [], leaf: undefined };
+  visitItems(states, (state) => {
+    if (state.path.length > depth) {
+      contents.inner.push(state);
+    } else {
+      contents.leaf = state;
+    }
+  });
+  return contents;
+};
+
+const drawRegion = (region: Region, numbering: StateNumbering, classes: DiagramClasses): string[] => {
+  const out: string[] = [];
+  const { id, idOf } = stateIds(numbering);
+  const drawn = drawnEdges(region);
+  const line = (edge: Edge, indent: string): string =>
+    `${indent}${edge.start ? "[*]" : idOf(edge.from)} --> ${idOf(edge.to)}${matchesUndefined(edge.label) ? "" : `: ${escapeLabel(edge.label)}`}`;
+  const drawLeaf = (leaf: ChartState, head: string, indent: string): void => {
+    const stateId = idOf(leaf.path);
+    out.push(`${indent}${stateId}: ${escapeLabel(head)}`);
+    markState(leaf, stateId, classes);
+  };
+  const tree = (prefix: string[], indent: string, below: ChartState[]): void => {
+    const heads = new Map<string, ChartState[]>();
+    visitItems(below, (state) => {append(heads, state.path[prefix.length], state);});
+    visitItems(heads, ([head, states]) => {
+      const path = [...prefix, head];
+      const { inner, leaf } = branchContents(states, path.length);
+      if (inner.length) {
+        out.push(`${indent}state "${escapeLabel(head, true)}" as ${id(path)} {`);
+        tree(path, `${indent}  `, inner);
+        const key = tupleKey(path);
+        visitItems(drawn, (edge) => {
+          if (edge.start && tupleKey(edge.from) === key) {out.push(line(edge, `${indent}  `));}
+        });
+        out.push(`${indent}}`);
+      } else if (leaf) {
+        drawLeaf(leaf, head, indent);
+      }
+    });
+  };
+  tree([], "  ", region.states);
+  visitItems(drawn, (edge) => {if (!edge.start || !edge.from.length) {out.push(line(edge, "  "));}});
+  return out;
+};
+
+const drawBody = (regions: Region[], numbering: StateNumbering, classes: DiagramClasses): string[] => {
+  if (regions.length <= SINGLE_ITEM) {return drawRegion(regions[FIRST_INDEX], numbering, classes);}
+  const body = ['  state "At the same time" as all {'];
+  visitItems(regions.entries(), ([index, region]) => {
+    if (index) {body.push("    --");}
+    body.push(`    state "${escapeLabel(region.name, true)}" as r${index} {`);
+    visitItems(drawRegion(region, numbering, classes), (line) => {body.push(`    ${line}`);});
+    body.push("    }");
+  });
+  body.push("  }");
+  return body;
+};
+
+const legendLines = (chart: Chart, classes: DiagramClasses): string[] => {
+  const { rules, used } = classes;
+  const legend = [
     ...Object.entries(chart.colors),
     [`Breaks ${or(rules.breaks)}`, "breaks"],
     [`Breaks ${or(rules.mayBreak)} in some cases`, "mayBreak"],
     [`Path to the ${or(chart.paths)} bug`, "bugPath"],
     [`Repeats forever, so ${or(chart.loops)} breaks`, "repeats"],
-  ], (entry) => {if (used.has(entry[1])) {legend.push(entry);}});
-  const lines: string[] = [];
-  const titleSource = chart.title ?? "";
+  ].filter(([, className]) => used.has(className));
+  if (!legend.length) {return [];}
+  const lines = ['  state "Legend" as legend {'];
+  visitItems(legend.entries(), ([index, [text]]) => {lines.push(`    lg${index}: ${escapeLabel(text)}`);});
+  lines.push("  }");
+  visitItems(legend.entries(), ([index, [, className]]) => {lines.push(`  class lg${index} ${className}`);});
+  return lines;
+};
+
+const headerLines = (titleSource: string, parallel: boolean): string[] => {
   const title = titleSource ? escapeTitle(titleSource) : "";
-  if (title) {lines.push("---", `title: ${JSON.stringify(title)}`, "---");}
+  const lines = title ? ["---", `title: ${JSON.stringify(title)}`, "---"] : [];
   lines.push("stateDiagram-v2");
   if (parallel) {lines.push("  direction LR");}
-  if (legend.length) {
-    lines.push(`  state "Legend" as legend {`);
-    visitItems(legend.entries(), ([index, [text]]) => {lines.push(`    lg${index}: ${escapeLabel(text)}`);});
-    lines.push("  }");
-    visitItems(legend.entries(), ([index, [, cls]]) => {lines.push(`  class lg${index} ${cls}`);});
-  }
-  visitItems(body, (line) => {lines.push(line);});
-  Object.entries(MARK_STYLES).forEach(([cls, style]) => {if (used.has(cls)) {lines.push(`  classDef ${cls} ${style}`);}});
-  visitItems(marks, (line) => {lines.push(line);});
   return lines;
+};
+
+export const mermaidLines = function mermaidLines(chart: Chart): string[] {
+  const numbering = { next: FIRST_INDEX };
+  const classes: DiagramClasses = {
+    colors: chart.colors,
+    marks: [],
+    rules: { breaks: new Set<string>(), mayBreak: new Set<string>() },
+    used: new Set<string>(),
+  };
+  const body = drawBody(chart.regions, numbering, classes);
+  const styles = Object.entries(MARK_STYLES).flatMap(([className, style]) => classes.used.has(className) ? [`  classDef ${className} ${style}`] : []);
+  return [
+    ...headerLines(chart.title ?? "", chart.regions.length > SINGLE_ITEM),
+    ...legendLines(chart, classes),
+    ...body,
+    ...styles,
+    ...classes.marks,
+  ];
 };
 
 export const mermaid = (chart: Chart): string => mermaidLines(chart).join("\n");

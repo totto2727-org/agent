@@ -1,4 +1,4 @@
-import { matchesUndefined } from "#statechart/ir.ts";
+import { matchesUndefined, visitItems } from "#statechart/ir.ts";
 
 const BLANK = /\p{White_Space}/u;
 const SAFE = /^[\p{L}\p{N} !'()+,\-./=?[\]"_|@{}:\\^%<>]$/u;
@@ -71,8 +71,20 @@ const encode = (text: string, ref: (codePoint: number) => string): string => {
     output: "",
     spanStart: FIRST_CODE_UNIT,
   };
-  // oxlint-disable-next-line rules/no-for-loops -- Iterate Unicode characters without copying potentially long labels or losing their UTF-16 offsets.
-  for (const character of text) {
+  const writeGlyph = (offset: number, codePoint: number, kind: number): void => {
+    const joined = firstOf.get(codePoint) === position.last;
+    if (!joined && kind === KEPT) {return;}
+    position.output += text.slice(position.spanStart, offset) + (joined ? ref(WORD_JOINER) : "");
+    if (kind === KEPT) {
+      position.spanStart = offset;
+      return;
+    }
+    position.output += kind === BLANKED ? " " : ref(codePoint);
+    position.spanStart = position.end;
+  };
+
+  // Track UTF-16 offsets while visiting Unicode characters without copying the string.
+  visitItems(text, (character) => {
     const offset = position.end;
     position.end += character.length;
     const codePoint = scalar(character);
@@ -80,23 +92,11 @@ const encode = (text: string, ref: (codePoint: number) => string): string => {
     if (kind === DROPPED) {
       position.output += text.slice(position.spanStart, offset);
       position.spanStart = position.end;
-    } else {
-      const joined = firstOf.get(codePoint) === position.last;
-      if (joined || kind !== KEPT) {
-        position.output += text.slice(position.spanStart, offset);
-        if (joined) {
-          position.output += ref(WORD_JOINER);
-        }
-        if (kind === KEPT) {
-          position.spanStart = offset;
-        } else {
-          position.output += kind === BLANKED ? " " : ref(codePoint);
-          position.spanStart = position.end;
-        }
-      }
-      position.last = codePoint;
+      return;
     }
-  }
+    writeGlyph(offset, codePoint, kind);
+    position.last = codePoint;
+  });
   return position.output + text.slice(position.spanStart);
 };
 
