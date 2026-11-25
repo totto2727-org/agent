@@ -92,13 +92,14 @@ export const runChild = (file: string, args: string[], options: ChildOptions): P
       file,
       args,
       { encoding: "utf8", maxBuffer: 1 << 30, windowsHide: true, ...options },
-      (error, stdout, stderr) =>
+      (error, stdout, stderr) => {
         resolve({
           status: error ? (typeof error.code === "number" ? error.code : null) : 0,
           stdout,
           stderr,
           error: isString(error?.code) ? error : undefined,
-        }),
+        });
+      },
     );
   });
 
@@ -176,13 +177,14 @@ const runToFiles = (
       visitItems(fds, (fd) => {fs.closeSync(fd);});
     }
     let error: Error | undefined;
-    const settle = (code: number | null): void =>
+    const settle = (code: number | null): void => {
       resolve({
         status: error ? null : code,
         stdout: files[0],
         output: joined(files),
         error,
       });
+    };
     child.on("error", (currentError) => {
       error = currentError;
       if (matchesUndefined(child.pid)) {settle(null);}

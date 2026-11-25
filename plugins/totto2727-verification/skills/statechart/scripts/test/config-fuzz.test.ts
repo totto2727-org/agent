@@ -209,7 +209,7 @@ test(
   { skip },
   async (testContext) => {
     const dir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "statechart-config-fuzz-"));
-    testContext.after(() => fs.rmSync(dir, { recursive: true }));
+    testContext.after(async () => {await fs.promises.rm(dir, { recursive: true });});
     const random = mulberry32(SEED);
     const cases: {
       i: number;

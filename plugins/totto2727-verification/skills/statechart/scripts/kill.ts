@@ -4,9 +4,10 @@ import { spawn } from "node:child_process";
 export const killGroup = (pid: number): Promise<void> =>
   new Promise<void>((resolve) => {
     if (process.platform === "win32") {
+      const finish = (): void => {resolve();};
       spawn("taskkill", ["/pid", String(pid), "/t", "/f"], { stdio: "ignore" })
-        .on("error", () => resolve())
-        .on("exit", () => resolve());
+        .on("error", finish)
+        .on("exit", finish);
       return;
     }
     try {

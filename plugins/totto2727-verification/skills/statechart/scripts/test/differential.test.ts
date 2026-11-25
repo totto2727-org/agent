@@ -278,13 +278,13 @@ const run = (command: string, args: string[], cwd: string) =>
     child.stdout.on("data", (buffer: Buffer) => stdout.push(buffer));
     child.stderr.on("data", (buffer: Buffer) => stderr.push(buffer));
     child.on("error", reject);
-    child.on("close", (status) =>
+    child.on("close", (status) => {
       resolve({
         status,
         stdout: Buffer.concat(stdout).toString(),
         stderr: Buffer.concat(stderr).toString(),
-      }),
-    );
+      });
+    });
   });
 
 const plainTlc = (dir: string, c: Case, name: string, lines: string[]) => {
