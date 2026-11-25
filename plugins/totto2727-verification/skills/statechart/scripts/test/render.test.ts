@@ -1,118 +1,65 @@
 // oxlint-disable-next-line rules/no-node-imports -- Statechart's Node suite uses native assertions for chart and subprocess results.
 import assert from "node:assert/strict";
-// oxlint-disable-next-line rules/no-node-imports -- Statechart's native fixtures use this built-in to launch the real programs whose stdout, stderr and status are consumed.
-import { execFileSync } from "node:child_process";
-// oxlint-disable-next-line rules/no-node-imports -- Statechart's native fixtures use this built-in to inspect or write files through the host filesystem.
-import fs from "node:fs";
-// oxlint-disable-next-line rules/no-node-imports -- Statechart's native fixtures use this built-in to use the host resolver for the installed driver or fixture package.
-import { createRequire } from "node:module";
-// oxlint-disable-next-line rules/no-node-imports -- Statechart's native fixtures use this built-in to select the host's real temporary directory.
-import os from "node:os";
-// oxlint-disable-next-line rules/no-node-imports -- Statechart's native fixtures use this built-in to resolve paths using the host platform's filesystem conventions.
-import path from "node:path";
 // oxlint-disable-next-line rules/no-node-imports -- Statechart runs these fixtures with Node's test runner as part of the standalone skill.
 import { before, test } from "node:test";
-// oxlint-disable-next-line rules/no-node-imports -- Statechart's native fixtures use this built-in to convert local module URLs with the host platform's path rules.
-import { fileURLToPath, pathToFileURL } from "node:url";
 import { mermaid as chartText } from "#statechart/backends/mermaid.ts";
 import type { Graph } from "#statechart/ir.ts";
 import { walk } from "#statechart/passes/reach.ts";
 import { project } from "#statechart/pipeline.ts";
-import { fuzz } from './labels.ts';
-import type { Html, Mermaid, Render } from './labels.ts';
-import { visitItems } from "#statechart/ir.ts";
-import { hostEnvironment } from "#statechart/host-env.ts";
+import { fuzz } from "./labels.ts";
+import { matchesUndefined, visitItems } from "#statechart/ir.ts";
+import { chartFixtures, loadRenderTools, themeFixture } from "./render-fixtures.ts";
+import type { RenderTools } from "./render-fixtures.ts";
+import { crossedTitleBars, titleBars } from "./render-geometry.ts";
 
-const here = path.dirname(fileURLToPath(import.meta.url));
-const charts = [
-  ...fs.readdirSync(path.join(here, "charts")).map((file) => path.join(here, "charts", file)),
-  ...fs.readdirSync(path.join(here, "corpus")).map((folder) => path.join(here, "corpus", folder, "chart.mmd")),
-];
-const guide = fs.readFileSync(path.join(here, "../../references/render.md"), "utf8");
-const css = /```css\n([\s\S]*?)```/.exec(guide);
-assert.ok(css, "references/render.md has no css block");
-const theme = css[1];
-const cache = path.join(
-  hostEnvironment().XDG_CACHE_HOME ?? path.join(os.homedir(), ".cache"),
-  "statechart",
-);
-const install = (name: string, ...packages: string[]) => {
-  const dir = path.join(cache, name);
-  execFileSync(
-    "npm",
-    ["install", "--prefix", dir, "--no-audit", "--no-fund", "--save-exact", ...packages],
-    { stdio: ["ignore", "pipe", "pipe"] },
-  );
-  return createRequire(path.join(dir, "package.json"));
+const fixtures = await chartFixtures();
+const theme = await themeFixture();
+assert.ok(!matchesUndefined(theme), "references/render.md has no css block");
+
+const BOOTSTRAP_SEED = 1;
+const FUZZ_CASES = 500;
+const MIN_DRAWN = 400;
+const MIN_REFUSED = 20;
+const NO_CLASSES = 0;
+const EXPECTED_BARS = 1;
+
+const setup: { tools?: RenderTools } = {};
+before(async () => {setup.tools = await loadRenderTools();});
+
+const tools = (): RenderTools => {
+  const { tools: runtimes } = setup;
+  assert.ok(runtimes, "Renderer fixtures must be set up first.");
+  return runtimes;
 };
 
-let render: Render;
-let mermaid: Mermaid;
-let html: Html;
-before(async () => {
-  const pele = install("test-pele-1.9.0", "pele@1.9.0");
-  ({ render } = await import(pathToFileURL(pele.resolve("pele")).href));
-
-  const parser = install("test-mermaid-11.16.0", "mermaid@11.16.0", "jsdom@26.1.0");
-  const { window } = new (parser("jsdom").JSDOM)("");
-  Object.assign(globalThis, { window, document: window.document, DOMParser: window.DOMParser });
-  mermaid = (await import(pathToFileURL(parser.resolve("mermaid")).href)).default;
-  html = (markup) => {
-    const t = window.document.createElement("template");
-    t.innerHTML = markup;
-    return t.content.textContent ?? "";
-  };
-});
-
 const classes = new Set<string>();
-visitItems(charts, (chart) => {
-  const name = path.relative(here, chart);
-  const text = fs.readFileSync(chart, "utf8");
-  const marks = [...text.matchAll(/^ {2}class (\w+) (\w+)$/gmu)];
-  visitItems(marks, ([, , mark]) => {classes.add(mark);});
+visitItems(fixtures, ({ name, text }) => {
+  const marks = [...text.matchAll(/^ {2}class (?<id>\w+) (?<mark>\w+)$/gmu)];
+  visitItems(marks, ({ groups }) => {if (!matchesUndefined(groups)) {classes.add(groups.mark);}});
 
   // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
   test(`${name} renders in Pele 1.9.0 with each class on its node`, () => {
-    const { svg } = render(text);
+    const { svg } = tools().render(text);
     assert.match(svg, /^<svg /u);
-    visitItems(marks, ([, id, mark]) => {assert.match(svg, new RegExp(`class="pele-node[^"]* ${mark}\\b[^"]*" data-id="${id}"`), id);});
+    visitItems(marks, ({ groups }) => {
+      if (matchesUndefined(groups)) {return;}
+      const { id, mark } = groups;
+      assert.match(svg, new RegExp(`class="pele-node[^"]* ${mark}\\b[^"]*" data-id="${id}"`, "u"), id);
+    });
   });
 
   // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
   test(`${name} parses in mermaid.js, which chat views use`, async () => {
-    await mermaid.parse(text);
+    await tools().mermaid.parse(text);
   });
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("random labels and colors keep their text and the chart's shape in Mermaid and Pele", async () => {
-  const { drawn, refused, failure } = await fuzz({ seed: 1, charts: 500, render, mermaid, html });
-  if (failure) {assert.fail(failure);}
-  assert.ok(drawn > 400 && refused > 20, `${drawn} charts drawn, ${refused} refused`);
+  const { drawn, refused, failure } = await fuzz({ ...tools(), charts: FUZZ_CASES, seed: BOOTSTRAP_SEED });
+  if (!matchesUndefined(failure)) {assert.fail(failure);}
+  assert.ok(drawn > MIN_DRAWN && refused > MIN_REFUSED, `${drawn} charts drawn, ${refused} refused`);
 });
-
-const pathPoints = (d: string) => {
-  const points: number[][] = [];
-  let [ax, ay] = [0, 0];
-  visitItems(d.matchAll(/([MLC])([^MLC]*)/g), ([, cmd, args]) => {
-    const n = args.split(/[ ,]/u).filter(Boolean).map(Number);
-    const [x, y] = n.slice(-2);
-    if (cmd !== "M")
-      {for (let t = 0; t <= 1; t += 1 / 64) {
-        const u = 1 - t;
-        points.push(
-          cmd === "L"
-            ? [ax + (x - ax) * t, ay + (y - ay) * t]
-            : [
-                u ** 3 * ax + 3 * u * u * t * n[0] + 3 * u * t * t * n[2] + t ** 3 * x,
-                u ** 3 * ay + 3 * u * u * t * n[1] + 3 * u * t * t * n[3] + t ** 3 * y,
-              ],
-        );
-      }}
-    [ax, ay] = [x, y];
-  });
-  return points;
-};
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("an arrow into a parent from its only way in stays out of the parent's title bar in Pele 1.9.0", () => {
@@ -122,34 +69,25 @@ test("an arrow into a parent from its only way in stays out of the parent's titl
     ["flat", "Laying out the chart/Flat"],
     ["parents", "Laying out the chart/Parent states"],
     ["regions", "Laying out the chart/Regions"],
-  ], ([id, at]) => {graph.states.set(id, { vars: { at }, start: id === "ask", breaks: [] });});
+  ], ([id, at]) => {graph.states.set(id, { breaks: [], start: id === "ask", vars: { at } });});
   visitItems([
     ["flat", "String"],
     ["parents", "Array"],
     ["regions", "Object"],
-  ], ([to, action]) => {graph.steps.push({ from: "ask", to, action });});
-  const { chart } = project(graph, walk(graph), { found: [], view: { state: (v) => String(v.at).split("/") } });
-  const { svg } = render(chartText(chart));
-  const bars = [
-    ...svg.matchAll(
-      /<g class="pele-cluster [^"]*" data-id="([^"]*)"><rect x="([\d.]+)" y="([\d.]+)" width="([\d.]+)"[^>]*\/><path d="M[\d.]+,([\d.]+)H/g,
-    ),
-  ].map(([, id, x, y, w, rule]) => ({ id, left: +x, right: +x + +w, top: +y, bottom: +rule }));
-  assert.equal(bars.length, 1);
-  const crossings: string[] = [];
-  visitItems(svg.matchAll(
-    /<g class="pele-edge pele-transition" data-id="([^"]*)"><path d="([^"]*)"/g,
-  ), ([, id, d]) => {visitItems(bars, (bar) => {if (
-        pathPoints(d).some(
-          ([x, y]) => x > bar.left && x < bar.right && y > bar.top && y < bar.bottom,
-        )
-      )
-        {crossings.push(`${id} crosses the title bar of ${bar.id}`);}});});
-  assert.deepEqual(crossings, []);
+  ], ([to, action]) => {graph.steps.push({ action, from: "ask", to });});
+  const { chart } = project(graph, walk(graph), {
+    found: [],
+    // oxlint-disable-next-line typescript/no-base-to-string -- The fixture uses the same native label conversion as the standalone renderer test.
+    view: { state: (vars) => String(vars.at).split("/") },
+  });
+  const { svg } = tools().render(chartText(chart));
+  const bars = titleBars(svg);
+  assert.equal(bars.length, EXPECTED_BARS);
+  assert.deepEqual(crossedTitleBars(svg, bars), []);
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("the theme in references/render.md colors each class that the charts use", () => {
-  assert.ok(classes.size > 0);
-  visitItems(classes, (name) => {assert.match(theme, new RegExp(`\\.pele \\.${name} rect \\{`), name);});
+  assert.ok(classes.size > NO_CLASSES);
+  visitItems(classes, (name) => {assert.match(theme, new RegExp(`\\.pele \\.${name} rect \\{`, "u"), name);});
 });
