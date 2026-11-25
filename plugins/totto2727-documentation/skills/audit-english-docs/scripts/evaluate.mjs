@@ -6,19 +6,12 @@ import { writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { runMechanical } from "./mechanical.mjs";
 
-import { hasObjectType, matchesNull, matchesUndefined } from "./native-predicates.mjs";
+import { matchesNull } from "./native-predicates.mjs";
 
-import {
-  actionRequest,
-  cacheFingerprint,
-  endpointFor,
-  payloadFor,
-  readCredentials,
-  TransportFailure,
-} from "./evaluation-transport.mjs";
+import { TransportFailure } from "./evaluation-transport.mjs";
 import { EvaluationError } from "./evaluation-validation.mjs";
-import { validateResponse } from "./evaluation-response.mjs";
 
+import { requestsFor } from "./evaluation-batch.mjs";
 import { loadManifest, parseArguments } from "./evaluation-manifest.mjs";
 import { pooled } from "./evaluation-scheduler.mjs";
 import { reportBaseFor, stateFor } from "./evaluation-state.mjs";
@@ -45,7 +38,6 @@ export { buildWork, segmentMarkdown } from "./evaluation-work.mjs";
 export { validateResponse } from "./evaluation-response.mjs";
 
 /** @typedef {{ concurrency?: number, dryRun?: boolean, environment?: Record<string, string | undefined>, manifestPath: string, mechanicalOnly?: boolean, outputPath: string }} EvaluationOptions */
-/** @typedef {{ cacheStatus: ReturnType<typeof import("./evaluation-transport.mjs").parseCacheStatus>, ray: ReturnType<typeof import("./evaluation-transport.mjs").parseTraceId>, validated: ReturnType<typeof validateResponse> }} ValidatedOutcome */
 
 const defaultConcurrency = 4;
 const minimumConcurrency = 1;
@@ -58,26 +50,6 @@ const reviewFor = (answer, threshold) => {
     answer.choice === "not_applicable" ||
     (answer.choice === "pass" && (matchesNull(threshold) || answer.confidence < threshold))
   );
-};
-
-/** @type {(request: import("./evaluation-transport.mjs").ActionInput) => Promise<ValidatedOutcome>} */
-const requestAndValidate = async (request) => {
-  const outcome = await actionRequest(request);
-  try {
-    return {
-      validated: validateResponse(outcome.response, request.questions, request.model),
-      cacheStatus: outcome.cacheStatus,
-      ray: outcome.ray,
-    };
-  } catch (error) {
-    // Validation failures retain the received headers for every consumer of the shared request.
-    if (error && hasObjectType(error)) {
-      const failure = /** @type {Record<string, unknown>} */ (error);
-      failure.cacheStatus ??= outcome.cacheStatus;
-      failure.ray ??= outcome.ray;
-    }
-    throw error;
-  }
 };
 
 /** @param {EvaluationOptions} options - Inputs and execution settings for one audit run. */
@@ -98,22 +70,12 @@ export const evaluate = async ({
   }
   const manifest = await loadManifest(manifestPath, { mechanicalOnly });
   const work = await buildWork(manifest, manifestPath);
-  const metrics = { requestCount: 0, activeRequests: 0, observedPeakActiveRequests: 0 };
-  const credentials =
-    dryRun ||
-    mechanicalOnly ||
-    !work.some((item) => item.engine === "decision" && !item.unavailable)
-      ? null
-      : readCredentials(environment);
-  // Single-flight memo scoped to one evaluate run. Equivalent logical requests
-  // (same account/gateway/token route, model, state, criteria, and question
-  // Payload) share one pending/resolved/rejected promise, so duplicate work
-  // Never submits a second Gateway request. The memo is intentionally per-run:
-  // A fresh run re-validates against the Gateway and its cache again.
-  /** @type {Map<string, Promise<ValidatedOutcome>>} */
-  const inflight = new Map();
-  /** @type {TransportFailure | null} */
-  let fatal = null;
+  const { failures, metrics, submit } = requestsFor(work, {
+    dryRun,
+    environment,
+    mechanicalOnly,
+    model: manifest.model,
+  });
   const evaluated = await pooled(work, concurrency, async (item) => {
     const base = reportBaseFor(item, manifest.rules);
     const reportQuestions = base.questions;
@@ -167,40 +129,16 @@ export const evaluate = async ({
     if (dryRun) {
       return dryRunResult();
     }
-    if (fatal) {
-      return { ...base, status: "skipped", error: fatal.message, answers: [], cache: null };
+    if (failures.fatal) {
+      return {
+        ...base,
+        status: "skipped",
+        error: failures.fatal.message,
+        answers: [],
+        cache: null,
+      };
     }
-    const { model } = manifest;
-    if (matchesNull(credentials) || matchesUndefined(model)) {
-      throw new EvaluationError(
-        "An active semantic evaluation requires a model and gateway credentials.",
-      );
-    }
-    const state = stateFor(item);
-    const url = endpointFor(model, credentials.accountId);
-    const body = payloadFor(model, state, item.requestQuestions);
-    const key = cacheFingerprint({
-      url,
-      gatewayId: credentials.gatewayId,
-      apiKey: credentials.apiKey,
-      body,
-    });
-    const existing = inflight.get(key);
-    const reused = !matchesUndefined(existing);
-    // Cache the validation promise before awaiting it so duplicate work shares one outcome.
-    const request =
-      existing ??
-      requestAndValidate({
-        model,
-        state,
-        questions: item.requestQuestions,
-        credentials,
-        cacheKey: key,
-        metrics,
-      });
-    if (!reused) {
-      inflight.set(key, request);
-    }
+    const { key, request, reused } = submit(item);
     try {
       const { validated, cacheStatus, ray } = await request;
       return {
@@ -239,7 +177,7 @@ export const evaluate = async ({
     } catch (error) {
       const cache = { key, status: error?.cacheStatus ?? null, reused, ray: error?.ray ?? null };
       if (error instanceof TransportFailure) {
-        fatal ??= error;
+        failures.fatal ??= error;
         return { ...base, status: "error", error: error.message, answers: [], cache };
       }
       return {
