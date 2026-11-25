@@ -17,16 +17,16 @@ import { test } from "node:test";
 // oxlint-disable-next-line rules/no-node-imports -- Statechart's native fixtures use this built-in to await the host timer used by the polling or subprocess fixture.
 import { setTimeout as sleep } from "node:timers/promises";
 // oxlint-disable-next-line rules/no-node-imports -- Statechart's native fixtures use this built-in to convert local module URLs with the host platform's path rules.
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { pathToFileURL } from "node:url";
 import { plainText } from "#statechart/backends/plain-text.ts";
 import { readMessages } from "#statechart/frontends/messages.ts";
 import { drawn } from "./drawn.ts";
-import { visitItems } from "#statechart/ir.ts";
+import { matchesUndefined, visitItems } from "#statechart/ir.ts";
 import { hostEnvironment } from "#statechart/host-env.ts";
 import { fileExists, runChild } from "#statechart/run.ts";
 import { FIXTURE_PROCESS_OPTIONS, forEachTlcCase } from "./tlc.ts";
 
-const here = path.dirname(fileURLToPath(import.meta.url));
+const here = import.meta.dirname;
 const corpus = path.join(here, "corpus");
 const read = (file: string): string => fs.readFileSync(file, "utf8");
 
@@ -36,6 +36,12 @@ const RULE_BROKEN = 1;
 const COMMAND_ERROR = 2;
 const NO_COMPATIBLE_RUNTIME = 127;
 const SIGNAL_STATUS_OFFSET = 128;
+const FIRST_CHARACTER = 0;
+const INDEX_STEP = 1;
+const PROCESS_EXISTS_SIGNAL = 0;
+const CLEANUP_ATTEMPTS = 250;
+const CLEANUP_POLL_MILLISECONDS = 20;
+const SIGNAL_OUTPUT_GRID_WIDTH = 150;
 
 // The native exit values recorded by the TLC 1.7.4 fixtures.
 const TLC_PASSED = 0;
@@ -59,7 +65,7 @@ const readConfigurations = async (file: string): Promise<Record<string, string>>
   const configs: Record<string, string> = {};
   if (!(await fileExists(file))) {return configs;}
   const log = await readFile(file, "utf8");
-  visitItems(log.split(/^## /mu), (part) => {if (part) {configs[part.slice(0, part.indexOf("\n"))] = part;}});
+  visitItems(log.split(/^## /mu), (part) => {if (part) {configs[part.slice(FIRST_CHARACTER, part.indexOf("\n"))] = part;}});
   return configs;
 };
 
@@ -131,7 +137,9 @@ const named = (report: string): string[] => {
   return files;
 };
 
-visitItems(fs.readdirSync(corpus), (name) => {
+const corpusNames = await readdir(corpus);
+
+visitItems(corpusNames, (name) => {
   // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
   test(`${name} writes the committed chart and report from TLC's output`, async () => {
     const dir = path.join(corpus, name);
@@ -151,16 +159,22 @@ visitItems(fs.readdirSync(corpus), (name) => {
 
 const asTlcPrintsOnWindows = function (text: string): string {
   const lines = text.split("\n");
-  let depth = 0;
-  for (let lineIndex = 0; lineIndex < lines.length - 1; lineIndex++) {
-    if (/@!@!@STARTMSG \d+:\d+ @!@!@$/u.test(lines[lineIndex])) {depth++;}
-    else if (/^@!@!@ENDMSG \d+ @!@!@$/u.test(lines[lineIndex])) {depth--;}
-    if (!depth) {lines[lineIndex] += "\r";}
-  }
-  return lines.join("\n");
+  const lastIndex = lines.length - INDEX_STEP;
+  const noOpenMessages = 0;
+  const oneMessage = 1;
+  const frames = { depth: noOpenMessages };
+  return lines.map((line, index) => {
+    if (index === lastIndex) {return line;}
+    if (/@!@!@STARTMSG \d+:\d+ @!@!@$/u.test(line)) {
+      frames.depth += oneMessage;
+    } else if (/^@!@!@ENDMSG \d+ @!@!@$/u.test(line)) {
+      frames.depth -= oneMessage;
+    }
+    return frames.depth === noOpenMessages ? `${line}\r` : line;
+  }).join("\n");
 };
 
-visitItems(fs.readdirSync(corpus), (name) => {
+visitItems(corpusNames, (name) => {
   // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
   test(`${name} writes the committed chart and report from TLC's output with Windows line ends`, async () => {
     const dir = await copyCase(name, async (folder) => {
@@ -273,25 +287,40 @@ visitItems([
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("the order of TLC's dump and its state IDs do not change the chart or the report", async () => {
-  let seed = 7;
-  const random = (): number => (seed = (seed * 48_271) % 2_147_483_647) / 2_147_483_647;
+  const firstSeed = 7;
+  const multiplier = 48_271;
+  const modulus = 2_147_483_647;
+  const generator = { seed: firstSeed };
+  const random = (): number => {
+    generator.seed = (generator.seed * multiplier) % modulus;
+    return generator.seed / modulus;
+  };
   await forEachTlcCase(["DieHard", "LoginParallel", "TwoPhase"], async (name) => {
     const dir = await copyCase(name, async (copiedDirectory) => {
       const file = path.join(copiedDirectory, "graph.dot");
       const ids = new Map<string, string>();
-      const id = (originalId: string): string | undefined => ids.get(originalId) ?? ids.set(originalId, String(9000 - ids.size * 17)).get(originalId);
+      const firstReplacementId = 9000;
+      const replacementStride = 17;
+      const id = (originalId: string): string => {
+        const existing = ids.get(originalId);
+        if (!matchesUndefined(existing)) {return existing;}
+        const replacement = String(firstReplacementId - ids.size * replacementStride);
+        ids.set(originalId, replacement);
+        return replacement;
+      };
       const lines: string[] = [];
       visitItems(read(file).split("\n"), (part) => {if (/^-?\d+ (?:\[|->)/u.test(part))
           {lines.push(
             part.replace(
               /^(?<fromId>-?\d+)(?: -> (?<toId>-?\d+))?/u,
-              (_match: string, fromId: string, toId: string | undefined) => id(fromId) + (toId ? ` -> ${id(toId)}` : ""),
+              (_match: string, fromId: string, toId: string | undefined) => `${id(fromId)}${matchesUndefined(toId) ? "" : ` -> ${id(toId)}`}`,
             ),
           );}});
-      for (let shuffleIndex = lines.length - 1; shuffleIndex > 0; shuffleIndex--) {
-        const swapIndex = Math.floor(random() * (shuffleIndex + 1));
+      const indices = Array.from({ length: lines.length }, (_line, index) => index);
+      visitItems(indices.slice(INDEX_STEP).toReversed(), (shuffleIndex) => {
+        const swapIndex = Math.floor(random() * (shuffleIndex + INDEX_STEP));
         [lines[shuffleIndex], lines[swapIndex]] = [lines[swapIndex], lines[shuffleIndex]];
-      }
+      });
       await fs.promises.writeFile(file, ["strict digraph DiskGraph {", ...lines, "}"].join("\n"));
     });
     const result = await run(dir);
@@ -365,7 +394,7 @@ const assertGone = async function (pid: number): Promise<void> {
   for (let pollAttempt = 0; ; pollAttempt++) {
     let code: string | undefined;
     try {
-      process.kill(pid, 0);
+      process.kill(pid, PROCESS_EXISTS_SIGNAL);
     } catch (error) {
       code = (error as NodeJS.ErrnoException).code;
       // MacOS gives EPERM for a process group of only zombies, until they are reaped.
@@ -375,15 +404,15 @@ const assertGone = async function (pid: number): Promise<void> {
       }
     }
     assert.ok(
-      pollAttempt < 250,
+      pollAttempt < CLEANUP_ATTEMPTS,
       `Process ${pid} ${code ? "exited, but it was not reaped" : "is still running"}.`,
     );
-    await sleep(20);
+    await sleep(CLEANUP_POLL_MILLISECONDS);
   }
 };
 
 const assertEmpty = async function (dir: string): Promise<void> {
-  for (let pollAttempt = 0; pollAttempt < 250 && fs.readdirSync(dir).length; pollAttempt++) {await sleep(20);}
+  for (let pollAttempt = 0; pollAttempt < CLEANUP_ATTEMPTS && fs.readdirSync(dir).length; pollAttempt++) {await sleep(CLEANUP_POLL_MILLISECONDS);}
   assert.deepEqual(await fs.promises.readdir(dir), []);
 };
 
@@ -391,15 +420,17 @@ const gridCase = function (dimension: number): string {
   const dir = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "statechart-case-")), "Grid");
   fs.cpSync(path.join(here, "grid"), dir, { recursive: true });
   visitItems(["ChartRun.out", "verdict-1.out"], (fixtureFile) => {fs.copyFileSync(path.join(corpus, "Login", fixtureFile), path.join(dir, fixtureFile));});
-  const id = (column: number, row: number): string => String(1_000_000 + column * dimension + row);
+  const firstGridStateId = 1_000_000;
+  const gridStride = 1;
+  const id = (column: number, row: number): string => String(firstGridStateId + column * dimension + row);
   const lines = ["strict digraph DiskGraph {"];
   for (let column = 0; column < dimension; column++)
     {for (let row = 0; row < dimension; row++) {
       lines.push(
         `${id(column, row)} [label="/\\\\ x = ${column}\\n/\\\\ y = ${row}"${column + row ? "" : ",style = filled"}]`,
       );
-      if (column + 1 < dimension) {lines.push(`${id(column, row)} -> ${id(column + 1, row)} [label="IncX"];`);}
-      if (row + 1 < dimension) {lines.push(`${id(column, row)} -> ${id(column, row + 1)} [label="IncY"];`);}
+      if (column + gridStride < dimension) {lines.push(`${id(column, row)} -> ${id(column + gridStride, row)} [label="IncX"];`);}
+      if (row + gridStride < dimension) {lines.push(`${id(column, row)} -> ${id(column, row + gridStride)} [label="IncY"];`);}
     }}
   lines.push("}");
   fs.writeFileSync(path.join(dir, "graph.dot"), lines.join("\n"));
@@ -431,7 +462,7 @@ test(
     const { java, pidFile } = sleepyJava(fakes);
     const child = startCommand(path.join(corpus, "DieHard"), parent, { java, tmpdir });
     const exited = once(child, "exit");
-    while (!fs.existsSync(pidFile)) {await sleep(20);}
+    while (!fs.existsSync(pidFile)) {await sleep(CLEANUP_POLL_MILLISECONDS);}
     child.kill("SIGKILL");
     await exited;
     await assertGone(Number(read(pidFile)));
@@ -465,7 +496,7 @@ test(
     );
     const child = startCommand(dir, parent, { tmpdir });
     const exited = once(child, "exit");
-    while (!fs.existsSync(drawing) || !read(drawing)) {await sleep(20);}
+    while (!fs.existsSync(drawing) || !read(drawing)) {await sleep(CLEANUP_POLL_MILLISECONDS);}
     child.kill("SIGKILL");
     await exited;
     await fs.promises.writeFile(release, "");
@@ -487,7 +518,7 @@ test(
     let stderr = "";
     child.stderr.on("data", (chunk: Buffer) => (stderr += chunk));
     const closed = once(child, "close");
-    while (!fs.existsSync(pidFile) || !read(pidFile)) {await sleep(20);}
+    while (!fs.existsSync(pidFile) || !read(pidFile)) {await sleep(CLEANUP_POLL_MILLISECONDS);}
     const ps = spawnSync("ps", ["-o", "ppid=", "-p", read(pidFile)], { encoding: "utf8" });
     process.kill(Number(ps.stdout), "SIGKILL");
     const [status] = await closed;
@@ -546,7 +577,7 @@ visitItems(["SIGINT", "SIGTERM"] satisfies NodeJS.Signals[], (signal) => {
     { timeout: 60_000 },
     async () => {
       await signalWhile(signal, () => ({
-        dir: gridCase(150),
+        dir: gridCase(SIGNAL_OUTPUT_GRID_WIDTH),
         reached: (parent) => {
           for (const relativeFile of fs.readdirSync(parent, { encoding: "utf8", recursive: true }))
             {if (
@@ -609,7 +640,8 @@ test("a broken property is named in the report, and its TLC trace is in tlc-NAME
       const tool = name.startsWith("verdict-") && read(path.join(dir, `${name}.out`));
       if (tool && out === `${[...plainText(readMessages(tool))].join("")}\n`) {from.push(name);}
     });
-    assert.equal(from.length, 1, propertyName);
+    const expectedVerdictFiles = 1;
+    assert.equal(from.length, expectedVerdictFiles, propertyName);
     assert.match(result.configs[from[0]], new RegExp(`^PROPERTY ${propertyName}$`, "mu"));
     assert.match(out, /^TLC2 Version /u);
     assert.doesNotMatch(out, /@!@!@/u);
