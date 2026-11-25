@@ -1,3 +1,8 @@
+import { maskProse } from "./ste-mask.mjs";
+import { collapseNumbers } from "./ste-numbers.mjs";
+import { collapseParentheticals } from "./ste-parentheticals.mjs";
+import { countSentences, warnAboutProse } from "./ste-sentences.mjs";
+
 // Source: ASD-STE100 Issue 9, rules 5.1, 6.3, 6.6 and section 8.
 // This is a bounded prose parser, not a grammar, typography or dictionary oracle.
 export { countDeclaredNounGroup, validateSteContext } from "./ste-context.mjs";
@@ -15,19 +20,9 @@ export { validateSteVocabulary } from "./ste-vocabulary.mjs";
 /** @typedef {{ category: string, text: string }} DeclaredWordGroup */
 /** @typedef {{ fragment?: boolean, measurementUnits?: string[], wordGroups?: DeclaredWordGroup[], writingMode?: "procedural" | "descriptive" }} ProseContext */
 
-// Edits preserve source offsets. A group becomes one artificial lowercase word.
-/** @type {(characters: string[], start: number, end: number) => void} */
-const collapse = function (characters, start, end) {
-  for (let index = start; index < end; index += 1) {
-    if (!/[\r\n]/u.test(characters[index])) {
-      characters[index] = index === start ? "x" : " ";
-    }
-  }
-};
-/** @type {(text: string, index: number) => boolean} */
-const boundary = function (text, index) {
-  return index < 0 || index >= text.length || !/[\p{L}\p{N}_]/u.test(text[index]);
-};
+const SOURCE_START = 0;
+const DEFAULT_CONTEXT = {};
+const DEFAULT_OPTIONS = {};
 
 /**
  * @param {string} text - The source prose to count.
@@ -37,220 +32,34 @@ const boundary = function (text, index) {
  */
 export const analyzeSteProse = function analyzeSteProse(
   text,
-  context = {},
-  { paragraph = false } = {},
+  context = DEFAULT_CONTEXT,
+  { paragraph = false } = DEFAULT_OPTIONS,
 ) {
   /** @type {ProseWarning[]} */
   const warnings = [];
-  /** @type {(reason: string, start?: number, end?: number) => number} */
-  const warn = (reason, start = 0, end = text.length) => warnings.push({ reason, start, end });
-  const characters = text.split("");
-  const label =
-    context.writingMode === "procedural"
-      ? /^\s*(?:WARNING|CAUTION|DANGER):[ \t]*/u.exec(text)
-      : /^\s*(?:NOTE|NOTES):[ \t]*/u.exec(text);
-  if (label) {
-    for (let index = 0; index < label[0].length; index += 1) {
-      if (!/[\r\n]/u.test(characters[index])) {
-        characters[index] = " ";
-      }
-    }
-  }
-  // Section 8.6 excludes document/work-step numbering, not ordinary identifiers.
-  if (context.writingMode === "procedural") {
-    Iterator.from(text.matchAll(/^(?:\(\d+\)|[A-Z][.)])\s+/gmu)).forEach((match) => {
-      for (let { index } = match; index < match.index + match[0].length; index += 1) {
-        if (!/[\r\n]/u.test(characters[index])) {
-          characters[index] = " ";
-        }
-      }
-    });
-  }
+  /** @type {import("./ste-mask.mjs").Warn} */
+  const warn = (reason, start = SOURCE_START, end = text.length) => {
+    // oxlint-disable-next-line eslint/sort-keys -- Preserve the public warning field order.
+    warnings.push({ reason, start, end });
+  };
+  const characters = maskProse(text, context, warn);
   /** @type {CountedSentence[]} */
-  const extraSentences = [];
-  const groups = [...(context.wordGroups ?? [])].sort(
-    (left, right) => right.text.length - left.text.length,
+  const extra = [];
+  collapseParentheticals(
+    characters,
+    { context, paragraph },
+    {
+      analyze: analyzeSteProse,
+      evidence: { extra, warn, warnings },
+    },
   );
-  Iterator.from(groups).forEach((group) => {
-    let at = 0;
-    while ((at = characters.join("").indexOf(group.text, at)) !== -1) {
-      if (boundary(text, at - 1) && boundary(text, at + group.text.length)) {
-        collapse(characters, at, at + group.text.length);
-      }
-      at += group.text.length;
-    }
+  const current = collapseNumbers(characters, context.measurementUnits, { paragraph, warn });
+  warnAboutProse(current, { paragraph, procedural: context.writingMode === "procedural" }, warn);
+  const sentences = countSentences(current, {
+    fragment: context.fragment ?? false,
+    paragraph,
+    warn,
   });
-  // Quoted text, including its punctuation, is one word, not new sentences.
-  Iterator.from(characters.join("").matchAll(/"[^"\n]*"|“[^”\n]*”|‘[^’\n]*’/g)).forEach((match) => {
-    collapse(characters, match.index, match.index + match[0].length);
-  });
-  if (/["“”‘’]/.test(characters.join(""))) {
-    warn("Unbalanced quotation marks require contextual parsing.");
-  }
-  let current = characters.join("");
-  if (/\([^()]*\([^)]*\)/.test(current)) {
-    warn("Nested parentheses require contextual parsing.");
-  }
-  Iterator.from(current.matchAll(/\([^()]*\)/g)).forEach((match) => {
-    const inner = match[0].slice(1, -1);
-    const identifier = /^[A-Z0-9]+(?:[/-][A-Z0-9]+)*$/u.test(inner);
-    const attached = match.index > 0 && /[\p{L}\p{N}]/u.test(current[match.index - 1]);
-    if (attached) {
-      warn(
-        "Attached singular/plural parentheses require contextual counting.",
-        match.index,
-        match.index + match[0].length,
-      );
-      return;
-    }
-    if (!identifier) {
-      if (paragraph) {
-        warn(
-          "Parenthetical prose has a separate word-count sentence, but its paragraph sentence boundary requires review.",
-          match.index,
-          match.index + match[0].length,
-        );
-      }
-      const analysis = analyzeSteProse(inner, { ...context, fragment: true });
-      warnings.push(
-        ...analysis.warnings.map((warning) => ({
-          ...warning,
-          start: warning.start + match.index + 1,
-          end: warning.end + match.index + 1,
-        })),
-      );
-      extraSentences.push(
-        ...analysis.sentences.map((sentence) => ({
-          ...sentence,
-          start: sentence.start + match.index + 1,
-          end: sentence.end + match.index + 1,
-          parenthetical: true,
-        })),
-      );
-    }
-    collapse(characters, match.index, match.index + match[0].length);
-  });
-  current = characters.join("");
-  if (/[()]/u.test(current)) {
-    warn("Unbalanced or nested parentheses require contextual parsing.");
-  }
-  // These abbreviations and compounds are explicitly illustrated in section 8.6.
-  Iterator.from(
-    current.matchAll(/\b(?:No\.\s+\d[\w-]*|\d+(?:\.\d+)?\s+(?:a\.m\.|p\.m\.))(?=\s|[,.!?]|$)/g),
-  ).forEach((match) => {
-    collapse(characters, match.index, match.index + match[0].length);
-    if (match[0].endsWith(".") && !current.slice(match.index + match[0].length).trim()) {
-      characters[match.index + match[0].length - 1] = ".";
-    }
-  });
-  const units = [
-    ...new Set([
-      "mm",
-      "mA",
-      "°C",
-      "degrees Celsius",
-      "kg",
-      "kilograms",
-      "ohms",
-      "Ω",
-      ...(context.measurementUnits ?? []),
-    ]),
-  ].sort((left, right) => right.length - left.length);
-  current = characters.join("");
-  Iterator.from(current.matchAll(/[+-]?\d+(?:,\d{3})*(?:\.\d+)?/gu)).forEach((match) => {
-    if (!boundary(current, match.index - 1) || !boundary(current, match.index + match[0].length)) {
-      return;
-    }
-    const tail = current.slice(match.index + match[0].length);
-    const gap = /^\s+/u.exec(tail)?.[0] ?? "";
-    const unit = units.find(
-      (candidate) =>
-        tail.slice(gap.length).startsWith(candidate) &&
-        boundary(tail, gap.length + candidate.length),
-    );
-    if (unit && gap) {
-      collapse(characters, match.index, match.index + match[0].length + gap.length + unit.length);
-    } else {
-      collapse(characters, match.index, match.index + match[0].length);
-      if (!paragraph && /^\s+[\p{L}°µμΩ%]/u.test(tail)) {
-        warn(
-          "A number followed by an undeclared word can be a measurement or identifier; declare the literal group or measurement unit.",
-          match.index,
-          match.index + match[0].length + gap.length,
-        );
-      }
-    }
-  });
-  current = characters.join("");
-  if (!paragraph && /\b(?:hundred|thousand|million|billion)\b/i.test(current)) {
-    warn("Multi-word written numbers require a declared number group.");
-  }
-  if (/\b[\p{L}]+\.(?=[\p{L}]|\s+[a-z])/u.test(current)) {
-    warn("A period can be an abbreviation boundary; declare abbreviations before counting.");
-  }
-  if (/\.{2,}|[!?]{2,}/u.test(current)) {
-    warn("Ellipsis or repeated sentence punctuation requires review.");
-  }
-  if (/--|\s-\s/u.test(current)) {
-    warn("A dash or compound token with repeated hyphens requires contextual counting.");
-  }
-  if (
-    [...current].some(
-      (character) => "`*_[]<>\\|{}=+/".includes(character) || character.codePointAt(0) > 127,
-    )
-  ) {
-    warn("Unsupported markup, formula, or punctuation requires contextual counting.");
-  }
-  if (/:/u.test(current)) {
-    warn(
-      "A colon outside a recognized vertical-list introduction requires contextual sentence parsing.",
-    );
-  }
-  if (/\b(?:NOTE|NOTES)\b/u.test(current) && context.writingMode === "procedural") {
-    warn("Notes in procedures use descriptive limits; supply a descriptive local target.");
-  }
-  /** @type {CountedSentence[]} */
-  const sentences = [];
-  let start = 0;
-  /** @type {(end: number) => void} */
-  const flush = (end) => {
-    const body = current.slice(start, end);
-    const tokens = [...body.matchAll(/[A-Za-z0-9]+(?:[-'][A-Za-z0-9]+)*/gu)];
-    if (tokens.length) {
-      for (let index = 0; index < tokens.length; index += 1) {
-        if (
-          !paragraph &&
-          /[A-Z]/u.test(tokens[index][0]) &&
-          (index !== 0 || /^[A-Z0-9-]+$/u.test(tokens[index][0]))
-        ) {
-          warn(
-            "Capitalized or uppercase text can be an unmarked title, proper noun, label or abbreviation; declare its word group.",
-            start + tokens[index].index,
-            start + tokens[index].index + tokens[index][0].length,
-          );
-        }
-      }
-      sentences.push({ start: start + tokens[0].index, end, wordCount: tokens.length });
-    }
-    start = end;
-  };
-  Iterator.from(current.matchAll(/[.!?]/gu)).forEach((match) => {
-    flush(match.index + 1);
-  });
-  if (current.slice(start).trim()) {
-    const unfinishedStart = start;
-    flush(current.length);
-    if (!context.fragment) {
-      warn(
-        "Unterminated prose may be a fragment or incomplete sentence.",
-        unfinishedStart,
-        current.length,
-      );
-    }
-  }
-  return {
-    sentences: [...sentences, ...extraSentences],
-    paragraphSentences: sentences.length,
-    warnings,
-  };
+  // oxlint-disable-next-line eslint/sort-keys -- Keep the existing analysis result order for callers.
+  return { sentences: [...sentences, ...extra], paragraphSentences: sentences.length, warnings };
 };
