@@ -5,7 +5,7 @@ import { checkView } from "#statechart/frontends/view.ts";
 import type { Chart, ChartState, State, Step, View } from "#statechart/ir.ts";
 import { walk } from "#statechart/passes/reach.ts";
 import { project } from "#statechart/pipeline.ts";
-import { visitItems } from "#statechart/ir.ts";
+import { isString, matchesUndefined, visitItems } from "#statechart/ir.ts";
 
 export type Render = (text: string) => { svg: string };
 
@@ -372,7 +372,7 @@ const build = function (c: Case, labels: string[]) {
     for (let j = 0; j < c.groups.length; j++) {colors.push([labels[c.groups[j]], c.colors[j]]);}
     view.colors = Object.fromEntries(colors);
   }
-  if (c.title !== undefined) {view.title = labels[c.title];}
+  if (!matchesUndefined(c.title)) {view.title = labels[c.title];}
   return { graph: { states, steps }, view };
 };
 
@@ -474,7 +474,10 @@ const expected = function (chart: Chart): Want {
           const key = JSON.stringify(path);
           visitItems(drawn, (currentEdge) => {if (currentEdge.start && JSON.stringify(currentEdge.from) === key)
               {edges.push([`${node}_start`, id(region.name, currentEdge.to), currentEdge.label ?? ""]);}});
-        } else if (leaf?.group !== undefined) {used.add(chart.colors[String(leaf.group)]);}
+        } else {
+          const group = leaf?.group;
+          if (!matchesUndefined(group)) {used.add(chart.colors[String(group)]);}
+        }
       });
     };
     tree([], wrap, region.states);
@@ -535,8 +538,8 @@ const readMermaid = async function (text: string, want: Want, { mermaid, html }:
     {problems.push(`mermaid-direction: the chart runs ${data.direction}`);}
   const head = /^---\ntitle: (.*)\n---\n/.exec(text);
   const raw = head ? String(JSON.parse(head[1])) : undefined;
-  const title = raw === undefined ? undefined : fromMermaid(raw);
-  if ((title !== undefined) !== titled(want))
+  const title = matchesUndefined(raw) ? undefined : fromMermaid(raw);
+  if ((!matchesUndefined(title)) !== titled(want))
     {problems.push(`mermaid-title: Mermaid draws a title for ${JSON.stringify(want.title)}`);}
   else if (raw?.includes("<"))
     {problems.push(
@@ -544,7 +547,7 @@ const readMermaid = async function (text: string, want: Want, { mermaid, html }:
     );}
   else if (title?.includes("\0"))
     {problems.push(`mermaid-title: a browser draws the NUL in ${JSON.stringify(title)} as U+FFFD`);}
-  else if (title !== undefined && visible(title) !== visible(want.title ?? ""))
+  else if (!matchesUndefined(title) && visible(title) !== visible(want.title ?? ""))
     {problems.push(
       `mermaid-text: the title shows ${JSON.stringify(title)} for ${JSON.stringify(want.title)}`,
     );}
@@ -585,7 +588,7 @@ const readPele = function (text: string, want: Want, render: Render, problems: s
     {problems.push(`pele-nodes: ${drawn.size} nodes for ${want.nodes.size}`);}
   visitItems(want.nodes, ([node, w]) => {
     const shown = drawn.get(node);
-    if (shown === undefined) {problems.push(`pele-nodes: Pele draws no ${node}`);}
+    if (matchesUndefined(shown)) {problems.push(`pele-nodes: Pele draws no ${node}`);}
     else if (wrapped(shown) !== wrapped(w.text))
       {problems.push(
         `pele-text: ${node} shows ${JSON.stringify(shown)} for ${JSON.stringify(w.text)}`,
@@ -619,7 +622,7 @@ interface Checked { refused?: true; text?: string; problems: string[] }
 const check = async function (c: Case, labels: string[], tools: Tools): Promise<Checked> {
   const { graph, view } = build(c, labels);
   let refuse = false;
-  Object.entries(view.colors ?? {}).forEach(([, value]) => {if (typeof value !== "string" || !THEME.includes(value)) {refuse = true;}});
+  Object.entries(view.colors ?? {}).forEach(([, value]) => {if (!isString(value) || !THEME.includes(value)) {refuse = true;}});
   let checked: View;
   try {
     checked = checkView(view, inspect);
