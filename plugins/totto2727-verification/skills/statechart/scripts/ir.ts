@@ -478,92 +478,138 @@ export const hasRule = (rules: Rule[], rule: Rule): boolean => {
   return false;
 };
 
-const ascending = (keys: string[]): boolean => {
-  for (let keyIndex = 1; keyIndex < keys.length; keyIndex++) {if (keys[keyIndex - 1] > keys[keyIndex]) {return false;}}
-  return true;
+const hasReversedPair = <Item>(items: Item[], reversed: (left: Item, right: Item) => boolean): boolean => {
+  const cursor = { index: NEXT_INDEX };
+  while (cursor.index < items.length) {
+    if (reversed(items[cursor.index - NEXT_INDEX], items[cursor.index])) {return true;}
+    cursor.index += NEXT_INDEX;
+  }
+  return false;
 };
 
-const span = (lo: number, hi: number): string => (hi > lo ? `${lo}..${hi}` : String(lo));
+const span = (low: number, high: number): string => high > low ? `${low}..${high}` : String(low);
 
-const setKey = (members: Value[]): string => {
-  const ints: number[] = [];
-  let others: string[] = [];
-  visitItems(members, (currentValue) => {if (isNumber(currentValue)) {ints.push(currentValue);}
-    else {others.push(key(currentValue));}});
-  for (let i = 1; i < ints.length; i++)
-    {if (ints[i - 1] >= ints[i]) {
-      ints.sort((left, right) => left - right);
-      break;
-    }}
-  if (!ascending(others)) {others = others.sort(byText);}
-  let s = "{";
-  for (let i = 0; i < ints.length;) {
-    let j = i;
-    while (j + 1 < ints.length && ints[j + 1] - ints[j] <= 1) {j++;}
-    s += `${s.length > 1 ? "," : ""}${span(ints[i], ints[j])}`;
-    i = j + 1;
-  }
-  for (let i = 0; i < others.length; i++)
-    {if (!i || others[i] !== others[i - 1]) {s += (s.length > 1 ? "," : "") + others[i];}}
-  return `${s  }}`;
-};
+const CONSECUTIVE_DISTANCE = 1;
 
-const functionKey = ({ keys, values }: { keys: Value[]; values: Value[] }): string => {
-  const order: number[] = [];
-  const keyTexts: string[] = [];
-  let ints = 0;
-  for (let keyIndex = 0; keyIndex < keys.length; keyIndex++) {
-    order.push(keyIndex);
-    keyTexts.push(key(keys[keyIndex]));
-    if (isNumber(keys[keyIndex])) {ints++;}
-  }
-  const rank = (index: number): number => (isNumber(keys[index]) ? keys[index] : Infinity);
-  order.sort((left, right) => rank(left) - rank(right) || byText(keyTexts[left], keyTexts[right]) || left - right);
-  let tuple = ints === keys.length;
-  for (let i = 0; tuple && i < order.length; i++) {tuple = keys[order[i]] === i + 1;}
-  let s = tuple ? "<<" : "(";
-  for (let i = 0, kept = 0; i < order.length; i++) {
-    const k = order[i];
-    if (i && keyTexts[k] === keyTexts[order[i - 1]]) {continue;}
-    const v = key(values[k]);
-    s += tuple ? `${kept++ ? "," : ""}${v}` : `${kept++ ? "@@" : ""}${keyTexts[k]}:>${v}`;
-  }
-  return s + (tuple ? ">>" : ")");
-};
-
-const keys = new WeakMap<object, string>();
-
-export const key = (v: Value): string => {
-  switch (typeof v) {
-    case "boolean": {
-      return v ? "TRUE" : "FALSE";
+const writeRanges = (integers: number[], write: (value: string) => void): void => {
+  const cursor = { first: FIRST_INDEX, last: FIRST_INDEX };
+  while (cursor.first < integers.length) {
+    cursor.last = cursor.first;
+    while (cursor.last + NEXT_INDEX < integers.length && integers[cursor.last + NEXT_INDEX] - integers[cursor.last] <= CONSECUTIVE_DISTANCE) {
+      cursor.last += NEXT_INDEX;
     }
-    case "number": {
-      return String(v);
-    }
-    case "string": {
-      return JSON.stringify(v);
-    }
+    write(span(integers[cursor.first], integers[cursor.last]));
+    cursor.first = cursor.last + NEXT_INDEX;
   }
-  if (v.kind === "model") {return v.name;}
-  let k = keys.get(v);
-  if (matchesUndefined(k)) {
-    k =
-      v.kind === "interval"
-        ? `{${v.lo > v.hi ? "" : span(v.lo, v.hi)}}`
-        : (v.kind === "set"
-          ? setKey(v.members)
-          : functionKey(v));
-    keys.set(v, k);
-  }
-  return k;
 };
 
-export const stateKey = (values: Value[]): string => {
-  let k = "";
-  for (let valueIndex = 0; valueIndex < values.length; valueIndex++) {k += (valueIndex ? "," : "") + key(values[valueIndex]);}
-  return k;
+const SET_START = "{";
+
+interface SetMembers {
+  integers: number[];
+  otherKeys: string[];
+}
+
+const orderedSetMembers = (members: Value[], print: ValuePrinter): SetMembers => {
+  const integers: number[] = [];
+  const otherKeys: string[] = [];
+  visitItems(members, (value) => {
+    if (isNumber(value)) {integers.push(value);}
+    else {otherKeys.push(print(value));}
+  });
+  if (hasReversedPair(integers, (left, right) => left >= right)) {integers.sort((left, right) => left - right);}
+  if (hasReversedPair(otherKeys, (left, right) => left > right)) {otherKeys.sort(byText);}
+  return { integers, otherKeys };
 };
+
+const setKey = (members: Value[], print: ValuePrinter): string => {
+  const { integers, otherKeys } = orderedSetMembers(members, print);
+  const output = { text: SET_START };
+  const write = (value: string): void => {
+    output.text += (output.text.length > SET_START.length ? "," : "") + value;
+  };
+  writeRanges(integers, write);
+  otherKeys.forEach((value, index) => {
+    if (index === FIRST_INDEX || value !== otherKeys[index - NEXT_INDEX]) {write(value);}
+  });
+  return `${output.text}}`;
+};
+
+interface FunctionKeys {
+  numeric: number;
+  positions: number[];
+  texts: string[];
+}
+
+const readFunctionKeys = (names: Value[], print: ValuePrinter): FunctionKeys => {
+  const data: FunctionKeys = { numeric: FIRST_INDEX, positions: [], texts: [] };
+  const cursor = { index: FIRST_INDEX };
+  while (cursor.index < names.length) {
+    data.positions.push(cursor.index);
+    data.texts.push(print(names[cursor.index]));
+    if (isNumber(names[cursor.index])) {data.numeric += NEXT_INDEX;}
+    cursor.index += NEXT_INDEX;
+  }
+  return data;
+};
+
+const FIRST_TLA_TUPLE_KEY = 1;
+
+const orderFunctionKeys = (names: Value[], print: ValuePrinter): FunctionKeys & { tuple: boolean } => {
+  const data = readFunctionKeys(names, print);
+  const { numeric, positions, texts } = data;
+  const rank = (position: number): number => isNumber(names[position]) ? names[position] : Infinity;
+  positions.sort((left, right) => rank(left) - rank(right) || byText(texts[left], texts[right]) || left - right);
+  const tuple = numeric === names.length && positions.every((position, index) => names[position] === index + FIRST_TLA_TUPLE_KEY);
+  return { ...data, tuple };
+};
+
+const TUPLE_KEY = { close: ">>", open: "<<", separator: "," };
+const PAIRS_KEY = { close: ")", open: "(", separator: "@@" };
+
+const functionKey = ({ keys, values }: TlcFunction, print: ValuePrinter): string => {
+  const { positions, texts, tuple } = orderFunctionKeys(keys, print);
+  const format = tuple ? TUPLE_KEY : PAIRS_KEY;
+  const output = { entries: FIRST_INDEX, text: format.open };
+  positions.forEach((position, index) => {
+    const key = texts[position];
+    if (index === FIRST_INDEX || key !== texts[positions[index - NEXT_INDEX]]) {
+      const value = print(values[position]);
+      const separator = output.entries ? format.separator : "";
+      output.text += separator + (tuple ? value : `${key}:>${value}`);
+      output.entries += NEXT_INDEX;
+    }
+  });
+  return output.text + format.close;
+};
+
+const keyCache = new WeakMap<object, string>();
+
+type CompoundValue = Exclude<Value, boolean | number | string | { kind: "model" }>;
+
+const compoundKey = (value: CompoundValue, print: ValuePrinter): string => {
+  if (value.kind === "interval") {return `{${value.lo > value.hi ? "" : span(value.lo, value.hi)}}`;}
+  if (value.kind === "set") {return setKey(value.members, print);}
+  return functionKey(value, print);
+};
+
+const cachedKey = (value: CompoundValue, print: ValuePrinter): string => {
+  const cached = keyCache.get(value);
+  if (!matchesUndefined(cached)) {return cached;}
+  const result = compoundKey(value, print);
+  keyCache.set(value, result);
+  return result;
+};
+
+export const key = (value: Value): string => {
+  if (isBoolean(value)) {return value ? "TRUE" : "FALSE";}
+  if (isNumber(value)) {return String(value);}
+  if (isString(value)) {return JSON.stringify(value);}
+  if (value.kind === "model") {return value.name;}
+  return cachedKey(value, key);
+};
+
+export const stateKey = (values: Value[]): string => joined(values, ",", key);
 
 const DEFAULT_CACHE_LIMIT = 65_536;
 
