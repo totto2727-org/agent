@@ -4,7 +4,7 @@
 import { writeFile } from "node:fs/promises";
 // oxlint-disable-next-line rules/no-node-imports -- Resolve output paths from the standalone CLI's working directory.
 import { resolve } from "node:path";
-import { nounGroupCounts, runMechanical, sourceRange } from "./mechanical.mjs";
+import { runMechanical } from "./mechanical.mjs";
 
 import { hasObjectType, matchesNull, matchesUndefined } from "./native-predicates.mjs";
 
@@ -20,6 +20,7 @@ import { EvaluationError } from "./evaluation-validation.mjs";
 import { validateResponse } from "./evaluation-response.mjs";
 
 import { loadManifest, parseArguments } from "./evaluation-manifest.mjs";
+import { reportBaseFor, stateFor } from "./evaluation-state.mjs";
 import { buildWork } from "./evaluation-work.mjs";
 
 export {
@@ -42,46 +43,8 @@ export { buildWork, segmentMarkdown } from "./evaluation-work.mjs";
 
 export { validateResponse } from "./evaluation-response.mjs";
 
-/** @typedef {import("./evaluation-work.mjs").PreparedWork} PreparedWork */
-/** @typedef {import("./evaluation-work.mjs").PreparedQuestion} PreparedQuestion */
-/** @typedef {import("./evaluation-work.mjs").DictionaryEvidence} DictionaryEvidence */
-/** @typedef {import("./evaluation-work.mjs").NounEvidence} NounEvidence */
-/** @typedef {{ dictionaryCandidates?: DictionaryEvidence, markdown: string, nounGroupCounts?: NounEvidence }} PageEvidence */
-/** @typedef {PageEvidence & { headingPath: string[], sourceRange: ReturnType<typeof sourceRange> }} LocalEvidence */
-/** @typedef {{ evidence: { document: { audience: string, purpose: string, sourceLanguage: string | null, templateConstraints: string[] }, local: LocalEvidence | null, page: PageEvidence } }} EvaluationState */
 /** @typedef {{ concurrency?: number, dryRun?: boolean, environment?: Record<string, string | undefined>, manifestPath: string, mechanicalOnly?: boolean, outputPath: string }} EvaluationOptions */
 /** @typedef {{ cacheStatus: ReturnType<typeof import("./evaluation-transport.mjs").parseCacheStatus>, ray: ReturnType<typeof import("./evaluation-transport.mjs").parseTraceId>, validated: ReturnType<typeof validateResponse> }} ValidatedOutcome */
-
-/** @type {(item: PreparedWork) => EvaluationState} */
-const stateFor = (item) => {
-  /** @type {EvaluationState} */
-  const state = {
-    evidence: {
-      document: {
-        purpose: item.document.purpose,
-        audience: item.document.audience,
-        templateConstraints: item.document.templateConstraints,
-        sourceLanguage: item.document.sourceLanguage ?? null,
-      },
-      page: { markdown: item.page },
-      local: matchesNull(item.section)
-        ? null
-        : {
-            headingPath: item.section.headingPath,
-            markdown: item.section.text,
-            sourceRange: item.section.sourceRange,
-          },
-    },
-  };
-  if (item.dictionaryEvidence) {
-    const evidence = state.evidence.local ?? state.evidence.page;
-    evidence.dictionaryCandidates = item.dictionaryEvidence;
-  }
-  if (item.nounEvidence?.length) {
-    (state.evidence.local ?? state.evidence.page).nounGroupCounts = item.nounEvidence;
-  }
-  return state;
-};
 
 const firstQueueIndex = 0;
 const nextQueueIndex = 1;
@@ -178,39 +141,8 @@ export const evaluate = async ({
   /** @type {TransportFailure | null} */
   let fatal = null;
   const evaluated = await pooled(work, concurrency, async (item) => {
-    /** @type {Record<string, PreparedQuestion>} */
-    const questions = item.questions;
-    const reportQuestions = Object.entries(questions).map(([id, question]) => ({
-      id,
-      type: item.engine === "mechanical" ? "mechanical" : question.type,
-      instructions: question.instructions,
-      criteria: question.criteria,
-      check: question.check,
-      rule: {
-        id: question.ruleId,
-        scope: item.scope,
-        engine: item.engine,
-        source: manifest.rules.find((rule) => rule.id === question.ruleId)?.source,
-      },
-    }));
-    const base = {
-      documentId: item.document.id,
-      path: item.path,
-      scope: item.scope,
-      engine: item.engine,
-      templateConstraints: item.document.templateConstraints,
-      sourceLanguage: item.document.sourceLanguage ?? null,
-      ...(item.nounEvidence?.length ? { nounGroupCounts: item.nounEvidence } : {}),
-      sourceRange: item.section?.sourceRange ?? sourceRange(item.page, 0, item.page.length),
-      section: item.section
-        ? {
-            id: item.section.id,
-            headingPath: item.section.headingPath,
-            sourceRange: item.section.sourceRange,
-          }
-        : null,
-      questions: reportQuestions,
-    };
+    const base = reportBaseFor(item, manifest.rules);
+    const reportQuestions = base.questions;
     const dryRunResult = () => ({
       ...base,
       status: "dry_run",
