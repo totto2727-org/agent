@@ -1,6 +1,4 @@
-// oxlint-disable-next-line import/no-relative-parent-imports -- The standalone skill loads the adjacent IR module without an alias resolver.
 import { append, holds, loopOf, matchesUndefined, must, tupleKey, unkey } from "#statechart/ir.ts";
-// oxlint-disable-next-line import/no-relative-parent-imports -- Share the pipeline's IR types within the standalone skill.
 import type { Arrow, Bug, Chart, Labels, Walk } from "#statechart/ir.ts";
 
 interface LoopMoves {
