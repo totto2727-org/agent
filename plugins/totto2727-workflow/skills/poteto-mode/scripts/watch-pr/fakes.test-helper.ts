@@ -13,6 +13,7 @@ import type {
   RollupPage,
 } from "./types.ts";
 import { parsePrNumber } from "./types.ts";
+import { WIRE_NULL } from "./github-json.ts";
 import { matchesUndefined } from "./native-predicates.ts";
 
 export type FakeReaderOptions = Readonly<{
@@ -28,39 +29,84 @@ export type FakeReaderOptions = Readonly<{
 }>;
 
 const toRawThread = function (thread: ReviewThread): RawReviewThread {
-  return { id: thread.id, firstComment: thread.firstComment, resolved: false };
+  return { firstComment: thread.firstComment, id: thread.id, resolved: false };
 };
 
 export const passingCheck = function passingCheck(name = "ci"): Check {
   return {
+    description: "",
     kind: "passed",
+    link: "",
     name,
     reportedState: "SUCCESS",
-    description: "",
-    link: "",
     workflow: "",
   };
 };
 
 export const pendingCheck = function pendingCheck(name = "ci"): Check {
   return {
+    description: "",
     kind: "pending",
+    link: "",
     name,
     reportedState: "PENDING",
-    description: "",
-    link: "",
     workflow: "",
   };
 };
 
 export const failedCheck = function failedCheck(name = "ci"): Check {
   return {
+    description: "",
     kind: "failed",
+    link: "",
     name,
     reportedState: "FAILURE",
-    description: "",
-    link: "",
     workflow: "",
+  };
+};
+
+const FIRST_FAKE_PULL = 1;
+const FIRST_PAGE = 0;
+const PAGE_STEP = 1;
+
+const fakeFacts = (context: PrContext): PullRequestFacts => ({
+  baseRefName: "main",
+  context,
+  headRefName: "feature",
+  headRefOid: "head",
+  isDraft: false,
+  mergeStateStatus: "CLEAN",
+  mergeable: "MERGEABLE",
+  mergedAt: WIRE_NULL,
+  reviewDecision: "APPROVED",
+  state: "OPEN",
+});
+
+const takePage = (cursor: { page: number }): number => {
+  const { page } = cursor;
+  cursor.page += PAGE_STEP;
+  return page;
+};
+
+const fakePages = (options: FakeReaderOptions, calls: string[]): Pick<GitHubReader, "checkRollupPage" | "reviewThreadPage"> => {
+  const checks = { page: FIRST_PAGE };
+  const review = { page: FIRST_PAGE };
+  return {
+    async checkRollupPage(_requested, after) {
+      calls.push(`checkRollupPage:${after ?? "null"}`);
+      const value = options.rollupPages?.[takePage(checks)] ?? { checks: [], endCursor: WIRE_NULL };
+      await Promise.resolve();
+      return value;
+    },
+    async reviewThreadPage(_requested, after) {
+      calls.push(`reviewThreadPage:${after ?? "null"}`);
+      const value = options.threadPages?.[takePage(review)] ?? {
+        endCursor: WIRE_NULL,
+        threads: (options.threads ?? []).map((thread) => toRawThread(thread)),
+      };
+      await Promise.resolve();
+      return value;
+    },
   };
 };
 
@@ -68,63 +114,46 @@ export const fakeReader = function fakeReader(
   options: FakeReaderOptions = {}
 ): GitHubReader & Readonly<{ calls: Readonly<string[]> }> {
   const calls: string[] = [];
-  const context = options.current ?? {
-    owner: "owner",
-    repo: "repo",
-    number: parsePrNumber(1),
-  };
-  const defaults: PullRequestFacts = {
-    context,
-    mergeable: "MERGEABLE",
-    mergeStateStatus: "CLEAN",
-    reviewDecision: "APPROVED",
-    headRefOid: "head",
-    headRefName: "feature",
-    baseRefName: "main",
-    state: "OPEN",
-    mergedAt: null,
-    isDraft: false,
-  };
-  let page = 0;
-  let threadPage = 0;
+  const context = options.current ?? { number: parsePrNumber(FIRST_FAKE_PULL), owner: "owner", repo: "repo" };
+  const defaults = fakeFacts(context);
   return {
+    ...fakePages(options, calls),
     calls,
-    async originRepo() {
-      calls.push("originRepo");
-      return matchesUndefined(options.origin)
-        ? { owner: "owner", repo: "repo" }
-        : options.origin;
-    },
-    async currentPr(pr) {
-      calls.push("currentPr");
-      return { ...context, number: pr ?? context.number };
-    },
-    async pullRequest(requested) {
-      calls.push("pullRequest");
-      return { ...defaults, ...options.facts, context: requested };
-    },
-    async openPullRequests() {
-      calls.push("openPullRequests");
-      return options.openPullRequests ?? [];
-    },
     async checksFastPath() {
       calls.push("checksFastPath");
-      return options.fastPath ?? { kind: "checks", checks: [passingCheck()] };
-    },
-    async checkRollupPage(_requested, after) {
-      calls.push(`checkRollupPage:${after ?? "null"}`);
-      return options.rollupPages?.[page++] ?? { checks: [], endCursor: null };
-    },
-    async reviewThreadPage(_requested, after) {
-      calls.push(`reviewThreadPage:${after ?? "null"}`);
-      return options.threadPages?.[threadPage++] ?? {
-        threads: (options.threads ?? []).map(toRawThread),
-        endCursor: null,
-      };
+      const value = options.fastPath ?? { checks: [passingCheck()], kind: "checks" };
+      await Promise.resolve();
+      return value;
     },
     async commitRollups() {
       calls.push("commitRollups");
-      return options.commitRollups ?? [{ oid: "head", state: "SUCCESS" }];
+      const value = options.commitRollups ?? [{ oid: "head", state: "SUCCESS" }];
+      await Promise.resolve();
+      return value;
+    },
+    async currentPr(pr) {
+      calls.push("currentPr");
+      const value = { ...context, number: pr ?? context.number };
+      await Promise.resolve();
+      return value;
+    },
+    async openPullRequests() {
+      calls.push("openPullRequests");
+      const value = options.openPullRequests ?? [];
+      await Promise.resolve();
+      return value;
+    },
+    async originRepo() {
+      calls.push("originRepo");
+      const value = matchesUndefined(options.origin) ? { owner: "owner", repo: "repo" } : options.origin;
+      await Promise.resolve();
+      return value;
+    },
+    async pullRequest(requested) {
+      calls.push("pullRequest");
+      const value = { ...defaults, ...options.facts, context: requested };
+      await Promise.resolve();
+      return value;
     },
   };
 };

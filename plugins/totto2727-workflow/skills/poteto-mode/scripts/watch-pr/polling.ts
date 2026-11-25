@@ -1,3 +1,4 @@
+import { EXIT_TIMEOUT } from "./verdict-contract.ts";
 import { WatcherQueryError } from "./github.ts";
 import { matchesUndefined } from "./native-predicates.ts";
 import type { BlockerVerdict, GitHubReader, PollingOptions, ProgressVerdict, QueryFailure, TimeoutVerdict } from "./types.ts";
@@ -11,7 +12,6 @@ const INITIAL_FAILURE_COUNT = 1;
 const NO_TIMEOUT = 0;
 const NO_FAILURES = 0;
 const MINIMUM_SLEEP = 0;
-const EXIT_TIMEOUT = 5;
 
 export const queryBackoffSeconds = (interval: number, failures: number): number => Math.min(
   Math.max(interval, BACKOFF_MINIMUM_SECONDS) * BACKOFF_MULTIPLIER ** (failures - INITIAL_FAILURE_COUNT),

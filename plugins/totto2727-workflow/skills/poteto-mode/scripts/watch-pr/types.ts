@@ -1,14 +1,25 @@
-import { isNumber } from "./native-predicates.ts";
+import { isEmptyArray, isNumber } from "./native-predicates.ts";
+
+export type { ChecksFastPath, GitHubReader, RawReviewThread, ReviewThreadPage, RollupPage } from "./github-reader-types.ts";
+export type { BlockerVerdict, ExitCode, ProgressVerdict, QueueTerminalVerdict, TerminalVerdict, TimeoutVerdict, WatcherVerdict, WatchMode } from "./verdict-types.ts";
 
 declare const prNumberBrand: unique symbol;
+const FIRST_ITEM = 0;
+const NEXT_ITEM = 1;
+const MINIMUM_PR_NUMBER = 1;
+// oxlint-disable-next-line unicorn/no-null -- The existing non-empty tuple helper returns this sentinel for an empty array.
+const NO_ITEMS = null;
 export type PrNumber = number & Readonly<{ [prNumberBrand]: "PrNumber" }>;
 export type NonEmpty<T> = Readonly<[T, ...T[]]>;
 export const nonEmpty = function nonEmpty<T>(items: Readonly<T[]>): NonEmpty<T> | null {
-  return items.length === 0 ? null : [items[0], ...items.slice(1)];
+  return isEmptyArray(items) ? NO_ITEMS : [items[FIRST_ITEM], ...items.slice(NEXT_ITEM)];
 };
 export const parsePrNumber = function parsePrNumber(value: unknown, label = "PR number"): PrNumber {
-  if (!isNumber(value) || !Number.isInteger(value) || value <= 0)
-    {throw new Error(`${label} must be a positive integer`);}
+  if (!isNumber(value) || !Number.isInteger(value) || value < MINIMUM_PR_NUMBER) {
+    // oxlint-disable-next-line rules/require-tagged-error -- Preserve the native validation error consumed by both CLI and GitHub context parsing.
+    throw new Error(`${label} must be a positive integer`);
+  }
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- The checked number is an integer in the PR number domain.
   return value as PrNumber;
 };
 export type Repository = Readonly<{
@@ -257,155 +268,6 @@ export type StackDecision =
   | Readonly<{ kind: "blocker"; blocker: MergeBlocker }>
   | WaitingDecision
   | Readonly<{ kind: "clear"; prs: NonEmpty<ReadyPr | MergedPr> }>;
-export type WatchMode = "single" | "stack" | "queued-stack";
-type EventBase<K extends string, M extends WatchMode = WatchMode> = Readonly<{
-  schemaVersion: 1;
-  sequence: number;
-  observedAt: string;
-  mode: M;
-  kind: K;
-}>;
-type Progress<K extends string, M extends WatchMode = WatchMode> = EventBase<K, M> & Readonly<{
-  terminal: false;
-}>;
-type Terminal<
-  K extends string,
-  C extends number,
-  M extends WatchMode = WatchMode,
-> = EventBase<K, M> & Readonly<{
-  terminal: true;
-  exitCode: C;
-}>;
-export type ProgressVerdict =
-  | (Progress<"QUEUE", "queued-stack"> & Readonly<{
-      queue: NonEmpty<PrContext>;
-    }>)
-  | (Progress<"STATUS", "stack" | "queued-stack"> & Readonly<{
-      reason: "poll" | "whole-stack-sweep";
-      rows: NonEmpty<PrSnapshot>;
-    }>)
-  | (Progress<"WAITING"> & Readonly<{
-      frontier: PrContext;
-      reason:
-        | Readonly<{
-            kind: "pending-checks";
-            pending: NonEmpty<PendingCheck>;
-          }>
-        | Readonly<{ kind: "merge-queue"; unmergedCount: number }>;
-    }>)
-  | (Progress<"ADVANCE", "queued-stack"> & Readonly<{
-      merged: PrContext;
-      frontier: PrContext;
-      remaining: number;
-    }>)
-  | (Progress<"RETRY"> & Readonly<{
-      failure: QueryFailure;
-      consecutiveFailures: number;
-      retryInSeconds: number;
-    }>);
-export type BlockerVerdict =
-  | (Terminal<"BLOCKER", 2> & Readonly<{
-      blocker: Extract<
-        MergeBlocker,
-        Readonly<{ kind: "merge-conflicts" }>
-      >;
-    }>)
-  | (Terminal<"BLOCKER", 3> & Readonly<{
-      blocker: Extract<
-        MergeBlocker,
-        Readonly<{ kind: "review-threads" }>
-      >;
-    }>)
-  | (Terminal<"BLOCKER", 4> & Readonly<{
-      blocker: Extract<
-        MergeBlocker,
-        Readonly<{ kind: "failing-checks" }>
-      >;
-    }>)
-  | (Terminal<"BLOCKER", 6> & Readonly<{
-      blocker: Extract<MergeBlocker, Readonly<{ kind: "merge-gate" }>>;
-    }>)
-  | (Terminal<"BLOCKER", 7> & Readonly<{
-      blocker: Readonly<{
-        kind: "status-query";
-        failures: number;
-        failure: QueryFailure;
-      }>;
-    }>);
-export type TimeoutVerdict = Terminal<"TIMEOUT", 5> & Readonly<{
-  reason:
-    | Readonly<{
-        kind: "pending-checks";
-        pending: NonEmpty<PendingCheck>;
-      }>
-    | Readonly<{ kind: "status-unavailable"; failure: QueryFailure }>
-    | Readonly<{
-        kind: "queued-stack";
-        frontier: PrContext;
-        unmergedCount: number;
-      }>;
-}>;
-export type TerminalVerdict =
-  | (Terminal<"STATUS", 0> & Readonly<{
-      reason: "status-only";
-      rows: NonEmpty<PrSnapshot>;
-    }>)
-  | (Terminal<"READY", 0, "single" | "stack"> & Readonly<{
-      scope:
-        | Readonly<{ kind: "single"; pr: ReadyPr | MergedPr }>
-        | Readonly<{
-            kind: "stack";
-            prs: NonEmpty<ReadyPr | MergedPr>;
-          }>;
-    }>)
-  | (Terminal<"COMPLETE", 0, "queued-stack"> & Readonly<{
-      queue: NonEmpty<PrContext>;
-      merged: NonEmpty<MergedPr>;
-    }>)
-  | BlockerVerdict
-  | TimeoutVerdict;
-export type WatcherVerdict = ProgressVerdict | TerminalVerdict;
-export type ExitCode = TerminalVerdict["exitCode"];
-export type QueueTerminalVerdict =
-  | Extract<TerminalVerdict, Readonly<{ kind: "COMPLETE" }>>
-  | BlockerVerdict
-  | TimeoutVerdict;
-export type ChecksFastPath =
-  | Readonly<{ kind: "checks"; checks: Readonly<Check[]> }>
-  | Readonly<{
-      kind: "unusable";
-      exitCode: number;
-      stderr: string;
-    }>;
-export type RollupPage = Readonly<{
-  checks: Readonly<Check[]>;
-  endCursor: string | null;
-}>;
-export type RawReviewThread = Readonly<{
-  id: string;
-  firstComment: ReviewComment | null;
-  resolved: boolean;
-}>;
-export type ReviewThreadPage = Readonly<{
-  threads: Readonly<RawReviewThread[]>;
-  endCursor: string | null;
-}>;
-export interface GitHubReader {
-  originRepo(): Promise<Repository | null>;
-  currentPr(pr: PrNumber | null): Promise<PrContext>;
-  pullRequest(context: PrContext): Promise<PullRequestFacts>;
-  openPullRequests(repository: Repository): Promise<Readonly<OpenPullRequest[]>>;
-  checksFastPath(context: PrContext): Promise<ChecksFastPath>;
-  checkRollupPage(
-    context: PrContext,
-    after: string | null
-  ): Promise<RollupPage>;
-  reviewThreadPage(
-    context: PrContext,
-    after: string | null
-  ): Promise<ReviewThreadPage>;
-  commitRollups(context: PrContext): Promise<Readonly<CommitRollup[]>>;
-}
 export type PollingOptions = Readonly<{
   interval: number;
   sweepInterval: number;

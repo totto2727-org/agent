@@ -1,0 +1,9 @@
+export const VERDICT_SCHEMA_VERSION = 1;
+export const EXIT_SUCCESS = 0;
+export const EXIT_CONFLICTS = 2;
+export const EXIT_THREADS = 3;
+export const EXIT_CHECKS = 4;
+export const EXIT_TIMEOUT = 5;
+export const EXIT_GATE = 6;
+export const EXIT_QUERY = 7;
+export const EXIT_USAGE = 64;

@@ -1,3 +1,4 @@
+import { EXIT_SUCCESS, EXIT_USAGE } from "./verdict-contract.ts";
 // oxlint-disable-next-line rules/no-node-imports -- The standalone watcher waits between polls using Bun's native timer.
 import { setTimeout as delay } from "node:timers/promises";
 // oxlint-disable-next-line rules/no-node-imports -- Parse the same switches in the standalone watcher on its supported Bun versions.
@@ -25,8 +26,6 @@ const MILLISECONDS_PER_SECOND = 1000;
 const PROCESS_ARGUMENT_START = 2;
 const FIRST_STACK_PR = 0;
 const FIRST_QUERY_ATTEMPT = 1;
-const EXIT_SUCCESS = 0;
-const EXIT_USAGE = 64;
 // oxlint-disable-next-line unicorn/no-null -- Absent values in the existing CLI option shape use null.
 const UNSUPPLIED = null;
 

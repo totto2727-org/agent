@@ -1,3 +1,4 @@
+import { EXIT_SUCCESS, EXIT_TIMEOUT } from "./verdict-contract.ts";
 import { matchesNull } from "./native-predicates.ts";
 import { pollUntilTerminal } from "./polling.ts";
 import type { RunDependencies, StepResult } from "./polling.ts";
@@ -8,8 +9,6 @@ import type { MergedPr, NonEmpty, PollingOptions, PrContext, QueueTerminalVerdic
 import { blockerVerdict, verdictFactory } from "./verdict.ts";
 import type { VerdictStamp } from "./verdict.ts";
 
-const EXIT_SUCCESS = 0;
-const EXIT_TIMEOUT = 5;
 const SWEEP_HEAD = 0;
 
 type QueueInput = Readonly<{

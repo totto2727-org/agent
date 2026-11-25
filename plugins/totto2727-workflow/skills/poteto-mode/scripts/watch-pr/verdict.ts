@@ -1,13 +1,8 @@
+import { EXIT_CHECKS, EXIT_CONFLICTS, EXIT_GATE, EXIT_QUERY, EXIT_THREADS, VERDICT_SCHEMA_VERSION } from "./verdict-contract.ts";
 import type { BlockerVerdict, MergeBlocker, QueryFailure, WatcherVerdict, WatchMode } from "./types.ts";
 
-const VERDICT_SCHEMA_VERSION = 1;
 const INITIAL_VERDICT_SEQUENCE = 0;
 const VERDICT_SEQUENCE_STEP = 1;
-const EXIT_CONFLICTS = 2;
-const EXIT_THREADS = 3;
-const EXIT_CHECKS = 4;
-const EXIT_GATE = 6;
-const EXIT_QUERY = 7;
 
 export interface WatchClock {
   now: () => number;
