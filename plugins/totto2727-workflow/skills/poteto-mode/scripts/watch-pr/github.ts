@@ -1,7 +1,8 @@
 import { mapRollupNode, parseFastCheck } from "./github-check-decode.ts";
 import { parseJson, run, runJson } from "./github-command.ts";
 import { at, boolean, enumValue, list, nullableEnum, optionalString, record, string, WIRE_NULL } from "./github-json.ts";
-import { errorMessage, WatcherQueryError } from "./github-error.ts";
+import { WatcherQueryError } from "./github-error.ts";
+import { parsePrUrl, parseRemote } from "./github-context.ts";
 import { parseReviewThreadPage } from "./github-review-threads.ts";
 import type * as Types from "./types.ts";
 import { nonEmpty, parsePrNumber } from "./types.ts";
@@ -15,6 +16,7 @@ export const PR_COMMIT_STATUS_QUERY =
 export const PR_CHECK_ROLLUP_QUERY =
   "\nquery PrCheckRollup($owner: String!, $repo: String!, $pr: Int!, $after: String) {\n  repository(owner: $owner, name: $repo) {\n    pullRequest(number: $pr) {\n      commits(last: 1) {\n        nodes {\n          commit {\n            statusCheckRollup {\n              contexts(first: 100, after: $after) {\n                pageInfo {\n                  hasNextPage\n                  endCursor\n                }\n                nodes {\n                  __typename\n                  ... on CheckRun {\n                    name\n                    status\n                    conclusion\n                    detailsUrl\n                  }\n                  ... on StatusContext {\n                    context\n                    state\n                    targetUrl\n                  }\n                }\n              }\n            }\n          }\n        }\n      }\n    }\n  }\n}\n";
 
+export { resolveContext } from "./github-context.ts";
 export { buildReviewThreads, parseReviewThreadPage, resolveReviewThreads } from "./github-review-threads.ts";
 export { mapRollupNode, parseFastCheck } from "./github-check-decode.ts";
 export { ChecksUnavailable, resolveChecks } from "./github-checks.ts";
@@ -52,57 +54,6 @@ const reviewDecision = (value: unknown): Types.ReviewDecision =>
     REVIEW_DECISIONS,
     "pull request.reviewDecision"
   );
-const SCP_GITHUB_PREFIX = "git@github.com:";
-const SSH_GITHUB_PREFIX = "ssh://git@github.com/";
-const HTTPS_GITHUB_PREFIX = "https://github.com/";
-const REPOSITORY_PATH_PARTS = 2;
-const PULL_PATH_PARTS = 4;
-const PULL_PATH_SEGMENT = 2;
-const PULL_NUMBER_SEGMENT = 3;
-
-const normalizeRemote = (value: string): string => {
-  const trimmed = value.trim();
-  const prefix = [SCP_GITHUB_PREFIX, SSH_GITHUB_PREFIX].find((candidate) => trimmed.startsWith(candidate));
-  return matchesUndefined(prefix) ? trimmed : `${HTTPS_GITHUB_PREFIX}${trimmed.slice(prefix.length)}`;
-};
-const isCanonicalGitHub = (url: URL): boolean =>
-  url.protocol === "https:" && url.hostname === "github.com" &&
-  !url.port && !url.username && !url.password && !url.search && !url.hash;
-
-const parseRemote = function (value: string): Types.Repository | null {
-  try {
-    const url = new URL(normalizeRemote(value));
-    const parts = url.pathname
-      .replace(/\.git$/u, "")
-      .split("/")
-      .filter(Boolean);
-    if (!isCanonicalGitHub(url) || parts.length !== REPOSITORY_PATH_PARTS)
-      {return null;}
-    return { owner: parts[0], repo: parts[1] };
-  } catch {
-    return null;
-  }
-};
-const parsePrUrl = function (value: string): Types.PrContext {
-  try {
-    const url = new URL(value);
-    const parts = url.pathname.split("/").filter(Boolean);
-    if (!isCanonicalGitHub(url) || parts.length !== PULL_PATH_PARTS || parts[PULL_PATH_SEGMENT] !== "pull")
-      {throw new Error("not a canonical GitHub pull URL");}
-    return {
-      owner: parts[0],
-      repo: parts[1],
-      number: parsePrNumber(Number(parts[PULL_NUMBER_SEGMENT])),
-    };
-  } catch (error) {
-    throw new WatcherQueryError({
-      kind: "invalid-context-url",
-      retryable: false,
-      rawValue: value,
-      detail: `could not infer owner/repo from PR URL: ${value} (${errorMessage(error)})`,
-    });
-  }
-};
 export const parsePullRequest = function parsePullRequest(
   value: unknown,
   context: Types.PrContext
@@ -305,30 +256,6 @@ export class GhGitHubReader implements Types.GitHubReader {
   }
 }
 
-export const resolveContext = async function resolveContext(args: Readonly<{
-  reader: Types.GitHubReader;
-  owner: string | null;
-  repo: string | null;
-  pr: Types.PrNumber | null;
-}>): Promise<Types.PrContext> {
-  if (!matchesNull(args.pr) && !matchesNull(args.owner) && !matchesNull(args.repo))
-    {return { owner: args.owner, repo: args.repo, number: args.pr };}
-  if (!matchesNull(args.pr)) {
-    const origin = await args.reader.originRepo();
-    if (!matchesNull(origin))
-      {return {
-        owner: args.owner ?? origin.owner,
-        repo: args.repo ?? origin.repo,
-        number: args.pr,
-      };}
-  }
-  const inferred = await args.reader.currentPr(args.pr);
-  return {
-    owner: args.owner ?? inferred.owner,
-    repo: args.repo ?? inferred.repo,
-    number: args.pr ?? inferred.number,
-  };
-};
 export const orderStack = function orderStack(
   context: Types.PrContext,
   open: Readonly<Types.OpenPullRequest[]>
