@@ -3,7 +3,7 @@ import { Buffer } from "node:buffer";
 // oxlint-disable-next-line rules/no-node-imports -- The standalone Statechart tool uses this built-in to launch the real programs whose stdout, stderr and status are consumed.
 import { execFile, spawn } from 'node:child_process';
 // oxlint-disable-next-line rules/no-node-imports -- The standalone Statechart tool uses this built-in to type the real subprocess status and streams.
-import type { ChildProcess, ExecFileException } from 'node:child_process';
+import type { ChildProcess, ExecFileException, SpawnOptions } from 'node:child_process';
 // oxlint-disable-next-line rules/no-node-imports -- The standalone Statechart tool uses this built-in to generate the native run's independent marker using the host's entropy source.
 import { randomBytes } from "node:crypto";
 // oxlint-disable-next-line rules/no-node-imports -- The standalone Statechart tool uses this built-in to inspect or write files through the host filesystem.
@@ -216,38 +216,52 @@ interface FileResult {
   error: Error | undefined;
 }
 
-const runToFiles = (
+type ArtifactPaths = [stdout: string, stderr: string];
+
+const launchWithArtifacts = (
+  command: { args: string[]; file: string },
+  files: ArtifactPaths,
+  options: SpawnOptions,
+): ChildProcess => {
+  const descriptors: number[] = [];
+  try {
+    visitItems(files, (artifact) => {
+      // oxlint-disable-next-line node/no-sync -- Open these descriptors on the same turn as the native spawn that inherits them.
+      descriptors.push(fs.openSync(artifact, "w"));
+    });
+    return spawn(command.file, command.args, { ...options, stdio: ["ignore", ...descriptors], windowsHide: true });
+  } finally {
+    visitItems(descriptors, (descriptor) => {
+      // oxlint-disable-next-line node/no-sync -- Release the parent's copies before attaching the native child's event handlers.
+      fs.closeSync(descriptor);
+    });
+  }
+};
+
+const runToFiles = async (
   file: string,
   args: string[],
   { out, ...options }: { out: string; cwd: string; env: NodeJS.ProcessEnv },
-) =>
-  new Promise<FileResult>((resolve) => {
-    const files = [`${out}.stdout`, `${out}.stderr`];
-    const fds: number[] = [];
-    visitItems(files, (currentFile) => {fds.push(fs.openSync(currentFile, "w"));});
-    let child: ChildProcess;
-    try {
-      child = spawn(file, args, { ...options, stdio: ["ignore", ...fds], windowsHide: true });
-    } finally {
-      visitItems(fds, (fd) => {fs.closeSync(fd);});
-    }
-    let error: Error | undefined;
-    const settle = (code: number | null): void => {
-      resolve({
-        status: error ? null : code,
-        stdout: files[0],
-        output: joined(files),
-        error,
-      });
-    };
-    child.on("error", (currentError) => {
-      error = currentError;
-      if (matchesUndefined(child.pid)) {settle(null);}
-    });
-    child.on("close", (code) => {
-      if (!matchesUndefined(child.pid)) {settle(code);}
-    });
+): Promise<FileResult> => {
+  const files: ArtifactPaths = [`${out}.stdout`, `${out}.stderr`];
+  const child = launchWithArtifacts({ args, file }, files, options);
+  const { promise, resolve } = Promise.withResolvers<FileResult>();
+  const [stdout] = files;
+  const observed: { error?: Error } = {};
+  const settle = (code: number | null): void => {
+    const { error } = observed;
+    // oxlint-disable-next-line eslint/sort-keys -- Keep the native file result's field order.
+    resolve({ status: error ? NO_NATIVE_STATUS : code, stdout, output: joined(files), error });
+  };
+  child.on("error", (error) => {
+    observed.error = error;
+    if (matchesUndefined(child.pid)) {settle(NO_NATIVE_STATUS);}
   });
+  child.on("close", (code) => {
+    if (!matchesUndefined(child.pid)) {settle(code);}
+  });
+  return promise;
+};
 
 const findTlc = async function (cwd: string) {
   const { TLA2TOOLS, JAVA } = hostEnvironment();
@@ -257,11 +271,11 @@ const findTlc = async function (cwd: string) {
   const where = () =>
     Promise.all([mise("where", TLC_TOOL), mise("which", "java", "--tool", JAVA_TOOL)]);
   let found = await where();
-  if (found.some((r) => r.status !== CHILD_SUCCESS)) {
-    const r = await mise("install", JAVA_TOOL, TLC_TOOL);
-    if (r.status !== CHILD_SUCCESS)
+  if (found.some((candidate) => candidate.status !== CHILD_SUCCESS)) {
+    const installation = await mise("install", JAVA_TOOL, TLC_TOOL);
+    if (installation.status !== CHILD_SUCCESS)
       {throw new Error(
-        `Cannot find TLC: mise install failed: ${r.error?.message ?? r.stderr.trim()}\nOr set TLA2TOOLS to the path of tla2tools.jar, and JAVA to a java binary (Java 11 or later).`,
+        `Cannot find TLC: mise install failed: ${installation.error?.message ?? installation.stderr.trim()}\nOr set TLA2TOOLS to the path of tla2tools.jar, and JAVA to a java binary (Java 11 or later).`,
       );}
     found = await where();
   }
@@ -282,11 +296,11 @@ const TAIL_LINE_COUNT = 30;
 const HEAD_LINE_COUNT = 40;
 const SEARCH_MISS = -1;
 
-const tail = (r: FileResult): string => {
-  if (r.error) {return r.error.message;}
+const tail = (processResult: FileResult): string => {
+  if (processResult.error) {return processResult.error.message;}
   const kept: string[] = [];
   let size = 0;
-  visitItems(plainText(messagesOf(r.output)), (chunk) => {
+  visitItems(plainText(messagesOf(processResult.output)), (chunk) => {
     kept.push(chunk);
     size += chunk.length;
     while (size - kept[0].length >= MAX_TAIL_CHARACTERS) {size -= kept.shift()!.length;}
@@ -300,22 +314,22 @@ const firstLines = (text: string): string => {
   return lines.join("\n");
 };
 
-const stopOf = (r: FileResult): Stop => {
+const stopOf = (processResult: FileResult): Stop => {
   const errors: Part[] = [];
-  visitItems(r.error ? [] : messagesOf(r.output), (m) => {if (
-      !isString(m) &&
-      (m.level === LEVEL.ERROR ||
-        m.level === LEVEL.TLCBUG ||
-        (errors.length && m.level === LEVEL.STATE))
+  visitItems(processResult.error ? [] : messagesOf(processResult.output), (part) => {if (
+      !isString(part) &&
+      (part.level === LEVEL.ERROR ||
+        part.level === LEVEL.TLCBUG ||
+        (errors.length && part.level === LEVEL.STATE))
     )
-      {errors.push(m);}});
-  if (!errors.length) {return { status: r.status, message: tail(r) };}
-  return { status: r.status, message: firstLines([...plainText(errors)].join("")) };
+      {errors.push(part);}});
+  if (!errors.length) {return { status: processResult.status, message: tail(processResult) };}
+  return { status: processResult.status, message: firstLines([...plainText(errors)].join("")) };
 };
 
-const sanyErrors = (r: FileResult): string | undefined => {
-  if (r.error) {return undefined;}
-  const text = [...plainText(messagesOf(r.output))].join("");
+const sanyErrors = (processResult: FileResult): string | undefined => {
+  if (processResult.error) {return undefined;}
+  const text = [...plainText(messagesOf(processResult.output))].join("");
   const at = text.search(SANY_ERRORS);
   return at === SEARCH_MISS ? undefined : firstLines(text.slice(at));
 };
@@ -407,21 +421,21 @@ export const check = async function check(specFile: string, configFile: string):
     const all = [...rules];
     visitItems(spec.properties, (name) => {all.push({ kind: "property", name });});
     const verdicts = new Map<string, Verdict>();
-    const decide = (rule: Rule, outcome: Outcome, r?: FileResult) =>
-      verdicts.set(ruleKey(rule), { rule, outcome, messages: r && messagesOf(r.output) });
+    const decide = (rule: Rule, outcome: Outcome, processResult?: FileResult) =>
+      verdicts.set(ruleKey(rule), { rule, outcome, messages: processResult && messagesOf(processResult.output) });
     const judge = async () => {
       const groups = [all];
       let first: FileResult | undefined;
       let stop: Stop | undefined;
       const states = { distinct: 0, initial: 0, complete: false, cut: false };
-      for (let k = 1; groups.length;) {
+      for (let checkNumber = 1; groups.length;) {
         const group: Rule[] = [];
         visitItems(groups[0], (rule) => {if (!verdicts.has(ruleKey(rule))) {group.push(rule);}});
         if (first && !group.length) {
           groups.shift();
           continue;
         }
-        const name = `verdict-${k++}`;
+        const name = `verdict-${checkNumber++}`;
         const extra: string[] = [];
         const invariants = names(group, "invariant");
         const properties = names(group, "property");
@@ -430,7 +444,7 @@ export const check = async function check(specFile: string, configFile: string):
         const bounded = !matchesUndefined(first) && !states.complete;
         if (bounded) {extra.push("CONSTRAINT ChartBound");}
         // oxlint-disable-next-line eslint/no-await-in-loop -- Each verdict determines which pending group the next TLC invocation checks.
-        const r = await runJava(name, "tlc2.TLC", [
+        const checkOutput = await runJava(name, "tlc2.TLC", [
           "-tool",
           ...PINNED_FLAGS,
           ...(names(group, "deadlock").length ? [] : ["-deadlock"]),
@@ -438,20 +452,20 @@ export const check = async function check(specFile: string, configFile: string):
           ...(await config(name, spec.written, extra)),
           bounded ? "ChartBound" : spec.module,
         ]);
-        first ??= r;
-        const { broke, distinct, initial } = readVerdict(messagesOf(r.output));
+        first ??= checkOutput;
+        const { broke, distinct, initial } = readVerdict(messagesOf(checkOutput.output));
         states.distinct = Math.max(states.distinct, distinct);
         states.initial = Math.max(states.initial, initial);
         const rule = broke && brokenRule(group, broke);
         const cut = bounded && distinct >= RERUN_STATES;
-        if (exitClass(r.status) === CHECK_FAILED) {
-          stop = stopOf(r);
+        if (exitClass(checkOutput.status) === CHECK_FAILED) {
+          stop = stopOf(checkOutput);
           break;
-        } else if (rule) {decide(rule, "broken", r);}
-        else if (cut && (r.status === CHILD_SUCCESS || broke?.kind === "temporal")) {
+        } else if (rule) {decide(rule, "broken", checkOutput);}
+        else if (cut && (checkOutput.status === CHILD_SUCCESS || broke?.kind === "temporal")) {
           states.cut = true;
           visitItems(group, (rule) => {decide(rule, "not checked");});
-        } else if (r.status === CHILD_SUCCESS) {
+        } else if (checkOutput.status === CHILD_SUCCESS) {
           states.complete = true;
           visitItems(group, (rule) => {decide(rule, "holds");});
         } else if (broke && properties.length) {
@@ -463,11 +477,11 @@ export const check = async function check(specFile: string, configFile: string):
           const rest: Rule[] = [];
           visitItems(group, (rule) => {if (rule.kind === "property") {pending.push([rule]);}
             else if (!verdicts.has(ruleKey(rule))) {rest.push(rule);}});
-          if (pending.length === 1) {decide(pending[0][0], "broken", r);}
+          if (pending.length === 1) {decide(pending[0][0], "broken", checkOutput);}
           else {groups.splice(0, 1, rest, ...pending);}
         } else
           {throw new Error(
-            `TLC exited ${r.status} on ${specFile}, but its output names no rule that broke:\n${tail(r)}`,
+            `TLC exited ${checkOutput.status} on ${specFile}, but its output names no rule that broke:\n${tail(checkOutput)}`,
           );}
       }
       visitItems(all, (rule) => {if (!verdicts.has(ruleKey(rule))) {decide(rule, "not checked");}});
@@ -476,8 +490,8 @@ export const check = async function check(specFile: string, configFile: string):
     await writeFile(path.join(dir, "ChartBound.tla"), boundRun(spec.module));
     const judged = await judge();
     const exit = exitClass(judged.first.status);
-    const failed = (r: FileResult) =>
-      new Error(`TLC could not check ${specFile} (exit ${r.status}):\n${stopOf(r).message}`);
+    const failed = (processResult: FileResult) =>
+      new Error(`TLC could not check ${specFile} (exit ${processResult.status}):\n${stopOf(processResult).message}`);
     const initialOnly = initialOnlyProperties(sany, spec);
     const propertiesWith = (bugOf: (trace: Trace) => Lasso | undefined) => {
       const properties: Property[] = [];
