@@ -48,98 +48,115 @@ visitItems([
   if (section.plural) {SECTIONS.set(section.plural, section);}
 });
 export const NAME = /^\w*[A-Za-z]\w*$/u;
-const WORD = /\w+/y;
+const WORD = /\w+/uy;
+const FIRST_CODE_UNIT = 0;
+const CODE_UNIT_WIDTH = 1;
+const PAIR_WIDTH = 2;
+const FIRST_LINE = 1;
+const LINE_STEP = 1;
+const NO_COMMENT_DEPTH = 0;
+const COMMENT_DEPTH_STEP = 1;
+const HEX_RADIX = 16;
+const HEX_CODE_POINT_WIDTH = 4;
+const NUL_CODE_POINT = 0;
+const FIRST_PRINTABLE_ASCII = 0x20;
+const ASCII_DELETE = 0x7F;
+const FAIRNESS_PREFIX_LENGTH = 3;
+const TLC_INTEGER_MAX = 2_147_483_647;
+
 const CONFIG_HOLDS =
   "A config can hold only names, numbers, strings, comments, and the symbols { } ( ) [ ] , = ! <-.";
-const shown = (c: string): string => {
-  const code = c.codePointAt(0) ?? 0;
-  const hex = `U+${code.toString(16).toUpperCase().padStart(4, "0")}`;
-  if (code < 0x20 || code === 0x7F) {return hex;}
-  return code < 0x7F ? `"${c}"` : `"${c}" (${hex})`;
+const shown = (character: string): string => {
+  const code = character.codePointAt(FIRST_CODE_UNIT) ?? NUL_CODE_POINT;
+  const hex = `U+${code.toString(HEX_RADIX).toUpperCase().padStart(HEX_CODE_POINT_WIDTH, "0")}`;
+  if (code < FIRST_PRINTABLE_ASCII || code === ASCII_DELETE) {return hex;}
+  return code < ASCII_DELETE ? `"${character}"` : `"${character}" (${hex})`;
 };
 
 interface Token { image: string; line: number }
 
 const tokenizeConfig = function (text: string, cannot: (line: number, words: string) => Error) {
   if (text.startsWith("\uFEFF"))
-    {throw cannot(1, "The file starts with a byte order mark. Save it as UTF-8 without one.");}
+    {throw cannot(FIRST_LINE, "The file starts with a byte order mark. Save it as UTF-8 without one.");}
   const tokens: Token[] = [];
-  let line = 1;
-  let last = 1;
-  let i = 0;
-  const skip = (to: number): void => {
-    for (; i < to; i++) {
+  let line = FIRST_LINE;
+  let last = FIRST_LINE;
+  let position = FIRST_CODE_UNIT;
+  const skip = (end: number): void => {
+    while (position < end) {
       last = line;
-      if (text[i] === "\n" || (text[i] === "\r" && text[i + 1] !== "\n")) {line++;}
+      if (text[position] === "\n" || (text[position] === "\r" && text[position + CODE_UNIT_WIDTH] !== "\n")) {line += LINE_STEP;}
+      position += CODE_UNIT_WIDTH;
     }
   };
   const push = (image: string): void => {
     tokens.push({ image, line });
-    skip(i + image.length);
+    skip(position + image.length);
   };
-  while (i < text.length) {
-    const c = text[i];
-    const two = text.slice(i, i + 2);
+  while (position < text.length) {
+    const character = text[position];
+    const two = text.slice(position, position + PAIR_WIDTH);
     const start = line;
-    if (c === " " || c === "\t" || c === "\n" || c === "\r") {skip(i + 1);}
+    if (character === " " || character === "\t" || character === "\n" || character === "\r") {skip(position + CODE_UNIT_WIDTH);}
     else if (two === String.raw`\*`) {
-      const end = text.slice(i).search(/[\n\r]/u);
-      skip(end < 0 ? text.length : i + end);
+      const end = text.slice(position).search(/[\n\r]/u);
+      skip(end < 0 ? text.length : position + end);
     } else if (two === "(*") {
       const marks = /\(\*|\*\)/gu;
-      let depth = 0;
+      let depth = NO_COMMENT_DEPTH;
       do {
-        marks.lastIndex = i;
+        marks.lastIndex = position;
         const regexMatch = marks.exec(text);
         if (!regexMatch) {throw cannot(start, "A comment starts here and does not end.");}
-        depth += regexMatch[0] === "(*" ? 1 : -1;
-        skip(regexMatch.index + 2);
-      } while (depth);
-    } else if (c === '"') {
-      let j = i + 1;
-      while (text[j] !== '"') {
-        const ch = text[j];
-        if (matchesUndefined(ch)) {throw cannot(start, "A string starts here and does not end.");}
-        if (ch === "\n" || ch === "\r")
+        const [marker] = regexMatch;
+        depth += marker === "(*" ? COMMENT_DEPTH_STEP : -COMMENT_DEPTH_STEP;
+        skip(regexMatch.index + PAIR_WIDTH);
+      } while (depth !== NO_COMMENT_DEPTH);
+    } else if (character === '"') {
+      let stringPosition = position + CODE_UNIT_WIDTH;
+      while (text[stringPosition] !== '"') {
+        const current = text[stringPosition];
+        if (matchesUndefined(current)) {throw cannot(start, "A string starts here and does not end.");}
+        if (current === "\n" || current === "\r")
           {throw cannot(
             start,
             String.raw`A string starts here and does not end on its line. Write \n for a line break in a string.`,
           );}
-        if (ch === "\0") {throw cannot(start, "A string has the character U+0000.");}
-        if (ch === "\\" && !matchesUndefined(text[j + 1]) && !String.raw`"\ntrf`.includes(text[j + 1]))
+        if (current === "\0") {throw cannot(start, "A string has the character U+0000.");}
+        if (current === "\\" && !matchesUndefined(text[stringPosition + CODE_UNIT_WIDTH]) && !String.raw`"\ntrf`.includes(text[stringPosition + CODE_UNIT_WIDTH]))
           {throw cannot(
             start,
-            `A string has a backslash before ${shown(text[j + 1])}. A string can use only the escapes \\" \\\\ \\n \\t \\r \\f.`,
+            `A string has a backslash before ${shown(text[stringPosition + CODE_UNIT_WIDTH])}. A string can use only the escapes \\" \\\\ \\n \\t \\r \\f.`,
           );}
-        j += ch === "\\" ? 2 : 1;
+        stringPosition += current === "\\" ? PAIR_WIDTH : CODE_UNIT_WIDTH;
       }
-      push(text.slice(i, j + 1));
-    } else if (/\w/u.test(c)) {
-      WORD.lastIndex = i;
-      const word = WORD.exec(text)?.[0] ?? c;
+      push(text.slice(position, stringPosition + CODE_UNIT_WIDTH));
+    } else if (/\w/u.test(character)) {
+      WORD.lastIndex = position;
+      const word = WORD.exec(text)?.[FIRST_CODE_UNIT] ?? character;
       if (/^[WS]F_/u.test(word))
         {throw cannot(
           start,
-          `TLC reads ${word.slice(0, 3)} at the start of a word as a TLA+ keyword, so it cannot read ${word} as a name.`,
+          `TLC reads ${word.slice(FIRST_CODE_UNIT, FAIRNESS_PREFIX_LENGTH)} at the start of a word as a TLA+ keyword, so it cannot read ${word} as a name.`,
         );}
       if (!/[A-Za-z]/u.test(word) && word !== "_") {
-        if (/\D/.test(word))
+        if (/\D/u.test(word))
           {throw cannot(
             start,
             `TLC splits ${word} into ${word.match(/\d+|_/gu)?.join(" ")}, because a name needs a letter.`,
           );}
-        if (Number(word) > 2_147_483_647)
-          {throw cannot(start, `TLC cannot read a number above 2147483647, such as ${word}.`);}
+        if (Number(word) > TLC_INTEGER_MAX)
+          {throw cannot(start, `TLC cannot read a number above ${TLC_INTEGER_MAX}, such as ${word}.`);}
       }
       push(word);
     } else if (two === "<-") {push(two);}
     else if (["[]", "]_", "==", "=<", "!!"].includes(two))
       {throw cannot(start, `TLC reads ${two} as one TLA+ symbol, and a config cannot hold it.`);}
-    else if ("{}()[],=!".includes(c)) {push(c);}
+    else if ("{}()[],=!".includes(character)) {push(character);}
     else {
-      const ch = String.fromCodePoint(text.codePointAt(i) ?? 0);
-      const where = ch > "\x7F" ? " outside a string" : "";
-      throw cannot(start, `It cannot read the character ${shown(ch)}${where}. ${CONFIG_HOLDS}`);
+      const current = String.fromCodePoint(text.codePointAt(position) ?? NUL_CODE_POINT);
+      const where = current > String.fromCodePoint(ASCII_DELETE) ? " outside a string" : "";
+      throw cannot(start, `It cannot read the character ${shown(current)}${where}. ${CONFIG_HOLDS}`);
     }
   }
   return { tokens, end: last };
@@ -152,8 +169,12 @@ export const readConfig = function readConfig({ file, text }: { file: string; te
     new Error(`The command cannot read the config ${file} at line ${line}. ${words}`);
   const { tokens, end } = tokenizeConfig(text, cannot);
   const eof: Token = { image: "", line: end };
-  let at = 0;
-  const next = () => tokens[at++] ?? eof;
+  let tokenOffset = FIRST_CODE_UNIT;
+  const readToken = (): Token => {
+    const token = tokens[tokenOffset] ?? eof;
+    tokenOffset += CODE_UNIT_WIDTH;
+    return token;
+  };
   let deferred: Error | undefined;
   const defer = (error: Error) => (deferred ??= error);
   const defined = (token: Token, undefinedNoun: string | undefined): void => {
@@ -174,14 +195,14 @@ export const readConfig = function readConfig({ file, text }: { file: string; te
   const value = (token: Token): void => {
     if (token === eof) {throw refuse(token.line, "It was expecting a value, but did not find it.");}
     if (token.image === "{") {
-      token = next();
+      token = readToken();
       if (token.image === "}") {return;}
       value(token);
-      while ((token = next()).image === ",") {value(next());}
+      while ((token = readToken()).image === ",") {value(readToken());}
       if (token.image !== "}") {throw refuse(token.line, "It was expecting }, but did not find it.");}
     } else if (SECTIONS.has(token.image))
       {defer(cannot(token.line, `TLC would read the keyword ${token.image} as a value.`));}
-    else if (!NAME.test(token.image) && !/^(?:\d+|".*")$/.test(token.image))
+    else if (!NAME.test(token.image) && !/^(?:\d+|".*")$/u.test(token.image))
       {defer(
         cannot(
           token.line,
@@ -191,40 +212,40 @@ export const readConfig = function readConfig({ file, text }: { file: string; te
   };
   const constant = (token: Token, loc: number): void => {
     name(token, "a constant name");
-    for (token = next(); token.image === "!"; token = next()) {name((token = next()), "a constant name");}
+    for (token = readToken(); token.image === "!"; token = readToken()) {name((token = readToken()), "a constant name");}
     if (token.image === "<-") {
-      token = next();
+      token = readToken();
       if (token.image === "[") {
-        token = next();
+        token = readToken();
         if (token === eof) {throw refuse(token.line, "Expected an identifier after <-[.");}
         name(token, "a module name");
-        token = next();
+        token = readToken();
         if (token.image !== "]") {throw refuse(token.line, "It was expecting ], but did not find it.");}
-        token = next();
+        token = readToken();
         if (token === eof) {throw refuse(token.line, "Expected an identifier after <-[mod].");}
       } else if (token === eof) {throw refuse(token.line, "Expected an identifier after <-.");}
       name(token, "the name after <-");
       return;
     }
     if (token.image === "(") {
-      value(next());
-      while ((token = next()).image === ",") {value(next());}
+      value(readToken());
+      while ((token = readToken()).image === ",") {value(readToken());}
       if (token.image !== ")")
         {throw refuse(
           loc,
           "TLC gives no reason here. An operator's arguments are one or more values in ( ), with commas between them.",
         );}
-      token = next();
+      token = readToken();
     }
     if (token.image !== "=") {throw refuse(token.line, "It was expecting = or <-, but did not find it.");}
-    token = next();
+    token = readToken();
     if (token.image === "[") {
-      token = next();
+      token = readToken();
       if (token === eof) {throw refuse(token.line, "Expected an identifier after =[.");}
       name(token, "a module name");
-      token = next();
+      token = readToken();
       if (token.image !== "]") {throw refuse(token.line, "It was expecting ], but did not find it.");}
-      token = next();
+      token = readToken();
     }
     value(token);
   };
@@ -235,21 +256,21 @@ export const readConfig = function readConfig({ file, text }: { file: string; te
     constraints: [],
     actionConstraints: [],
   };
-  for (let token = next(); token !== eof;) {
+  for (let token = readToken(); token !== eof;) {
     const keyword = token;
     const section = SECTIONS.get(keyword.image);
     if (!section) {throw refuse(token.line, "It was expecting a keyword, but did not find it.");}
     const { key, field, undefinedNoun } = section;
-    const begin = at;
+    const begin = tokenOffset;
     if (matchesUndefined(field)) {
-      for (token = next(); token !== eof && !SECTIONS.has(token.image); token = next()) {constant(token, keyword.line);}
+      for (token = readToken(); token !== eof && !SECTIONS.has(token.image); token = readToken()) {constant(token, keyword.line);}
     } else if (isListField(field)) {
-      for (token = next(); token !== eof && !SECTIONS.has(token.image); token = next()) {
+      for (token = readToken(); token !== eof && !SECTIONS.has(token.image); token = readToken()) {
         config[field].push(token.image);
         defined(token, undefinedNoun);
       }
     } else {
-      token = next();
+      token = readToken();
       if (token === eof)
         {throw refuse(
           keyword.line,
@@ -266,10 +287,10 @@ export const readConfig = function readConfig({ file, text }: { file: string; te
           {defer(cannot(token.line, `TLC would read the keyword ${token.image} as the name after ${key}.`));}
         else if (undefinedNoun) {defined(token, undefinedNoun);}
       }
-      token = next();
+      token = readToken();
     }
-    const images: string[] = [];
-    for (let k = begin; k < (token === eof ? tokens.length : at - 1); k++) {images.push(tokens[k].image);}
+    const sectionEnd = token === eof ? tokens.length : tokenOffset - CODE_UNIT_WIDTH;
+    const images = tokens.slice(begin, sectionEnd).map(({ image }) => image);
     config.sections.push({ key, line: keyword.line, tokens: images });
   }
   if (deferred) {throw deferred;}
