@@ -1,15 +1,8 @@
-// oxlint-disable-next-line rules/no-node-imports -- Test the distributed script as a native Node.js subprocess.
-import { execFile } from "node:child_process";
-// oxlint-disable-next-line rules/no-node-imports -- Create and inspect filesystem fixtures for the subprocess.
-import { chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-// oxlint-disable-next-line rules/no-node-imports -- Place subprocess fixtures in the system temporary directory.
-import { tmpdir } from "node:os";
-// oxlint-disable-next-line rules/no-node-imports -- Resolve test fixture paths for the subprocess.
-import { resolve } from "node:path";
-// oxlint-disable-next-line rules/no-node-imports -- Find the distributed entry point relative to this test module.
-import { fileURLToPath } from "node:url";
-// oxlint-disable-next-line rules/no-node-imports -- Await the native subprocess and preserve its exit status in these tests.
-import { promisify } from "node:util";
+/* oxlint-disable eslint/max-lines -- Keep the existing evaluator groups discoverable in their single Vitest entry file. */
+// oxlint-disable-next-line rules/no-node-imports -- Inspect and update the evaluator's CLI fixture artifacts.
+import { readFile, writeFile } from "node:fs/promises";
+// oxlint-disable-next-line rules/no-node-imports -- Resolve each CLI fixture's input and output files.
+import path from "node:path";
 import { afterEach, assert, describe, expect, test } from "vitest";
 
 import {
@@ -25,6 +18,22 @@ import {
   validateManifest,
   validateResponse,
 } from "./evaluate.mjs";
+import {
+  hasRetryOverride,
+  hostEnvironment,
+  localEvidence,
+  prepareMock,
+  requestArray,
+  withMock,
+} from "./evaluation-test-curl.mjs";
+import {
+  cleanupFixtures,
+  dictionaryFixture,
+  duplicateFixture,
+  fixture,
+  readFixtureManifest,
+  runEvaluationCli,
+} from "./evaluation-test-fixtures.mjs";
 import { readEvaluationReport } from "./evaluation-test-support.mjs";
 import { object, text } from "./evaluation-validation.mjs";
 import {
@@ -35,22 +44,9 @@ import {
 } from "./mechanical.mjs";
 import { matchesNull, matchesUndefined } from "./native-predicates.mjs";
 
-const execute = promisify(execFile);
-const script = fileURLToPath(new URL("evaluate.mjs", import.meta.url));
-
-/** @typedef {{ directory: string }} MockDirectory */
-/** @typedef {{ cacheStatus?: string, exitCode?: number, mode?: string, ray?: string, statusSequence?: string }} MockOptions */
-/** @typedef {{ argv: string[], config: string, headers: string[], payload: Record<string, unknown>, url: string }} MockCall */
 /** @typedef {Awaited<ReturnType<typeof evaluate>>} EvaluationReport */
 /** @typedef {EvaluationReport["evaluations"][number]} Evaluation */
 /** @typedef {Pick<Evaluation, "answers" | "questions"> & { cache: NonNullable<Evaluation["cache"]> }} CachedEvaluation */
-/** @typedef {{ endLine: number, headingPath?: string[], id?: string, startLine: number }} FixtureRange */
-/** @typedef {{ audience: string, id: string, path: string, purpose: string, ruleIds?: string[], sections?: FixtureRange[], sourceLanguage?: string, ste?: Record<string, unknown> }} FixtureDocument */
-/** @typedef {{ documents: FixtureDocument[], rules?: Record<string, unknown>[], rulesFile?: string }} FixtureManifest */
-/** @typedef {{ secondAudience?: string, secondRuleIds?: string[], model?: string }} DuplicateOptions */
-/** @typedef {{ approved: boolean, forms: string[], meaning: string, partOfSpeech: string, word: string }} VocabularyEntry */
-/** @typedef {{ entries: VocabularyEntry[], issue: number, source: string, technicalTerms?: { category: number, kind: string, source: string, text: string }[] }} FixtureVocabulary */
-
 const ACCOUNT_ID = "0123456789abcdef0123456789abcdef";
 const API_KEY = "test-gateway-key";
 const GATEWAY_ID = "test-gateway";
@@ -60,16 +56,17 @@ const CREDENTIALS = {
   CLOUDFLARE_AI_GATEWAY_ID: GATEWAY_ID,
 };
 
-/** @type {string[]} */
-const temporaryDirectories = [];
+// oxlint-disable-next-line unicorn/no-null -- Provider usage and serialized report fields use JSON null.
+const JSON_NULL = null;
+const EMPTY_LENGTH = 0;
 
-/** @type {(file: string) => Promise<FixtureManifest>} */
-const readFixtureManifest = async (file) => {
-  const manifest = object(JSON.parse(await readFile(file, "utf8")), "fixture manifest");
-  assert(Array.isArray(manifest.documents), "Fixture manifest needs its document list.");
-  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- This test reads and mutates the manifests its fixture writers own.
-  return /** @type {FixtureManifest} */ (manifest);
-};
+/** @type {(values: ReadonlyArray<unknown>) => boolean} */
+const isEmptyArray = (values) => values.length === EMPTY_LENGTH;
+
+const withoutCredentials = () =>
+  Object.fromEntries(
+    Object.entries(hostEnvironment()).filter(([name]) => !Object.hasOwn(CREDENTIALS, name)),
+  );
 
 /** @type {(fragment: string) => unknown} */
 const containingText = (fragment) => expect.stringContaining(fragment);
@@ -80,174 +77,24 @@ const matchingText = (pattern) => expect.stringMatching(pattern);
 /** @type {(values: unknown[]) => unknown} */
 const containingValues = (values) => expect.arrayContaining(values);
 
-// The evaluator must not send a request-level retry override, so the Gateway's
-// Own configured retry policy stays in effect.
-/** @type {(call: MockCall) => boolean} */
-const hasRetryOverride = (call) =>
-  call.headers.some((header) => header.startsWith("cf-aig-max-attempts:"));
-
-const fixture = async function fixture({ model = "clef-flash" } = {}) {
-  const directory = await mkdtemp(resolve(tmpdir(), "audit-english-docs-test-"));
-  temporaryDirectories.push(directory);
-  await writeFile(
-    resolve(directory, "guide.md"),
-    "# Start\n\nUse the tool.\n\n## Details\n\n```md\n# Not a heading\n```\n\nMore detail.\n",
-  );
-  const manifest = {
-    model,
-    threshold: 0.8,
-    rules: [
-      {
-        id: "direct",
-        scope: "section",
-        instructions: "Evaluate directness.",
-        pass: "Direct.",
-        fail: "Indirect.",
-        expected: "pass",
-      },
-      {
-        id: "flow",
-        scope: "page",
-        instructions: "Evaluate flow.",
-        pass: "Coherent.",
-        fail: "Fragmented.",
-      },
-    ],
-    documents: [
-      {
-        id: "guide",
-        path: "guide.md",
-        purpose: "Teach setup.",
-        audience: "A new user.",
-        ruleIds: ["direct", "flow"],
-        expected: { direct: "pass" },
-      },
-    ],
-  };
-  const manifestPath = resolve(directory, "manifest.json");
-  await writeFile(manifestPath, JSON.stringify(manifest));
-  return { directory, manifestPath, outputPath: resolve(directory, "report.json") };
+/** @type {(entry: Evaluation) => NonNullable<Evaluation["cache"]>} */
+const cacheOf = (entry) => {
+  const { cache } = entry;
+  assert(!matchesNull(cache), "Evaluation needs its recorded cache evidence.");
+  return cache;
 };
 
-const dictionaryFixture = async function ({ complete = false, vocabulary = true } = {}) {
-  const paths = await fixture();
-  await writeFile(
-    resolve(paths.directory, "guide.md"),
-    "Check the panel.\n\n# Elsewhere\n\nUnrelated evidence.\n",
-  );
-  const manifest = await readFixtureManifest(paths.manifestPath);
-  manifest.rules = [
-    {
-      id: "dictionary-context",
-      scope: "paragraph",
-      requiresDictionaryEntries: true,
-      instructions: "Evaluate the listed meaning and part of speech in this target.",
-      pass: "All target uses obey supplied entries.",
-      fail: "A supplied entry demonstrates a contextual violation.",
-    },
-  ];
-  manifest.documents[0].ruleIds = ["dictionary-context"];
-  manifest.documents[0].sections = [{ startLine: 1, endLine: 1 }];
-  manifest.documents[0].ste = vocabulary ? { vocabularyFile: "private-vocabulary.json" } : {};
-  /** @type {(word: string, meaning: string) => VocabularyEntry} */
-  const entry = (word, meaning) => ({
-    word,
-    approved: true,
-    partOfSpeech: "synthetic",
-    meaning,
-    forms: [],
-  });
-  /** @type {FixtureVocabulary} */
-  const data = {
-    issue: 9,
-    source: "Original bounded source declaration for tests, not STE dictionary data.",
-    entries: [
-      entry("check", "Selected local meaning."),
-      entry("unrelated", "UNMATCHED-PRIVATE-MEANING"),
-      ...(complete
-        ? [entry("the", "Synthetic determiner."), entry("panel", "Synthetic object.")]
-        : []),
-    ],
-  };
-  if (vocabulary) {
-    await writeFile(resolve(paths.directory, "private-vocabulary.json"), JSON.stringify(data));
-  }
-  await writeFile(paths.manifestPath, JSON.stringify(manifest));
-  return { ...paths, data };
-};
-
-/** @param {DuplicateOptions} [options] - Overrides for the second copy of the fixture. */
-const duplicateFixture = async function ({
-  model = "clef-flash",
-  secondAudience,
-  secondRuleIds,
-} = {}) {
-  const directory = await mkdtemp(resolve(tmpdir(), "audit-english-docs-test-"));
-  temporaryDirectories.push(directory);
-  await writeFile(
-    resolve(directory, "guide.md"),
-    "# Start\n\nUse the tool.\n\n## Details\n\nMore detail.\n",
-  );
-  /** @type {(id: string, overrides?: Partial<FixtureDocument>) => FixtureDocument} */
-  const document = (id, overrides = {}) => ({
-    id,
-    path: "guide.md",
-    purpose: "Teach setup.",
-    audience: "A new user.",
-    ruleIds: ["direct", "flow"],
-    ...overrides,
-  });
-  const manifest = {
-    model,
-    threshold: 0.8,
-    rules: [
-      {
-        id: "direct",
-        scope: "section",
-        instructions: "Evaluate directness.",
-        pass: "Direct.",
-        fail: "Indirect.",
-      },
-      {
-        id: "strict",
-        scope: "section",
-        instructions: "Evaluate strictness.",
-        pass: "Strict.",
-        fail: "Loose.",
-      },
-      {
-        id: "flow",
-        scope: "page",
-        instructions: "Evaluate flow.",
-        pass: "Coherent.",
-        fail: "Fragmented.",
-      },
-    ],
-    documents: [
-      document("guide-a"),
-      document("guide-b", {
-        ...(matchesUndefined(secondAudience) ? {} : { audience: secondAudience }),
-        ...(matchesUndefined(secondRuleIds) ? {} : { ruleIds: secondRuleIds }),
-      }),
-    ],
-  };
-  const manifestPath = resolve(directory, "manifest.json");
-  await writeFile(manifestPath, JSON.stringify(manifest));
-  return { directory, manifestPath, outputPath: resolve(directory, "report.json") };
-};
-
-/** @type {(report: EvaluationReport, documentId: string, scope: Evaluation["scope"], sectionId?: string | null) => CachedEvaluation} */
-const cachedEvaluationOf = function (report, documentId, scope, sectionId = null) {
+/** @type {(report: EvaluationReport, options: { documentId: string, scope: Evaluation["scope"], sectionId?: string | null }) => CachedEvaluation} */
+const cachedEvaluationOf = function (report, { documentId, scope, sectionId = JSON_NULL }) {
   const entry = report.evaluations.find(
-    (entry) =>
-      entry.documentId === documentId &&
-      entry.scope === scope &&
-      (matchesNull(sectionId) || entry.section?.id === sectionId),
+    (candidate) =>
+      candidate.documentId === documentId &&
+      candidate.scope === scope &&
+      (matchesNull(sectionId) || candidate.section?.id === sectionId),
   );
   assert(!matchesUndefined(entry), `Missing evaluation for ${documentId} (${scope}).`);
-  const { answers, cache, questions } = entry;
-  assert(!matchesNull(cache), `Missing request cache for ${documentId} (${scope}).`);
-  return { answers, cache, questions };
+  const { answers, questions } = entry;
+  return { answers, cache: cacheOf(entry), questions };
 };
 
 /** @type {(answer: Evaluation["answers"][number] | import("./mechanical.mjs").MechanicalResult) => import("./mechanical.mjs").Coverage} */
@@ -267,217 +114,97 @@ const assertAnswerIdentities = function (report) {
   Iterator.from(report.evaluations).forEach((entry) => {
     const ids = new Set(entry.questions.map((question) => question.id));
     expect(entry.answers).toHaveLength(entry.questions.length);
-    for (const answer of entry.answers) {
+    entry.answers.forEach((answer) => {
       expect(ids.has(answer.questionId)).toBe(true);
-    }
+    });
   });
 };
 
-const MOCK_SOURCE = `#!/usr/bin/env node
-const fs = require("node:fs");
-const config = fs.readFileSync(0, "utf8");
-const value = (name) => new RegExp("^" + name + " = \\"([^\\"]+)\\"", "m").exec(config)?.[1];
-const headers = [...config.matchAll(/^header = "(.*)"$/gm)].map((match) => match[1]);
-const url = value("url");
-const requestPath = value("data-binary").slice(1);
-const headersPath = value("dump-header");
-const payload = JSON.parse(fs.readFileSync(requestPath, "utf8"));
-fs.appendFileSync(process.env.CURL_LOG, JSON.stringify({ config, headers, url, payload, argv: process.argv.slice(2), at: Date.now() }) + "\\n");
-const counterPath = process.env.CURL_MOCK_COUNTER;
-let attempt = 0;
-if (counterPath) {
-  try { attempt = Number(fs.readFileSync(counterPath, "utf8")) || 0; } catch {}
-  fs.writeFileSync(counterPath, String(attempt + 1));
-}
-const sequence = (process.env.CURL_MOCK_STATUS_SEQUENCE || "").split(",").filter(Boolean).map(Number);
-const status = sequence.length ? sequence[Math.min(attempt, sequence.length - 1)] : 200;
-const mode = process.env.CURL_MOCK_MODE || "valid";
-const cacheStatus = process.env.CURL_MOCK_CACHE_STATUS || "MISS";
-const ray = process.env.CURL_MOCK_RAY || "mock-ray-0001";
-const answer = () => mode === "abstain"
-  ? ({ type: "choice", choice: "insufficient_context", confidence: 0.94, probabilities: { pass: 0.01, fail: 0.03, not_applicable: 0, insufficient_context: 0.96 } })
-  : ({ type: "choice", choice: "pass", confidence: 0.94, probabilities: { pass: 0.96, fail: 0.03, not_applicable: 0, insufficient_context: 0.01 } });
-const native = url.includes("/@cf/cloudflare/");
-const questions = native ? payload.questions : payload.input.questions;
-const answers = mode === "malformed" ? { wrong: answer() } : Object.fromEntries(Object.keys(questions).map((id) => [id, answer()]));
-const inner = { model: native ? payload.model : "jev-1.13.0", answers, usage: { inputTokens: 1 } };
-const response = native
-  ? (mode === "native-failed" ? { success: false } : { success: true, result: inner })
-  : { success: true, result: { state: mode === "wrapper-failed" ? "Failed" : "Completed", result: inner } };
-setTimeout(() => {
-  if (status === 200) {
-    fs.writeFileSync(headersPath, "HTTP/1.1 200 OK\\r\\ncontent-type: application/json\\r\\ncf-aig-cache-status: " + cacheStatus + "\\r\\ncf-ray: " + ray + "\\r\\n\\r\\n");
-    process.stdout.write(JSON.stringify(response) + "\\n" + status);
-  } else {
-    fs.writeFileSync(headersPath, "HTTP/1.1 " + status + " Error\\r\\n\\r\\n");
-    process.stdout.write(JSON.stringify({ success: false, errors: [{ code: status }] }) + "\\n" + status);
-    process.exitCode = status >= 400 ? 22 : 0;
-  }
-  if (process.env.CURL_MOCK_EXIT) process.exitCode = Number(process.env.CURL_MOCK_EXIT);
-}, 20);
-`;
-
-/** @type {(directory: string) => Promise<string>} */
-const installCurlMock = async function (directory) {
-  const script = resolve(directory, "curl");
-  await writeFile(script, MOCK_SOURCE);
-  await chmod(script, 0o755);
-  return script;
-};
-
-/** @type {(value: unknown, label: string) => string[]} */
-const traceStrings = (value, label) => {
-  if (!Array.isArray(value)) {
-    throw new TypeError(`${label} must be an array`);
-  }
-  return value.map((entry) => text(entry, label));
-};
-
-/** @type {(line: string) => MockCall} */
-const decodeMockCall = (line) => {
-  const call = object(JSON.parse(line), "curl transcript");
-  return {
-    argv: traceStrings(call.argv, "curl argument"),
-    config: text(call.config, "curl configuration"),
-    headers: traceStrings(call.headers, "curl header"),
-    payload: object(call.payload, "curl payload"),
-    url: text(call.url, "curl URL"),
-  };
-};
-
-/**
- * @param {string} log - The request trace produced by the mock executable.
- * @returns {Promise<MockCall[]>} Every request made by the test subprocess.
- */
-const readCalls = async function (log) {
-  const content = await readFile(log, "utf8").catch(() => "");
-  return content
-    .trim()
-    .split("\n")
-    .filter((line) => line.length > 0)
-    .map((line) => decodeMockCall(line));
-};
-
-/** @type {(call: MockCall) => Record<string, unknown>} */
-const localEvidence = (call) => {
-  const state = object(call.payload.state, "native request state");
-  const evidence = object(state.evidence, "native request evidence");
-  return object(evidence.local, "local request evidence");
-};
-
-/** @type {(value: unknown, label: string) => unknown[]} */
-const requestArray = (value, label) => {
-  if (!Array.isArray(value)) {
-    // oxlint-disable-next-line rules/require-tagged-error -- Match the test fixture's native type error for a malformed subprocess request.
-    throw new TypeError(`The request must contain ${label}`);
-  }
-  return value;
-};
-
-/** @type {() => NodeJS.ProcessEnv} */
-// oxlint-disable-next-line node/no-process-env -- The native curl subprocess inherits the fixture PATH and options from this test host.
-const hostEnvironment = () => process.env;
-
-/** @typedef {[name: string, value: string | undefined]} EnvironmentValue */
-
-/** @type {(environment: NodeJS.ProcessEnv, changes: EnvironmentValue[]) => void} */
-const setEnvironment = (environment, changes) => {
-  changes.forEach(([key, value]) => {
-    if (matchesUndefined(value)) {
-      Reflect.deleteProperty(environment, key);
-    } else {
-      environment[key] = value;
-    }
-  });
-};
-
-/** @type {(value: string | undefined) => string | undefined} */
-const suppliedMockString = (value) => {
-  const supplied = Boolean(value);
-  return supplied ? value : undefined;
-};
-
-/** @type {(directory: string, options: MockOptions) => EnvironmentValue[]} */
-const mockVariables = (directory, { cacheStatus, exitCode, mode, ray, statusSequence }) => {
-  const suppliedExit = Boolean(exitCode);
-  return [
-    ["PATH", `${directory}:${hostEnvironment().PATH}`],
-    ["CURL_LOG", resolve(directory, "calls.log")],
-    ["CURL_MOCK_COUNTER", resolve(directory, "counter.txt")],
-    ["CURL_MOCK_EXIT", suppliedExit ? String(exitCode) : undefined],
-    ["CURL_MOCK_MODE", suppliedMockString(mode)],
-    ["CURL_MOCK_STATUS_SEQUENCE", suppliedMockString(statusSequence)],
-    ["CURL_MOCK_CACHE_STATUS", suppliedMockString(cacheStatus)],
-    ["CURL_MOCK_RAY", suppliedMockString(ray)],
-  ];
-};
-
-/** @type {(paths: MockDirectory, options?: MockOptions) => Promise<{ log: string, restore: () => void }>} */
-const prepareMock = async function (paths, options = {}) {
-  await installCurlMock(paths.directory);
-  const environment = hostEnvironment();
-  const changes = mockVariables(paths.directory, options);
-  /** @type {EnvironmentValue[]} */
-  const saved = changes.map(([name]) => [name, environment[name]]);
-  setEnvironment(environment, changes);
-  return {
-    log: resolve(paths.directory, "calls.log"),
-    restore: () => {
-      setEnvironment(hostEnvironment(), saved);
+/** @type {(probabilities: Record<string, number>) => unknown} */
+const roundedResponse = (probabilities) => ({
+  result: {
+    answers: {
+      "q-000001": { choice: "pass", confidence: 0.99, probabilities, type: "choice" },
     },
-  };
-};
+    model: "clef-flash",
+    usage: JSON_NULL,
+  },
+  success: true,
+});
 
-/**
- * @template Result
- * @param {MockDirectory} paths - The fixture directory for the mock and its trace.
- * @param {MockOptions} options - The simulated response.
- * @param {() => Result | PromiseLike<Result>} runTest - The evaluator or CLI invocation.
- * @returns {Promise<{ calls: Awaited<ReturnType<typeof readCalls>>, result: Awaited<Result> }>} The invocation result and its recorded requests.
- */
-const withMock = async function (paths, options, runTest) {
-  const mock = await prepareMock(paths, options);
-  try {
-    const result = await runTest();
-    return { calls: await readCalls(mock.log), result };
-  } finally {
-    mock.restore();
-  }
-};
+/** @type {(answer: unknown) => unknown} */
+const responseEnvelope = (answer) => ({
+  result: { answers: { q: answer }, model: "clef-flash", usage: JSON_NULL },
+  success: true,
+});
 
-const cleanupFixtures = async () => {
-  await Promise.all(
-    temporaryDirectories
-      .splice(0)
-      .map(async (directory) => rm(directory, { force: true, recursive: true })),
+/** @type {(entry: Evaluation) => boolean} */
+const hasJevModel = (entry) => "model" in entry && entry.model === "jev-1.13.0";
+
+/** @typedef {import("./evaluation-test-curl.mjs").MockCall} MockCall */
+/** @typedef {Awaited<ReturnType<typeof fixture>>} FixturePaths */
+/** @typedef {import("./evaluation-test-fixtures.mjs").FixtureManifest} FixtureManifest */
+
+/** @type {(markdown: string, range: { endByte: number, startByte: number }) => string} */
+const rangeText = (markdown, { endByte, startByte }) =>
+  Buffer.from(markdown).subarray(startByte, endByte).toString();
+
+/** @type {(input: { markdown: string }) => boolean} */
+const isSetup = ({ markdown }) => markdown.includes("# Setup");
+
+/** @type {(args: string[]) => Promise<{ code: unknown, stderr: string }>} */
+const captureCliFailure = async (args) => {
+  const result = await runEvaluationCli(args).catch(
+    /** @type {(error: unknown) => unknown} */
+    (error) => error,
   );
+  const { code, stderr } = object(result, "CLI completion");
+  return { code, stderr: text(stderr, "CLI diagnostic") };
 };
 
+const nounGroupFixture = async () => {
+  const paths = await dictionaryFixture({ vocabulary: false });
+  await writeFile(
+    path.resolve(paths.directory, "guide.md"),
+    "Check the upper status panel and panel (upper) assembly.\n",
+  );
+  const manifest = await readFixtureManifest(paths.manifestPath);
+  const rule = manifest.rules?.[0];
+  assert(!matchesUndefined(rule), "Dictionary fixture needs its first rule.");
+  delete rule.requiresDictionaryEntries;
+  rule.requiresNounGroupCounts = true;
+  manifest.documents[0].ste = {
+    nounGroups: [
+      { kind: "multi-word", source: "Original local role claim.", text: "upper status panel" },
+      {
+        kind: "new-technical",
+        source: "Original ambiguous role claim.",
+        text: "panel (upper) assembly",
+      },
+    ],
+  };
+  await writeFile(paths.manifestPath, JSON.stringify(manifest));
+  return paths;
+};
+
+/** @type {(call: MockCall) => { candidates: unknown[], payload: MockCall["payload"], question: Record<string, unknown>, selected: Record<string, unknown> }} */
+const dictionaryRequest = (call) => {
+  const { payload } = call;
+  const selected = object(localEvidence(call).dictionaryCandidates, "dictionary evidence");
+  const candidates = requestArray(selected.candidates, "dictionary candidates");
+  const [rawQuestion] = Object.values(object(payload.questions, "native request questions"));
+  const question = object(rawQuestion, "first native request question");
+  return { candidates, payload, question, selected };
+};
+
+// oxlint-disable-next-line eslint/max-lines-per-function -- Group the current private-dictionary cases under their existing Vitest name and fixture cleanup.
 describe("private dictionary evidence boundaries", () => {
-  afterEach(cleanupFixtures);
+  afterEach(async () => {
+    await cleanupFixtures();
+  });
 
   test("guards a provider pass when matched noun evidence contains an unsupported local group", async () => {
-    const paths = await dictionaryFixture({ vocabulary: false });
-    await writeFile(
-      resolve(paths.directory, "guide.md"),
-      "Check the upper status panel and panel (upper) assembly.\n",
-    );
-    const manifest = await readFixtureManifest(paths.manifestPath);
-    const rule = manifest.rules?.[0];
-    assert(!matchesUndefined(rule), "Dictionary fixture needs its first rule.");
-    delete rule.requiresDictionaryEntries;
-    rule.requiresNounGroupCounts = true;
-    manifest.documents[0].ste = {
-      nounGroups: [
-        { text: "upper status panel", kind: "multi-word", source: "Original local role claim." },
-        {
-          text: "panel (upper) assembly",
-          kind: "new-technical",
-          source: "Original ambiguous role claim.",
-        },
-      ],
-    };
-    await writeFile(paths.manifestPath, JSON.stringify(manifest));
+    const paths = await nounGroupFixture();
     const { result: report, calls } = await withMock(paths, {}, async () =>
       evaluate({ ...paths, environment: CREDENTIALS }),
     );
@@ -489,7 +216,7 @@ describe("private dictionary evidence boundaries", () => {
     });
     expect(projected).toStrictEqual([
       ["counted", 3],
-      ["insufficient_context", null],
+      ["insufficient_context", JSON_NULL],
     ]);
     expect(report.evaluations[0].nounGroupCounts).toStrictEqual(counts);
     expect(report.evaluations[0].answers[0]).toMatchObject({
@@ -497,24 +224,24 @@ describe("private dictionary evidence boundaries", () => {
       confidence: 0,
       origin: "evidence-guard",
       providerAnswer: { choice: "pass", confidence: 0.94, probabilities: { pass: 0.96 } },
+      reason: containingText("machine counts"),
       reviewRequired: true,
     });
-    expect(report.evaluations[0].answers[0].reason).toContain("machine counts");
   });
 
   test("allows source-declared technical terms to supply local contextual evidence without ordinary dictionary membership", async () => {
     const paths = await dictionaryFixture({ complete: true });
-    await writeFile(resolve(paths.directory, "guide.md"), "Check the status panel.\n");
+    await writeFile(path.resolve(paths.directory, "guide.md"), "Check the status panel.\n");
     paths.data.technicalTerms = [
       {
-        text: "status panel",
-        kind: "noun",
         category: 19,
+        kind: "noun",
         source: "Original company glossary fixture.",
+        text: "status panel",
       },
     ];
     await writeFile(
-      resolve(paths.directory, "private-vocabulary.json"),
+      path.resolve(paths.directory, "private-vocabulary.json"),
       JSON.stringify(paths.data),
     );
     const { result: report, calls } = await withMock(paths, {}, async () =>
@@ -544,7 +271,7 @@ describe("private dictionary evidence boundaries", () => {
     const paths = await dictionaryFixture({ complete: true });
     paths.data.entries[0].meaning = "x".repeat(50_000);
     await writeFile(
-      resolve(paths.directory, "private-vocabulary.json"),
+      path.resolve(paths.directory, "private-vocabulary.json"),
       JSON.stringify(paths.data),
     );
     const report = await evaluate({ ...paths, environment: {} });
@@ -563,7 +290,9 @@ describe("private dictionary evidence boundaries", () => {
       answers: [{ choice: "insufficient_context", reviewRequired: true }],
       status: "deferred",
     });
-    expect(report.evaluations[0].reason).toContain("Required dictionary entries");
+    expect(report.evaluations[0]).toMatchObject({
+      reason: containingText("Required dictionary entries"),
+    });
   });
 
   test("sends only target-matched records, no private path or unrelated records, and rejects an unsupported model pass", async () => {
@@ -572,9 +301,7 @@ describe("private dictionary evidence boundaries", () => {
       evaluate({ ...paths, environment: CREDENTIALS }),
     );
     expect(calls).toHaveLength(1);
-    const { payload } = calls[0];
-    const selected = object(localEvidence(calls[0]).dictionaryCandidates, "dictionary evidence");
-    const candidates = requestArray(selected.candidates, "dictionary candidates");
+    const { candidates, payload, question, selected } = dictionaryRequest(calls[0]);
     expect({
       candidate: candidates[0],
       issue: selected.issue,
@@ -604,7 +331,7 @@ describe("private dictionary evidence boundaries", () => {
       leakedPath: false,
       leakedRecord: false,
     });
-    expect(Object.values(payload.questions)[0].instructions).toContain("never model memory");
+    expect(question.instructions).toContain("never model memory");
     expect(report.evaluations[0].answers[0]).toMatchObject({
       choice: "insufficient_context",
       confidence: 0,
@@ -637,17 +364,17 @@ describe("private dictionary evidence boundaries", () => {
       const first = await evaluate({ ...paths, environment: CREDENTIALS });
       paths.data.entries[1].meaning = "DIFFERENT-UNMATCHED-PRIVATE-MEANING";
       await writeFile(
-        resolve(paths.directory, "private-vocabulary.json"),
+        path.resolve(paths.directory, "private-vocabulary.json"),
         JSON.stringify(paths.data),
       );
       const second = await evaluate({ ...paths, environment: CREDENTIALS });
       paths.data.entries[0].meaning = "Different selected local meaning.";
       await writeFile(
-        resolve(paths.directory, "private-vocabulary.json"),
+        path.resolve(paths.directory, "private-vocabulary.json"),
         JSON.stringify(paths.data),
       );
       const third = await evaluate({ ...paths, environment: CREDENTIALS });
-      return [first, second, third].map((report) => report.evaluations[0].cache.key);
+      return [first, second, third].map((report) => cacheOf(report.evaluations[0]).key);
     });
     expect(calls).toHaveLength(3);
     expect(keys[0]).toBe(keys[1]);
@@ -655,8 +382,156 @@ describe("private dictionary evidence boundaries", () => {
   });
 });
 
+/** @type {(calls: MockCall[]) => void} */
+const assertClefRequests = (calls) => {
+  const expectedRequest = {
+    hasQuestions: true,
+    headers: [
+      `Authorization: Bearer ${API_KEY}`,
+      `cf-aig-gateway-id: ${GATEWAY_ID}`,
+      "Content-Type: application/json",
+      matchingText(/^cf-aig-cache-key: decision-v1-[0-9a-f]{64}$/u),
+      "cf-aig-cache-ttl: 2592000",
+      "cf-aig-skip-cache: false",
+    ],
+    input: undefined,
+    leakedApiKey: false,
+    leakedExpectedLabel: false,
+    leakedRuleId: false,
+    model: "clef-flash",
+    payloadKeys: ["model", "state", "questions"],
+    retryOverride: false,
+    url: `https://api.cloudflare.com/client/v4/accounts/${ACCOUNT_ID}/ai/run/@cf/cloudflare/clef-flash`,
+  };
+  const requests = calls.map((call) => {
+    const serialized = JSON.stringify(call.payload);
+    return {
+      hasQuestions: !isEmptyArray(
+        Object.keys(object(call.payload.questions, "native request questions")),
+      ),
+      headers: call.headers,
+      input: call.payload.input,
+      leakedApiKey: [call.argv.join(" "), serialized].some((item) => item.includes(API_KEY)),
+      leakedExpectedLabel: serialized.includes("expected"),
+      leakedRuleId: JSON.stringify(call.payload.questions).includes("ruleId"),
+      model: call.payload.model,
+      payloadKeys: Object.keys(call.payload),
+      retryOverride: hasRetryOverride(call),
+      url: call.url,
+    };
+  });
+  expect(requests).toStrictEqual([expectedRequest, expectedRequest, expectedRequest]);
+};
+
+/** @type {(config: string) => void} */
+const assertClefCurlConfig = (config) => {
+  const configLines = config.split("\n");
+  expect({
+    cacheKeys: configLines.filter((line) => line.startsWith('header = "cf-aig-cache-key: ')).length,
+    lines: configLines,
+    readsBodyFile: configLines.some((line) => line.startsWith('data-binary = "@')),
+    retryOverride: configLines.some((line) => line.startsWith('header = "cf-aig-max-attempts:')),
+  }).toStrictEqual({
+    cacheKeys: 1,
+    lines: containingValues([
+      'request = "POST"',
+      "fail-with-body",
+      "connect-timeout = 10",
+      "max-time = 45",
+      `header = "Authorization: Bearer ${API_KEY}"`,
+      `header = "cf-aig-gateway-id: ${GATEWAY_ID}"`,
+      'header = "Content-Type: application/json"',
+      'header = "cf-aig-cache-ttl: 2592000"',
+      'header = "cf-aig-skip-cache: false"',
+      String.raw`write-out = "\n%{http_code}"`,
+    ]),
+    readsBodyFile: true,
+    retryOverride: false,
+  });
+};
+
+const fingerprintFixture = () => {
+  const url = `https://api.cloudflare.com/client/v4/accounts/${ACCOUNT_ID}/ai/run/@cf/cloudflare/clef-flash`;
+  const body = {
+    model: "clef-flash",
+    // oxlint-disable-next-line eslint/sort-keys -- Exercise canonical cache equality with a different question insertion order.
+    questions: {
+      "q-000002": { criteria: { fail: "f", pass: "p" } },
+      "q-000001": { criteria: { fail: "f", pass: "p" } },
+    },
+    // oxlint-disable-next-line eslint/sort-keys -- Exercise canonical cache equality with a different state insertion order.
+    state: { b: 1, a: 2 },
+  };
+  return { apiKey: API_KEY, body, gatewayId: GATEWAY_ID, url };
+};
+
+/** @type {(base: ReturnType<typeof fingerprintFixture>) => Parameters<typeof cacheFingerprint>[0]} */
+const equivalentFingerprintInput = (base) => ({
+  ...base,
+  body: {
+    model: "clef-flash",
+    questions: {
+      // oxlint-disable-next-line eslint/sort-keys -- Exercise canonical cache equality with a different order inside equivalent criteria.
+      "q-000001": { criteria: { pass: "p", fail: "f" } },
+      // oxlint-disable-next-line eslint/sort-keys -- Exercise canonical cache equality with a different order inside equivalent criteria.
+      "q-000002": { criteria: { pass: "p", fail: "f" } },
+    },
+    state: { a: 2, b: 1 },
+  },
+});
+
+/** @type {(base: ReturnType<typeof fingerprintFixture>) => Record<string, Parameters<typeof cacheFingerprint>[0]>} */
+const changedFingerprintInputs = (base) => {
+  const { body } = base;
+  return {
+    accountUrl: { ...base, url: "https://example.test/run" },
+    apiKey: { ...base, apiKey: "other-key" },
+    criteria: {
+      ...base,
+      body: {
+        ...body,
+        questions: {
+          ...body.questions,
+          "q-000001": { criteria: { fail: "f", pass: "different" } },
+        },
+      },
+    },
+    gateway: { ...base, gatewayId: "other-gateway" },
+    model: { ...base, body: { ...body, model: "clef" } },
+    state: { ...base, body: { ...body, state: { a: 2, b: 3 } } },
+  };
+};
+
+/** @type {(paths: FixturePaths) => Promise<{ intro: FixtureManifest["documents"][number], manifest: FixtureManifest }>} */
+const cacheShiftFixture = async (paths) => {
+  const manifest = await readFixtureManifest(paths.manifestPath);
+  await writeFile(
+    path.resolve(paths.directory, "intro.md"),
+    "# Intro\n\nIntro text.\n\n## Sub\n\nMore.\n",
+  );
+  const intro = {
+    audience: "A new user.",
+    id: "intro",
+    path: "intro.md",
+    purpose: "Introduce.",
+    ruleIds: ["direct", "flow"],
+  };
+  return { intro, manifest };
+};
+
+/** @type {(paths: FixturePaths, manifest: FixtureManifest, documents: FixtureManifest["documents"]) => Promise<{ calls: MockCall[], result: EvaluationReport }>} */
+const evaluateFiles = async (paths, manifest, documents) => {
+  await writeFile(paths.manifestPath, JSON.stringify({ ...manifest, documents }));
+  return withMock(paths, {}, async () =>
+    evaluate({ ...paths, concurrency: 1, environment: CREDENTIALS }),
+  );
+};
+
+// oxlint-disable-next-line eslint/max-lines-per-function, eslint/max-statements -- Keep the existing public pipeline group and fixture cleanup for its transport and cache cases.
 describe("documentation quality evaluator public pipeline", () => {
-  afterEach(cleanupFixtures);
+  afterEach(async () => {
+    await cleanupFixtures();
+  });
 
   test("segments heading units without splitting fenced code and retains hierarchy", () => {
     const sections = segmentMarkdown(
@@ -705,27 +580,27 @@ describe("documentation quality evaluator public pipeline", () => {
   test("unwraps the native and universal response shapes and rejects failed jobs", () => {
     const questions = { "q-000001": { type: "choice" } };
     const answer = {
-      type: "choice",
       choice: "pass",
       confidence: 0.94,
-      probabilities: { pass: 0.96, fail: 0.03, not_applicable: 0, insufficient_context: 0.01 },
+      probabilities: { fail: 0.03, insufficient_context: 0.01, not_applicable: 0, pass: 0.96 },
+      type: "choice",
     };
     const native = (overrides = {}) => ({
-      success: true,
       result: {
-        model: "clef-flash",
         answers: { "q-000001": answer },
+        model: "clef-flash",
         usage: { inputTokens: 5 },
         ...overrides,
       },
+      success: true,
     });
     const universal = (overrides = {}) => ({
-      success: true,
       result: {
+        result: { answers: { "q-000001": answer }, model: "jev-1.13.0", usage: { inputTokens: 5 } },
         state: "Completed",
-        result: { model: "jev-1.13.0", answers: { "q-000001": answer }, usage: { inputTokens: 5 } },
         ...overrides,
       },
+      success: true,
     });
     expect([
       validateResponse(native(), questions, "clef-flash"),
@@ -735,7 +610,7 @@ describe("documentation quality evaluator public pipeline", () => {
       validateResponse(universal({ state: "Failed" }), questions, "typesafe/jev"),
     ).toThrow("did not complete");
     expect(() =>
-      validateResponse({ success: false, errors: [{ code: 402 }] }, questions, "clef-flash"),
+      validateResponse({ errors: [{ code: 402 }], success: false }, questions, "clef-flash"),
     ).toThrow("unsuccessful");
     expect(() =>
       validateResponse(
@@ -751,33 +626,23 @@ describe("documentation quality evaluator public pipeline", () => {
 
   test("accepts two-decimal probability rounding without accepting invalid distributions", () => {
     const questions = { "q-000001": { type: "choice" } };
-    const response = (probabilities) => ({
-      success: true,
-      result: {
-        model: "clef-flash",
-        usage: null,
-        answers: {
-          "q-000001": { type: "choice", choice: "pass", confidence: 0.99, probabilities },
-        },
-      },
-    });
     expect(() =>
       validateResponse(
-        response({ pass: 0.99, fail: 0.01, not_applicable: 0, insufficient_context: 0 }),
+        roundedResponse({ fail: 0.01, insufficient_context: 0, not_applicable: 0, pass: 0.99 }),
         questions,
         "clef-flash",
       ),
     ).not.toThrow();
     expect(() =>
       validateResponse(
-        response({ pass: 0.99, fail: 0.02, not_applicable: 0, insufficient_context: 0 }),
+        roundedResponse({ fail: 0.02, insufficient_context: 0, not_applicable: 0, pass: 0.99 }),
         questions,
         "clef-flash",
       ),
     ).not.toThrow();
     expect(() =>
       validateResponse(
-        response({ pass: 0.8, fail: 0, not_applicable: 0, insufficient_context: 0 }),
+        roundedResponse({ fail: 0, insufficient_context: 0, not_applicable: 0, pass: 0.8 }),
         questions,
         "clef-flash",
       ),
@@ -788,92 +653,53 @@ describe("documentation quality evaluator public pipeline", () => {
     expect.hasAssertions();
     const questions = { q: { type: "choice" } };
     const valid = {
-      type: "choice",
       choice: "pass",
       confidence: 0.9,
-      probabilities: { pass: 0.9, fail: 0.05, not_applicable: 0.03, insufficient_context: 0.02 },
+      probabilities: { fail: 0.05, insufficient_context: 0.02, not_applicable: 0.03, pass: 0.9 },
+      type: "choice",
     };
-    const envelope = (answer) => ({
-      success: true,
-      result: { model: "clef-flash", usage: null, answers: { q: answer } },
-    });
     Iterator.from([Number.NaN, Number.POSITIVE_INFINITY]).forEach((confidence) => {
       expect(() =>
-        validateResponse(envelope({ ...valid, confidence }), questions, "clef-flash"),
+        validateResponse(responseEnvelope({ ...valid, confidence }), questions, "clef-flash"),
       ).toThrow("invalid answer");
     });
     expect(() =>
       validateResponse(
-        envelope({ ...valid, probabilities: { ...valid.probabilities, fail: Number.NaN } }),
+        responseEnvelope({ ...valid, probabilities: { ...valid.probabilities, fail: Number.NaN } }),
         questions,
         "clef-flash",
       ),
     ).toThrow("invalid probability distribution");
-    const rules = [{ id: "r", instructions: "i", pass: "p", fail: "f" }];
-    const documents = [{ id: "d", path: "a.md", purpose: "p", audience: "a" }];
+    const rules = [{ fail: "f", id: "r", instructions: "i", pass: "p" }];
+    const documents = [{ audience: "a", id: "d", path: "a.md", purpose: "p" }];
     expect(() =>
-      validateManifest({ model: "clef-flash", threshold: Number.NaN, rules, documents }),
+      validateManifest({ documents, model: "clef-flash", rules, threshold: Number.NaN }),
     ).toThrow("threshold");
     expect(() =>
       validateManifest({
-        model: "clef-flash",
-        threshold: Number.POSITIVE_INFINITY,
-        rules,
         documents,
+        model: "clef-flash",
+        rules,
+        threshold: Number.POSITIVE_INFINITY,
       }),
     ).toThrow("threshold");
-    expect(() => validateManifest({ model: "clef-flash", rules, documents })).not.toThrow();
+    expect(() => validateManifest({ documents, model: "clef-flash", rules })).not.toThrow();
   });
 
   test("posts the native shape to the clef endpoint without leaking labels", async () => {
     const paths = await fixture();
     const { result: report, calls } = await withMock(paths, {}, async () =>
       evaluate({
-        manifestPath: paths.manifestPath,
-        outputPath: paths.outputPath,
         concurrency: 2,
         environment: CREDENTIALS,
+        manifestPath: paths.manifestPath,
+        outputPath: paths.outputPath,
       }),
     );
     expect(report).toMatchObject({ requestCount: 3, reviewRequired: false });
     expect(report.evaluations.at(-1)).toMatchObject({ model: "clef-flash", scope: "page" });
 
-    const expectedRequest = {
-      hasQuestions: true,
-      headers: [
-        `Authorization: Bearer ${API_KEY}`,
-        `cf-aig-gateway-id: ${GATEWAY_ID}`,
-        "Content-Type: application/json",
-        matchingText(/^cf-aig-cache-key: decision-v1-[0-9a-f]{64}$/u),
-        "cf-aig-cache-ttl: 2592000",
-        "cf-aig-skip-cache: false",
-      ],
-      input: undefined,
-      leakedApiKey: false,
-      leakedExpectedLabel: false,
-      leakedRuleId: false,
-      model: "clef-flash",
-      payloadKeys: ["model", "state", "questions"],
-      retryOverride: false,
-      url: `https://api.cloudflare.com/client/v4/accounts/${ACCOUNT_ID}/ai/run/@cf/cloudflare/clef-flash`,
-    };
-    const requests = calls.map((call) => {
-      const serialized = JSON.stringify(call.payload);
-      return {
-        hasQuestions:
-          Object.keys(object(call.payload.questions, "native request questions")).length > 0,
-        headers: call.headers,
-        input: call.payload.input,
-        leakedApiKey: [call.argv.join(" "), serialized].some((text) => text.includes(API_KEY)),
-        leakedExpectedLabel: serialized.includes("expected"),
-        leakedRuleId: JSON.stringify(call.payload.questions).includes("ruleId"),
-        model: call.payload.model,
-        payloadKeys: Object.keys(call.payload),
-        retryOverride: hasRetryOverride(call),
-        url: call.url,
-      };
-    });
-    expect(requests).toStrictEqual([expectedRequest, expectedRequest, expectedRequest]);
+    assertClefRequests(calls);
 
     const cache = {
       key: matchingText(/^decision-v1-[0-9a-f]{64}$/u),
@@ -886,44 +712,21 @@ describe("documentation quality evaluator public pipeline", () => {
       leakedApiKey: JSON.stringify(report).includes(API_KEY),
     }).toMatchObject({ caches: [cache, cache, cache], leakedApiKey: false });
 
-    const configLines = calls[0].config.split("\n");
-    expect({
-      cacheKeys: configLines.filter((line) => line.startsWith('header = "cf-aig-cache-key: '))
-        .length,
-      lines: configLines,
-      readsBodyFile: configLines.some((line) => line.startsWith('data-binary = "@')),
-      retryOverride: configLines.some((line) => line.startsWith('header = "cf-aig-max-attempts:')),
-    }).toStrictEqual({
-      cacheKeys: 1,
-      lines: containingValues([
-        'request = "POST"',
-        "fail-with-body",
-        "connect-timeout = 10",
-        "max-time = 45",
-        `header = "Authorization: Bearer ${API_KEY}"`,
-        `header = "cf-aig-gateway-id: ${GATEWAY_ID}"`,
-        'header = "Content-Type: application/json"',
-        'header = "cf-aig-cache-ttl: 2592000"',
-        'header = "cf-aig-skip-cache: false"',
-        String.raw`write-out = "\n%{http_code}"`,
-      ]),
-      readsBodyFile: true,
-      retryOverride: false,
-    });
+    assertClefCurlConfig(calls[0].config);
   });
 
   test("posts the universal Jev shape to the shared run endpoint", async () => {
     const paths = await fixture({ model: "typesafe/jev" });
     const { result: report, calls } = await withMock(paths, {}, async () =>
       evaluate({
-        manifestPath: paths.manifestPath,
-        outputPath: paths.outputPath,
         concurrency: 1,
         environment: CREDENTIALS,
+        manifestPath: paths.manifestPath,
+        outputPath: paths.outputPath,
       }),
     );
     expect(report.reviewRequired).toBe(false);
-    expect(report.evaluations.every((entry) => entry.model === "jev-1.13.0")).toBe(true);
+    expect(report.evaluations.every((entry) => hasJevModel(entry))).toBe(true);
     const expectedRequest = {
       headers: containingValues([
         `Authorization: Bearer ${API_KEY}`,
@@ -954,10 +757,10 @@ describe("documentation quality evaluator public pipeline", () => {
     const paths = await fixture({ model });
     const { result: report, calls } = await withMock(paths, {}, async () =>
       evaluate({
-        manifestPath: paths.manifestPath,
-        outputPath: paths.outputPath,
         concurrency: 1,
         environment: CREDENTIALS,
+        manifestPath: paths.manifestPath,
+        outputPath: paths.outputPath,
       }),
     );
     expect(calls.length).toBeGreaterThan(0);
@@ -979,10 +782,10 @@ describe("documentation quality evaluator public pipeline", () => {
       { statusSequence: "503,200" },
       async () =>
         evaluate({
-          manifestPath: paths.manifestPath,
-          outputPath: paths.outputPath,
           concurrency: 1,
           environment: CREDENTIALS,
+          manifestPath: paths.manifestPath,
+          outputPath: paths.outputPath,
         }),
     );
     expect(report).toMatchObject({ attentionRequired: true, requestCount: 3 });
@@ -991,7 +794,7 @@ describe("documentation quality evaluator public pipeline", () => {
     expect({
       attempts: calls.length,
       distinctUrls: new Set(calls.map((call) => call.url)).size,
-      retryOverrides: calls.filter(hasRetryOverride).length,
+      retryOverrides: calls.filter((call) => hasRetryOverride(call)).length,
     }).toStrictEqual({ attempts: 3, distinctUrls: 1, retryOverrides: 0 });
     // The first logical request observes the mocked 503 once and is reported as
     // An error; the later distinct requests observe the mocked 200.
@@ -1012,17 +815,17 @@ describe("documentation quality evaluator public pipeline", () => {
         { statusSequence: String(status) },
         async () =>
           evaluate({
-            manifestPath: paths.manifestPath,
-            outputPath: paths.outputPath,
             concurrency: 1,
             environment: CREDENTIALS,
+            manifestPath: paths.manifestPath,
+            outputPath: paths.outputPath,
           }),
       );
       expect(report.requestCount).toBe(3);
       expect(calls).toHaveLength(3);
-      expect(calls.filter(hasRetryOverride)).toHaveLength(0);
+      expect(calls.filter((call) => hasRetryOverride(call))).toHaveLength(0);
       expect(report.evaluations.every((entry) => entry.status === "error")).toBe(true);
-      expect(report.evaluations[0].error).toContain(`HTTP ${status}`);
+      expect(evaluationFailure(report.evaluations[0])).toContain(`HTTP ${status}`);
     },
   );
 
@@ -1030,20 +833,20 @@ describe("documentation quality evaluator public pipeline", () => {
     const paths = await fixture();
     const { result: report, calls } = await withMock(
       paths,
-      { statusSequence: "200", exitCode: 28 },
+      { exitCode: 28, statusSequence: "200" },
       async () =>
         evaluate({
-          manifestPath: paths.manifestPath,
-          outputPath: paths.outputPath,
           concurrency: 1,
           environment: CREDENTIALS,
+          manifestPath: paths.manifestPath,
+          outputPath: paths.outputPath,
         }),
     );
     expect(report.requestCount).toBe(3);
     expect(calls).toHaveLength(3);
-    expect(calls.filter(hasRetryOverride)).toHaveLength(0);
+    expect(calls.filter((call) => hasRetryOverride(call))).toHaveLength(0);
     expect(report.evaluations.every((entry) => entry.status === "error")).toBe(true);
-    const failure = text(report.evaluations[0].error, "transport failure");
+    const failure = text(evaluationFailure(report.evaluations[0]), "transport failure");
     expect(
       ["transport failed", "28"].filter((fragment) => !failure.includes(fragment)),
     ).toStrictEqual([]);
@@ -1058,10 +861,10 @@ describe("documentation quality evaluator public pipeline", () => {
         { statusSequence: String(status) },
         async () =>
           evaluate({
-            manifestPath: paths.manifestPath,
-            outputPath: paths.outputPath,
             concurrency: 1,
             environment: CREDENTIALS,
+            manifestPath: paths.manifestPath,
+            outputPath: paths.outputPath,
           }),
       );
       expect(report).toMatchObject({
@@ -1090,16 +893,16 @@ describe("documentation quality evaluator public pipeline", () => {
     const paths = await fixture();
     const { result: report, calls } = await withMock(paths, { exitCode: 28 }, async () =>
       evaluate({
-        manifestPath: paths.manifestPath,
-        outputPath: paths.outputPath,
         concurrency: 1,
         environment: CREDENTIALS,
+        manifestPath: paths.manifestPath,
+        outputPath: paths.outputPath,
       }),
     );
     expect(report).toMatchObject({ attentionRequired: true, requestCount: 3 });
     expect(calls).toHaveLength(3);
     expect(report.evaluations.every((entry) => entry.status === "error")).toBe(true);
-    const failure = text(report.evaluations[0].error, "transport failure");
+    const failure = text(evaluationFailure(report.evaluations[0]), "transport failure");
     expect(
       ["transport failed", "28"].filter((fragment) => !failure.includes(fragment)),
     ).toStrictEqual([]);
@@ -1110,17 +913,8 @@ describe("documentation quality evaluator public pipeline", () => {
     const mock = await prepareMock(paths, { statusSequence: "402" });
     try {
       await expect(
-        execute(
-          process.execPath,
-          [
-            script,
-            "--manifest",
-            paths.manifestPath,
-            "--output",
-            paths.outputPath,
-            "--concurrency",
-            "1",
-          ],
+        runEvaluationCli(
+          ["--manifest", paths.manifestPath, "--output", paths.outputPath, "--concurrency", "1"],
           { env: { ...hostEnvironment(), ...CREDENTIALS } },
         ),
       ).rejects.toMatchObject({ code: 1 });
@@ -1142,31 +936,32 @@ describe("documentation quality evaluator public pipeline", () => {
     const paths = await fixture();
     const { result: report, calls } = await withMock(paths, { statusSequence: "400" }, async () =>
       evaluate({
-        manifestPath: paths.manifestPath,
-        outputPath: paths.outputPath,
         concurrency: 1,
         environment: CREDENTIALS,
+        manifestPath: paths.manifestPath,
+        outputPath: paths.outputPath,
       }),
     );
     expect(report.reviewRequired).toBe(true);
     expect(report.requestCount).toBe(3);
     expect(calls).toHaveLength(3);
     expect(report.evaluations.every((entry) => entry.status === "error")).toBe(true);
-    expect(report.evaluations[0].error).toContain("HTTP 400");
+    expect(evaluationFailure(report.evaluations[0])).toContain("HTTP 400");
   });
 
   test("writes a review-required report when the response answers are malformed", async () => {
     const paths = await fixture();
     const { result: report } = await withMock(paths, { mode: "malformed" }, async () =>
       evaluate({
+        environment: CREDENTIALS,
         manifestPath: paths.manifestPath,
         outputPath: paths.outputPath,
-        environment: CREDENTIALS,
       }),
     );
     expect(report.reviewRequired).toBe(true);
     expect(report.evaluations.every((entry) => entry.status === "error")).toBe(true);
-    expect((await readEvaluationReport(paths.outputPath)).evaluations).toHaveLength(3);
+    const written = await readEvaluationReport(paths.outputPath);
+    expect(written.evaluations).toHaveLength(3);
   });
 
   test("rejects an unsuccessful request and an incomplete Jev job", async () => {
@@ -1176,64 +971,62 @@ describe("documentation quality evaluator public pipeline", () => {
       { mode: "native-failed" },
       async () =>
         evaluate({
+          environment: CREDENTIALS,
           manifestPath: nativePaths.manifestPath,
           outputPath: nativePaths.outputPath,
-          environment: CREDENTIALS,
         }),
     );
     expect(nativeReport.evaluations.every((entry) => entry.status === "error")).toBe(true);
-    expect(nativeReport.evaluations[0].error).toContain("unsuccessful");
+    expect(evaluationFailure(nativeReport.evaluations[0])).toContain("unsuccessful");
 
     const jevPaths = await fixture({ model: "typesafe/jev" });
     const { result: jevReport } = await withMock(jevPaths, { mode: "wrapper-failed" }, async () =>
       evaluate({
+        environment: CREDENTIALS,
         manifestPath: jevPaths.manifestPath,
         outputPath: jevPaths.outputPath,
-        environment: CREDENTIALS,
       }),
     );
     expect(jevReport.evaluations.every((entry) => entry.status === "error")).toBe(true);
-    expect(jevReport.evaluations[0].error).toContain("did not complete");
+    expect(evaluationFailure(jevReport.evaluations[0])).toContain("did not complete");
   });
 
   test("rejects unknown manifest models", async () => {
     const paths = await fixture({ model: "gpt-oss" });
     await expect(
       evaluate({
-        manifestPath: paths.manifestPath,
-        outputPath: paths.outputPath,
         dryRun: true,
         environment: {},
+        manifestPath: paths.manifestPath,
+        outputPath: paths.outputPath,
       }),
     ).rejects.toThrow("manifest.model must be one of");
   });
 
   test("rejects unsafe credentials before any network call", async () => {
+    expect.hasAssertions();
     const paths = await fixture();
+    /** @type {[NodeJS.ProcessEnv, string][]} */
     const cases = [
       [{ ...CREDENTIALS, CLOUDFLARE_ACCOUNT_ID: "not-hex" }, "32 hexadecimal"],
       [{ ...CREDENTIALS, CLOUDFLARE_AI_GATEWAY_API_KEY: "line\nbreak" }, "header-safe"],
       [{ ...CREDENTIALS, CLOUDFLARE_AI_GATEWAY_ID: "unsafe/id" }, "safe gateway slug"],
       [{}, "must be a non-empty string"],
     ];
-    for (const [environment, message] of cases) {
+    await Array.fromAsync(cases, async ([environment, message]) => {
       await expect(
-        evaluate({
-          manifestPath: paths.manifestPath,
-          outputPath: paths.outputPath,
-          environment,
-        }),
+        evaluate({ environment, manifestPath: paths.manifestPath, outputPath: paths.outputPath }),
       ).rejects.toThrow(message);
-    }
+    });
   });
 
   test("performs zero network calls in dry-run mode", async () => {
     const paths = await fixture();
     const report = await evaluate({
-      manifestPath: paths.manifestPath,
-      outputPath: paths.outputPath,
       dryRun: true,
       environment: {},
+      manifestPath: paths.manifestPath,
+      outputPath: paths.outputPath,
     });
     expect(report).toMatchObject({ dryRun: true, requestCount: 0, reviewRequired: false });
     expect(report.evaluations.every((entry) => entry.status === "dry_run")).toBe(true);
@@ -1242,15 +1035,15 @@ describe("documentation quality evaluator public pipeline", () => {
   test("resolves an exclusive rulesFile relative to the manifest", async () => {
     const paths = await fixture();
     const manifest = await readFixtureManifest(paths.manifestPath);
-    await writeFile(resolve(paths.directory, "rules.json"), JSON.stringify(manifest.rules));
+    await writeFile(path.resolve(paths.directory, "rules.json"), JSON.stringify(manifest.rules));
     delete manifest.rules;
     manifest.rulesFile = "rules.json";
     await writeFile(paths.manifestPath, JSON.stringify(manifest));
     const report = await evaluate({
-      manifestPath: paths.manifestPath,
-      outputPath: paths.outputPath,
       dryRun: true,
       environment: {},
+      manifestPath: paths.manifestPath,
+      outputPath: paths.outputPath,
     });
     expect(report.evaluations).toHaveLength(3);
   });
@@ -1259,14 +1052,14 @@ describe("documentation quality evaluator public pipeline", () => {
     const paths = await fixture();
     const manifest = await readFixtureManifest(paths.manifestPath);
     manifest.documents[0].sections = [
-      { id: "detail", startLine: 5, endLine: 10, headingPath: ["Start", "Details"] },
+      { endLine: 10, headingPath: ["Start", "Details"], id: "detail", startLine: 5 },
     ];
     await writeFile(paths.manifestPath, JSON.stringify(manifest));
     const report = await evaluate({
-      manifestPath: paths.manifestPath,
-      outputPath: paths.outputPath,
       dryRun: true,
       environment: {},
+      manifestPath: paths.manifestPath,
+      outputPath: paths.outputPath,
     });
     expect(report.evaluations[0].section).toMatchObject({
       id: "detail",
@@ -1276,10 +1069,10 @@ describe("documentation quality evaluator public pipeline", () => {
     await writeFile(paths.manifestPath, JSON.stringify(manifest));
     await expect(
       evaluate({
-        manifestPath: paths.manifestPath,
-        outputPath: paths.outputPath,
         dryRun: true,
         environment: {},
+        manifestPath: paths.manifestPath,
+        outputPath: paths.outputPath,
       }),
     ).rejects.toThrow("sections must not be empty");
   });
@@ -1287,65 +1080,29 @@ describe("documentation quality evaluator public pipeline", () => {
   test("derives a deterministic decision cache key that is sensitive to its inputs", () => {
     expect([
       canonicalJson({ 10: "a", 2: "b" }),
+      // oxlint-disable-next-line eslint/sort-keys -- The canonical JSON contract must reorder these input fields recursively.
       canonicalJson({ b: 1, a: [{ d: 1, c: 2 }] }),
       canonicalJson({ list: [2, 1] }),
     ]).toStrictEqual(['{"10":"a","2":"b"}', '{"a":[{"c":2,"d":1}],"b":1}', '{"list":[2,1]}']);
 
-    const url = `https://api.cloudflare.com/client/v4/accounts/${ACCOUNT_ID}/ai/run/@cf/cloudflare/clef-flash`;
-    const body = {
-      model: "clef-flash",
-      state: { b: 1, a: 2 },
-      questions: {
-        "q-000002": { criteria: { fail: "f", pass: "p" } },
-        "q-000001": { criteria: { fail: "f", pass: "p" } },
-      },
-    };
-    const base = { url, gatewayId: GATEWAY_ID, apiKey: API_KEY, body };
+    const base = fingerprintFixture();
     const key = cacheFingerprint(base);
     expect({ key, leakedApiKey: key.includes(API_KEY) }).toStrictEqual({
       key: matchingText(/^decision-v1-[0-9a-f]{64}$/u),
       leakedApiKey: false,
     });
     // Canonical key ordering makes equivalent bodies fingerprint identically.
-    expect(
-      cacheFingerprint({
-        ...base,
-        body: {
-          model: "clef-flash",
-          state: { a: 2, b: 1 },
-          questions: {
-            "q-000001": { criteria: { pass: "p", fail: "f" } },
-            "q-000002": { criteria: { pass: "p", fail: "f" } },
-          },
-        },
-      }),
-    ).toBe(key);
+    expect(cacheFingerprint(equivalentFingerprintInput(base))).toBe(key);
     // Account route, gateway, token, model, state, criteria, and array order all matter.
-    const changedInputs = {
-      accountUrl: { ...base, url: "https://example.test/run" },
-      apiKey: { ...base, apiKey: "other-key" },
-      criteria: {
-        ...base,
-        body: {
-          ...body,
-          questions: {
-            ...body.questions,
-            "q-000001": { criteria: { pass: "different", fail: "f" } },
-          },
-        },
-      },
-      gateway: { ...base, gatewayId: "other-gateway" },
-      model: { ...base, body: { ...body, model: "clef" } },
-      state: { ...base, body: { ...body, state: { a: 2, b: 3 } } },
-    };
+    const changedInputs = changedFingerprintInputs(base);
     const unchangedInputs = Object.entries(changedInputs)
       .filter(([, input]) => cacheFingerprint(input) === key)
       .map(([name]) => name);
     expect(unchangedInputs).toStrictEqual([]);
     expect(
-      cacheFingerprint({ ...base, body: { ...body, state: { a: 2, b: 1, list: [1, 2] } } }),
+      cacheFingerprint({ ...base, body: { ...base.body, state: { a: 2, b: 1, list: [1, 2] } } }),
     ).not.toBe(
-      cacheFingerprint({ ...base, body: { ...body, state: { a: 2, b: 1, list: [2, 1] } } }),
+      cacheFingerprint({ ...base, body: { ...base.body, state: { a: 2, b: 1, list: [2, 1] } } }),
     );
   });
 
@@ -1361,21 +1118,21 @@ describe("documentation quality evaluator public pipeline", () => {
     const paths = await duplicateFixture();
     const { result: report, calls } = await withMock(paths, {}, async () =>
       evaluate({
-        manifestPath: paths.manifestPath,
-        outputPath: paths.outputPath,
         concurrency: 4,
         environment: CREDENTIALS,
+        manifestPath: paths.manifestPath,
+        outputPath: paths.outputPath,
       }),
     );
     // Two identical documents each contribute two section units and one page unit.
     // Mocked headers are recorded verbatim; this does not prove a real Gateway hit.
     expect({
       allComplete: report.evaluations.every((entry) => entry.status === "complete"),
-      allMisses: report.evaluations.every((entry) => entry.cache.status === "MISS"),
+      allMisses: report.evaluations.every((entry) => cacheOf(entry).status === "MISS"),
       attempts: calls.length,
       evaluationCount: report.evaluations.length,
       requestCount: report.requestCount,
-      reused: report.evaluations.filter((entry) => entry.cache.reused).length,
+      reused: report.evaluations.filter((entry) => cacheOf(entry).reused).length,
     }).toStrictEqual({
       allComplete: true,
       allMisses: true,
@@ -1386,8 +1143,16 @@ describe("documentation quality evaluator public pipeline", () => {
     });
     assertAnswerIdentities(report);
 
-    const sectionA = cachedEvaluationOf(report, "guide-a", "section", "section-1");
-    const sectionB = cachedEvaluationOf(report, "guide-b", "section", "section-1");
+    const sectionA = cachedEvaluationOf(report, {
+      documentId: "guide-a",
+      scope: "section",
+      sectionId: "section-1",
+    });
+    const sectionB = cachedEvaluationOf(report, {
+      documentId: "guide-b",
+      scope: "section",
+      sectionId: "section-1",
+    });
     expect(sectionA.cache.key).toBe(sectionB.cache.key);
     expect([sectionA.cache.reused, sectionB.cache.reused]).toStrictEqual([false, true]);
     expect([sectionA.answers[0].questionId, sectionB.answers[0].questionId]).toStrictEqual([
@@ -1401,30 +1166,32 @@ describe("documentation quality evaluator public pipeline", () => {
     const paths = await duplicateFixture();
     const { result: report, calls } = await withMock(paths, {}, async () =>
       evaluate({
-        manifestPath: paths.manifestPath,
-        outputPath: paths.outputPath,
         concurrency: 1,
         environment: CREDENTIALS,
+        manifestPath: paths.manifestPath,
+        outputPath: paths.outputPath,
       }),
     );
     expect(report.requestCount).toBe(3);
     expect(calls).toHaveLength(3);
-    expect(report.evaluations.slice(0, 3).every((entry) => entry.cache.reused === false)).toBe(
-      true,
-    );
-    expect(report.evaluations.slice(3).every((entry) => entry.cache.reused === true)).toBe(true);
+    expect(
+      report.evaluations.slice(0, 3).every((entry) => Object.is(cacheOf(entry).reused, false)),
+    ).toBe(true);
+    expect(
+      report.evaluations.slice(3).every((entry) => Object.is(cacheOf(entry).reused, true)),
+    ).toBe(true);
     assertAnswerIdentities(report);
-    expect(new Set(report.evaluations.map((entry) => entry.cache.key)).size).toBe(3);
+    expect(new Set(report.evaluations.map((entry) => cacheOf(entry).key)).size).toBe(3);
   });
 
   test("shares failed outcomes for duplicates without a second attempt", async () => {
     const paths = await duplicateFixture();
     const { result: report, calls } = await withMock(paths, { statusSequence: "503" }, async () =>
       evaluate({
-        manifestPath: paths.manifestPath,
-        outputPath: paths.outputPath,
         concurrency: 4,
         environment: CREDENTIALS,
+        manifestPath: paths.manifestPath,
+        outputPath: paths.outputPath,
       }),
     );
     expect([report.requestCount, calls.length, report.evaluations.length]).toStrictEqual([3, 3, 6]);
@@ -1432,77 +1199,51 @@ describe("documentation quality evaluator public pipeline", () => {
     expect(report.evaluations.every((entry) => evaluationFailure(entry).includes("HTTP 503"))).toBe(
       true,
     );
-    expect(report.evaluations.every((entry) => entry.answers.length === 0)).toBe(true);
+    expect(report.evaluations.every((entry) => isEmptyArray(entry.answers))).toBe(true);
   });
 
   test("shares a cached malformed response once and preserves its cache evidence", async () => {
     const paths = await duplicateFixture();
     const { result: report, calls } = await withMock(
       paths,
-      { mode: "malformed", cacheStatus: "MISS", ray: "mock-ray-4242" },
+      { cacheStatus: "MISS", mode: "malformed", ray: "mock-ray-4242" },
       async () =>
         evaluate({
-          manifestPath: paths.manifestPath,
-          outputPath: paths.outputPath,
           concurrency: 2,
           environment: CREDENTIALS,
+          manifestPath: paths.manifestPath,
+          outputPath: paths.outputPath,
         }),
     );
     expect([report.requestCount, calls.length, report.evaluations.length]).toStrictEqual([3, 3, 6]);
     expect(report.evaluations.every((entry) => entry.status === "error")).toBe(true);
     expect(new Set(report.evaluations.map((entry) => evaluationFailure(entry))).size).toBe(1);
-    expect(report.evaluations.filter((entry) => entry.cache.reused)).toHaveLength(3);
+    expect(report.evaluations.filter((entry) => cacheOf(entry).reused)).toHaveLength(3);
     // Validation failures keep the cache evidence from the actual response headers.
     expect(
-      report.evaluations.map(({ cache }) => ({ ray: cache.ray, status: cache.status })),
+      report.evaluations.map((entry) => {
+        const { ray, status } = cacheOf(entry);
+        return { ray, status };
+      }),
     ).toStrictEqual(Array.from({ length: 6 }, () => ({ ray: "mock-ray-4242", status: "MISS" })));
   });
 
   test("keeps decision cache keys stable across runs independent of run-wide report IDs", async () => {
     const paths = await fixture();
-    const manifest = await readFixtureManifest(paths.manifestPath);
-    await writeFile(
-      resolve(paths.directory, "intro.md"),
-      "# Intro\n\nIntro text.\n\n## Sub\n\nMore.\n",
-    );
-    const intro = {
-      id: "intro",
-      path: "intro.md",
-      purpose: "Introduce.",
-      audience: "A new user.",
-      ruleIds: ["direct", "flow"],
-    };
-
-    await writeFile(
-      paths.manifestPath,
-      JSON.stringify({ ...manifest, documents: [manifest.documents[0]] }),
-    );
-    const { result: runA, calls: callsA } = await withMock(paths, {}, async () =>
-      evaluate({
-        manifestPath: paths.manifestPath,
-        outputPath: paths.outputPath,
-        concurrency: 1,
-        environment: CREDENTIALS,
-      }),
-    );
-
-    await writeFile(
-      paths.manifestPath,
-      JSON.stringify({ ...manifest, documents: [intro, manifest.documents[0]] }),
-    );
-    const { result: runB, calls: callsB } = await withMock(paths, {}, async () =>
-      evaluate({
-        manifestPath: paths.manifestPath,
-        outputPath: paths.outputPath,
-        concurrency: 1,
-        environment: CREDENTIALS,
-      }),
-    );
+    const { intro, manifest } = await cacheShiftFixture(paths);
+    const { result: runA, calls: callsA } = await evaluateFiles(paths, manifest, [
+      manifest.documents[0],
+    ]);
+    const { result: runB, calls: callsB } = await evaluateFiles(paths, manifest, [
+      intro,
+      manifest.documents[0],
+    ]);
 
     const runBCalls = callsB.slice(callsA.length);
     expect([callsA.length, runBCalls.length]).toStrictEqual([3, 6]);
-    const guideA = cachedEvaluationOf(runA, "guide", "section", "section-1");
-    const guideB = cachedEvaluationOf(runB, "guide", "section", "section-1");
+    const [guideA, guideB] = [runA, runB].map((report) =>
+      cachedEvaluationOf(report, { documentId: "guide", scope: "section", sectionId: "section-1" }),
+    );
     expect(guideA.cache.key).toBe(guideB.cache.key);
     // Report identities differ because the leading document shifts the run-wide counter.
     expect([guideA.questions[0].id, guideB.questions[0].id]).toStrictEqual([
@@ -1512,7 +1253,7 @@ describe("documentation quality evaluator public pipeline", () => {
     // Request-local numbering keeps the transmitted payload identical.
     expect([
       Object.keys(object(callsA[0].payload.questions, "native request questions")),
-      Object.keys(runBCalls[3].payload.questions),
+      Object.keys(object(runBCalls[3].payload.questions, "native request questions")),
     ]).toStrictEqual([["q-000001"], ["q-000001"]]);
   });
 
@@ -1523,18 +1264,28 @@ describe("documentation quality evaluator public pipeline", () => {
       {},
       async () =>
         evaluate({
-          manifestPath: evidencePaths.manifestPath,
-          outputPath: evidencePaths.outputPath,
           concurrency: 4,
           environment: CREDENTIALS,
+          manifestPath: evidencePaths.manifestPath,
+          outputPath: evidencePaths.outputPath,
         }),
     );
     expect(evidenceCalls).toHaveLength(6);
     expect(evidenceReport.requestCount).toBe(6);
-    expect(evidenceReport.evaluations.some((entry) => entry.cache.reused)).toBe(false);
+    expect(evidenceReport.evaluations.some((entry) => cacheOf(entry).reused)).toBe(false);
     expect(
-      cachedEvaluationOf(evidenceReport, "guide-a", "section", "section-1").cache.key,
-    ).not.toBe(cachedEvaluationOf(evidenceReport, "guide-b", "section", "section-1").cache.key);
+      cachedEvaluationOf(evidenceReport, {
+        documentId: "guide-a",
+        scope: "section",
+        sectionId: "section-1",
+      }).cache.key,
+    ).not.toBe(
+      cachedEvaluationOf(evidenceReport, {
+        documentId: "guide-b",
+        scope: "section",
+        sectionId: "section-1",
+      }).cache.key,
+    );
   });
 
   test("does not share cache entries for distinct section criteria", async () => {
@@ -1544,20 +1295,28 @@ describe("documentation quality evaluator public pipeline", () => {
       {},
       async () =>
         evaluate({
-          manifestPath: criteriaPaths.manifestPath,
-          outputPath: criteriaPaths.outputPath,
           concurrency: 4,
           environment: CREDENTIALS,
+          manifestPath: criteriaPaths.manifestPath,
+          outputPath: criteriaPaths.outputPath,
         }),
     );
     // Each document has two distinct section units plus one page unit. The
     // Section criteria differ between documents, so only the page request is
     // Shared: four section requests plus one page request.
     expect([criteriaCalls.length, criteriaReport.requestCount]).toStrictEqual([5, 5]);
-    const sectionA = cachedEvaluationOf(criteriaReport, "guide-a", "section", "section-1");
-    const sectionB = cachedEvaluationOf(criteriaReport, "guide-b", "section", "section-1");
-    const pageA = cachedEvaluationOf(criteriaReport, "guide-a", "page");
-    const pageB = cachedEvaluationOf(criteriaReport, "guide-b", "page");
+    const sectionA = cachedEvaluationOf(criteriaReport, {
+      documentId: "guide-a",
+      scope: "section",
+      sectionId: "section-1",
+    });
+    const sectionB = cachedEvaluationOf(criteriaReport, {
+      documentId: "guide-b",
+      scope: "section",
+      sectionId: "section-1",
+    });
+    const pageA = cachedEvaluationOf(criteriaReport, { documentId: "guide-a", scope: "page" });
+    const pageB = cachedEvaluationOf(criteriaReport, { documentId: "guide-b", scope: "page" });
     expect(sectionA.cache.key).not.toBe(sectionB.cache.key);
     expect(pageA.cache.key).toBe(pageB.cache.key);
     expect([pageA.cache.reused, pageB.cache.reused]).toStrictEqual([false, true]);
@@ -1567,19 +1326,21 @@ describe("documentation quality evaluator public pipeline", () => {
     const paths = await fixture();
     const { result: report } = await withMock(paths, { cacheStatus: "HIT" }, async () =>
       evaluate({
-        manifestPath: paths.manifestPath,
-        outputPath: paths.outputPath,
         concurrency: 1,
         environment: CREDENTIALS,
+        manifestPath: paths.manifestPath,
+        outputPath: paths.outputPath,
       }),
     );
     // The evaluator records the response header value verbatim. The mock header
     // Is not evidence of a real AI Gateway cache hit.
-    expect(report.evaluations.every((entry) => entry.cache.status === "HIT")).toBe(true);
-    expect(report.evaluations.every((entry) => entry.cache.reused === false)).toBe(true);
+    expect(report.evaluations.every((entry) => cacheOf(entry).status === "HIT")).toBe(true);
+    expect(report.evaluations.every((entry) => Object.is(cacheOf(entry).reused, false))).toBe(true);
   });
 });
 
+/** @satisfies {Record<string, unknown> & { check: import("./mechanical.mjs").MechanicalCheck }} */
+// oxlint-disable-next-line eslint/sort-keys -- Vitest interpolates this fixture into the established case name using its key order.
 const fenceRule = {
   id: "fence-language",
   scope: "page",
@@ -1587,13 +1348,17 @@ const fenceRule = {
   check: { kind: "fenced-code-language" },
   source: { title: "Project supplement", url: "https://example.com/project-style" },
 };
+/** @satisfies {Record<string, unknown> & { check: import("./mechanical.mjs").MechanicalCheck }} */
+// oxlint-disable-next-line eslint/sort-keys -- Vitest interpolates this fixture into the established case name using its key order.
 const lexicalRule = {
   id: "project-terms",
   scope: "paragraph",
   engine: "mechanical",
+  // oxlint-disable-next-line eslint/sort-keys -- Vitest interpolates this fixture into the established case name using its key order.
   check: { kind: "prohibited-terms", terms: ["bad", "widget"], protectedTerms: ["widget"] },
 };
 
+/** @type {(options?: Record<string, unknown> & { markdown?: string, rules?: Record<string, unknown>[] }) => Promise<Awaited<ReturnType<typeof fixture>> & { manifest: import("./evaluation-test-fixtures.mjs").FixtureManifest, markdown: string }>} */
 const localFixture = async function ({
   markdown = "# Setup\n\nUse the tool.\n\n```js\nrun();\n```\n",
   rules = [fenceRule],
@@ -1601,7 +1366,7 @@ const localFixture = async function ({
 } = {}) {
   const paths = await fixture();
   const previous = await readFixtureManifest(paths.manifestPath);
-  await writeFile(resolve(paths.directory, "guide.md"), markdown);
+  await writeFile(path.resolve(paths.directory, "guide.md"), markdown);
   const manifest = {
     documents: previous.documents.map(({ ruleIds: _ruleIds, ...document }) => document),
     rules,
@@ -1611,8 +1376,79 @@ const localFixture = async function ({
   return { ...paths, manifest, markdown };
 };
 
+/**
+ * Read the fields used by the universal Jev transport assertions.
+ * @param {MockCall} call - A recorded universal Jev request.
+ * @returns {{ document: Record<string, unknown>, evidence: Record<string, unknown>, markdown: string, questions: Record<string, unknown>, state: Record<string, unknown> }} The request evidence.
+ */
+const decodeJevInput = (call) => {
+  const input = object(call.payload.input, "Jev request input");
+  const state = object(input.state, "Jev request state");
+  const evidence = object(state.evidence, "Jev request evidence");
+  const page = object(evidence.page, "Jev page evidence");
+  const questions = object(input.questions, "Jev request questions");
+  return {
+    document: object(evidence.document, "Jev document evidence"),
+    evidence,
+    markdown: text(page.markdown, "Jev page input"),
+    questions,
+    state,
+  };
+};
+
+/** @type {(inputs: ReturnType<typeof decodeJevInput>[]) => void} */
+const assertJevParagraphRequests = (inputs) => {
+  const expectedRequest = {
+    documentHasContext: false,
+    evidenceKeys: ["document", "page", "local"],
+    leakedMechanicalRules: [],
+    missingInstructions: [],
+  };
+  expect(
+    inputs.map(({ document, evidence, questions }) => {
+      const serializedQuestions = JSON.stringify(questions);
+      return {
+        documentHasContext: "context" in document,
+        evidenceKeys: Object.keys(evidence),
+        leakedMechanicalRules: ["fenced-code-language", "prohibited-terms"].filter((rule) =>
+          serializedQuestions.includes(rule),
+        ),
+        missingInstructions: Object.values(questions).flatMap((entry) => {
+          const instructions = text(object(entry, "Jev question").instructions, "Jev instructions");
+          return [
+            "for this paragraph question",
+            "unseen link destinations",
+            "Do not require rewriting",
+          ].filter((phrase) => !instructions.includes(phrase));
+        }),
+      };
+    }),
+  ).toStrictEqual([expectedRequest, expectedRequest, expectedRequest]);
+};
+
+/** @type {(inputs: ReturnType<typeof decodeJevInput>[]) => void} */
+const assertJevPageIsolation = (inputs) => {
+  const setupStates = inputs.filter((entry) => isSetup(entry));
+  const setupEvidence = {
+    leakedOtherPage: false,
+    templateConstraints: ["Keep the headings in template order.", "Keep the summary table."],
+  };
+  expect(
+    setupStates.map(({ document, state }) => ({
+      leakedOtherPage: JSON.stringify(state).includes("Other-page-secret"),
+      templateConstraints: document.templateConstraints,
+    })),
+  ).toStrictEqual(setupStates.map(() => setupEvidence));
+  expect(
+    inputs.filter((state) => !isSetup(state)).map(({ markdown }) => markdown.includes("run();")),
+  ).not.toContain(true);
+};
+
+// oxlint-disable-next-line eslint/max-lines-per-function, eslint/max-statements -- Keep the existing local-only cases in their Vitest group with their shared cleanup hook.
 describe("local mechanical and semantic engine boundaries", () => {
-  afterEach(cleanupFixtures);
+  afterEach(async () => {
+    await cleanupFixtures();
+  });
 
   test.each([
     {
@@ -1622,6 +1458,7 @@ describe("local mechanical and semantic engine boundaries", () => {
     },
     {
       markdown: "Good text.\n\n- A list item:\n\n    forbidden\n",
+      // oxlint-disable-next-line eslint/sort-keys -- Vitest interpolates this fixture into the established case name using its key order.
       rule: {
         ...lexicalRule,
         scope: "page",
@@ -1638,21 +1475,10 @@ describe("local mechanical and semantic engine boundaries", () => {
       expect.hasAssertions();
       const paths = await localFixture({ markdown, rules: [rule] });
       const { result: report, calls } = await withMock(paths, {}, async () => {
-        const environment = { ...hostEnvironment() };
-        Object.keys(CREDENTIALS).forEach((key) => {
-          delete environment[key];
-        });
+        const environment = withoutCredentials();
         await expect(
-          execute(
-            process.execPath,
-            [
-              script,
-              "--manifest",
-              paths.manifestPath,
-              "--output",
-              paths.outputPath,
-              "--mechanical-only",
-            ],
+          runEvaluationCli(
+            ["--manifest", paths.manifestPath, "--output", paths.outputPath, "--mechanical-only"],
             { env: environment },
           ),
         ).rejects.toMatchObject({ code: 1 });
@@ -1689,8 +1515,8 @@ describe("local mechanical and semantic engine boundaries", () => {
         { ...fenceRule, scope: "section" },
         {
           ...lexicalRule,
-          scope: "section",
           check: { kind: "prohibited-terms", terms: ["forbidden"] },
+          scope: "section",
         },
       ],
     });
@@ -1701,7 +1527,7 @@ describe("local mechanical and semantic engine boundaries", () => {
       ["insufficient_context", "insufficient_context"],
       ["pass", "pass"],
     ]);
-    Iterator.from(report.evaluations[1].answers).forEach((answer) => {
+    report.evaluations[1].answers.forEach((answer) => {
       expect(mechanicalCoverage(answer).parserWarnings).toStrictEqual([]);
     });
     expect(
@@ -1713,44 +1539,45 @@ describe("local mechanical and semantic engine boundaries", () => {
   });
 
   test.each([
+    // oxlint-disable-next-line eslint/sort-keys -- Vitest interpolates this fixture into the established case name using its key order.
     { startLine: 5, endLine: 5 },
+    // oxlint-disable-next-line eslint/sort-keys -- Vitest interpolates this fixture into the established case name using its key order.
     { startLine: 6, endLine: 6 },
   ])(
     "rejects a partial paragraph range even when another complete target exists through the public CLI: %j",
     async (partial) => {
       const paths = await localFixture({
-        markdown: "# Guide\n\nComplete paragraph.\n\nFirst part.\nSecond part.\n",
-        rules: [
-          {
-            id: "paragraph-check",
-            scope: "paragraph",
-            instructions: "Judge the paragraph.",
-            pass: "Good.",
-            fail: "Bad.",
-          },
-        ],
         documents: [
           {
+            audience: "Reviewer.",
             id: "guide",
             path: "guide.md",
             purpose: "Read.",
-            audience: "Reviewer.",
             sections: [
-              { id: "complete", startLine: 3, endLine: 3 },
+              { endLine: 3, id: "complete", startLine: 3 },
               { id: "partial", ...partial },
             ],
           },
         ],
+        markdown: "# Guide\n\nComplete paragraph.\n\nFirst part.\nSecond part.\n",
+        rules: [
+          {
+            fail: "Bad.",
+            id: "paragraph-check",
+            instructions: "Judge the paragraph.",
+            pass: "Good.",
+            scope: "paragraph",
+          },
+        ],
       });
       const { result: error, calls } = await withMock(paths, {}, async () =>
-        execute(process.execPath, [
-          script,
+        captureCliFailure([
           "--manifest",
           paths.manifestPath,
           "--output",
           paths.outputPath,
           "--mechanical-only",
-        ]).catch((error_) => error_),
+        ]),
       );
       expect(error).toMatchObject({ code: 2 });
       expect(error.stderr).toContain("Section partial selects only part of a paragraph");
@@ -1762,24 +1589,24 @@ describe("local mechanical and semantic engine boundaries", () => {
 
   test("preserves explicit partial prose ranges when only section checks are selected", async () => {
     const paths = await localFixture({
+      documents: [
+        {
+          audience: "Reviewer.",
+          id: "guide",
+          path: "guide.md",
+          purpose: "Read.",
+          sections: [
+            { endLine: 3, id: "complete", startLine: 3 },
+            { endLine: 5, id: "partial", startLine: 5 },
+          ],
+        },
+      ],
       markdown: "# Guide\n\nComplete paragraph.\n\nforbidden\nSecond part.\n",
       rules: [
         {
           ...lexicalRule,
-          scope: "section",
           check: { kind: "prohibited-terms", terms: ["forbidden"] },
-        },
-      ],
-      documents: [
-        {
-          id: "guide",
-          path: "guide.md",
-          purpose: "Read.",
-          audience: "Reviewer.",
-          sections: [
-            { id: "complete", startLine: 3, endLine: 3 },
-            { id: "partial", startLine: 5, endLine: 5 },
-          ],
+          scope: "section",
         },
       ],
     });
@@ -1795,23 +1622,22 @@ describe("local mechanical and semantic engine boundaries", () => {
     const paths = await localFixture({
       documents: [
         {
+          audience: "New user.",
+          context: "Evidence copied from another page.",
           id: "guide",
           path: "guide.md",
           purpose: "Teach setup.",
-          audience: "New user.",
-          context: "Evidence copied from another page.",
         },
       ],
     });
     const { result: error, calls } = await withMock(paths, {}, async () =>
-      execute(process.execPath, [
-        script,
+      captureCliFailure([
         "--manifest",
         paths.manifestPath,
         "--output",
         paths.outputPath,
         "--mechanical-only",
-      ]).catch((error_) => error_),
+      ]),
     );
     expect(error).toMatchObject({ code: 2 });
     expect(error.stderr).toContain("context is no longer supported");
@@ -1825,21 +1651,10 @@ describe("local mechanical and semantic engine boundaries", () => {
       expect.hasAssertions();
       const paths = await localFixture({ markdown });
       const { result: report, calls } = await withMock(paths, {}, async () => {
-        const environment = { ...hostEnvironment() };
-        Object.keys(CREDENTIALS).forEach((key) => {
-          delete environment[key];
-        });
+        const environment = withoutCredentials();
         await expect(
-          execute(
-            process.execPath,
-            [
-              script,
-              "--manifest",
-              paths.manifestPath,
-              "--output",
-              paths.outputPath,
-              "--mechanical-only",
-            ],
+          runEvaluationCli(
+            ["--manifest", paths.manifestPath, "--output", paths.outputPath, "--mechanical-only"],
             { env: environment },
           ),
         ).rejects.toMatchObject({ code: 1 });
@@ -1857,7 +1672,7 @@ describe("local mechanical and semantic engine boundaries", () => {
         findings: [
           {
             defect: "unclosed-fence",
-            sourceRange: { startLine: 1, startByte: 0, endByte: Buffer.byteLength(markdown) },
+            sourceRange: { endByte: Buffer.byteLength(markdown), startByte: 0, startLine: 1 },
           },
         ],
       });
@@ -1872,13 +1687,9 @@ describe("local mechanical and semantic engine boundaries", () => {
     async (_mechanicalOnly, cliFlags) => {
       const paths = await localFixture();
       const { result: report, calls } = await withMock(paths, {}, async () => {
-        const environment = { ...hostEnvironment() };
-        Object.keys(CREDENTIALS).forEach((key) => {
-          delete environment[key];
-        });
-        await execute(
-          process.execPath,
-          [script, "--manifest", paths.manifestPath, "--output", paths.outputPath, ...cliFlags],
+        const environment = withoutCredentials();
+        await runEvaluationCli(
+          ["--manifest", paths.manifestPath, "--output", paths.outputPath, ...cliFlags],
           { env: environment },
         );
         return readEvaluationReport(paths.outputPath);
@@ -1887,9 +1698,9 @@ describe("local mechanical and semantic engine boundaries", () => {
       expect(report).toMatchObject({
         attentionRequired: false,
         failed: false,
-        model: null,
+        model: JSON_NULL,
         requestCount: 0,
-        threshold: null,
+        threshold: JSON_NULL,
       });
       expect(report.evaluations[0]).toMatchObject({
         answers: [{ choice: "pass", findings: [] }],
@@ -1906,30 +1717,19 @@ describe("local mechanical and semantic engine boundaries", () => {
       rules: [
         fenceRule,
         {
+          fail: "Indirect.",
           id: "semantic",
-          scope: "page",
           instructions: "Evaluate directness.",
           pass: "Direct.",
-          fail: "Indirect.",
+          scope: "page",
         },
       ],
     });
     const { result: report, calls } = await withMock(paths, {}, async () => {
-      const environment = { ...hostEnvironment() };
-      Object.keys(CREDENTIALS).forEach((key) => {
-        delete environment[key];
-      });
+      const environment = withoutCredentials();
       await expect(
-        execute(
-          process.execPath,
-          [
-            script,
-            "--manifest",
-            paths.manifestPath,
-            "--output",
-            paths.outputPath,
-            "--mechanical-only",
-          ],
+        runEvaluationCli(
+          ["--manifest", paths.manifestPath, "--output", paths.outputPath, "--mechanical-only"],
           { env: environment },
         ),
       ).rejects.toMatchObject({ code: 1 });
@@ -1955,11 +1755,11 @@ describe("local mechanical and semantic engine boundaries", () => {
       markdown: "# Setup\n\n```\nbad();\n```\n",
       rules: [
         fenceRule,
-        { ...lexicalRule, scope: "page", check: { kind: "prohibited-terms", terms: ["bad"] } },
+        { ...lexicalRule, check: { kind: "prohibited-terms", terms: ["bad"] }, scope: "page" },
       ],
     });
     const { result: report, calls } = await withMock(paths, {}, async () =>
-      evaluate({ ...paths, mechanicalOnly: true, environment: {} }),
+      evaluate({ ...paths, environment: {}, mechanicalOnly: true }),
     );
     expect(calls).toStrictEqual([]);
     expect(report.failed).toBe(true);
@@ -1978,7 +1778,7 @@ describe("local mechanical and semantic engine boundaries", () => {
     expect({
       choice: answer.choice,
       claim: answer.coverage.claim,
-      excludesContent: answer.coverage.excluded.length > 0,
+      excludesContent: !isEmptyArray(answer.coverage.excluded),
     }).toStrictEqual({
       choice: "not_applicable",
       claim: containingText("not STE dictionary or full STE compliance"),
@@ -1989,108 +1789,51 @@ describe("local mechanical and semantic engine boundaries", () => {
   test("sends only semantic criteria, retains template constraints, and isolates pages", async () => {
     expect.hasAssertions();
     const semantic = {
+      fail: "Indirect.",
       id: "semantic",
-      scope: "paragraph",
       instructions: "Evaluate directness.",
       pass: "Direct.",
-      fail: "Indirect.",
+      scope: "paragraph",
     };
     const paths = await localFixture({
-      rules: [fenceRule, lexicalRule, semantic],
-      model: "typesafe/jev",
-      threshold: 0.8,
-      templateConstraints: ["Keep the headings in template order."],
       documents: [
         {
+          audience: "New user.",
           id: "a",
           path: "guide.md",
           purpose: "Teach setup.",
-          audience: "New user.",
           templateConstraints: ["Keep the summary table."],
         },
-        { id: "b", path: "other.md", purpose: "Teach setup.", audience: "New user." },
+        { audience: "New user.", id: "b", path: "other.md", purpose: "Teach setup." },
       ],
+      model: "typesafe/jev",
+      rules: [fenceRule, lexicalRule, semantic],
+      templateConstraints: ["Keep the headings in template order."],
+      threshold: 0.8,
     });
-    await writeFile(resolve(paths.directory, "other.md"), "# Other\n\nOther-page-secret.\n");
+    await writeFile(path.resolve(paths.directory, "other.md"), "# Other\n\nOther-page-secret.\n");
     const { result: report, calls } = await withMock(paths, {}, async () =>
       evaluate({ ...paths, environment: CREDENTIALS }),
     );
     expect(report.evaluations.some((entry) => entry.engine === "mechanical")).toBe(true);
-    const inputs = calls.map((call) => {
-      const input = object(call.payload.input, "Jev request input");
-      const state = object(input.state, "Jev request state");
-      const evidence = object(state.evidence, "Jev request evidence");
-      const page = object(evidence.page, "Jev page evidence");
-      const questions = object(input.questions, "Jev request questions");
-      return {
-        document: object(evidence.document, "Jev document evidence"),
-        evidence,
-        markdown: text(page.markdown, "Jev page input"),
-        questions,
-        state,
-      };
-    });
-    const expectedRequest = {
-      documentHasContext: false,
-      evidenceKeys: ["document", "page", "local"],
-      leakedMechanicalRules: [],
-      missingInstructions: [],
-    };
-    expect(
-      inputs.map(({ document, evidence, questions }) => {
-        const serializedQuestions = JSON.stringify(questions);
-        return {
-          documentHasContext: "context" in document,
-          evidenceKeys: Object.keys(evidence),
-          leakedMechanicalRules: ["fenced-code-language", "prohibited-terms"].filter((rule) =>
-            serializedQuestions.includes(rule),
-          ),
-          missingInstructions: Object.values(questions).flatMap((entry) => {
-            const instructions = text(
-              object(entry, "Jev question").instructions,
-              "Jev instructions",
-            );
-            return [
-              "for this paragraph question",
-              "unseen link destinations",
-              "Do not require rewriting",
-            ].filter((phrase) => !instructions.includes(phrase));
-          }),
-        };
-      }),
-    ).toStrictEqual([expectedRequest, expectedRequest, expectedRequest]);
-
-    /** @type {(call: (typeof inputs)[number]) => boolean} */
-    const isSetup = (call) => call.markdown.includes("# Setup");
-    const setupStates = inputs.filter(isSetup);
-    const setupEvidence = {
-      leakedOtherPage: false,
-      templateConstraints: ["Keep the headings in template order.", "Keep the summary table."],
-    };
-    expect(
-      setupStates.map(({ document, state }) => ({
-        leakedOtherPage: JSON.stringify(state).includes("Other-page-secret"),
-        templateConstraints: document.templateConstraints,
-      })),
-    ).toStrictEqual(setupStates.map(() => setupEvidence));
-    expect(
-      inputs.filter((state) => !isSetup(state)).map(({ markdown }) => markdown.includes("run();")),
-    ).not.toContain(true);
+    const inputs = calls.map((call) => decodeJevInput(call));
+    assertJevParagraphRequests(inputs);
+    assertJevPageIsolation(inputs);
     assertAnswerIdentities(report);
   });
 
   test("marks semantic passes without a supplied threshold as uncalibrated review, not an approval", async () => {
     const paths = await localFixture({
+      model: "clef",
       rules: [
         {
+          fail: "Indirect.",
           id: "semantic",
-          scope: "page",
           instructions: "Evaluate directness.",
           pass: "Direct.",
-          fail: "Indirect.",
+          scope: "page",
         },
       ],
-      model: "clef",
     });
     const { result: report } = await withMock(paths, {}, async () =>
       evaluate({ ...paths, environment: CREDENTIALS }),
@@ -2098,7 +1841,7 @@ describe("local mechanical and semantic engine boundaries", () => {
     expect(report).toMatchObject({
       failed: false,
       reviewRequired: true,
-      threshold: null,
+      threshold: JSON_NULL,
       thresholdStatus: "uncalibrated",
     });
     expect(report.evaluations[0].answers[0]).toMatchObject({
@@ -2111,17 +1854,17 @@ describe("local mechanical and semantic engine boundaries", () => {
     const paths = await localFixture({
       markdown: "# Setup\n\n```\ncode();\n```\n",
       model: "clef",
-      threshold: 0.8,
       rules: [
         fenceRule,
         {
+          fail: "Indirect.",
           id: "semantic",
-          scope: "page",
           instructions: "Evaluate directness.",
           pass: "Direct.",
-          fail: "Indirect.",
+          scope: "page",
         },
       ],
+      threshold: 0.8,
     });
     const { result: report } = await withMock(paths, { mode: "abstain" }, async () =>
       evaluate({ ...paths, environment: CREDENTIALS }),
@@ -2148,7 +1891,9 @@ describe("local mechanical and semantic engine boundaries", () => {
       "pass",
       "fail",
     ]);
-    expect(report.evaluations[1].answers[0].findings[0].sourceRange.startLine).toBe(7);
+    const [answer] = report.evaluations[1].answers;
+    assert("findings" in answer, "The mechanical answer needs its findings.");
+    expect(answer.findings[0].sourceRange.startLine).toBe(7);
   });
 
   test.each(["~~~\ncode\n~~~\n", "````\n```\ncode\n````\n", "```   \ncode\n"])(
@@ -2166,33 +1911,33 @@ describe("local mechanical and semantic engine boundaries", () => {
 
   test("excludes explicitly marked translations without reading them or needing a model", async () => {
     const paths = await localFixture({
-      englishOnly: true,
       documents: [
         {
+          audience: "New user.",
           id: "en",
           path: "guide.md",
           purpose: "Teach setup.",
-          audience: "New user.",
-          sourceLanguage: "en-US",
           ruleIds: [fenceRule.id],
+          sourceLanguage: "en-US",
         },
         {
+          audience: "Japanese reader.",
           id: "ja",
           path: "missing-translation.md",
           purpose: "Translation.",
-          audience: "Japanese reader.",
-          sourceLanguage: "ja",
           ruleIds: ["semantic"],
+          sourceLanguage: "ja",
         },
       ],
+      englishOnly: true,
       rules: [
         fenceRule,
         {
+          fail: "Indirect.",
           id: "semantic",
-          scope: "page",
           instructions: "Evaluate directness.",
           pass: "Direct.",
-          fail: "Indirect.",
+          scope: "page",
         },
       ],
     });
@@ -2211,24 +1956,28 @@ describe("local mechanical and semantic engine boundaries", () => {
   test.each(["document-set", "cross-page", "site"])("rejects nonlocal rule scope %s", (scope) => {
     expect(() =>
       validateManifest({
+        documents: [{ audience: "a", id: "d", path: "d.md", purpose: "p" }],
         rules: [{ ...fenceRule, scope }],
-        documents: [{ id: "d", path: "d.md", purpose: "p", audience: "a" }],
       }),
     ).toThrow("scope must be section, page, or paragraph");
   });
 
   test.each([
+    // oxlint-disable-next-line eslint/sort-keys -- Vitest interpolates this fixture into the established case name using its key order.
     [{ kind: "shell", command: "echo bad" }, "unsupported mechanical kind"],
     [{ kind: "constructor" }, "unsupported mechanical kind"],
     [{ kind: "sentence-limit", limit: 20 }, "unsupported mechanical kind"],
     [{ kind: "fenced-code-language", terms: ["bad"] }, "unexpected parameter"],
+    // oxlint-disable-next-line eslint/sort-keys -- Vitest interpolates this fixture into the established case name using its key order.
     [{ kind: "prohibited-terms", terms: ["(a+)+"], regex: true }, "unexpected parameter"],
     [{ kind: "prohibited-terms", terms: [] }, "terms must contain"],
     [
+      // oxlint-disable-next-line eslint/sort-keys -- Vitest interpolates this fixture into the established case name using its key order.
       { kind: "prohibited-terms", terms: ["bad"], caseSensitive: "false" },
       "caseSensitive must be boolean",
     ],
     [
+      // oxlint-disable-next-line eslint/sort-keys -- Vitest interpolates this fixture into the established case name using its key order.
       { kind: "prohibited-terms", terms: ["bad"], protectedTerms: ["two words"] },
       "protectedTerms must be",
     ],
@@ -2236,16 +1985,16 @@ describe("local mechanical and semantic engine boundaries", () => {
     expect(() => validateMechanicalCheck(check, "check")).toThrow(message);
     expect(() =>
       validateManifest({
+        documents: [{ audience: "a", id: "d", path: "d.md", purpose: "p" }],
         rules: [{ ...fenceRule, check }],
-        documents: [{ id: "d", path: "d.md", purpose: "p", audience: "a" }],
       }),
     ).toThrow(message);
   });
 
   test("bounds provenance and prevents mechanical criteria from entering the decision engine", () => {
     const base = {
+      documents: [{ audience: "a", id: "d", path: "d.md", purpose: "p" }],
       rules: [fenceRule],
-      documents: [{ id: "d", path: "d.md", purpose: "p", audience: "a" }],
     };
     expect(() =>
       validateManifest({
@@ -2284,23 +2033,14 @@ describe("local mechanical and semantic engine boundaries", () => {
       "Final.\n",
     ]);
     Iterator.from(units).forEach((unit) => {
-      expect(
-        Buffer.from(markdown)
-          .subarray(unit.sourceRange.startByte, unit.sourceRange.endByte)
-          .toString(),
-      ).toBe(unit.text);
+      expect(rangeText(markdown, unit.sourceRange)).toBe(unit.text);
       expect(unit.sourceRange.endLine).toBeGreaterThanOrEqual(unit.sourceRange.startLine);
     });
     const answer = runMechanical(lexicalRule.check, markdown, units[0].sourceRange);
     expect(answer.findings).toMatchObject([
       { sourceRange: { endLine: 6, startLine: 6 }, term: "bad" },
     ]);
-    const finding = answer.findings[0];
-    expect(
-      Buffer.from(markdown)
-        .subarray(finding.sourceRange.startByte, finding.sourceRange.endByte)
-        .toString(),
-    ).toBe("bad");
+    expect(rangeText(markdown, answer.findings[0].sourceRange)).toBe("bad");
   });
 
   test("uses only explicit whole-token project restrictions, honoring protected terms and excluded syntax", () => {
@@ -2340,15 +2080,15 @@ describe("local mechanical and semantic engine boundaries", () => {
       markdown: "# Empty\n",
       rules: [
         {
+          fail: "Indirect.",
           id: "semantic",
-          scope: "paragraph",
           instructions: "Evaluate directness.",
           pass: "Direct.",
-          fail: "Indirect.",
+          scope: "paragraph",
         },
       ],
     });
-    const report = await evaluate({ ...paths, mechanicalOnly: true, environment: {} });
+    const report = await evaluate({ ...paths, environment: {}, mechanicalOnly: true });
     expect(report.questionCount).toBe(1);
     expect(report.evaluations[0]).toMatchObject({
       reason: "No paragraph target is available.",
