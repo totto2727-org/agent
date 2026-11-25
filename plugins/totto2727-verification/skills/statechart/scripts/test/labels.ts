@@ -5,7 +5,7 @@ import { checkView } from "#statechart/frontends/view.ts";
 import type { Chart, ChartState, State, Step, View } from "#statechart/ir.ts";
 import { walk } from "#statechart/passes/reach.ts";
 import { project } from "#statechart/pipeline.ts";
-import { isString, matchesUndefined, visitItems } from "#statechart/ir.ts";
+import { count as indices, isString, matchesUndefined, visitItems } from "#statechart/ir.ts";
 
 export type Render = (text: string) => { svg: string };
 
@@ -175,6 +175,7 @@ const OTHER = [
   "\x1B",
   "\u0000",
 ];
+const COUNTER_STEP = 1;
 const NON_STRING_COLOR = 7;
 const BAD_COLORS: unknown[] = [
   "pink\n  s99: Ghost state",
@@ -276,7 +277,7 @@ type Groups =
   | { groups: number[]; colors: unknown[]; groupOf: number[] };
 
 type Case = Shape &
-  Groups & { n: number; labels: string[]; actions: number[]; steps: number[][]; title?: number };
+  Groups & { stateCount: number; labels: string[]; actions: number[]; steps: number[][]; title?: number };
 
 const SHAPE_CHOICES = 10;
 const FLAT_SHAPE_BOUND = 4;
@@ -334,7 +335,7 @@ const generate = function (randomizer: Random): Case {
     groups = { groups: named, colors, groupOf };
   }
   const title = randomizer.chance(HAS_TITLE_CHANCE) ? slot() : undefined;
-  return { ...shape, ...groups, n: stateCount, labels, actions, steps, title };
+  return { ...shape, ...groups, stateCount, labels, actions, steps, title };
 };
 
 type RawView = {
@@ -345,34 +346,40 @@ type RawView = {
   title?: string;
 };
 
-const build = function (c: Case, labels: string[]) {
+const START_STATE_INDEX = 0;
+const ACTION_PREFIX = "A";
+
+const build = function (chartCase: Case, labels: string[]) {
   const states = new Map<string, State>();
-  for (let i = 0; i < c.n; i++)
-    {states.set(String(i), { vars: { k: i }, start: i === 0, breaks: [] });}
+  visitItems(indices(chartCase.stateCount), (stateIndex) => {
+    states.set(String(stateIndex), { vars: { k: stateIndex }, start: stateIndex === START_STATE_INDEX, breaks: [] });
+  });
   const steps: Step[] = [];
-  visitItems(c.steps, ([from, to, a]) => {steps.push({ from: String(from), to: String(to), action: `A${a}` });});
+  visitItems(chartCase.steps, ([from, to, action]) => {
+    steps.push({ from: String(from), to: String(to), action: `${ACTION_PREFIX}${action}` });
+  });
   const view: RawView = {
-    state: ({ k }) => {
-      if (c.mode === "regions") {
-        const shape: [string, string][] = [];
-        for (let j = 0; j < c.regions.length; j++)
-          {shape.push([labels[c.regions[j]], labels[c.pools[j][c.values[k][j]]]]);}
+    state: ({ k: stateIndex }) => {
+      if (chartCase.mode === "regions") {
+        const shape = chartCase.regions.map((region, regionIndex): [string, string] => [
+          labels[region],
+          labels[chartCase.pools[regionIndex][chartCase.values[stateIndex][regionIndex]]],
+        ]);
         return Object.fromEntries(shape);
       }
-      const leaf = labels[c.leaf[k]];
-      return c.mode === "parents" && c.parentOf[k] >= 0
-        ? [labels[c.parents[c.parentOf[k]]], leaf]
+      const leaf = labels[chartCase.leaf[stateIndex]];
+      return chartCase.mode === "parents" && chartCase.parentOf[stateIndex] >= 0
+        ? [labels[chartCase.parents[chartCase.parentOf[stateIndex]]], leaf]
         : leaf;
     },
-    step: (action) => labels[c.actions[Number(action.slice(1))]],
+    step: (action) => labels[chartCase.actions[Number(action.slice(ACTION_PREFIX.length))]],
   };
-  if (c.groups) {
-    view.group = ({ k }) => (c.groupOf[k] < 0 ? undefined : labels[c.groups[c.groupOf[k]]]);
-    const colors: [string, unknown][] = [];
-    for (let j = 0; j < c.groups.length; j++) {colors.push([labels[c.groups[j]], c.colors[j]]);}
-    view.colors = Object.fromEntries(colors);
+  if (chartCase.groups) {
+    const { groups, colors, groupOf } = chartCase;
+    view.group = ({ k: stateIndex }) => (groupOf[stateIndex] < 0 ? undefined : labels[groups[groupOf[stateIndex]]]);
+    view.colors = Object.fromEntries(groups.map((group, groupIndex) => [labels[group], colors[groupIndex]]));
   }
-  if (!matchesUndefined(c.title)) {view.title = labels[c.title];}
+  if (!matchesUndefined(chartCase.title)) {view.title = labels[chartCase.title];}
   return { graph: { states, steps }, view };
 };
 
@@ -450,9 +457,8 @@ const expected = function (chart: Chart): Want {
   const multi = chart.regions.length > 1;
   const used = new Set<string>();
   if (multi) {nodes.set("all", { text: "At the same time", parent: null, group: true });}
-  for (let i = 0; i < chart.regions.length; i++) {
-    const region = chart.regions[i];
-    const wrap = multi ? `r${i}` : null;
+  visitItems(chart.regions.entries(), ([regionIndex, region]) => {
+    const wrap = multi ? `r${regionIndex}` : null;
     if (wrap) {nodes.set(wrap, { text: region.name, parent: "all", group: true });}
     const drawn = drawnEdges(region);
     const tree = (prefix: string[], parent: string | null, below: ChartState[]): void => {
@@ -487,10 +493,13 @@ const expected = function (chart: Chart): Want {
           id(region.name, currentEdge.to),
           currentEdge.label ?? "",
         ]);}});
-  }
-  let legend = 0;
-  Object.entries(chart.colors).forEach(([text, cls]) => {if (used.has(cls)) {nodes.set(`lg${legend++}`, { text, parent: "legend", group: false });}});
-  if (legend) {nodes.set("legend", { text: "Legend", parent: null, group: true });}
+  });
+  const legend = Object.entries(chart.colors).filter(([, colorClass]) => used.has(colorClass));
+  visitItems(legend.entries(), ([legendIndex, [text]]) => {
+    nodes.set(`lg${legendIndex}`, { text, parent: "legend", group: false });
+  });
+  const [firstLegendEntry] = legend;
+  if (!matchesUndefined(firstLegendEntry)) {nodes.set("legend", { text: "Legend", parent: null, group: true });}
   return { nodes, edges, direction: multi ? "LR" : "TB", title: chart.title };
 };
 
@@ -514,7 +523,7 @@ const readMermaid = async function (text: string, want: Want, { mermaid, html }:
   let count = 0;
   visitItems(data.nodes, (currentNode) => {
     if (currentNode.shape === "divider" || currentNode.shape === "stateStart" || currentNode.shape === "stateEnd") {return;}
-    count++;
+    count += COUNTER_STEP;
     let parent = byId.get(currentNode.parentId);
     while (parent?.shape === "divider") {parent = byId.get(parent.parentId);}
     const expectedNode = want.nodes.get(currentNode.id);
@@ -595,7 +604,7 @@ const readPele = function (text: string, want: Want, render: Render, problems: s
       );}
   });
   let arrows = 0;
-  visitItems(svg.matchAll(/<g class="pele-edge pele-transition"/gu), (currentRegexMatch) => {arrows++;});
+  visitItems(svg.matchAll(/<g class="pele-edge pele-transition"/gu), (currentRegexMatch) => {arrows += COUNTER_STEP;});
   if (arrows !== want.edges.length)
     {problems.push(`pele-edges: ${arrows} arrows for ${want.edges.length}`);}
   visitItems(svg.matchAll(
@@ -666,30 +675,29 @@ export const fuzz = async function fuzz({
   const r = random(seed);
   let drawn = 0;
   let refused = 0;
-  for (let i = 1; i <= charts; i++) {
+  for (let chartNumber = 1; chartNumber <= charts; chartNumber += COUNTER_STEP) {
     const c = generate(r);
     const result = await check(c, c.labels, tools);
-    if (result.refused) {refused++;}
-    else {drawn++;}
+    if (result.refused) {refused += COUNTER_STEP;}
+    else {drawn += COUNTER_STEP;}
     if (!result.problems.length) {continue;}
     const first = kind(result.problems[0]);
     let {labels} = c;
-    for (let labelIndex = 0; labelIndex < labels.length; labelIndex++) {
+    for (let labelIndex = 0; labelIndex < labels.length; labelIndex += COUNTER_STEP) {
       const plain = labels.with(labelIndex, `n${labelIndex}`);
       const again = await check(c, plain, tools);
       let same = false;
       visitItems(again.problems, (p) => {if (kind(p) === first) {same = true;}});
       if (same) {labels = plain;}
     }
-    const kept = [];
-    for (let labelIndex = 0; labelIndex < labels.length; labelIndex++) {if (labels[labelIndex] !== `n${labelIndex}`) {kept.push(labels[labelIndex]);}}
+    const kept = labels.filter((text, labelIndex) => text !== `n${labelIndex}`);
     const last = await check(c, labels, tools);
     const colors = c.colors ? ` and the colors ${JSON.stringify(c.colors)}` : "";
     return {
       drawn,
       refused,
       failure: [
-        `Chart ${i} of seed ${seed} goes wrong with the labels ${JSON.stringify(kept)}${colors}:`,
+        `Chart ${chartNumber} of seed ${seed} goes wrong with the labels ${JSON.stringify(kept)}${colors}:`,
         ...last.problems,
         "",
         last.text ?? "",
