@@ -127,7 +127,7 @@ const copyCase = async function (name: string, edit: (dir: string) => Promise<vo
 
 const named = (report: string): string[] => {
   const files: string[] = [];
-  visitItems(report.matchAll(/\btlc-\w+\.out\b/g), ([file]) => {if (!files.includes(file)) {files.push(file);}});
+  visitItems(report.matchAll(/\btlc-\w+\.out\b/gu), ([file]) => {if (!files.includes(file)) {files.push(file);}});
   return files;
 };
 
@@ -641,7 +641,7 @@ test("TLC checks the rules and draws the chart with VIEW and SYMMETRY, and the r
 
 const overBudget = async (file: string): Promise<void> => {
   const text = await readFile(file, "utf8");
-  await fs.promises.writeFile(file, text.replaceAll(/\b\d+( distinct states found)/g, "1234$1"));
+  await fs.promises.writeFile(file, text.replaceAll(/\b\d+( distinct states found)/gu, "1234$1"));
 };
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.

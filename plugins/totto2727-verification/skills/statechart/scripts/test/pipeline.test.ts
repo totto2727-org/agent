@@ -59,7 +59,7 @@ const codeOf = (file: string): string =>
   fs.readFileSync(path.join(scripts, file), "utf8").replaceAll(COMMENT, (_, text) => text ?? " ");
 
 const RUNTIME =
-  /\b(?:process|require|globalThis|global|Deno|Bun|Buffer|setImmediate|clearImmediate|fetch)\b|\bimport\s*\(/g;
+  /\b(?:process|require|globalThis|global|Deno|Bun|Buffer|setImmediate|clearImmediate|fetch)\b|\bimport\s*\(/gu;
 const TYPE_IMPORT =
   /\b(?:import|export)\s+type\b\s*(?:[\w$]+|\*(?:\s*as\s+[\w$]+)?|\{[^}]*\})\s*from\s*["']([^"']*)["']/g;
 const typeImports = (file: string): string[] => {

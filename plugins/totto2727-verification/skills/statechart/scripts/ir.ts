@@ -274,7 +274,7 @@ const ESCAPES: Record<string, string> = {
   "\r": String.raw`\r`,
   "\f": String.raw`\f`,
 };
-const quote = (s: string): string => `"${s.replaceAll(/["\\\n\t\r\f]/g, (c) => ESCAPES[c])}"`;
+const quote = (s: string): string => `"${s.replaceAll(/["\\\n\t\r\f]/gu, (c) => ESCAPES[c])}"`;
 
 const joined = (items: Value[], sep: string): string => {
   let s = "";

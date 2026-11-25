@@ -105,7 +105,7 @@ const draw = function (graph: Graph, view: View, loops: Bug[] = []) {
 
 const marked = (chart: string) => {
   const out: Record<string, string> = {};
-  visitItems(chart.matchAll(/^ {2}class (s\d+) (breaks|mayBreak)$/gm), ([, id, cls]) => {
+  visitItems(chart.matchAll(/^ {2}class (s\d+) (breaks|mayBreak)$/gmu), ([, id, cls]) => {
     const label = (new RegExp(`^\\s*${id}: (.*)$`, "m").exec(chart))?.[1];
     assert.ok(label !== undefined, `${id} has no label`);
     out[label] = cls;

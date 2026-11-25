@@ -318,7 +318,7 @@ export const analyzeSteProse = function analyzeSteProse(
   }
   // Section 8.6 excludes document/work-step numbering, not ordinary identifiers.
   if (context.writingMode === "procedural") {
-    Iterator.from(text.matchAll(/^(?:\(\d+\)|[A-Z][.)])\s+/gm)).forEach((match) => {
+    Iterator.from(text.matchAll(/^(?:\(\d+\)|[A-Z][.)])\s+/gmu)).forEach((match) => {
       for (let { index } = match; index < match.index + match[0].length; index += 1) {
         if (!/[\r\n]/u.test(characters[index])) {
           characters[index] = " ";
@@ -417,7 +417,7 @@ export const analyzeSteProse = function analyzeSteProse(
     ]),
   ].sort((left, right) => right.length - left.length);
   current = characters.join("");
-  Iterator.from(current.matchAll(/[+-]?\d+(?:,\d{3})*(?:\.\d+)?/g)).forEach((match) => {
+  Iterator.from(current.matchAll(/[+-]?\d+(?:,\d{3})*(?:\.\d+)?/gu)).forEach((match) => {
     if (!boundary(current, match.index - 1) || !boundary(current, match.index + match[0].length)) {
       return;
     }
@@ -475,7 +475,7 @@ export const analyzeSteProse = function analyzeSteProse(
   /** @type {(end: number) => void} */
   const flush = (end) => {
     const body = current.slice(start, end);
-    const tokens = [...body.matchAll(/[A-Za-z0-9]+(?:[-'][A-Za-z0-9]+)*/g)];
+    const tokens = [...body.matchAll(/[A-Za-z0-9]+(?:[-'][A-Za-z0-9]+)*/gu)];
     if (tokens.length) {
       for (let index = 0; index < tokens.length; index += 1) {
         if (
@@ -494,7 +494,7 @@ export const analyzeSteProse = function analyzeSteProse(
     }
     start = end;
   };
-  Iterator.from(current.matchAll(/[.!?]/g)).forEach((match) => {
+  Iterator.from(current.matchAll(/[.!?]/gu)).forEach((match) => {
     flush(match.index + 1);
   });
   if (current.slice(start).trim()) {

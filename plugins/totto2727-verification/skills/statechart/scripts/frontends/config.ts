@@ -86,7 +86,7 @@ const tokenizeConfig = function (text: string, cannot: (line: number, words: str
       const end = text.slice(i).search(/[\n\r]/u);
       skip(end < 0 ? text.length : i + end);
     } else if (two === "(*") {
-      const marks = /\(\*|\*\)/g;
+      const marks = /\(\*|\*\)/gu;
       let depth = 0;
       do {
         marks.lastIndex = i;
@@ -126,7 +126,7 @@ const tokenizeConfig = function (text: string, cannot: (line: number, words: str
         if (/\D/.test(word))
           {throw cannot(
             start,
-            `TLC splits ${word} into ${word.match(/\d+|_/g)?.join(" ")}, because a name needs a letter.`,
+            `TLC splits ${word} into ${word.match(/\d+|_/gu)?.join(" ")}, because a name needs a letter.`,
           );}
         if (Number(word) > 2_147_483_647)
           {throw cannot(start, `TLC cannot read a number above 2147483647, such as ${word}.`);}

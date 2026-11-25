@@ -25,7 +25,7 @@ interface XmlNode { tag: string; text: string; children: XmlNode[] }
 const ENTITIES: Record<string, string> = { amp: "&", apos: "'", gt: ">", lt: "<", quot: '"' };
 
 const decode = (text: string): string =>
-  text.replaceAll(/&(#x?)?(\w+);/g, (_, number: string | undefined, name: string) =>
+  text.replaceAll(/&(#x?)?(\w+);/gu, (_, number: string | undefined, name: string) =>
     number
       ? String.fromCodePoint(Number.parseInt(name, number === "#x" ? 16 : 10))
       : ENTITIES[name],
