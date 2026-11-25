@@ -242,23 +242,24 @@ export type Chart = {
 // oxlint-disable-next-line rules/force-predicate, typescript/explicit-function-return-type, typescript/explicit-module-boundary-types -- Infer the standalone tool's native object check, including null.
 export const hasObjectType = (value: unknown) => typeof value === "object";
 
-export const isRecord = (v: unknown): v is Record<string, unknown> =>
-  hasObjectType(v) && !matchesNull(v) && !Array.isArray(v);
-
 // oxlint-disable-next-line rules/force-predicate, typescript/explicit-function-return-type, typescript/explicit-module-boundary-types -- Infer a native type guard for the standalone skill.
 export const isString = (value: unknown) => typeof value === "string";
 
 // oxlint-disable-next-line rules/force-predicate, typescript/explicit-function-return-type, typescript/explicit-module-boundary-types -- Infer a native number guard in the standalone tool without loading Effect.
 export const isNumber = (value: unknown) => typeof value === "number";
 
-export const isStrings = (v: unknown): v is string[] =>
-  Array.isArray(v) && v.every((s) => isString(s));
-
 // oxlint-disable-next-line rules/force-predicate, typescript/explicit-function-return-type, typescript/explicit-module-boundary-types -- Infer an exact native sentinel guard for the standalone skill.
 export const matchesNull = (value: unknown) => value === null;
 
 // oxlint-disable-next-line rules/force-predicate, typescript/explicit-function-return-type, typescript/explicit-module-boundary-types -- Infer an exact native sentinel guard for the standalone skill.
 export const matchesUndefined = (value: unknown) => value === undefined;
+
+// oxlint-disable-next-line rules/no-type-predicate -- Keep the standalone view guard's structural record narrowing without loading Effect.
+export const isRecord = (value: unknown): value is Record<string, unknown> =>
+  hasObjectType(value) && !matchesNull(value) && !Array.isArray(value);
+
+// oxlint-disable-next-line typescript/explicit-function-return-type, typescript/explicit-module-boundary-types -- Infer the standalone input guard's string-array narrowing.
+export const isStrings = (value: unknown) => Array.isArray(value) && value.every((item) => isString(item));
 
 export const visitItems = <Item>(source: Iterable<Item>, visit: (item: Item) => void): void => {
   // oxlint-disable-next-line rules/no-for-loops -- The standalone wrapper supports Bun 1.1.5, which lacks iterator helpers.
@@ -354,6 +355,7 @@ export const show = (value: Value): string => {
 
 export const must = <K, V>(map: ReadonlyMap<K, V>, key: K): V => {
   const value = map.get(key);
+  // oxlint-disable-next-line rules/require-tagged-error -- Report the native graph lookup error without loading Effect.
   if (matchesUndefined(value)) {throw new Error(`The chart lost track of ${JSON.stringify(key)}.`);}
   return value;
 };
@@ -370,7 +372,7 @@ export const seqOf = (bug: Bug, index: ReadonlyMap<string, number>): number[] =>
   return seq;
 };
 
-export const loopOf = (bug: Bug, index: ReadonlyMap<string, number>) =>
+export const loopOf = (bug: Bug, index: ReadonlyMap<string, number>): Set<number> =>
   new Set(matchesUndefined(bug.loop) ? [] : seqOf(bug, index).slice(bug.loop));
 
 const SINGLE_VARIABLE = 1;
@@ -447,33 +449,37 @@ export const sortBy = (items: Int32Array, keyColumns: Int32Array[]): Int32Array 
 };
 
 export const tupleKey = (parts: unknown[]): string => JSON.stringify(parts);
-export const unkey = (k: string): string[] => {
-  const parts: unknown = JSON.parse(k);
-  if (!isStrings(parts)) {throw new Error(`The chart cannot read the key ${k}.`);}
+export const unkey = (keyText: string): string[] => {
+  const parts: unknown = JSON.parse(keyText);
+  // oxlint-disable-next-line rules/require-tagged-error -- Keep the native diagnostic for an invalid key in the standalone chart.
+  if (!isStrings(parts)) {throw new Error(`The chart cannot read the key ${keyText}.`);}
   return parts;
 };
 
+const checkOthers = (keys: Set<string>[], values: string[], requireAll: boolean): boolean => {
+  const cursor = { index: FIRST_INDEX };
+  while (cursor.index < values.length) {
+    const present = keys[cursor.index].has(values[cursor.index]);
+    if (present !== requireAll) {return !requireAll;}
+    cursor.index += NEXT_INDEX;
+  }
+  return requireAll;
+};
+
+// oxlint-disable-next-line typescript/consistent-return -- The condition union is exhaustive. Preserve fallthrough for a malformed runtime kind.
 export const holds = function holds(condition: Condition, others: string[]): boolean {
+  // oxlint-disable-next-line eslint/default-case -- All supported chart conditions have an explicit evaluator.
   switch (condition.kind) {
-    case "and": {
-      for (let j = 0; j < others.length; j++)
-        {if (!condition.otherKeys[j].has(others[j])) {return false;}}
-      return true;
-    }
-    case "or": {
-      for (let j = 0; j < others.length; j++)
-        {if (condition.otherKeys[j].has(others[j])) {return true;}}
-      return false;
-    }
-    case "tuples": {
-      return condition.otherTuples.has(tupleKey(others));
-    }
+    case "and": {return checkOthers(condition.otherKeys, others, true);}
+    case "or": {return checkOthers(condition.otherKeys, others, false);}
+    case "tuples": {return condition.otherTuples.has(tupleKey(others));}
   }
 };
 
 export const ruleKey = (rule: Rule): string => tupleKey([rule.kind, rule.name]);
 
 export const hasRule = (rules: Rule[], rule: Rule): boolean => {
+  // oxlint-disable-next-line rules/no-for-loops -- Stop at the first matching native rule, including callers with a custom iterator.
   for (const currentRule of rules) {if (currentRule.kind === rule.kind && currentRule.name === rule.name) {return true;}}
   return false;
 };
@@ -628,39 +634,50 @@ export const memo = <CacheKey, Result>(
   };
 };
 
-export const valuesOf = (vars: Vars, names: string[]) => {
+export const valuesOf = (vars: Vars, names: string[]): Value[] => {
   const values: Value[] = [];
   visitItems(names, (currentName) => {values.push(vars[currentName]);});
   return values;
 };
 
-export const findTrace = <Id>(
+type LocatedTraceState<Identifier> = TraceState & { values: Value[]; id: Identifier | undefined };
+
+// oxlint-disable-next-line eslint/max-params -- Keep the existing trace lookup signature for graph consumers.
+export const findTrace = <Identifier>(
   counterexample: TraceState[],
   names: string[],
   rule: Rule,
-  find: Find<Id>,
-) => {
-  const trace: (TraceState & { values: Value[]; id: Id | undefined })[] = [];
+  find: Find<Identifier>,
+): LocatedTraceState<Identifier>[] => {
+  const trace: LocatedTraceState<Identifier>[] = [];
   visitItems(counterexample, ({ action, vars }) => {
     const values = valuesOf(vars, names);
+    // oxlint-disable-next-line eslint/sort-keys -- Preserve the public trace state's field order.
     trace.push({ action, vars, values, id: find(values) });
   });
-  const end = trace.length - 1;
-  if (end < 0) {throw new Error(`TLC's trace for ${rule.name} has no states.`);}
-  for (let i = 0; i < end; i++)
-    {if (matchesUndefined(trace[i].id))
-      {throw new Error(
-        `TLC's trace for ${rule.name} has a state before its last that the dump does not list.`,
-      );}}
+  const lastIndex = trace.length - NEXT_INDEX;
+  // oxlint-disable-next-line rules/require-tagged-error -- Preserve the native error for an empty TLC trace.
+  if (lastIndex < FIRST_INDEX) {throw new Error(`TLC's trace for ${rule.name} has no states.`);}
+  if (trace.some((step, index) => index < lastIndex && matchesUndefined(step.id))) {
+    // oxlint-disable-next-line rules/require-tagged-error -- Preserve the native error for an incomplete TLC trace.
+    throw new Error(`TLC's trace for ${rule.name} has a state before its last that the dump does not list.`);
+  }
   return trace;
 };
 
-export const findLoop = <Id>({ seq, loop }: Trace, names: string[], find: Find<Id>) => {
-  const found: { action: string; id: Id | undefined }[] = [];
+interface LocatedLoop<Identifier> {
+  loop: Trace["loop"];
+  seq: { action: string; id: Identifier | undefined }[];
+}
+
+export const findLoop = <Identifier>({ seq, loop }: Trace, names: string[], find: Find<Identifier>): LocatedLoop<Identifier> => {
+  const found: LocatedLoop<Identifier>["seq"] = [];
   visitItems(seq, ({ action, vars }) => {found.push({ action, id: vars && find(valuesOf(vars, names)) });});
+  // oxlint-disable-next-line eslint/sort-keys -- Preserve the public loop record's field order.
   return { seq: found, loop };
 };
 
+// oxlint-disable-next-line eslint/max-params -- Keep the existing graph annotation signature for graph consumers.
 export const pastState = (
   vars: Vars,
   start: boolean,
@@ -669,6 +686,7 @@ export const pastState = (
 ): PastState => {
   const breaks: Rule[] = [];
   visitItems(marked, (rule) => {if (!hasRule(breaks, rule)) {breaks.push(rule);}});
+  // oxlint-disable-next-line eslint/sort-keys -- Preserve the past state's public field order.
   return { vars, start, breaks, ends: [], past: true, excluded };
 };
 
@@ -683,11 +701,12 @@ const deadlockRule = ({ invariants, properties }: Spec): Rule => ({
 });
 
 export const hasSection = ({ written }: Spec, ...keys: string[]): boolean => {
+  // oxlint-disable-next-line rules/no-for-loops -- Stop reading the native configuration iterator as soon as a matching section is found.
   for (const section of written) {if (keys.includes(section.key)) {return true;}}
   return false;
 };
 
-export const stateRules = (spec: Spec) => {
+export const stateRules = (spec: Spec): Rule[] => {
   const rules: Rule[] = [];
   visitItems(spec.invariants, (name) => {rules.push({ kind: "invariant", name });});
   if (spec.deadlock) {rules.push(deadlockRule(spec));}
