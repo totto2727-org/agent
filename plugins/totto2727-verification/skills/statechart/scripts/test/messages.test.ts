@@ -6,17 +6,18 @@ import fs from "node:fs";
 import path from "node:path";
 // oxlint-disable-next-line rules/no-node-imports -- Statechart runs these fixtures with Node's test runner as part of the standalone skill.
 import { test } from "node:test";
-// oxlint-disable-next-line rules/no-node-imports -- Statechart's native fixtures use this built-in to convert local module URLs with the host platform's path rules.
-import { fileURLToPath } from "node:url";
 import { plainText, runtime } from "#statechart/backends/plain-text.ts";
 import { readMessages } from "#statechart/frontends/messages.ts";
 import { readVerdict } from "#statechart/frontends/verdict.ts";
 import { visitItems } from "#statechart/ir.ts";
 
-const here = path.dirname(fileURLToPath(import.meta.url));
+const here = import.meta.dirname;
 
-const tool = (code: number, level: number, ...lines: string[]): string =>
-  [`@!@!@STARTMSG ${code}:${level} @!@!@`, ...lines, `@!@!@ENDMSG ${code} @!@!@`].join("\n");
+// A fixture header contains the message and severity exactly as TLC sends them.
+const tool = (header: `${number}:${number}`, ...lines: string[]): string => {
+  const [code] = header.split(":");
+  return [`@!@!@STARTMSG ${header} @!@!@`, ...lines, `@!@!@ENDMSG ${code} @!@!@`].join("\n");
+};
 
 const plain = (text: string): string => [...plainText(readMessages(text))].join("");
 
@@ -29,32 +30,33 @@ test("TLC output with Windows line ends names the rule that breaks and prints as
   assert.equal(plain(windows), plain(unix));
 });
 
+const fullToolOutput = [
+  tool("2262:0", "TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)"),
+  tool("2401:3", "Please run the Java VM with a throughput optimized garbage collector."),
+  tool("2220:0", "Starting SANY..."),
+  "Parsing file /tmp/Spec.tla",
+  "<<",
+  '"chart",',
+  ">>",
+  tool("2219:0", "SANY finished."),
+  tool("2154:3", "The spec has no TypeOK."),
+  tool("2200:0", "Progress(1) at 2026-10-25 12:58:36: 3 states generated."),
+  tool("2116:1", "Temporal properties were violated.", ""),
+  tool("2217:4", "1: <Initial predicate>", String.raw`/\ x = 0`, ""),
+  tool("2217:4", "2: <Next line 5, col 9 to line 5, col 20 of module Spec>", String.raw`/\ x = 1`, ""),
+  tool("2122:4", "1: Back to state: <Back line 6, col 9 to line 6, col 23 of module Spec>", ""),
+  tool("2218:4", "3: Stuttering"),
+  tool("1000:2", "This was a bug."),
+  tool("2200:0", "Progress(2) at 2026-10-25 12:58:37: 3 states generated."),
+  tool("2199:0", "3 states generated."),
+  tool("2186:0", "Finished in 61000ms at (2026-10-25 12:58:37)"),
+  "",
+].join("\n");
+
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("TLC's -tool output prints as plain TLC prints it", () => {
-  const text = [
-    tool(2262, 0, "TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)"),
-    tool(2401, 3, "Please run the Java VM with a throughput optimized garbage collector."),
-    tool(2220, 0, "Starting SANY..."),
-    "Parsing file /tmp/Spec.tla",
-    "<<",
-    '"chart",',
-    ">>",
-    tool(2219, 0, "SANY finished."),
-    tool(2154, 3, "The spec has no TypeOK."),
-    tool(2200, 0, "Progress(1) at 2026-10-25 12:58:36: 3 states generated."),
-    tool(2116, 1, "Temporal properties were violated.", ""),
-    tool(2217, 4, "1: <Initial predicate>", String.raw`/\ x = 0`, ""),
-    tool(2217, 4, "2: <Next line 5, col 9 to line 5, col 20 of module Spec>", String.raw`/\ x = 1`, ""),
-    tool(2122, 4, "1: Back to state: <Back line 6, col 9 to line 6, col 23 of module Spec>", ""),
-    tool(2218, 4, "3: Stuttering"),
-    tool(1000, 2, "This was a bug."),
-    tool(2200, 0, "Progress(2) at 2026-10-25 12:58:37: 3 states generated."),
-    tool(2199, 0, "3 states generated."),
-    tool(2186, 0, "Finished in 61000ms at (2026-10-25 12:58:37)"),
-    "",
-  ].join("\n");
   assert.equal(
-    plain(text),
+    plain(fullToolOutput),
     [
       "TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)",
       "Warning: Please run the Java VM with a throughput optimized garbage collector.",
@@ -88,15 +90,13 @@ test("TLC's -tool output prints as plain TLC prints it", () => {
 test("a message that TLC prints inside another prints as plain TLC prints it", () => {
   const assertion = "The first argument of Assert evaluated to FALSE; the second argument was:";
   const text = [
-    tool(
-      2111,
-      1,
+    tool("2111:1",
       "Evaluating invariant Bad failed.",
-      tool(2179, 0, String.raw`The second argument of \div is 0.`),
+      tool("2179:0", String.raw`The second argument of \div is 0.`),
     ),
-    tool(2121, 1, "The behavior up to this point is:"),
-    tool(1000, 1, tool(2132, 0, assertion, '"left @!@!@STARTMSG 9999:1 @!@!@ right"')),
-    tool(1000, 1, tool(2132, 0, assertion, '"@!@!@ENDMSG 2103 @!@!@"')),
+    tool("2121:1", "The behavior up to this point is:"),
+    tool("1000:1", tool("2132:0", assertion, '"left @!@!@STARTMSG 9999:1 @!@!@ right"')),
+    tool("1000:1", tool("2132:0", assertion, '"@!@!@ENDMSG 2103 @!@!@"')),
     "",
   ].join("\n");
   assert.equal(
@@ -122,7 +122,7 @@ test("an end line closes the innermost message whatever code it names", () => {
     String.raw`The second argument of \div is 0.`,
     "@!@!@ENDMSG 2179 @!@!@",
     "@!@!@ENDMSG 2111 @!@!@",
-    tool(2186, 0, "Finished in 0ms at (T)"),
+    tool("2186:0", "Finished in 0ms at (T)"),
     "",
   ].join("\n");
   assert.equal(
@@ -189,7 +189,7 @@ test("a message that TLC starts at the end of a line of text prints on that line
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("output that ends where TLC died prints as plain TLC's output cut at the same point", () => {
-  const computing = tool(2189, 0, "Computing initial states...");
+  const computing = tool("2189:0", "Computing initial states...");
   const assertion = "The first argument of Assert evaluated to FALSE; the second argument was:";
   const insideEnd = [
     computing,
@@ -219,20 +219,28 @@ test("text outside TLC's messages, such as SANY's output, passes through unchang
   visitItems(["", "\n", "a\n\nb\n", "Semantic errors:\n\n  line 1\n"], (text) => {assert.equal(plain(text), text);});
 });
 
+const START = 0;
+const BEFORE_ONE_SECOND = 394;
+const ONE_MILLISECOND = 1;
+const ONE_MINUTE = 60_000;
+const ONE_HOUR = 3_600_000;
+const ONE_DAY = 86_400_000;
+const LEAP_YEAR_DAYS = 366;
+
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("TLC's run time prints as plain TLC prints it, with each field wrapping", () => {
   visitItems([
-    [0, "00s"],
-    [394, "00s"],
-    [59_999, "59s"],
-    [60_000, "00s"],
-    [60_001, "01min 00s"],
-    [3_599_999, "59min 59s"],
-    [3_600_000, "00min 00s"],
-    [3_600_001, "01h 00min"],
-    [86_400_000, "00h 00min"],
-    [86_400_001, "1d 00h"],
-    [90_000_000, "1d 01h"],
-    [366 * 86_400_000, "1d 00h"],
+    [START, "00s"],
+    [BEFORE_ONE_SECOND, "00s"],
+    [ONE_MINUTE - ONE_MILLISECOND, "59s"],
+    [ONE_MINUTE, "00s"],
+    [ONE_MINUTE + ONE_MILLISECOND, "01min 00s"],
+    [ONE_HOUR - ONE_MILLISECOND, "59min 59s"],
+    [ONE_HOUR, "00min 00s"],
+    [ONE_HOUR + ONE_MILLISECOND, "01h 00min"],
+    [ONE_DAY, "00h 00min"],
+    [ONE_DAY + ONE_MILLISECOND, "1d 00h"],
+    [ONE_DAY + ONE_HOUR, "1d 01h"],
+    [LEAP_YEAR_DAYS * ONE_DAY, "1d 00h"],
   ] satisfies [number, string][], ([ms, printed]) => {assert.equal(runtime(ms), printed, String(ms));});
 });
