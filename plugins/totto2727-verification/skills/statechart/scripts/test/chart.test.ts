@@ -31,9 +31,9 @@ import { readMessages } from "#statechart/frontends/messages.ts";
 import { readTrace } from "#statechart/frontends/trace.ts";
 import { readVerdict } from "#statechart/frontends/verdict.ts";
 import { compile, project } from "#statechart/pipeline.ts";
-import { fileLines } from "#statechart/run.ts";
+import { fileExists, fileLines } from "#statechart/run.ts";
 import { drawn } from "./drawn.ts";
-import { fixtureExists, forEachTlcCase } from "./tlc.ts";
+import { forEachTlcCase } from "./tlc.ts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const corpus = (name: string, file: string): string => path.join(here, "corpus", name, file);
@@ -214,7 +214,7 @@ const replay = async function (name: string, graph: Graph): Promise<void> {
   const find = finder(graph, names);
   const marks = readMarks(readMessages(fileLines(corpus(name, "ChartRun.out"))), "chart");
   const past = mark(graph, marks, names, rules, find);
-  const drawn = !(await fixtureExists(corpus(name, "ChartRun.exit")));
+  const drawn = !(await fileExists(corpus(name, "ChartRun.exit")));
   const verdictFiles = await readdir(path.join(here, "corpus", name));
   visitItems(verdictFiles.sort(), (file) => {
     if (!/^verdict-\d+\.out$/u.test(file)) {return;}

@@ -23,8 +23,8 @@ import { readMessages } from "#statechart/frontends/messages.ts";
 import { drawn } from "./drawn.ts";
 import { visitItems } from "#statechart/ir.ts";
 import { hostEnvironment } from "#statechart/host-env.ts";
-import { runChild } from "#statechart/run.ts";
-import { fixtureExists, FIXTURE_PROCESS_OPTIONS, forEachTlcCase } from "./tlc.ts";
+import { fileExists, runChild } from "#statechart/run.ts";
+import { FIXTURE_PROCESS_OPTIONS, forEachTlcCase } from "./tlc.ts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const corpus = path.join(here, "corpus");
@@ -57,7 +57,7 @@ interface ReplayResult extends Awaited<ReturnType<typeof runChild>> {
 
 const readConfigurations = async (file: string): Promise<Record<string, string>> => {
   const configs: Record<string, string> = {};
-  if (!(await fixtureExists(file))) {return configs;}
+  if (!(await fileExists(file))) {return configs;}
   const log = await readFile(file, "utf8");
   visitItems(log.split(/^## /mu), (part) => {if (part) {configs[part.slice(0, part.indexOf("\n"))] = part;}});
   return configs;
@@ -89,7 +89,7 @@ const run = async function (
     [
       ...entry,
       path.join(dir, `${name}.tla`),
-      ...((await fixtureExists(view)) ? ["--view", view] : []),
+      ...((await fileExists(view)) ? ["--view", view] : []),
       "--out",
       out,
       ...args,
@@ -107,7 +107,7 @@ const run = async function (
     },
   );
   const configs = await readConfigurations(log);
-  const files = (await fixtureExists(out)) ? await readdir(out) : [];
+  const files = (await fileExists(out)) ? await readdir(out) : [];
   return {
     ...commandResult,
     out,
@@ -138,7 +138,7 @@ visitItems(fs.readdirSync(corpus), (name) => {
     const result = await run(dir);
     assert.equal(result.stderr, "");
     const first = path.join(dir, "verdict-1.exit");
-    const plain = (await fixtureExists(first)) ? Number(await readFile(first, "utf8")) : TLC_PASSED;
+    const plain = (await fileExists(first)) ? Number(await readFile(first, "utf8")) : TLC_PASSED;
     assert.equal(result.status, replayStatus(plain));
     assert.equal(result.report, read(path.join(dir, "report.md")));
     assert.equal(read(path.join(result.out, "chart.mmd")), read(path.join(dir, "chart.mmd")));
@@ -175,7 +175,7 @@ visitItems(fs.readdirSync(corpus), (name) => {
     const result = await run(dir);
     assert.equal(result.stderr, "");
     const first = path.join(dir, "verdict-1.exit");
-    const plain = (await fixtureExists(first)) ? Number(await readFile(first, "utf8")) : TLC_PASSED;
+    const plain = (await fileExists(first)) ? Number(await readFile(first, "utf8")) : TLC_PASSED;
     assert.equal(result.status, replayStatus(plain));
     assert.equal(result.report, read(path.join(corpus, name, "report.md")));
     assert.equal(read(path.join(result.out, "chart.mmd")), read(path.join(corpus, name, "chart.mmd")));
@@ -592,7 +592,7 @@ spawn(process.execPath, ["-e", ${JSON.stringify(sendWhileRead)}, dot, command, $
     assert.equal(result.stderr, `${signal} stopped the check, so the command wrote nothing.\n`);
     assert.equal(result.status, SIGNAL_STATUS_OFFSET + os.constants.signals[signal]);
     assert.deepEqual(await fs.promises.readdir(tmpdir), []);
-    assert.equal(await fixtureExists(result.out), false);
+    assert.equal(await fileExists(result.out), false);
   });
 });
 
@@ -821,7 +821,7 @@ syncBuiltinESMExports();
   });
   assert.equal(result.stderr, `SANY could not read ${spec} (exit null):\nspawn ${java} ENOENT\n`);
   assert.equal(result.status, COMMAND_ERROR);
-  assert.equal(await fixtureExists(result.out), false);
+  assert.equal(await fileExists(result.out), false);
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.

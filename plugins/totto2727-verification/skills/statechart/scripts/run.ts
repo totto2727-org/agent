@@ -8,6 +8,8 @@ import type { ChildProcess, ExecFileException } from 'node:child_process';
 import { randomBytes } from "node:crypto";
 // oxlint-disable-next-line rules/no-node-imports -- The standalone Statechart tool uses this built-in to inspect or write files through the host filesystem.
 import fs from "node:fs";
+// oxlint-disable-next-line rules/no-node-imports -- Await the standalone tool's temporary files before starting each native checker.
+import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 // oxlint-disable-next-line rules/no-node-imports -- The standalone Statechart tool uses this built-in to select the host's real temporary directory.
 import os from "node:os";
 // oxlint-disable-next-line rules/no-node-imports -- The standalone Statechart tool uses this built-in to resolve paths using the host platform's filesystem conventions.
@@ -29,6 +31,16 @@ import type { Bug, CheckResult, ConfigSection, Lasso, Mark, Outcome, Output, Par
 import { addPast, deadEnds, finder, lasso, mark } from "./passes/annotate.ts";
 import { pathGraph } from "./passes/paths.ts";
 import { hostEnvironment } from "#statechart/host-env.ts";
+
+export const fileExists = async (file: string): Promise<boolean> => {
+  try {
+    // Deno 2.0 never resolves the Node compatibility layer's access promise.
+    await stat(file);
+    return true;
+  } catch {
+    return false;
+  }
+};
 
 export const fileLines = function* fileLines(file: string) {
   const fd = fs.openSync(file, "r");
@@ -268,19 +280,20 @@ const only = function* only(marks: Iterable<Mark>, rules: Set<string>) {
 };
 
 export const check = async function check(specFile: string, configFile: string): Promise<CheckResult> {
-  const cfg = readConfig({ file: configFile, text: fs.readFileSync(configFile, "utf8") });
+  const cfg = readConfig({ file: configFile, text: await readFile(configFile, "utf8") });
   const checks = readChecks({ configFile, config: cfg });
   const folder = path.dirname(path.resolve(specFile));
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "statechart-"));
+  const dir = await mkdtemp(path.join(os.tmpdir(), "statechart-"));
   try {
     const tlc = await findTlc(dir);
-    const config = (name: string, sections: ConfigSection[], extra: string[]): string[] => {
-      fs.writeFileSync(path.join(dir, `${name}.cfg`), configText(sections, extra));
-      return [`-metadir`, path.join(dir, `meta-${name}`), "-config", path.join(dir, `${name}.cfg`)];
+    const config = async (name: string, sections: ConfigSection[], extra: string[]): Promise<string[]> => {
+      const file = path.join(dir, `${name}.cfg`);
+      await writeFile(file, configText(sections, extra));
+      return [`-metadir`, path.join(dir, `meta-${name}`), "-config", file];
     };
-    const runJava = (name: string, main: string, args: string[], jvm: string[] = []) => {
+    const runJava = async (name: string, main: string, args: string[], jvm: string[] = []): Promise<FileResult> => {
       const tmp = path.join(dir, `tmp-${name}`);
-      fs.mkdirSync(tmp);
+      await mkdir(tmp);
       return runToFiles(
         tlc.java,
         [
@@ -322,7 +335,7 @@ export const check = async function check(specFile: string, configFile: string):
         `SANY could not read ${specFile} (exit ${xml.status}):\n${errors ?? tail(xml)}`,
       );
     }
-    const sany = readSany(fs.readFileSync(xml.stdout, "utf8"));
+    const sany = readSany(await readFile(xml.stdout, "utf8"));
     const module = path.basename(specFile, ".tla");
     const spec = { ...readSpec({ module, sany, checks }), folder };
     const rules = stateRules(spec);
@@ -351,11 +364,13 @@ export const check = async function check(specFile: string, configFile: string):
         if (properties.length) {extra.push(`PROPERTY ${properties.join(" ")}`);}
         const bounded = !matchesUndefined(first) && !states.complete;
         if (bounded) {extra.push("CONSTRAINT ChartBound");}
+        // oxlint-disable-next-line eslint/no-await-in-loop -- Each verdict determines which pending group the next TLC invocation checks.
         const r = await runJava(name, "tlc2.TLC", [
           "-tool",
           ...PINNED_FLAGS,
           ...(names(group, "deadlock").length ? [] : ["-deadlock"]),
-          ...config(name, spec.written, extra),
+          // oxlint-disable-next-line eslint/no-await-in-loop -- Write this group's configuration before starting its checker.
+          ...(await config(name, spec.written, extra)),
           bounded ? "ChartBound" : spec.module,
         ]);
         first ??= r;
@@ -393,7 +408,7 @@ export const check = async function check(specFile: string, configFile: string):
       visitItems(all, (rule) => {if (!verdicts.has(ruleKey(rule))) {decide(rule, "not checked");}});
       return { first: first!, stop, states };
     };
-    fs.writeFileSync(path.join(dir, "ChartBound.tla"), boundRun(spec.module));
+    await writeFile(path.join(dir, "ChartBound.tla"), boundRun(spec.module));
     const judged = await judge();
     const exit = exitClass(judged.first.status);
     const failed = (r: FileResult) =>
@@ -425,19 +440,19 @@ export const check = async function check(specFile: string, configFile: string):
     };
     if (judged.states.distinct <= CHART_STATES) {
       const tag = `chart-${randomBytes(16).toString("hex")}`;
-      fs.writeFileSync(path.join(dir, "ChartRun.tla"), chartRun(spec, tag));
+      await writeFile(path.join(dir, "ChartRun.tla"), chartRun(spec, tag));
       const drawn = await runJava("ChartRun", "tlc2.TLC", [
         "-tool",
         ...PINNED_FLAGS,
         "-deadlock",
-        ...config("ChartRun", spec.written, ["INVARIANT ChartMark", "CONSTRAINT ChartBudget"]),
+        ...(await config("ChartRun", spec.written, ["INVARIANT ChartMark", "CONSTRAINT ChartBudget"])),
         "-dump",
         "dot,actionlabels",
         path.join(dir, "graph"),
         "ChartRun",
       ]);
       const file = path.join(dir, "graph.dot");
-      if (!fs.existsSync(file)) {throw failed(drawn);}
+      if (!(await fileExists(file))) {throw failed(drawn);}
       if (readVerdict(messagesOf(drawn.output)).distinct <= CHART_STATES) {
         const graph = parseDot(fileLines(file));
         const find = finder(graph, spec.variables);
@@ -489,6 +504,6 @@ export const check = async function check(specFile: string, configFile: string):
       drawing: undefined,
     };
   } finally {
-    fs.rmSync(dir, { force: true, recursive: true });
+    await rm(dir, { force: true, recursive: true });
   }
 };

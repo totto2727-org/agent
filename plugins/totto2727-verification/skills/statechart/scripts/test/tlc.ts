@@ -1,14 +1,14 @@
 // oxlint-disable-next-line rules/no-node-imports -- Statechart's Node suite uses native assertions for chart and subprocess results.
 import assert from "node:assert/strict";
 // oxlint-disable-next-line rules/no-node-imports -- Await each host filesystem operation used to set up and remove the real TLC fixture.
-import { access, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 // oxlint-disable-next-line rules/no-node-imports -- Statechart's native fixtures use this built-in to select the host's real temporary directory.
 import os from "node:os";
 // oxlint-disable-next-line rules/no-node-imports -- Statechart's native fixtures use this built-in to resolve paths using the host platform's filesystem conventions.
 import path from "node:path";
 // oxlint-disable-next-line rules/no-node-imports -- Statechart's native fixtures use this built-in to convert local module URLs with the host platform's path rules.
 import { fileURLToPath } from "node:url";
-import { PINNED_FLAGS, runChild } from "#statechart/run.ts";
+import { fileExists, PINNED_FLAGS, runChild } from "#statechart/run.ts";
 import { visitItems } from "#statechart/ir.ts";
 import { hostEnvironment } from "#statechart/host-env.ts";
 
@@ -27,15 +27,6 @@ export const forEachTlcCase = async <Case>(
   for (const fixture of cases) {
     // oxlint-disable-next-line eslint/no-await-in-loop -- Each command uses the files left by the previous fixture operation.
     await check(fixture);
-  }
-};
-
-export const fixtureExists = async (file: string): Promise<boolean> => {
-  try {
-    await access(file);
-    return true;
-  } catch {
-    return false;
   }
 };
 
@@ -131,7 +122,7 @@ export const agrees = async function agrees(module: string, files: Record<string
       FIXTURE_PROCESS_OPTIONS,
     );
     const plain = await tlc(dir, module, cfg);
-    const report = (await fixtureExists(out)) ? await readFile(path.join(out, "report.md"), "utf8") : "";
+    const report = (await fileExists(out)) ? await readFile(path.join(out, "report.md"), "utf8") : "";
     const shown = `${cli.stderr}${report}`;
     assert.equal(
       cli.status,
@@ -170,7 +161,7 @@ export const agrees = async function agrees(module: string, files: Record<string
     const holds = list("Rules that hold");
     const unchecked = list("Rules not checked");
     const chartFile = path.join(out, "chart.mmd");
-    const chart = (await fixtureExists(chartFile)) ? await readFile(chartFile, "utf8") : "";
+    const chart = (await fileExists(chartFile)) ? await readFile(chartFile, "utf8") : "";
     if (plain.broke) {assert.equal(breaks.get(plain.broke), plain.steps, shown);}
     await forEachTlcCase(holds, async (rule) => {
       const r = await tlc(dir, module, alone(cfg, rule));
