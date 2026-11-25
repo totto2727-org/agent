@@ -2,6 +2,8 @@
 import assert from "node:assert/strict";
 // oxlint-disable-next-line rules/no-node-imports -- Statechart's native fixtures use this built-in to launch the real programs whose stdout, stderr and status are consumed.
 import { spawn } from "node:child_process";
+// oxlint-disable-next-line rules/no-node-imports -- Keep the Node child process with its stdout and stderr pipe types.
+import type { ChildProcessByStdio } from "node:child_process";
 // oxlint-disable-next-line rules/no-node-imports -- Statechart's native fixtures use this built-in to await the actual child and stream events.
 import { once } from "node:events";
 // oxlint-disable-next-line rules/no-node-imports -- Statechart's native fixtures use this built-in to inspect or write files through the host filesystem.
@@ -12,6 +14,8 @@ import { mkdtemp, readFile, readdir } from "node:fs/promises";
 import os from "node:os";
 // oxlint-disable-next-line rules/no-node-imports -- Statechart's native fixtures use this built-in to resolve paths using the host platform's filesystem conventions.
 import path from "node:path";
+// oxlint-disable-next-line rules/no-node-imports -- Node streams are the pipe types of the subprocess used by these tests.
+import type { Readable } from "node:stream";
 // oxlint-disable-next-line rules/no-node-imports -- Statechart runs these fixtures with Node's test runner as part of the standalone skill.
 import { test } from "node:test";
 // oxlint-disable-next-line rules/no-node-imports -- Statechart's native fixtures use this built-in to await the host timer used by the polling or subprocess fixture.
@@ -21,7 +25,7 @@ import { pathToFileURL } from "node:url";
 import { plainText } from "#statechart/backends/plain-text.ts";
 import { readMessages } from "#statechart/frontends/messages.ts";
 import { drawn } from "./drawn.ts";
-import { matchesUndefined, visitItems } from "#statechart/ir.ts";
+import { isRecord, matchesUndefined, visitItems } from "#statechart/ir.ts";
 import { hostEnvironment } from "#statechart/host-env.ts";
 import { fileExists, runChild } from "#statechart/run.ts";
 import { FIXTURE_PROCESS_OPTIONS, forEachTlcCase } from "./tlc.ts";
@@ -131,6 +135,13 @@ const copyCase = async function (name: string, edit: (dir: string) => Promise<vo
   return dir;
 };
 
+const writeView = async (body: string): Promise<string> => {
+  const folder = await mkdtemp(path.join(os.tmpdir(), "statechart-view-"));
+  const view = path.join(folder, "view.mjs");
+  await fs.promises.writeFile(view, body);
+  return view;
+};
+
 const named = (report: string): string[] => {
   const files: string[] = [];
   visitItems(report.matchAll(/\btlc-\w+\.out\b/gu), ([file]) => {if (!files.includes(file)) {files.push(file);}});
@@ -150,7 +161,7 @@ visitItems(corpusNames, (name) => {
     assert.equal(result.status, replayStatus(plain));
     assert.equal(result.report, read(path.join(dir, "report.md")));
     assert.equal(read(path.join(result.out, "chart.mmd")), read(path.join(dir, "chart.mmd")));
-    assert.deepEqual(result.files, ["chart.mmd", "report.md", "tlc.out", ...named(result.report)].sort());
+    assert.deepEqual(result.files, ["chart.mmd", "report.md", "tlc.out", ...named(result.report)].toSorted());
     visitItems(result.files, (currentFile) => {assert.doesNotMatch(read(path.join(result.out, currentFile)), /@!@!@/u, currentFile);});
     assert.match(result.configs.ChartRun, /^INVARIANT ChartMark$/mu);
     assert.match(result.configs.ChartRun, /^CONSTRAINT ChartBudget$/mu);
@@ -340,7 +351,7 @@ const startCommand = async function (
     java = path.join(here, "java.ts"),
     tmpdir,
   }: { java?: string; tmpdir: string },
-) {
+): Promise<ChildProcessByStdio<null, Readable, Readable>> {
   const name = path.basename(dir);
   const view = path.join(dir, "view.mjs");
   const hasView = await fileExists(view);
@@ -369,47 +380,59 @@ const startCommand = async function (
 const signalWhile = async function <T extends { dir: string; reached: (parent: string) => boolean }>(
   signal: NodeJS.Signals,
   setup: (fakes: string) => (T & { java?: string }) | Promise<T & { java?: string }>,
-) {
+): Promise<T & { java?: string }> {
   const fakes = await fs.promises.mkdtemp(path.join(os.tmpdir(), "statechart-fakes-"));
   const parent = await fs.promises.mkdtemp(path.join(os.tmpdir(), "statechart-parent-"));
   const tmpdir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "statechart-tmpdir-"));
   const phase = await Promise.resolve(setup(fakes));
   const child = await startCommand(phase.dir, parent, { java: phase.java, tmpdir });
-  let stderr = "";
-  child.stderr.on("data", (chunk: Buffer) => (stderr += chunk));
-  const closed = once(child, "close");
+  const captured = { stderr: "" };
+  child.stderr.on("data", (chunk: Buffer) => { captured.stderr += chunk.toString("utf8"); });
+  const closed: Promise<unknown[]> = once(child, "close");
   const signalTimeoutMilliseconds = 60_000;
   const end = performance.now() + signalTimeoutMilliseconds;
   while (!phase.reached(parent))
     {assert.ok(performance.now() < end, "The command did not reach the phase.");}
   child.kill(signal);
   const [status] = await closed;
-  assert.equal(stderr, `${signal} stopped the check, so the command wrote nothing.\n`);
+  assert.equal(captured.stderr, `${signal} stopped the check, so the command wrote nothing.\n`);
   assert.equal(status, SIGNAL_STATUS_OFFSET + os.constants.signals[signal]);
   assert.deepEqual(await fs.promises.readdir(parent), []);
   assert.deepEqual(await fs.promises.readdir(tmpdir), []);
   return phase;
 };
 
-const assertGone = async function (pid: number): Promise<void> {
-  for (let pollAttempt = 0; ; pollAttempt++) {
-    let code: string | undefined;
-    try {
-      process.kill(pid, PROCESS_EXISTS_SIGNAL);
-    } catch (error) {
-      code = (error as NodeJS.ErrnoException).code;
-      // MacOS gives EPERM for a process group of only zombies, until they are reaped.
-      if (code !== "EPERM") {
-        assert.equal(code, "ESRCH");
-        return;
-      }
-    }
-    assert.ok(
-      pollAttempt < CLEANUP_ATTEMPTS,
-      `Process ${pid} ${code ? "exited, but it was not reaped" : "is still running"}.`,
-    );
-    await sleep(CLEANUP_POLL_MILLISECONDS);
+const processState = (pid: number): "gone" | "reaping" | "running" => {
+  try {
+    process.kill(pid, PROCESS_EXISTS_SIGNAL);
+    return "running";
+  } catch (error) {
+    // oxlint-disable-next-line rules/no-error-property-access -- Node kill reports the native error code and the record check narrows the caught value.
+    const code = isRecord(error) ? error.code : undefined;
+    // The macOS kernel reports EPERM for a process group containing only zombies until they are reaped.
+    if (code === "EPERM") {return "reaping";}
+    assert.equal(code, "ESRCH");
+    return "gone";
   }
+};
+
+const assertGone = async (pid: number, attempts = CLEANUP_ATTEMPTS): Promise<void> => {
+  const state = processState(pid);
+  if (state === "gone") {return;}
+  const noAttempts = 0;
+  const detail = state === "reaping" ? "exited, but it was not reaped" : "is still running";
+  assert.ok(attempts > noAttempts, `Process ${pid} ${detail}.`);
+  await sleep(CLEANUP_POLL_MILLISECONDS);
+  await assertGone(pid, attempts - INDEX_STEP);
+};
+
+const PID_MARKER_TIMEOUT = 30_000;
+const waitForPidMarker = async (file: string, deadline = performance.now() + PID_MARKER_TIMEOUT): Promise<string> => {
+  const text = await fileExists(file) ? await readFile(file, "utf8") : "";
+  if (text) {return text;}
+  assert.ok(performance.now() < deadline, `The process did not write its PID to ${file}.`);
+  await sleep(CLEANUP_POLL_MILLISECONDS);
+  return waitForPidMarker(file, deadline);
 };
 
 const checkCleanedDirectory = async (dir: string, attempts: number): Promise<string[]> => {
@@ -438,14 +461,16 @@ const gridCase = async function (dimension: number): Promise<string> {
   const gridStride = 1;
   const id = (column: number, row: number): string => String(firstGridStateId + column * dimension + row);
   const lines = ["strict digraph DiskGraph {"];
-  for (let column = 0; column < dimension; column++)
-    {for (let row = 0; row < dimension; row++) {
+  const coordinates = Array.from({ length: dimension }, (_value, index) => index);
+  visitItems(coordinates, (column) => {
+    visitItems(coordinates, (row) => {
       lines.push(
         `${id(column, row)} [label="/\\\\ x = ${column}\\n/\\\\ y = ${row}"${column + row ? "" : ",style = filled"}]`,
       );
       if (column + gridStride < dimension) {lines.push(`${id(column, row)} -> ${id(column + gridStride, row)} [label="IncX"];`);}
       if (row + gridStride < dimension) {lines.push(`${id(column, row)} -> ${id(column, row + gridStride)} [label="IncY"];`);}
-    }}
+    });
+  });
   lines.push("}");
   await fs.promises.writeFile(path.join(dir, "graph.dot"), lines.join("\n"));
   return dir;
@@ -476,10 +501,10 @@ test(
     const { java, pidFile } = await sleepyJava(fakes);
     const child = await startCommand(path.join(corpus, "DieHard"), parent, { java, tmpdir });
     const exited = once(child, "exit");
-    while (!fs.existsSync(pidFile)) {await sleep(CLEANUP_POLL_MILLISECONDS);}
+    const pid = await waitForPidMarker(pidFile);
     child.kill("SIGKILL");
     await exited;
-    await assertGone(Number(read(pidFile)));
+    await assertGone(Number(pid));
     await assertEmpty(parent);
     await assertEmpty(tmpdir);
   },
@@ -510,11 +535,11 @@ test(
     );
     const child = await startCommand(dir, parent, { tmpdir });
     const exited = once(child, "exit");
-    while (!fs.existsSync(drawing) || !read(drawing)) {await sleep(CLEANUP_POLL_MILLISECONDS);}
+    const pid = await waitForPidMarker(drawing);
     child.kill("SIGKILL");
     await exited;
     await fs.promises.writeFile(release, "");
-    await assertGone(-Number(read(drawing)));
+    await assertGone(-Number(pid));
     await assertEmpty(parent);
     await assertEmpty(tmpdir);
   },
@@ -530,14 +555,14 @@ test(
     const { java, pidFile } = await sleepyJava(fakes);
     const tmpdir = await mkdtemp(path.join(os.tmpdir(), "statechart-tmpdir-"));
     const child = await startCommand(path.join(corpus, "DieHard"), parent, { java, tmpdir });
-    let stderr = "";
-    child.stderr.on("data", (chunk: Buffer) => (stderr += chunk));
-    const closed = once(child, "close");
-    while (!fs.existsSync(pidFile) || !read(pidFile)) {await sleep(CLEANUP_POLL_MILLISECONDS);}
-    const ps = await runChild("ps", ["-o", "ppid=", "-p", read(pidFile)], FIXTURE_PROCESS_OPTIONS);
+    const captured = { stderr: "" };
+    child.stderr.on("data", (chunk: Buffer) => { captured.stderr += chunk.toString("utf8"); });
+    const closed: Promise<unknown[]> = once(child, "close");
+    const pid = await waitForPidMarker(pidFile);
+    const ps = await runChild("ps", ["-o", "ppid=", "-p", pid], FIXTURE_PROCESS_OPTIONS);
     process.kill(Number(ps.stdout), "SIGKILL");
     const [status] = await closed;
-    assert.equal(stderr, "SIGKILL killed the check, so the command wrote nothing.\n");
+    assert.equal(captured.stderr, "SIGKILL killed the check, so the command wrote nothing.\n");
     assert.equal(status, COMMAND_ERROR);
     assert.deepEqual(await fs.promises.readdir(parent), []);
   },
@@ -652,7 +677,8 @@ test("a broken property is named in the report, and its TLC trace is in tlc-NAME
     const out = read(path.join(result.out, `tlc-${propertyName}.out`));
     const from: string[] = [];
     Object.keys(result.configs).forEach((name) => {
-      const tool = name.startsWith("verdict-") && read(path.join(dir, `${name}.out`));
+      if (!name.startsWith("verdict-")) {return;}
+      const tool = read(path.join(dir, `${name}.out`));
       if (tool && out === `${[...plainText(readMessages(tool))].join("")}\n`) {from.push(name);}
     });
     const expectedVerdictFiles = 1;
@@ -734,7 +760,7 @@ test("a property that INSTANCE actions break above the chart budget draws their 
     result.report,
     /^1\. C!Up: 1\n2\. C!Up: 2\n3\. C!Back: 1\nThe run loops through "1" and "2" forever\.$/mu,
   );
-  assert.match(read(path.join(result.out, "chart.mmd")), /^  s\d+ --> s\d+: C!Back$/mu);
+  assert.match(read(path.join(result.out, "chart.mmd")), /^ {2}s\d+ --> s\d+: C!Back$/mu);
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
@@ -876,9 +902,7 @@ test("a step hidden by the view is not drawn, and the report counts it", async (
   const dir = path.join(corpus, "MediaPlayer");
   const hidden = new Set(read(path.join(dir, "graph.dot")).match(/^.* -> .*label="ACallComesIn"/gmu))
     .size;
-  const view = path.join(await fs.promises.mkdtemp(path.join(os.tmpdir(), "statechart-view-")), "view.mjs");
-  await fs.promises.writeFile(
-    view,
+  const view = await writeView(
     `export * from ${JSON.stringify(path.join(dir, "view.mjs"))};\n` +
       `import { step as words } from ${JSON.stringify(path.join(dir, "view.mjs"))};\n` +
       `export const step = (action, from, to) => action === "ACallComesIn" ? null : words(action, from, to);\n`,
@@ -896,9 +920,7 @@ test("a step hidden by the view is not drawn, and the report counts it", async (
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a view that hides a step of a bug path stops the command with exit 2", async () => {
   const dir = path.join(corpus, "MediaPlayer");
-  const view = path.join(await fs.promises.mkdtemp(path.join(os.tmpdir(), "statechart-view-")), "view.mjs");
-  await fs.promises.writeFile(
-    view,
+  const view = await writeView(
     `export * from ${JSON.stringify(path.join(dir, "view.mjs"))};\n` +
       `export const step = (action) => (action === "YouTurnItUp" ? null : action);\n`,
   );
@@ -910,7 +932,7 @@ test("a view that hides a step of a bug path stops the command with exit 2", asy
 
 visitItems([
   ["state() returns a number", "export const state = (v) => 7;", /state\(\) returned 7/u],
-  ["state() reads a missing variable", "export const state = (v) => `${v.nope}`;", /undefined/u],
+  ["state() reads a missing variable", `export const state = (v) => \`\${v.nope}\`;`, /undefined/u],
   ["step() returns an empty label", 'export const step = () => "";', /step\(\) returned ""/u],
   [
     "group() names no color",
@@ -920,20 +942,12 @@ visitItems([
 ] satisfies [string, string, RegExp][], ([what, body, words]) => {
   // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
   test(`a view whose ${what} stops the command with exit 2`, async () => {
-    const view = path.join(await fs.promises.mkdtemp(path.join(os.tmpdir(), "statechart-view-")), "view.mjs");
-    await fs.promises.writeFile(view, body);
+    const view = await writeView(body);
     const result = await run(path.join(corpus, "Login"), { view });
     assert.equal(result.status, COMMAND_ERROR);
     assert.match(result.stderr, words);
   });
 });
-
-const writeView = async (body: string): Promise<string> => {
-  const folder = await mkdtemp(path.join(os.tmpdir(), "statechart-view-"));
-  const view = path.join(folder, "view.mjs");
-  await fs.promises.writeFile(view, body);
-  return view;
-};
 
 visitItems([
   [
@@ -1008,7 +1022,8 @@ test("a view module that throws a plain object with a message prints the message
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a view that ends the check while TLC runs stops TLC, and the command exits 2 and writes nothing", async () => {
-  const { java, pidFile } = await sleepyJava(await fs.promises.mkdtemp(path.join(os.tmpdir(), "statechart-fakes-")));
+  const fakes = await mkdtemp(path.join(os.tmpdir(), "statechart-fakes-"));
+  const { java, pidFile } = await sleepyJava(fakes);
   const result = await run(path.join(corpus, "Login"), {
     java,
     view: await writeView(
@@ -1058,11 +1073,13 @@ const byX = (labels: unknown[]): string => `export const state = (v) => ${JSON.s
 
 const fanOut = (width: number): string => {
   const lines = ["strict digraph DiskGraph {", '0 [label="x = 0",style = filled]'];
-  for (let stateIndex = 1; stateIndex <= width; stateIndex++)
-    {lines.push(
+  const states = Array.from({ length: width }, (_value, index) => index + INDEX_STEP);
+  visitItems(states, (stateIndex) => {
+    lines.push(
       `${stateIndex} [label="x = ${stateIndex}"];`,
       `0 -> ${stateIndex} [label="Inc",color="black",fontcolor="black"];`,
-    );}
+    );
+  });
   return [...lines, "}"].join("\n");
 };
 
@@ -1236,13 +1253,15 @@ visitItems([
   // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
   test(what, async () => {
     const width = "fanOut" in chartCase ? chartCase.fanOut : undefined;
-    const dir = width
+    const noFanOut = 0;
+    const dir = !matchesUndefined(width) && width !== noFanOut
       ? await copyCase(chartCase.base, async (copiedDirectory) => { await fs.promises.writeFile(path.join(copiedDirectory, "graph.dot"), fanOut(width)); })
       : path.join(corpus, chartCase.base);
     const result = await run(dir, { view: await writeView(chartCase.view) });
     assert.equal(result.stderr, "");
     assert.equal(result.status, chartCase.status);
-    assert.deepEqual(drawn(read(path.join(result.out, "chart.mmd"))), {
+    const chart = read(path.join(result.out, "chart.mmd"));
+    assert.deepEqual(drawn(chart), {
       states: chartCase.states,
       arrows: chartCase.arrows,
     });
@@ -1361,7 +1380,8 @@ test("an empty --out folder gets the chart and the report", async () => {
   const result = await run(path.join(corpus, "Login"), { args: ["--out", out] });
   assert.equal(result.stderr, "");
   assert.equal(read(path.join(out, "report.md")), read(path.join(corpus, "Login", "report.md")));
-  assert.deepEqual((await fs.promises.readdir(out)).sort(), ["chart.mmd", "report.md", "tlc.out"]);
+  const files = await readdir(out);
+  assert.deepEqual(files.toSorted(), ["chart.mmd", "report.md", "tlc.out"]);
 });
 
 visitItems([
