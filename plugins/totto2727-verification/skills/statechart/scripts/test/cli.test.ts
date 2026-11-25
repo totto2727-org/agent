@@ -284,7 +284,7 @@ test("the order of TLC's dump and its state IDs do not change the chart or the r
       visitItems(read(file).split("\n"), (part) => {if (/^-?\d+ (?:\[|->)/u.test(part))
           {lines.push(
             part.replace(
-              /^(-?\d+)(?: -> (-?\d+))?/u,
+              /^(?<fromId>-?\d+)(?: -> (?<toId>-?\d+))?/u,
               (_match: string, fromId: string, toId: string | undefined) => id(fromId) + (toId ? ` -> ${id(toId)}` : ""),
             ),
           );}});
@@ -602,7 +602,7 @@ test("a broken property is named in the report, and its TLC trace is in tlc-NAME
   const result = await run(dir);
   assert.equal(result.status, RULE_BROKEN);
   visitItems(["EventuallyPlays", "QuietWhenStopped"], (propertyName) => {
-    assert.match(result.report, new RegExp(`^## ${propertyName} breaks\n.*tlc-${propertyName}\\.out`, "m"));
+    assert.match(result.report, new RegExp(`^## ${propertyName} breaks\n.*tlc-${propertyName}\\.out`, "mu"));
     const out = read(path.join(result.out, `tlc-${propertyName}.out`));
     const from: string[] = [];
     Object.keys(result.configs).forEach((name) => {
@@ -610,12 +610,12 @@ test("a broken property is named in the report, and its TLC trace is in tlc-NAME
       if (tool && out === `${[...plainText(readMessages(tool))].join("")}\n`) {from.push(name);}
     });
     assert.equal(from.length, 1, propertyName);
-    assert.match(result.configs[from[0]], new RegExp(`^PROPERTY ${propertyName}$`, "m"));
+    assert.match(result.configs[from[0]], new RegExp(`^PROPERTY ${propertyName}$`, "mu"));
     assert.match(out, /^TLC2 Version /u);
     assert.doesNotMatch(out, /@!@!@/u);
   });
   assert.match(read(path.join(result.out, "tlc-QuietWhenStopped.out")), /^State 2: <YouTurnItUp /mu);
-  assert.match(result.report, /^## Rules that hold\n.*\bEventuallyStops\b.*\bStaysTyped\b/m);
+  assert.match(result.report, /^## Rules that hold\n.*\bEventuallyStops\b.*\bStaysTyped\b/mu);
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
@@ -641,7 +641,7 @@ test("TLC checks the rules and draws the chart with VIEW and SYMMETRY, and the r
 
 const overBudget = async (file: string): Promise<void> => {
   const text = await readFile(file, "utf8");
-  await fs.promises.writeFile(file, text.replaceAll(/\b\d+( distinct states found)/gu, "1234$1"));
+  await fs.promises.writeFile(file, text.replaceAll(/\b\d+(?<counted> distinct states found)/gu, "1234$<counted>"));
 };
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
@@ -660,7 +660,7 @@ test("a check above the chart budget skips the drawing run and draws only the bu
     result.report,
     /^TLC reached more states than the chart budget of 500, so the chart draws only the bug paths: 4 states and 3 arrows\.$/mu,
   );
-  visitItems(["NotOne", "NotOneOrThree", "AlsoNotOne", "NoDeadlock"], (rule) => {assert.match(result.report, new RegExp(`^## ${rule} breaks$`, "m"));});
+  visitItems(["NotOne", "NotOneOrThree", "AlsoNotOne", "NoDeadlock"], (rule) => {assert.match(result.report, new RegExp(`^## ${rule} breaks$`, "mu"));});
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
@@ -752,7 +752,7 @@ test("a spec that SANY cannot read stops the command with exit 2", async () => {
   const dir = await copyCase("MediaPlayer", async (copiedDirectory) => { await fs.promises.writeFile(path.join(copiedDirectory, "sany.exit"), "150\n"); });
   const result = await run(dir);
   assert.equal(result.status, COMMAND_ERROR);
-  assert.match(result.stderr, /SANY could not read .*MediaPlayer\.tla \(exit 150\)/);
+  assert.match(result.stderr, /SANY could not read .*MediaPlayer\.tla \(exit 150\)/u);
   assert.deepEqual(result.files, []);
 });
 
@@ -761,7 +761,7 @@ test("a first verdict run that TLC cannot finish stops the command with exit 2",
   const dir = await copyCase("Login", async (copiedDirectory) => { await fs.promises.writeFile(path.join(copiedDirectory, "verdict-1.exit"), "150\n"); });
   const result = await run(dir);
   assert.equal(result.status, COMMAND_ERROR);
-  assert.match(result.stderr, /TLC could not check .*Login\.tla \(exit 150\)/);
+  assert.match(result.stderr, /TLC could not check .*Login\.tla \(exit 150\)/u);
   assert.deepEqual(result.files, []);
 });
 
@@ -787,7 +787,7 @@ test("a drawing run that TLC cannot finish stops the command with exit 2", async
   });
   const result = await run(dir);
   assert.equal(result.status, COMMAND_ERROR);
-  assert.match(result.stderr, /TLC could not check .*Login\.tla \(exit 150\)/);
+  assert.match(result.stderr, /TLC could not check .*Login\.tla \(exit 150\)/u);
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
@@ -827,7 +827,7 @@ syncBuiltinESMExports();
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a step hidden by the view is not drawn, and the report counts it", async () => {
   const dir = path.join(corpus, "MediaPlayer");
-  const hidden = new Set(read(path.join(dir, "graph.dot")).match(/^.* -> .*label="ACallComesIn"/gm))
+  const hidden = new Set(read(path.join(dir, "graph.dot")).match(/^.* -> .*label="ACallComesIn"/gmu))
     .size;
   const view = path.join(await fs.promises.mkdtemp(path.join(os.tmpdir(), "statechart-view-")), "view.mjs");
   await fs.promises.writeFile(
@@ -840,7 +840,7 @@ test("a step hidden by the view is not drawn, and the report counts it", async (
   assert.equal(result.status, RULE_BROKEN);
   assert.match(
     result.report,
-    new RegExp(`^The view hides ${hidden} steps, so the chart does not draw them\\.$`, "m"),
+    new RegExp(`^The view hides ${hidden} steps, so the chart does not draw them\\.$`, "mu"),
   );
   assert.doesNotMatch(read(path.join(result.out, "chart.mmd")), /a call comes in/u);
   assert.match(result.report, /^1\. you turn it up: Playback Stopped, Volume Loud$/mu);
@@ -892,7 +892,7 @@ visitItems([
   [
     "gives a group a mark class as its color",
     'export const group = () => "Working";\nexport const colors = { Working: "breaks" };',
-    /\bWorking\b[\s\S]*"breaks"[\s\S]*\bblue\b[\s\S]*\bpink\b/,
+    /\bWorking\b[\s\S]*"breaks"[\s\S]*\bblue\b[\s\S]*\bpink\b/u,
   ],
   [
     "gives a group a color outside the theme",
@@ -907,16 +907,16 @@ visitItems([
   [
     "exports group() but no colors",
     'export const group = () => "Working";',
-    /\bgroup\b[\s\S]*\bcolors\b/,
+    /\bgroup\b[\s\S]*\bcolors\b/u,
   ],
   [
     "misspells an export",
     "export const state = (v) => v.main;\nexport const steps = (a) => a;",
-    /\bsteps\b[\s\S]*\bstep\b/,
+    /\bsteps\b[\s\S]*\bstep\b/u,
   ],
   ["has a default export", "export default { state: (v) => v.main };", /\bdefault\b/u],
-  ["exports colors as a string", 'export const colors = "blue";', /\bcolors\b[\s\S]*\bobject\b/],
-  ["exports a number as its title", "export const title = 7;", /\btitle\b[\s\S]*\bstring\b/],
+  ["exports colors as a string", 'export const colors = "blue";', /\bcolors\b[\s\S]*\bobject\b/u],
+  ["exports a number as its title", "export const title = 7;", /\btitle\b[\s\S]*\bstring\b/u],
 ] satisfies [string, string, RegExp][], ([what, body, words]) => {
   // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
   test(`a view that ${what} stops the command with exit 2 before TLC runs`, async () => {
@@ -1001,10 +1001,10 @@ test("a view with a group in a theme color draws that color and names the group 
   assert.equal(result.status, CHECK_PASSED);
   const chart = read(path.join(result.out, "chart.mmd"));
   assert.match(chart, /^title: "Login"$/mu);
-  const id = (/^ {2}(s\d+): Signed in$/mu.exec(chart))?.[1];
-  assert.match(chart, new RegExp(`^ {2}class ${id} teal$`, "m"));
-  const legend = (/^ {4}(lg\d+): Done$/mu.exec(chart))?.[1];
-  assert.match(chart, new RegExp(`^ {2}class ${legend} teal$`, "m"));
+  const stateId = /^ {2}(?<id>s\d+): Signed in$/mu.exec(chart)?.groups?.id;
+  assert.match(chart, new RegExp(`^ {2}class ${stateId} teal$`, "mu"));
+  const legend = /^ {4}(?<id>lg\d+): Done$/mu.exec(chart)?.groups?.id;
+  assert.match(chart, new RegExp(`^ {2}class ${legend} teal$`, "mu"));
 });
 
 const byX = (labels: unknown[]): string => `export const state = (v) => ${JSON.stringify(labels)}[v.x];\n`;
@@ -1204,8 +1204,8 @@ visitItems([
 });
 
 visitItems([
-  ["an unknown option", ["--bogus"], /Unknown option '--bogus'[\s\S]*Usage:/],
-  ["a second spec", ["Other.tla"], /Give one SPEC\.tla\.[\s\S]*Usage:/],
+  ["an unknown option", ["--bogus"], /Unknown option '--bogus'[\s\S]*Usage:/u],
+  ["a second spec", ["Other.tla"], /Give one SPEC\.tla\.[\s\S]*Usage:/u],
   [
     "a config that does not exist",
     ["--config", "Missing.cfg"],
@@ -1321,7 +1321,7 @@ visitItems([
   [
     "a misspelled first keyword",
     "\\* The rules\nINVARIENT NeverLocked\nSPECIFICATION Spec\n",
-    /^TLC refuses .*Login\.cfg at line 2\. It was expecting a keyword, but did not find it\.$/m,
+    /^TLC refuses .*Login\.cfg at line 2\. It was expecting a keyword, but did not find it\.$/mu,
   ],
   [
     "a CHECK_DEADLOCK value in lower case",
@@ -1346,32 +1346,32 @@ visitItems([
   [
     "a constant value that TLC cannot read",
     "CONSTANT N = -1\nSPECIFICATION Spec\n",
-    /Login\.cfg at line 1\..*"-"/,
+    /Login\.cfg at line 1\..*"-"/u,
   ],
   [
     "both SPECIFICATION and NEXT",
     "SPECIFICATION Spec\nNEXT Next\nINVARIANT TypeOK\n",
-    /^TLC refuses the config .*Login\.cfg\. The configuration file cannot specify both INIT\/NEXT and SPECIFICATION fields\.$/m,
+    /^TLC refuses the config .*Login\.cfg\. The configuration file cannot specify both INIT\/NEXT and SPECIFICATION fields\.$/mu,
   ],
   [
     "no SPECIFICATION and no INIT",
     "\\* The rules\nINVARIANT TypeOK\n",
-    /^TLC refuses the config .*Login\.cfg\. The configuration file did not specify the initial state predicate\.$/m,
+    /^TLC refuses the config .*Login\.cfg\. The configuration file did not specify the initial state predicate\.$/mu,
   ],
   [
     "an operator constant with no arguments",
     "CONSTANT f() = 1\nSPECIFICATION Spec\n",
-    /^TLC refuses .*Login\.cfg at line 1\. TLC gives no reason here\. An operator's arguments are one or more values in \( \), with commas between them\.$/m,
+    /^TLC refuses .*Login\.cfg at line 1\. TLC gives no reason here\. An operator's arguments are one or more values in \( \), with commas between them\.$/mu,
   ],
   [
     "operator arguments with no closing parenthesis",
     "SPECIFICATION Spec\n\nCONSTANT f(1, 2 = 3\n",
-    /^TLC refuses .*Login\.cfg at line 3\. TLC gives no reason here\. An operator's arguments are one or more values in \( \), with commas between them\.$/m,
+    /^TLC refuses .*Login\.cfg at line 3\. TLC gives no reason here\. An operator's arguments are one or more values in \( \), with commas between them\.$/mu,
   ],
   [
     "a CONSTANT keyword on its own line before operator arguments with no closing parenthesis",
     "SPECIFICATION Spec\nCONSTANT\nf(1, 2\n= 3\n",
-    /^TLC refuses .*Login\.cfg at line 2\. TLC gives no reason here\. An operator's arguments are one or more values in \( \), with commas between them\.$/m,
+    /^TLC refuses .*Login\.cfg at line 2\. TLC gives no reason here\. An operator's arguments are one or more values in \( \), with commas between them\.$/mu,
   ],
   [
     "a comma invariant before a CHECK_DEADLOCK value in lower case",
@@ -1381,7 +1381,7 @@ visitItems([
   [
     "a comment that does not end",
     "SPECIFICATION Spec\nINVARIANT TypeOK\n(* The view\nVIEW vars\n",
-    /Login\.cfg at line 3\..*\bcomment\b/,
+    /Login\.cfg at line 3\..*\bcomment\b/u,
   ],
   [
     "CHECK_DEADLOCK FALSE in a comment that does not end",
@@ -1391,12 +1391,12 @@ visitItems([
   [
     "a no-break space before CHECK_DEADLOCK FALSE",
     "SPECIFICATION Spec\nINVARIANT TypeOK\n\u00A0CHECK_DEADLOCK FALSE\n",
-    /Login\.cfg at line 3\. It cannot read the character "\u00A0" \(U\+00A0\) outside a string\./,
+    /Login\.cfg at line 3\. It cannot read the character "\u00A0" \(U\+00A0\) outside a string\./u,
   ],
   [
     "a line separator before CHECK_DEADLOCK FALSE",
     "SPECIFICATION Spec\nINVARIANT TypeOK\u2028CHECK_DEADLOCK FALSE\n",
-    /Login\.cfg at line 2\. It cannot read the character "\u2028" \(U\+2028\) outside a string\./,
+    /Login\.cfg at line 2\. It cannot read the character "\u2028" \(U\+2028\) outside a string\./u,
   ],
   [
     "a byte order mark",
@@ -1437,8 +1437,8 @@ test("a string constant keeps the keywords and comment markers in it", async () 
   const result = await run(dir);
   assert.equal(result.status, RULE_BROKEN);
   assert.equal(result.report, read(path.join(corpus, "TwoPhase", "report.md")));
-  assert.match(result.configs.ChartRun, /^CONSTANT RM = .*"INVARIANT \(\*".*"\\\\\* r2"/m);
-  assert.deepEqual(result.configs.ChartRun.match(/^INVARIANT.*$/gm), ["INVARIANT ChartMark"]);
+  assert.match(result.configs.ChartRun, /^CONSTANT RM = .*"INVARIANT \(\*".*"\\\\\* r2"/mu);
+  assert.deepEqual(result.configs.ChartRun.match(/^INVARIANT.*$/gmu), ["INVARIANT ChartMark"]);
 });
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
