@@ -239,11 +239,17 @@ export type Chart = {
   lie?: string;
 };
 
+// oxlint-disable-next-line rules/force-predicate, typescript/explicit-function-return-type, typescript/explicit-module-boundary-types -- Infer the standalone tool's native object check, including null.
+export const hasObjectType = (value: unknown) => typeof value === "object";
+
 export const isRecord = (v: unknown): v is Record<string, unknown> =>
-  typeof v === "object" && !matchesNull(v) && !Array.isArray(v);
+  hasObjectType(v) && !matchesNull(v) && !Array.isArray(v);
 
 // oxlint-disable-next-line rules/force-predicate, typescript/explicit-function-return-type, typescript/explicit-module-boundary-types -- Infer a native type guard for the standalone skill.
 export const isString = (value: unknown) => typeof value === "string";
+
+// oxlint-disable-next-line rules/force-predicate, typescript/explicit-function-return-type, typescript/explicit-module-boundary-types -- Infer a native number guard in the standalone tool without loading Effect.
+export const isNumber = (value: unknown) => typeof value === "number";
 
 export const isStrings = (v: unknown): v is string[] =>
   Array.isArray(v) && v.every((s) => isString(s));
@@ -415,7 +421,7 @@ const span = (lo: number, hi: number): string => (hi > lo ? `${lo}..${hi}` : Str
 const setKey = (members: Value[]): string => {
   const ints: number[] = [];
   let others: string[] = [];
-  visitItems(members, (currentValue) => {if (typeof currentValue === "number") {ints.push(currentValue);}
+  visitItems(members, (currentValue) => {if (isNumber(currentValue)) {ints.push(currentValue);}
     else {others.push(key(currentValue));}});
   for (let i = 1; i < ints.length; i++)
     {if (ints[i - 1] >= ints[i]) {
@@ -442,9 +448,9 @@ const functionKey = ({ keys, values }: { keys: Value[]; values: Value[] }): stri
   for (let keyIndex = 0; keyIndex < keys.length; keyIndex++) {
     order.push(keyIndex);
     keyTexts.push(key(keys[keyIndex]));
-    if (typeof keys[keyIndex] === "number") {ints++;}
+    if (isNumber(keys[keyIndex])) {ints++;}
   }
-  const rank = (i: number): number => (typeof keys[i] === "number" ? (keys[i]) : Infinity);
+  const rank = (index: number): number => (isNumber(keys[index]) ? keys[index] : Infinity);
   order.sort((left, right) => rank(left) - rank(right) || byText(keyTexts[left], keyTexts[right]) || left - right);
   let tuple = ints === keys.length;
   for (let i = 0; tuple && i < order.length; i++) {tuple = keys[order[i]] === i + 1;}

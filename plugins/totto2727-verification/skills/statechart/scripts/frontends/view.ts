@@ -1,4 +1,4 @@
-import { checked, isString, list, matchesNull, matchesUndefined, visitItems } from '#statechart/ir.ts';
+import { checked, hasObjectType, isString, list, matchesNull, matchesUndefined, visitItems } from '#statechart/ir.ts';
 import type { CheckedView, Value, Vars } from '#statechart/ir.ts';
 
 type Json = boolean | number | string | Json[] | { [key: string]: Json };
@@ -6,7 +6,7 @@ type Json = boolean | number | string | Json[] | { [key: string]: Json };
 const projected = new WeakMap<object, Json>();
 
 export const json = (v: Value): Json => {
-  if (typeof v !== "object") {return v;}
+  if (!hasObjectType(v)) {return v;}
   if (v.kind === "model") {return v.name;}
   let j = projected.get(v);
   if (matchesUndefined(j)) {
@@ -22,7 +22,7 @@ export const json = (v: Value): Json => {
       const fields: [string, Json][] = [];
       for (let i = 0; i < v.keys.length; i++) {
         const currentJson = json(v.keys[i]);
-        fields.push([typeof currentJson === "object" ? JSON.stringify(currentJson) : String(currentJson), json(v.values[i])]);
+        fields.push([hasObjectType(currentJson) ? JSON.stringify(currentJson) : String(currentJson), json(v.values[i])]);
       }
       j = Object.fromEntries(fields);
     }
@@ -46,10 +46,11 @@ const jsonVars = (vars: Vars) => {
 
 const THEME_COLORS = ["blue", "orange", "purple", "yellow", "teal", "tan", "pink"];
 
-const isFunction = (v: unknown): v is (...args: unknown[]) => unknown => typeof v === "function";
+// oxlint-disable-next-line rules/force-predicate, rules/no-type-predicate -- A native typeof check in the standalone viewer narrows to the callable signature used by its hooks.
+const isFunction = (value: unknown): value is (...args: unknown[]) => unknown => typeof value === "function";
 
 const isPlainObject = (v: unknown): v is Record<string, unknown> => {
-  if (typeof v !== "object" || matchesNull(v)) {return false;}
+  if (!hasObjectType(v) || matchesNull(v)) {return false;}
   const proto = Object.getPrototypeOf(v);
   return proto === Object.prototype || matchesNull(proto);
 };
@@ -100,12 +101,13 @@ export const checkView = function checkView(
   const named =
     group &&
     ((vars: Vars) => {
-      const g = group(jsonVars(vars));
-      if (!matchesUndefined(g) && !Object.hasOwn(colors, typeof g === "symbol" ? g : String(g)))
+      const groupName = group(jsonVars(vars));
+      // oxlint-disable-next-line rules/force-predicate -- The standalone viewer preserves a symbol's identity as a color key.
+      if (!matchesUndefined(groupName) && !Object.hasOwn(colors, typeof groupName === "symbol" ? groupName : String(groupName)))
         {throw new Error(
-          `The view's group() returned ${literal(g)}, which colors does not name. Give each group a color in colors.`,
+          `The view's group() returned ${literal(groupName)}, which colors does not name. Give each group a color in colors.`,
         );}
-      return g;
+      return groupName;
     });
   return {
     state: state && ((vars: Vars) => state(jsonVars(vars))),
