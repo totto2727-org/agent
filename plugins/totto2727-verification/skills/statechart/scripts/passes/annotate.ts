@@ -93,10 +93,12 @@ const recordState = (graph: Graph, end: ReplayEnd, { find, past }: { find: State
   return recorded;
 };
 
+export type PastLookup = Lookup & { excludes: boolean; past: Past };
+
 export const addPast = function addPast(
   graph: Graph,
   counterexample: TraceState[],
-  { excludes, names, past, rule, find = finder(graph, names) }: Lookup & { excludes: boolean; past: Past; rule: Rule },
+  { excludes, names, past, rule, find = finder(graph, names) }: PastLookup & { rule: Rule },
 ): void {
   const trace = findTrace(counterexample, names, rule, find);
   const end = replayEnd(graph, trace, excludes);

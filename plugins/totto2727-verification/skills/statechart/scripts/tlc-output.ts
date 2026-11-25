@@ -1,5 +1,6 @@
 import { plainText } from "./backends/plain-text.ts";
 import { readMessages } from "./frontends/messages.ts";
+import { readVerdict } from "./frontends/verdict.ts";
 import { LEVEL, isNumber, isString, visitItems } from "./ir.ts";
 import type { CheckResult, Output, Part, Stop } from "./ir.ts";
 import { CHILD_SUCCESS, outputLines } from "./native-process.ts";
@@ -18,6 +19,8 @@ export const CHECK_FAILED = 2;
 export const messagesOf = (output: Output): Iterable<Part> => ({
   [Symbol.iterator]: () => readMessages(outputLines(output)),
 });
+
+export const distinctStates = (output: Output): number => readVerdict(messagesOf(output)).distinct;
 
 export const exitClass = (status: number | null): CheckResult["exit"] => {
   if (status === CHILD_SUCCESS) {return CHECK_PASSED;}
@@ -69,3 +72,7 @@ export const sanyErrors = (processResult: FileResult): string | undefined => {
   const at = text.search(SANY_ERRORS);
   return at === SEARCH_MISS ? undefined : firstLines(text.slice(at));
 };
+
+export const checkFailure = (specFile: string, processResult: FileResult): Error =>
+  // oxlint-disable-next-line rules/require-tagged-error -- Preserve the standalone CLI's native error without loading a runtime package.
+  new Error(`TLC could not check ${specFile} (exit ${processResult.status}):\n${stopOf(processResult).message}`);

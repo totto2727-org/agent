@@ -13,7 +13,7 @@ import { CHECK_FAILED, exitClass, messagesOf, stopOf, tail } from "./tlc-output.
 import { PINNED_FLAGS } from "./tlc-tools.ts";
 import type { ToolRunner } from "./tlc-tools.ts";
 
-interface RuleEvaluation {
+export interface RuleEvaluation {
   all: Rule[];
   first: FileResult;
   rules: Rule[];
