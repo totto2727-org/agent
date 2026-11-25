@@ -81,14 +81,16 @@ const SEARCH_MISS = -1;
 
 const tail = (processResult: FileResult): string => {
   if (processResult.error) {return processResult.error.message;}
-  const kept: string[] = [];
-  let size = 0;
+  const retained: { chunks: string[]; size: number } = { chunks: [], size: 0 };
   visitItems(plainText(messagesOf(processResult.output)), (chunk) => {
-    kept.push(chunk);
-    size += chunk.length;
-    while (size - kept[0].length >= MAX_TAIL_CHARACTERS) {size -= kept.shift()!.length;}
+    retained.chunks.push(chunk);
+    retained.size += chunk.length;
+    while (retained.size - retained.chunks[0].length >= MAX_TAIL_CHARACTERS) {
+      retained.size -= retained.chunks[0].length;
+      retained.chunks.shift();
+    }
   });
-  return kept.join("").trim().split("\n").slice(-TAIL_LINE_COUNT).join("\n");
+  return retained.chunks.join("").trim().split("\n").slice(-TAIL_LINE_COUNT).join("\n");
 };
 
 const firstLines = (text: string): string => {
@@ -99,15 +101,15 @@ const firstLines = (text: string): string => {
 
 const stopOf = (processResult: FileResult): Stop => {
   const errors: Part[] = [];
-  visitItems(processResult.error ? [] : messagesOf(processResult.output), (part) => {if (
-      !isString(part) &&
-      (part.level === LEVEL.ERROR ||
-        part.level === LEVEL.TLCBUG ||
-        (errors.length && part.level === LEVEL.STATE))
-    )
-      {errors.push(part);}});
-  if (!errors.length) {return { status: processResult.status, message: tail(processResult) };}
-  return { status: processResult.status, message: firstLines([...plainText(errors)].join("")) };
+  visitItems(processResult.error ? [] : messagesOf(processResult.output), (part) => {
+    if (isString(part)) {return;}
+    if (part.level === LEVEL.ERROR || part.level === LEVEL.TLCBUG || (Boolean(errors.length) && part.level === LEVEL.STATE)) {
+      errors.push(part);
+    }
+  });
+  const message = errors.length ? firstLines([...plainText(errors)].join("")) : tail(processResult);
+  // oxlint-disable-next-line eslint/sort-keys -- Preserve the reported stop's observable status and message order.
+  return { status: processResult.status, message };
 };
 
 const sanyErrors = (processResult: FileResult): string | undefined => {
@@ -123,20 +125,20 @@ const names = (rules: Rule[], kind: Rule["kind"]): string[] => {
   return found;
 };
 
-const brokenRule = (rules: Rule[], broke: Break) => {
-  if (broke.kind === "temporal") {return undefined;}
-  for (const rule of rules)
-    {if (rule.kind === broke.kind && (broke.kind === "deadlock" || rule.name === broke.name))
-      {return rule;}}
-  if (broke.kind === "invariant")
-    {for (const rule of rules) {if (rule.kind === "property" && rule.name === broke.name) {return rule;}}}
-  return undefined;
+const brokenRule = (rules: Rule[], broke: Break): Rule | undefined => {
+  const exact = broke.kind === "temporal" ? undefined :
+    rules.find((rule) => rule.kind === broke.kind && (broke.kind === "deadlock" || rule.name === broke.name));
+  return broke.kind === "invariant" && matchesUndefined(exact)
+    ? rules.find((rule) => rule.kind === "property" && rule.name === broke.name)
+    : exact;
 };
 
-const only = function* only(marks: Iterable<Mark>, rules: Set<string>) {
+const only = function* (marks: Iterable<Mark>, rules: Set<string>): Generator<Mark> {
+  // oxlint-disable-next-line rules/no-for-loops -- Keep mark selection lazy while reading TLC's output stream.
   for (const { values, broken } of marks) {
     const kept: string[] = [];
     visitItems(broken, (name) => {if (rules.has(name)) {kept.push(name);}});
+    // oxlint-disable-next-line eslint/sort-keys -- Keep the emitted mark's field order.
     if (kept.length) {yield { values, broken: kept };}
   }
 };
