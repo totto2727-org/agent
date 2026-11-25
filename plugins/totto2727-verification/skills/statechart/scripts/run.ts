@@ -1,12 +1,12 @@
 // oxlint-disable-next-line rules/no-node-imports -- The standalone Statechart tool uses this built-in to generate the native run's independent marker using the host's entropy source.
 import { randomBytes } from "node:crypto";
 // oxlint-disable-next-line rules/no-node-imports -- Await the standalone tool's temporary files before starting each native checker.
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 // oxlint-disable-next-line rules/no-node-imports -- The standalone Statechart tool uses this built-in to select the host's real temporary directory.
 import os from "node:os";
 // oxlint-disable-next-line rules/no-node-imports -- The standalone Statechart tool uses this built-in to resolve paths using the host platform's filesystem conventions.
 import path from "node:path";
-import { boundRun, chartRun, configText } from "./backends/cfg.ts";
+import { boundRun, chartRun } from "./backends/cfg.ts";
 import { plainText } from "./backends/plain-text.ts";
 import { readConfig } from "./frontends/config.ts";
 import { parseDot } from "./frontends/dot.ts";
@@ -17,19 +17,15 @@ import { readTrace } from "./frontends/trace.ts";
 import { readVerdict } from './frontends/verdict.ts';
 import type { Break } from './frontends/verdict.ts';
 import { CHART_STATES, LEVEL, RERUN_STATES, hasSection, isNumber, isString, matchesUndefined, must, ruleKey, stateRules, visitItems } from './ir.ts';
-import type { Bug, CheckResult, ConfigSection, Lasso, Mark, Outcome, Output, Part, Property, Rule, Stop, Trace, Verdict } from './ir.ts';
+import type { Bug, CheckResult, Lasso, Mark, Outcome, Output, Part, Property, Rule, Stop, Trace, Verdict } from './ir.ts';
 import { addPast, deadEnds, finder, lasso, mark } from "./passes/annotate.ts";
 import { pathGraph } from "./passes/paths.ts";
-import { hostEnvironment } from "#statechart/host-env.ts";
-
-import { CHILD_SUCCESS, fileExists, fileLines, outputLines, runChild, runToFiles } from "./native-process.ts";
+import { CHILD_SUCCESS, fileExists, fileLines, outputLines } from "./native-process.ts";
 import type { FileResult } from "./native-process.ts";
+import { prepareTools } from "./tlc-tools.ts";
 
 export { fileExists, fileLines, messageOf, runChild } from "./native-process.ts";
 
-const TLC_TOOL =
-  "http:tla2tools[url=https://github.com/tlaplus/tlaplus/releases/download/v1.7.4/tla2tools.jar,checksum=sha256:936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88]@1.7.4";
-const JAVA_TOOL = "java@temurin-25";
 export const PINNED_FLAGS = ["-workers", "1", "-fp", "0", "-lncheck", "final"];
 const CHART_TAG_BYTES = 16;
 const SANY_ERRORS = /^\*\*\* ?(?:Errors|Abort messages|Parse Error)/mu;
@@ -45,28 +41,6 @@ const CHECK_FAILED = 2;
 const messagesOf = (output: Output): Iterable<Part> => ({
   [Symbol.iterator]: () => readMessages(outputLines(output)),
 });
-
-const findTlc = async function (cwd: string) {
-  const { TLA2TOOLS, JAVA } = hostEnvironment();
-  if (TLA2TOOLS) {return { jar: TLA2TOOLS, java: JAVA || "java" };}
-  const mise = (...args: string[]) =>
-    runChild("mise", args, { cwd, env: { ...hostEnvironment(), MISE_CEILING_PATHS: cwd } });
-  const where = () =>
-    Promise.all([mise("where", TLC_TOOL), mise("which", "java", "--tool", JAVA_TOOL)]);
-  let found = await where();
-  if (found.some((candidate) => candidate.status !== CHILD_SUCCESS)) {
-    const installation = await mise("install", JAVA_TOOL, TLC_TOOL);
-    if (installation.status !== CHILD_SUCCESS)
-      {throw new Error(
-        `Cannot find TLC: mise install failed: ${installation.error?.message ?? installation.stderr.trim()}\nOr set TLA2TOOLS to the path of tla2tools.jar, and JAVA to a java binary (Java 11 or later).`,
-      );}
-    found = await where();
-  }
-  return {
-    jar: path.join(found[0].stdout.trim(), "tla2tools.jar"),
-    java: JAVA || found[1].stdout.trim(),
-  };
-};
 
 const exitClass = (status: number | null): CheckResult["exit"] => {
   if (status === CHILD_SUCCESS) {return CHECK_PASSED;}
@@ -149,51 +123,23 @@ export const check = async function check(specFile: string, configFile: string):
   const folder = path.dirname(path.resolve(specFile));
   const dir = await mkdtemp(path.join(os.tmpdir(), "statechart-"));
   try {
-    const tlc = await findTlc(dir);
-    const config = async (name: string, sections: ConfigSection[], extra: string[]): Promise<string[]> => {
-      const file = path.join(dir, `${name}.cfg`);
-      await writeFile(file, configText(sections, extra));
-      return [`-metadir`, path.join(dir, `meta-${name}`), "-config", file];
-    };
-    const runJava = async (name: string, main: string, args: string[], jvm: string[] = []): Promise<FileResult> => {
-      const tmp = path.join(dir, `tmp-${name}`);
-      await mkdir(tmp);
-      return runToFiles(
-        tlc.java,
-        [
-          `-Djava.io.tmpdir=${tmp}`,
-          `-DTLA-Library=${folder}`,
-          "-Dstdout.encoding=UTF-8",
-          "-Dstderr.encoding=UTF-8",
-          ...jvm,
-          "-cp",
-          tlc.jar,
-          main,
-          ...args,
-        ],
-        {
-          cwd: dir,
-          out: path.join(dir, name),
-          env: process.platform === "darwin" ? hostEnvironment() : { ...hostEnvironment(), LC_ALL: "C.UTF-8" },
-        },
-      );
-    };
-    const xml = await runJava(
-      "sany",
-      "tla2sany.xml.XMLExporter",
-      ["-o", "-I", folder, path.resolve(specFile)],
-      ["-XX:TieredStopAtLevel=1"],
-    );
+    const { config, runJava } = await prepareTools(dir, folder);
+    const xml = await runJava({
+      args: ["-o", "-I", folder, path.resolve(specFile)],
+      main: "tla2sany.xml.XMLExporter",
+      name: "sany",
+      vmOptions: ["-XX:TieredStopAtLevel=1"],
+    });
     if (xml.status !== CHILD_SUCCESS) {
       const errors = xml.error
         ? undefined
         : sanyErrors(
-            await runJava(
-              "sany-errors",
-              "tla2sany.SANY",
-              [path.resolve(specFile)],
-              ["-XX:TieredStopAtLevel=1"],
-            ),
+            await runJava({
+              args: [path.resolve(specFile)],
+              main: "tla2sany.SANY",
+              name: "sany-errors",
+              vmOptions: ["-XX:TieredStopAtLevel=1"],
+            }),
           );
       throw new Error(
         `SANY could not read ${specFile} (exit ${xml.status}):\n${errors ?? tail(xml)}`,
@@ -229,14 +175,18 @@ export const check = async function check(specFile: string, configFile: string):
         const bounded = !matchesUndefined(first) && !states.complete;
         if (bounded) {extra.push("CONSTRAINT ChartBound");}
         // oxlint-disable-next-line eslint/no-await-in-loop -- Each verdict determines which pending group the next TLC invocation checks.
-        const checkOutput = await runJava(name, "tlc2.TLC", [
-          "-tool",
-          ...PINNED_FLAGS,
-          ...(names(group, "deadlock").length ? [] : ["-deadlock"]),
-          // oxlint-disable-next-line eslint/no-await-in-loop -- Write this group's configuration before starting its checker.
-          ...(await config(name, spec.written, extra)),
-          bounded ? "ChartBound" : spec.module,
-        ]);
+        const checkOutput = await runJava({
+          args: [
+            "-tool",
+            ...PINNED_FLAGS,
+            ...(names(group, "deadlock").length ? [] : ["-deadlock"]),
+            // oxlint-disable-next-line eslint/no-await-in-loop -- Write this group's configuration before starting its checker.
+            ...(await config(name, spec.written, extra)),
+            bounded ? "ChartBound" : spec.module,
+          ],
+          main: "tlc2.TLC",
+          name,
+        });
         first ??= checkOutput;
         const { broke, distinct, initial } = readVerdict(messagesOf(checkOutput.output));
         states.distinct = Math.max(states.distinct, distinct);
@@ -305,16 +255,20 @@ export const check = async function check(specFile: string, configFile: string):
     if (judged.states.distinct <= CHART_STATES) {
       const tag = `chart-${randomBytes(CHART_TAG_BYTES).toString("hex")}`;
       await writeFile(path.join(dir, "ChartRun.tla"), chartRun(spec, tag));
-      const drawn = await runJava("ChartRun", "tlc2.TLC", [
-        "-tool",
-        ...PINNED_FLAGS,
-        "-deadlock",
-        ...(await config("ChartRun", spec.written, ["INVARIANT ChartMark", "CONSTRAINT ChartBudget"])),
-        "-dump",
-        "dot,actionlabels",
-        path.join(dir, "graph"),
-        "ChartRun",
-      ]);
+      const drawn = await runJava({
+        args: [
+          "-tool",
+          ...PINNED_FLAGS,
+          "-deadlock",
+          ...(await config("ChartRun", spec.written, ["INVARIANT ChartMark", "CONSTRAINT ChartBudget"])),
+          "-dump",
+          "dot,actionlabels",
+          path.join(dir, "graph"),
+          "ChartRun",
+        ],
+        main: "tlc2.TLC",
+        name: "ChartRun",
+      });
       const file = path.join(dir, "graph.dot");
       if (!(await fileExists(file))) {throw failed(drawn);}
       if (readVerdict(messagesOf(drawn.output)).distinct <= CHART_STATES) {
