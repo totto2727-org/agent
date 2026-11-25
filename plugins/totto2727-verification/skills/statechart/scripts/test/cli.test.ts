@@ -1,7 +1,7 @@
 // oxlint-disable-next-line rules/no-node-imports -- Statechart's Node suite uses native assertions for chart and subprocess results.
 import assert from "node:assert/strict";
 // oxlint-disable-next-line rules/no-node-imports -- Statechart's native fixtures use this built-in to launch the real programs whose stdout, stderr and status are consumed.
-import { spawn, spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
 // oxlint-disable-next-line rules/no-node-imports -- Statechart's native fixtures use this built-in to await the actual child and stream events.
 import { once } from "node:events";
 // oxlint-disable-next-line rules/no-node-imports -- Statechart's native fixtures use this built-in to inspect or write files through the host filesystem.
@@ -333,22 +333,23 @@ test("the order of TLC's dump and its state IDs do not change the chart or the r
   });
 });
 
-const startCommand = function (
+const startCommand = async function (
   dir: string,
   parent: string,
   {
     java = path.join(here, "java.ts"),
-    tmpdir = fs.mkdtempSync(path.join(os.tmpdir(), "statechart-tmpdir-")),
-  }: { java?: string; tmpdir?: string } = {},
+    tmpdir,
+  }: { java?: string; tmpdir: string },
 ) {
   const name = path.basename(dir);
   const view = path.join(dir, "view.mjs");
+  const hasView = await fileExists(view);
   return spawn(
     process.execPath,
     [
       path.join(here, "../statechart.ts"),
       path.join(dir, `${name}.tla`),
-      ...(fs.existsSync(view) ? ["--view", view] : []),
+      ...(hasView ? ["--view", view] : []),
       "--out",
       path.join(parent, "out"),
     ],
@@ -373,7 +374,7 @@ const signalWhile = async function <T extends { dir: string; reached: (parent: s
   const parent = await fs.promises.mkdtemp(path.join(os.tmpdir(), "statechart-parent-"));
   const tmpdir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "statechart-tmpdir-"));
   const phase = await Promise.resolve(setup(fakes));
-  const child = startCommand(phase.dir, parent, { java: phase.java, tmpdir });
+  const child = await startCommand(phase.dir, parent, { java: phase.java, tmpdir });
   let stderr = "";
   child.stderr.on("data", (chunk: Buffer) => (stderr += chunk));
   const closed = once(child, "close");
@@ -411,15 +412,28 @@ const assertGone = async function (pid: number): Promise<void> {
   }
 };
 
-const assertEmpty = async function (dir: string): Promise<void> {
-  for (let pollAttempt = 0; pollAttempt < CLEANUP_ATTEMPTS && fs.readdirSync(dir).length; pollAttempt++) {await sleep(CLEANUP_POLL_MILLISECONDS);}
-  assert.deepEqual(await fs.promises.readdir(dir), []);
+const checkCleanedDirectory = async (dir: string, attempts: number): Promise<string[]> => {
+  const none = 0;
+  const files = await readdir(dir);
+  if (files.length === none || attempts === none) {
+    return files;
+  }
+  await sleep(CLEANUP_POLL_MILLISECONDS);
+  return checkCleanedDirectory(dir, attempts - INDEX_STEP);
 };
 
-const gridCase = function (dimension: number): string {
-  const dir = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "statechart-case-")), "Grid");
-  fs.cpSync(path.join(here, "grid"), dir, { recursive: true });
-  visitItems(["ChartRun.out", "verdict-1.out"], (fixtureFile) => {fs.copyFileSync(path.join(corpus, "Login", fixtureFile), path.join(dir, fixtureFile));});
+const assertEmpty = async function (dir: string): Promise<void> {
+  const remaining = await checkCleanedDirectory(dir, CLEANUP_ATTEMPTS);
+  assert.deepEqual(remaining, []);
+};
+
+const gridCase = async function (dimension: number): Promise<string> {
+  const temporary = await mkdtemp(path.join(os.tmpdir(), "statechart-case-"));
+  const dir = path.join(temporary, "Grid");
+  await fs.promises.cp(path.join(here, "grid"), dir, { recursive: true });
+  await forEachTlcCase(["ChartRun.out", "verdict-1.out"], async (fixtureFile) => {
+    await fs.promises.copyFile(path.join(corpus, "Login", fixtureFile), path.join(dir, fixtureFile));
+  });
   const firstGridStateId = 1_000_000;
   const gridStride = 1;
   const id = (column: number, row: number): string => String(firstGridStateId + column * dimension + row);
@@ -433,14 +447,14 @@ const gridCase = function (dimension: number): string {
       if (row + gridStride < dimension) {lines.push(`${id(column, row)} -> ${id(column, row + gridStride)} [label="IncY"];`);}
     }}
   lines.push("}");
-  fs.writeFileSync(path.join(dir, "graph.dot"), lines.join("\n"));
+  await fs.promises.writeFile(path.join(dir, "graph.dot"), lines.join("\n"));
   return dir;
 };
 
-const sleepyJava = function (fakes: string) {
+const sleepyJava = async function (fakes: string): Promise<{ java: string; pidFile: string }> {
   const java = path.join(fakes, "java.mjs");
   const pidFile = path.join(fakes, "java.pid");
-  fs.writeFileSync(
+  await fs.promises.writeFile(
     java,
     `#!/usr/bin/env node\nimport fs from "node:fs";\n` +
       `process.on("SIGTERM", () => {});\n` +
@@ -459,8 +473,8 @@ test(
     const fakes = await fs.promises.mkdtemp(path.join(os.tmpdir(), "statechart-fakes-"));
     const parent = await fs.promises.mkdtemp(path.join(os.tmpdir(), "statechart-parent-"));
     const tmpdir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "statechart-tmpdir-"));
-    const { java, pidFile } = sleepyJava(fakes);
-    const child = startCommand(path.join(corpus, "DieHard"), parent, { java, tmpdir });
+    const { java, pidFile } = await sleepyJava(fakes);
+    const child = await startCommand(path.join(corpus, "DieHard"), parent, { java, tmpdir });
     const exited = once(child, "exit");
     while (!fs.existsSync(pidFile)) {await sleep(CLEANUP_POLL_MILLISECONDS);}
     child.kill("SIGKILL");
@@ -494,7 +508,7 @@ test(
           `};\n`,
       ); },
     );
-    const child = startCommand(dir, parent, { tmpdir });
+    const child = await startCommand(dir, parent, { tmpdir });
     const exited = once(child, "exit");
     while (!fs.existsSync(drawing) || !read(drawing)) {await sleep(CLEANUP_POLL_MILLISECONDS);}
     child.kill("SIGKILL");
@@ -513,13 +527,14 @@ test(
   async () => {
     const fakes = await fs.promises.mkdtemp(path.join(os.tmpdir(), "statechart-fakes-"));
     const parent = await fs.promises.mkdtemp(path.join(os.tmpdir(), "statechart-parent-"));
-    const { java, pidFile } = sleepyJava(fakes);
-    const child = startCommand(path.join(corpus, "DieHard"), parent, { java });
+    const { java, pidFile } = await sleepyJava(fakes);
+    const tmpdir = await mkdtemp(path.join(os.tmpdir(), "statechart-tmpdir-"));
+    const child = await startCommand(path.join(corpus, "DieHard"), parent, { java, tmpdir });
     let stderr = "";
     child.stderr.on("data", (chunk: Buffer) => (stderr += chunk));
     const closed = once(child, "close");
     while (!fs.existsSync(pidFile) || !read(pidFile)) {await sleep(CLEANUP_POLL_MILLISECONDS);}
-    const ps = spawnSync("ps", ["-o", "ppid=", "-p", read(pidFile)], { encoding: "utf8" });
+    const ps = await runChild("ps", ["-o", "ppid=", "-p", read(pidFile)], FIXTURE_PROCESS_OPTIONS);
     process.kill(Number(ps.stdout), "SIGKILL");
     const [status] = await closed;
     assert.equal(stderr, "SIGKILL killed the check, so the command wrote nothing.\n");
@@ -534,8 +549,8 @@ visitItems(["SIGINT", "SIGTERM"] satisfies NodeJS.Signals[], (signal) => {
     `${signal} stops TLC, removes the temporary folder, and writes nothing`,
     { timeout: 30_000 },
     async () => {
-      const { pidFile } = await signalWhile(signal, (fakes) => {
-        const fake = sleepyJava(fakes);
+      const { pidFile } = await signalWhile(signal, async (fakes) => {
+        const fake = await sleepyJava(fakes);
         return {
           dir: path.join(corpus, "DieHard"),
           ...fake,
@@ -576,8 +591,8 @@ visitItems(["SIGINT", "SIGTERM"] satisfies NodeJS.Signals[], (signal) => {
     `${signal} while the command writes its files stops it, and it writes nothing`,
     { timeout: 60_000 },
     async () => {
-      await signalWhile(signal, () => ({
-        dir: gridCase(SIGNAL_OUTPUT_GRID_WIDTH),
+      await signalWhile(signal, async () => ({
+        dir: await gridCase(SIGNAL_OUTPUT_GRID_WIDTH),
         reached: (parent) => {
           for (const relativeFile of fs.readdirSync(parent, { encoding: "utf8", recursive: true }))
             {if (
@@ -993,7 +1008,7 @@ test("a view module that throws a plain object with a message prints the message
 
 // oxlint-disable-next-line typescript/no-floating-promises -- Statechart's Node test runner owns this registration and observes its Promise.
 test("a view that ends the check while TLC runs stops TLC, and the command exits 2 and writes nothing", async () => {
-  const { java, pidFile } = sleepyJava(await fs.promises.mkdtemp(path.join(os.tmpdir(), "statechart-fakes-")));
+  const { java, pidFile } = await sleepyJava(await fs.promises.mkdtemp(path.join(os.tmpdir(), "statechart-fakes-")));
   const result = await run(path.join(corpus, "Login"), {
     java,
     view: await writeView(
