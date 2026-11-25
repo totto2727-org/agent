@@ -13,22 +13,10 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 // oxlint-disable-next-line rules/no-node-imports -- Await Node's callback-based child process API.
 import { promisify } from "node:util";
 import { isString } from "#statechart/ir.ts";
+import { inOrder } from "./serial-test-io.ts";
 
 const scripts = path.resolve(import.meta.dirname, "..");
 const EMPTY_LIST = 0;
-
-export const inOrder = async <Item, Result>(
-  items: Readonly<Item[]>,
-  visit: (item: Item) => Promise<Result>,
-): Promise<Result[]> => {
-  const results: Result[] = [];
-  // oxlint-disable-next-line rules/no-for-loops -- File discovery and child probes run one at a time.
-  for (const item of items) {
-    // oxlint-disable-next-line eslint/no-await-in-loop -- Finish each native filesystem or process operation before starting the next.
-    results.push(await visit(item));
-  }
-  return results;
-};
 
 export const sources = async (target: string): Promise<string[]> => {
   const full = path.join(scripts, target);

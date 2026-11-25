@@ -8,7 +8,8 @@ import { checkView } from "#statechart/frontends/view.ts";
 import { EC, isString, LEVEL, stateRules, visitItems } from '#statechart/ir.ts';
 import type { CheckResult, Rule, Spec, Verdict } from '#statechart/ir.ts';
 import { compile } from "#statechart/pipeline.ts";
-import { assertHasEntries, codeOf, inOrder, loads, sources, typeImports } from "./pipeline-imports.test-helper.ts";
+import { assertHasEntries, codeOf, loads, sources, typeImports } from "./pipeline-imports.test-helper.ts";
+import { inOrder } from "./serial-test-io.ts";
 
 const RUNTIME =
   /\b(?:process|require|globalThis|global|Deno|Bun|Buffer|setImmediate|clearImmediate|fetch)\b|\bimport\s*\(/gu;
