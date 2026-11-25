@@ -42,7 +42,7 @@ const SINGLE_PROPERTY = 1;
 const NO_WORD = "";
 const TLC_VIOLATIONS = new Set([TLC_DEADLOCK, TLC_SAFETY, TLC_LIVENESS]);
 
-const exitClass = (status: number | null): number => {
+export const exitClass = (status: number | null): number => {
   if (status === DONE) {return DONE;}
   if (!matchesNull(status) && TLC_VIOLATIONS.has(status)) {return MODEL_VIOLATION;}
   return NO_VERDICT;
