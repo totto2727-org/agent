@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { chmod, copyFile, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -1094,7 +1094,19 @@ describe("documentation quality evaluator public pipeline", () => {
     ).rejects.toThrow("sections must not be empty");
   });
 
-  it("derives a deterministic decision cache key that is sensitive to its inputs", () => {
+  it("retains the existing UTF-8 decision cache key", async () => {
+    const key = await cacheFingerprint({
+      url: "https://example.test/run",
+      gatewayId: "sample-gateway",
+      apiKey: "sample-token",
+      body: { model: "clef-flash", state: { b: ["é", "雪", "🧪", "\uD800"], a: 2 } },
+    });
+    expect(key).toBe(
+      "decision-v1-c958ecaea4036373873132430db25dc8745b093c7d146adde33677d80f326053",
+    );
+  });
+
+  it("derives a deterministic decision cache key that is sensitive to its inputs", async () => {
     expect(canonicalJson({ 10: "a", 2: "b" })).toBe('{"10":"a","2":"b"}');
     expect(canonicalJson({ b: 1, a: [{ d: 1, c: 2 }] })).toBe('{"a":[{"c":2,"d":1}],"b":1}');
     expect(canonicalJson({ list: [2, 1] })).toBe('{"list":[2,1]}');
@@ -1109,12 +1121,12 @@ describe("documentation quality evaluator public pipeline", () => {
       },
     };
     const base = { url, gatewayId: GATEWAY_ID, apiKey: API_KEY, body };
-    const key = cacheFingerprint(base);
+    const key = await cacheFingerprint(base);
     expect(key).toMatch(/^decision-v1-[0-9a-f]{64}$/);
     expect(key).not.toContain(API_KEY);
     // Canonical key ordering makes equivalent bodies fingerprint identically.
     expect(
-      cacheFingerprint({
+      await cacheFingerprint({
         ...base,
         body: {
           model: "clef-flash",
@@ -1127,13 +1139,15 @@ describe("documentation quality evaluator public pipeline", () => {
       }),
     ).toBe(key);
     // Account route, gateway, token, model, state, criteria, and array order all matter.
-    expect(cacheFingerprint({ ...base, url: "https://example.test/run" })).not.toBe(key);
-    expect(cacheFingerprint({ ...base, gatewayId: "other-gateway" })).not.toBe(key);
-    expect(cacheFingerprint({ ...base, apiKey: "other-key" })).not.toBe(key);
-    expect(cacheFingerprint({ ...base, body: { ...body, model: "clef" } })).not.toBe(key);
-    expect(cacheFingerprint({ ...base, body: { ...body, state: { a: 2, b: 3 } } })).not.toBe(key);
+    expect(await cacheFingerprint({ ...base, url: "https://example.test/run" })).not.toBe(key);
+    expect(await cacheFingerprint({ ...base, gatewayId: "other-gateway" })).not.toBe(key);
+    expect(await cacheFingerprint({ ...base, apiKey: "other-key" })).not.toBe(key);
+    expect(await cacheFingerprint({ ...base, body: { ...body, model: "clef" } })).not.toBe(key);
+    expect(await cacheFingerprint({ ...base, body: { ...body, state: { a: 2, b: 3 } } })).not.toBe(
+      key,
+    );
     expect(
-      cacheFingerprint({
+      await cacheFingerprint({
         ...base,
         body: {
           ...body,
@@ -1145,9 +1159,9 @@ describe("documentation quality evaluator public pipeline", () => {
       }),
     ).not.toBe(key);
     expect(
-      cacheFingerprint({ ...base, body: { ...body, state: { a: 2, b: 1, list: [1, 2] } } }),
+      await cacheFingerprint({ ...base, body: { ...body, state: { a: 2, b: 1, list: [1, 2] } } }),
     ).not.toBe(
-      cacheFingerprint({ ...base, body: { ...body, state: { a: 2, b: 1, list: [2, 1] } } }),
+      await cacheFingerprint({ ...base, body: { ...body, state: { a: 2, b: 1, list: [2, 1] } } }),
     );
   });
 
@@ -1397,6 +1411,50 @@ async function localFixture({
 }
 
 describe("local mechanical and semantic engine boundaries", () => {
+  it("runs local modes from an installed copy before Effect is installed", async () => {
+    const local = await localFixture();
+    const semantic = await fixture();
+    await Promise.all(
+      ["evaluate.mjs", "mechanical.mjs", "ste.mjs"].map((file) =>
+        copyFile(new URL(file, import.meta.url), resolve(local.directory, file)),
+      ),
+    );
+    const runCopiedScript = (paths, flags = [], env = process.env) =>
+      execute(
+        process.execPath,
+        [
+          resolve(local.directory, "evaluate.mjs"),
+          "--manifest",
+          paths.manifestPath,
+          "--output",
+          paths.outputPath,
+          ...flags,
+        ],
+        { env },
+      );
+
+    await runCopiedScript(local, ["--mechanical-only"]);
+    expect(JSON.parse(await readFile(local.outputPath, "utf8"))).toMatchObject({
+      mechanicalOnly: true,
+      attentionRequired: false,
+      requestCount: 0,
+    });
+    await runCopiedScript(semantic, ["--dry-run"]);
+    expect(JSON.parse(await readFile(semantic.outputPath, "utf8"))).toMatchObject({
+      dryRun: true,
+      requestCount: 0,
+    });
+    const { calls } = await withMock(semantic, {}, () =>
+      expect(
+        runCopiedScript(semantic, [], { ...process.env, ...CREDENTIALS }),
+      ).rejects.toMatchObject({
+        code: 2,
+        stderr: expect.stringContaining("install --prod --frozen-lockfile"),
+      }),
+    );
+    expect(calls).toEqual([]);
+  });
+
   it.each([
     {
       markdown:

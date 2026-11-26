@@ -4,7 +4,7 @@ description: >-
   Review English source documentation against ASD-STE100 and supplementary documentation principles.
   Use local mechanical checks for decidable rules and Cloudflare Decision Models only for contextual judgments.
   Exclude cross-page judgments from scripted review and review translations separately.
-compatibility: Node.js 22 or later. Semantic evaluation additionally requires curl and the configured Cloudflare environment from cloudflare-ai.
+compatibility: Node.js 22 or later. Semantic evaluation additionally requires Vite+ to install the skill's locked Effect dependency, curl, and the configured Cloudflare environment from cloudflare-ai.
 ---
 
 # Documentation Quality
