@@ -2,8 +2,8 @@
 
 Use Node.js 22 or later.
 In this repository, prefix commands with `nix develop --command` to use the pinned environment.
-Mechanical checks need no model, credentials, or network.
-Semantic checks additionally require `curl` and the configured Cloudflare environment.
+Dry runs and mechanical checks need no package installation, model credentials, or network.
+Semantic checks additionally require the skill's locked Effect dependency, `curl`, and the configured Cloudflare environment.
 
 ## Prepare a manifest
 
@@ -247,6 +247,15 @@ A mixed catalog cannot receive overall semantic acceptance from this mode.
 
 ## Configure semantic inference
 
+Use Vite+ to install the locked runtime dependency inside the skill directory.
+Set `SKILL_DIR` to the absolute path of the directory that contains this skill's `SKILL.md`.
+
+```bash
+vp -C "$SKILL_DIR" install --prod --frozen-lockfile
+```
+
+The evaluator does not install packages when it runs.
+
 Use [decision-model](../../decision-model/SKILL.md) for judgment design and task-specific calibration.
 Use [cloudflare-ai](../../cloudflare-ai/SKILL.md) for current model selection, credentials, account and Gateway configuration, and billing rules.
 If a relative path is unavailable, use the corresponding [decision-model source](https://github.com/totto2727-org/agent/blob/main/plugins/external-information/skills/decision-model/SKILL.md) or [cloudflare-ai source](https://github.com/totto2727-org/agent/blob/main/plugins/external-information/skills/cloudflare-ai/SKILL.md).
@@ -297,6 +306,7 @@ Keep earlier reports under ignored `tmp/` and choose a new path for each run.
 ## Validate implementation and use
 
 ```bash
+nix develop --command vp -C plugins/totto2727-coding/skills/documentation-quality install --prod --frozen-lockfile
 nix develop --command vp test run plugins/totto2727-coding/skills/documentation-quality/scripts
 nix develop --command vp check
 git diff --check

@@ -4,7 +4,6 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, isAbsolute, resolve } from "node:path";
 import { spawn } from "node:child_process";
-import { createHash } from "node:crypto";
 import {
   inspectMarkdown,
   nounGroupCounts,
@@ -668,9 +667,23 @@ export function canonicalJson(value) {
 // intentionally includes the endpoint (account route), gateway id, gateway
 // token, and canonical body so that models, state, criteria, question order,
 // and account/gateway/token routes never share a cache entry.
-export function cacheFingerprint({ url, gatewayId, apiKey, body }) {
+export async function cacheFingerprint({ url, gatewayId, apiKey, body }) {
+  const [Effect, { Digest }] = await Promise.all([
+    import("effect/Effect"),
+    import("effect/crypto"),
+  ]).catch((error) => {
+    if (error.code !== "ERR_MODULE_NOT_FOUND") throw error;
+    throw new EvaluationError(
+      "Semantic evaluation requires Effect. Run `vp -C <skill-dir> install --prod --frozen-lockfile`.",
+      { cause: error },
+    );
+  });
   const material = `${url}\n${gatewayId}\n${apiKey}\n${canonicalJson(body)}\n`;
-  const digest = createHash("sha256").update(material, "utf8").digest("hex");
+  const digest = await Effect.runPromise(
+    Digest.Digest.use((service) =>
+      service.digestHex(Digest.sha256, new TextEncoder().encode(material)),
+    ).pipe(Effect.provide(Digest.layerWebCrypto)),
+  );
   return `${CACHE_KEY_PREFIX}-${digest}`;
 }
 
@@ -904,6 +917,9 @@ export async function evaluate({
   // never submits a second Gateway request. The memo is intentionally per-run:
   // a fresh run re-validates against the Gateway and its cache again.
   const inflight = new Map();
+  // Register identical requests in work order even when digests finish asynchronously.
+  // This serializes only fingerprints, not Gateway requests.
+  let fingerprintTail = Promise.resolve();
   let fatal = null;
   const evaluated = await pooled(work, concurrency, async (item) => {
     const reportQuestions = Object.entries(item.questions).map(([id, question]) => ({
@@ -980,12 +996,10 @@ export async function evaluate({
     const state = stateFor(item);
     const url = endpointFor(manifest.model, credentials.accountId);
     const body = payloadFor(manifest.model, state, item.requestQuestions);
-    const key = cacheFingerprint({
-      url,
-      gatewayId: credentials.gatewayId,
-      apiKey: credentials.apiKey,
-      body,
-    });
+    fingerprintTail = fingerprintTail.then(() =>
+      cacheFingerprint({ url, gatewayId: credentials.gatewayId, apiKey: credentials.apiKey, body }),
+    );
+    const key = await fingerprintTail;
     let entry = inflight.get(key);
     const reused = entry !== undefined;
     if (!entry) {
