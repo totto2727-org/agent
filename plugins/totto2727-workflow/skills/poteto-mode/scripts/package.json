@@ -1,0 +1,13 @@
+{
+  "name": "poteto-mode-tools",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "bun test watch-pr",
+    "typecheck": "tsc --project watch-pr/tsconfig.json --noEmit --strict"
+  },
+  "devDependencies": {
+    "bun-types": "latest",
+    "typescript": "latest"
+  }
+}

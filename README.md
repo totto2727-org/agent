@@ -1,83 +1,188 @@
 # Agent plugins
 
-`totto2727-org/agent` distributes reusable development workflows as [Agent Plugins 1.0.0](https://agent-plugins.org/) packages.
+Choose a plugin for the task you are doing. Each [Agent Plugins 1.0.0](https://agent-plugins.org/) package distributes skills only. None declares an MCP server, agent, hook, or standalone command.
 
-## Usage
+## Choose a plugin
 
-After installing `totto2727-coding`, ask your coding agent to audit the documentation in your project:
+- **Run a pstack workflow in Orca:** start with [`poteto-mode`](plugins/totto2727-workflow/skills/poteto-mode/SKILL.md) in `totto2727-workflow`. For example: “Compare two designs in separate Orca workers, using Codex for one and Jcode for the other.” The [Orca guide](plugins/totto2727-workflow/skills/poteto-mode/references/orca.md) distinguishes ordinary commands, handoffs, and supervised workers.
+- **Choose a narrower workflow:** use `totto2727-engineering` for design and parallel reviews, `totto2727-verification` for executable checks or statecharts, and `totto2727-communication` for explanations and recaps.
+- **Decide whether to reuse a library or prototype alternatives:** use [principle-exhaust-the-design-space](plugins/totto2727-principle/skills/principle-exhaust-the-design-space/SKILL.md).
+- **Write a README, audit English documentation, or review a skill:** use `technical-writing`, `audit-english-docs`, or `review-skill` in `totto2727-documentation`.
+- **Look up a design decision:** `totto2727-knowledge` covers task graphs and caching, recurring job semantics, and where Git ignore patterns belong.
+- **Use connected services or research a source:** use `totto2727-external-information`. Use `totto2727-tools` to manage the skill collection.
+- **Apply totto2727's personal preferences:** opt into [`totto2727-profile`](plugins/totto2727-profile/skills/totto2727-profile/SKILL.md). A target worktree's root `PROFILE.local.md` overrides individual defaults. The other plugins do not require this profile.
 
-```text
-Use the share-artifact skill to audit this project's README.md. Keep consumer installation and usage in README, move repository build and test instructions to AGENTS.md, and update both files where needed.
-```
+## Install
 
-Expected result:
+### Start with one skill
 
-```text
-A concise audit summary identifying the user-facing README improvements, developer-only guidance placed in AGENTS.md, and the files updated.
-```
-
-## Key features
-
-- Portable packages with a root `plugin.json` manifest
-- Coding and external-information plugins
-- Skills installed through `c-plugin`
-
-## Prerequisites
-
-- **c-plugin**: Install a version that supports `github:` plugin sources and make the command available on `PATH`.
-
-## Setup
-
-### Install a plugin
-
-Choose the plugin you need.
-Each command installs one plugin from its explicit directory in the GitHub repository.
-
-Coding and testing guidance:
+Install [`totto2727-setup`](plugins/totto2727-tools/skills/totto2727-setup/SKILL.md) into the project from the repository root:
 
 ```bash
-c-plugin plugin add github:totto2727-org/agent/plugins/totto2727-coding --all
+vpx skills@1.9.0 add https://github.com/totto2727-org/agent --full-depth --skill totto2727-setup --agent universal --copy --yes
 ```
 
-External information and connected services:
+Use `--global` for a user-wide installation instead. To install from a PR or release, use `https://github.com/totto2727-org/agent.git#REF` with its branch, tag, or commit. Then ask the agent to use `totto2727-setup` to install the collection and its external skill dependencies in the same scope. To remove the collection, use the same skill and scope.
+
+### Install one plugin instead
+
+With a `c-plugin` version that supports `github:` sources, install one package by name:
 
 ```bash
-c-plugin plugin add github:totto2727-org/agent/plugins/external-information --all
+c-plugin plugin add github:totto2727-org/agent/plugins/totto2727-workflow --all
 ```
 
-To select another branch, tag, or commit, add `--ref REF`.
-Without `--ref`, installation uses the remote default branch at fetch time.
-The lock records the resolved commit, and synchronization uses that pinned checkout without fetching.
-Both commands install every skill without a selection prompt.
-Omit `--all` for interactive skill selection.
-Each package contains its manifest at `plugins/<plugin>/plugin.json` and its skills in the immediate child directories of `plugins/<plugin>/skills/`.
+Replace `totto2727-workflow` with another package listed below. Omit `--all` to select individual skills interactively. Use `--ref REF` for a branch, tag, or commit. Without it, installation resolves the default branch. The lock pins the resolved commit for synchronization.
 
-## API
+## Plugin and skill map
 
-### `totto2727-coding`
+For Japanese HTML reports, use [`visual-explainer-ja`](plugins/totto2727-documentation/skills/visual-explainer-ja/SKILL.md). Collection setup installs its [renderer](https://github.com/nicobailon/visual-explainer), including with `--required-only`. The default setup also installs [modern-web-guidance](https://github.com/GoogleChrome/modern-web-guidance) as a standalone browser guide. Orca and the oo CLI supply their own skills.
 
-Provides reusable coding and testing guidance, [documentation-principles](plugins/totto2727-coding/skills/documentation-principles/SKILL.md) for shared writing principles, [share-test-design](plugins/totto2727-coding/skills/share-test-design/SKILL.md) for test-design decisions, and [share-artifact](plugins/totto2727-coding/skills/share-artifact/SKILL.md) for adaptable README, AGENTS.md, and ADR structures.
-Use [documentation-quality](plugins/totto2727-coding/skills/documentation-quality/SKILL.md) to review developer documentation.
-Use [realpath](plugins/totto2727-coding/skills/realpath/SKILL.md) for filesystem path calculations and [skill-reviewer](plugins/totto2727-coding/skills/skill-reviewer/SKILL.md) for Agent Skill reviews.
+**Refers to** lists other skills in this repository linked or explicitly named in a skill or its reference material. These are reading paths, not automatic install dependencies. A cross-plugin link has a source fallback, so you can install a plugin alone.
+The [setup inventory](plugins/totto2727-tools/skills/totto2727-setup/dependencies.json) lists external skills installed by the bootstrap, their consumers, and their verified revisions. The [Oxlint library](https://github.com/totto2727-org/oxlint) owns its diagnostic guide. Installing a skill does not install the npm package or enable a preset.
+External tools are separate: the OpenConnector workflows use the configured `oo` CLI, Monid workflows use the Monid CLI, and hosted inference needs Cloudflare credentials. The mechanical documentation checks run locally. Only their optional semantic evaluation needs a configured inference service.
 
-### `external-information`
+### [totto2727-communication](plugins/totto2727-communication/plugin.json)
 
-Provides seven coordinated skills:
+Code walkthroughs, design rationale, task framing, and progress reports.
 
-- [`open-connector`](plugins/external-information/skills/open-connector/SKILL.md): use connected services through OpenConnector.
-- [`projektor`](plugins/external-information/skills/projektor/SKILL.md): retrieve Projektor workspaces, issues, and project information through the OOMOL OpenConnector CLI.
-- [`monid`](plugins/external-information/skills/monid/SKILL.md): use Monid for external information services.
-- [`web-search`](plugins/external-information/skills/web-search/SKILL.md): find and retrieve web sources for research.
-- [`doc-search`](plugins/external-information/skills/doc-search/SKILL.md): look up library and framework documentation.
-- [`cloudflare-ai`](plugins/external-information/skills/cloudflare-ai/SKILL.md): run LLM inference and typed Decision Model judgments with Cloudflare.
-- [`decision-model`](plugins/external-information/skills/decision-model/SKILL.md): design constrained semantic judgments for routing, ranking, selection, scoring, extraction, and verification.
+| Skill                                                                                  | Refers to              |
+| -------------------------------------------------------------------------------------- | ---------------------- |
+| [bro](plugins/totto2727-communication/skills/bro/SKILL.md)                             | None                   |
+| [how](plugins/totto2727-communication/skills/how/SKILL.md)                             | `poteto-mode`          |
+| [in-your-own-words](plugins/totto2727-communication/skills/in-your-own-words/SKILL.md) | None                   |
+| [ketchup](plugins/totto2727-communication/skills/ketchup/SKILL.md)                     | `bro`                  |
+| [ketchup-video](plugins/totto2727-communication/skills/ketchup-video/SKILL.md)         | `ketchup`              |
+| [reframe](plugins/totto2727-communication/skills/reframe/SKILL.md)                     | None                   |
+| [sharpen](plugins/totto2727-communication/skills/sharpen/SKILL.md)                     | None                   |
+| [teach](plugins/totto2727-communication/skills/teach/SKILL.md)                         | `how`, `unslop`, `why` |
+| [why](plugins/totto2727-communication/skills/why/SKILL.md)                             | None                   |
 
-See each skill for its usage and service configuration requirements.
+### [totto2727-documentation](plugins/totto2727-documentation/plugin.json)
 
-## Development
+Developer documentation, artifact templates, documentation quality checks, and skill reviews.
 
-For repository structure and validation commands, see [AGENTS.md](./AGENTS.md).
+| Skill                                                                                      | Refers to                                              |
+| ------------------------------------------------------------------------------------------ | ------------------------------------------------------ |
+| [audit-english-docs](plugins/totto2727-documentation/skills/audit-english-docs/SKILL.md)   | `cloudflare-ai`, `decision-model`, `technical-writing` |
+| [review-skill](plugins/totto2727-documentation/skills/review-skill/SKILL.md)               | None                                                   |
+| [technical-writing](plugins/totto2727-documentation/skills/technical-writing/SKILL.md)     | `audit-english-docs`, `unslop`                         |
+| [unslop](plugins/totto2727-documentation/skills/unslop/SKILL.md)                           | None                                                   |
+| [visual-explainer-ja](plugins/totto2727-documentation/skills/visual-explainer-ja/SKILL.md) | None                                                   |
 
-## License
+### [totto2727-engineering](plugins/totto2727-engineering/plugin.json)
 
-No license is currently declared for this repository.
+Design alternatives, engineering reviews, parallel work, and evidence-based correction.
+
+| Skill                                                                        | Refers to                                                |
+| ---------------------------------------------------------------------------- | -------------------------------------------------------- |
+| [architect](plugins/totto2727-engineering/skills/architect/SKILL.md)         | `arena`                                                  |
+| [arena](plugins/totto2727-engineering/skills/arena/SKILL.md)                 | `poteto-mode`                                            |
+| [blast-radius](plugins/totto2727-engineering/skills/blast-radius/SKILL.md)   | `arena`, `how`, `unslop`, `why`                          |
+| [correct](plugins/totto2727-engineering/skills/correct/SKILL.md)             | None                                                     |
+| [figure-it-out](plugins/totto2727-engineering/skills/figure-it-out/SKILL.md) | `architect`, `arena`, `poteto-mode`, `show-me-your-work` |
+| [interrogate](plugins/totto2727-engineering/skills/interrogate/SKILL.md)     | `arena`, `in-your-own-words`                             |
+| [no-comments](plugins/totto2727-engineering/skills/no-comments/SKILL.md)     | `poteto-mode`, `why`                                     |
+| [swarm](plugins/totto2727-engineering/skills/swarm/SKILL.md)                 | `poteto-mode`                                            |
+
+### [totto2727-external-information](plugins/totto2727-external-information/plugin.json)
+
+Monid/TinyFish research, cost-aware Cloudflare AI inference and typed Decision Models, plus OpenConnector for Projektor, Context7, Browser Run, and GitHub.
+
+| Skill                                                                                   | Refers to                                       |
+| --------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| [cloudflare-ai](plugins/totto2727-external-information/skills/cloudflare-ai/SKILL.md)   | `decision-model`                                |
+| [decision-model](plugins/totto2727-external-information/skills/decision-model/SKILL.md) | `cloudflare-ai`                                 |
+| [doc-search](plugins/totto2727-external-information/skills/doc-search/SKILL.md)         | `web-search`                                    |
+| [projektor](plugins/totto2727-external-information/skills/projektor/SKILL.md)           | None                                            |
+| [web-search](plugins/totto2727-external-information/skills/web-search/SKILL.md)         | `cloudflare-ai`, `decision-model`, `doc-search` |
+
+### [totto2727-knowledge](plugins/totto2727-knowledge/plugin.json)
+
+Decision guides for task graphs, recurring jobs, and Git ignore scopes.
+
+| Skill                                                                                | Refers to      |
+| ------------------------------------------------------------------------------------ | -------------- |
+| [git-excludes](plugins/totto2727-knowledge/skills/git-excludes/SKILL.md)             | None           |
+| [scheduling](plugins/totto2727-knowledge/skills/scheduling/SKILL.md)                 | None           |
+| [task-orchestration](plugins/totto2727-knowledge/skills/task-orchestration/SKILL.md) | `git-excludes` |
+
+### [totto2727-principle](plugins/totto2727-principle/plugin.json)
+
+pstack principles for design, implementation, and verification.
+
+| Skill                                                                                                                                                | Refers to                             |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
+| [principle-attack-the-premise](plugins/totto2727-principle/skills/principle-attack-the-premise/SKILL.md)                                             | None                                  |
+| [principle-boundary-discipline](plugins/totto2727-principle/skills/principle-boundary-discipline/SKILL.md)                                           | None                                  |
+| [principle-build-the-lever](plugins/totto2727-principle/skills/principle-build-the-lever/SKILL.md)                                                   | None                                  |
+| [principle-encode-lessons-in-structure](plugins/totto2727-principle/skills/principle-encode-lessons-in-structure/SKILL.md)                           | None                                  |
+| [principle-exhaust-the-design-space](plugins/totto2727-principle/skills/principle-exhaust-the-design-space/SKILL.md)                                 | None                                  |
+| [principle-experience-first](plugins/totto2727-principle/skills/principle-experience-first/SKILL.md)                                                 | None                                  |
+| [principle-explain-the-number](plugins/totto2727-principle/skills/principle-explain-the-number/SKILL.md)                                             | `benchmark-checklist`                 |
+| [principle-fix-root-causes](plugins/totto2727-principle/skills/principle-fix-root-causes/SKILL.md)                                                   | None                                  |
+| [principle-foundational-thinking](plugins/totto2727-principle/skills/principle-foundational-thinking/SKILL.md)                                       | `principle-sequence-verifiable-units` |
+| [principle-guard-the-context-window](plugins/totto2727-principle/skills/principle-guard-the-context-window/SKILL.md)                                 | None                                  |
+| [principle-laziness-protocol](plugins/totto2727-principle/skills/principle-laziness-protocol/SKILL.md)                                               | None                                  |
+| [principle-make-operations-idempotent](plugins/totto2727-principle/skills/principle-make-operations-idempotent/SKILL.md)                             | None                                  |
+| [principle-migrate-callers-then-delete-legacy-apis](plugins/totto2727-principle/skills/principle-migrate-callers-then-delete-legacy-apis/SKILL.md)   | None                                  |
+| [principle-minimize-reader-load](plugins/totto2727-principle/skills/principle-minimize-reader-load/SKILL.md)                                         | None                                  |
+| [principle-model-the-domain](plugins/totto2727-principle/skills/principle-model-the-domain/SKILL.md)                                                 | None                                  |
+| [principle-never-block-on-the-human](plugins/totto2727-principle/skills/principle-never-block-on-the-human/SKILL.md)                                 | None                                  |
+| [principle-outcome-oriented-execution](plugins/totto2727-principle/skills/principle-outcome-oriented-execution/SKILL.md)                             | None                                  |
+| [principle-prove-it-works](plugins/totto2727-principle/skills/principle-prove-it-works/SKILL.md)                                                     | None                                  |
+| [principle-redesign-from-first-principles](plugins/totto2727-principle/skills/principle-redesign-from-first-principles/SKILL.md)                     | None                                  |
+| [principle-separate-before-serializing-shared-state](plugins/totto2727-principle/skills/principle-separate-before-serializing-shared-state/SKILL.md) | None                                  |
+| [principle-sequence-verifiable-units](plugins/totto2727-principle/skills/principle-sequence-verifiable-units/SKILL.md)                               | None                                  |
+| [principle-subtract-before-you-add](plugins/totto2727-principle/skills/principle-subtract-before-you-add/SKILL.md)                                   | None                                  |
+| [principle-test-behavior-not-implementation](plugins/totto2727-principle/skills/principle-test-behavior-not-implementation/SKILL.md)                 | None                                  |
+| [principle-type-system-discipline](plugins/totto2727-principle/skills/principle-type-system-discipline/SKILL.md)                                     | None                                  |
+
+### [totto2727-profile](plugins/totto2727-profile/plugin.json)
+
+Optional personal defaults for totto2727's Git identity, delivery, and local workspace.
+
+| Skill                                                                            | Refers to                                                                      |
+| -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| [totto2727-profile](plugins/totto2727-profile/skills/totto2727-profile/SKILL.md) | `doc-search`, `git-excludes`, `projektor`, `visual-explainer-ja`, `web-search` |
+
+### [totto2727-tools](plugins/totto2727-tools/plugin.json)
+
+Install and remove the skill collection and its external dependencies.
+
+| Skill                                                                      | Refers to |
+| -------------------------------------------------------------------------- | --------- |
+| [totto2727-setup](plugins/totto2727-tools/skills/totto2727-setup/SKILL.md) | None      |
+
+### [totto2727-verification](plugins/totto2727-verification/plugin.json)
+
+Test-driven development, project verification skills, benchmarks, and executable TLA+ statecharts.
+
+| Skill                                                                                                                   | Refers to                                          |
+| ----------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| [benchmark-checklist](plugins/totto2727-verification/skills/benchmark-checklist/SKILL.md)                               | None                                               |
+| [create-formal-verification-skill](plugins/totto2727-verification/skills/create-formal-verification-skill/SKILL.md)     | `maintain-formal-verification-skill`, `statechart` |
+| [create-verification-skill](plugins/totto2727-verification/skills/create-verification-skill/SKILL.md)                   | `maintain-verification-skill`                      |
+| [maintain-formal-verification-skill](plugins/totto2727-verification/skills/maintain-formal-verification-skill/SKILL.md) | `create-formal-verification-skill`                 |
+| [maintain-verification-skill](plugins/totto2727-verification/skills/maintain-verification-skill/SKILL.md)               | `create-verification-skill`                        |
+| [statechart](plugins/totto2727-verification/skills/statechart/SKILL.md)                                                 | None                                               |
+| [tdd](plugins/totto2727-verification/skills/tdd/SKILL.md)                                                               | None                                               |
+
+### [totto2727-workflow](plugins/totto2727-workflow/plugin.json)
+
+pstack workflow selection, playbooks, and agent coordination on Orca.
+
+| Skill                                                                             | Refers to                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| --------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [automate-me](plugins/totto2727-workflow/skills/automate-me/SKILL.md)             | `poteto-mode`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| [make-bot-ui](plugins/totto2727-workflow/skills/make-bot-ui/SKILL.md)             | None                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| [poteto-help](plugins/totto2727-workflow/skills/poteto-help/SKILL.md)             | `poteto-mode`, `setup-pstack`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| [poteto-mode](plugins/totto2727-workflow/skills/poteto-mode/SKILL.md)             | `architect`, `arena`, `benchmark-checklist`, `figure-it-out`, `interrogate`, `ketchup`, `principle-build-the-lever`, `principle-encode-lessons-in-structure`, `principle-exhaust-the-design-space`, `principle-foundational-thinking`, `principle-guard-the-context-window`, `principle-laziness-protocol`, `principle-migrate-callers-then-delete-legacy-apis`, `principle-minimize-reader-load`, `principle-model-the-domain`, `principle-prove-it-works`, `principle-redesign-from-first-principles`, `principle-separate-before-serializing-shared-state`, `principle-sequence-verifiable-units`, `principle-subtract-before-you-add`, `show-me-your-work`, `swarm`, `tdd`, `technical-writing`, `unslop`, `why` |
+| [recall](plugins/totto2727-workflow/skills/recall/SKILL.md)                       | `automate-me`, `poteto-mode`, `unslop`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| [reflect](plugins/totto2727-workflow/skills/reflect/SKILL.md)                     | `poteto-mode`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| [setup-pstack](plugins/totto2727-workflow/skills/setup-pstack/SKILL.md)           | `poteto-mode`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| [show-me-your-work](plugins/totto2727-workflow/skills/show-me-your-work/SKILL.md) | `poteto-mode`, `principle-encode-lessons-in-structure`, `unslop`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+
+## Development and license
+
+See [AGENTS.md](AGENTS.md) for repository checks and skill ownership. See the [pstack comparison revisions and integration policy](docs/upstream-differences.md) before taking upstream changes. Each pstack skill includes its upstream MIT notice. No repository-wide license is declared.

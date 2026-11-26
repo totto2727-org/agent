@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "allowImportingTsExtensions": true,
+    "allowJs": true,
+    "module": "NodeNext",
+    "noEmit": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "target": "ESNext",
+    "types": ["node", "bun-types"]
+  },
+  "include": [
+    "plugins/**/*.ts",
+    "plugins/**/*.mjs",
+    "scripts/**/*.mjs",
+    "tests/**/*.mjs",
+    "vite.config.ts"
+  ]
+}

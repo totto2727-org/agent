@@ -1,0 +1,69 @@
+---
+name: audit-english-docs
+description: >-
+  Audit English developer documentation against ASD-STE100 using local checks and optional semantic review.
+compatibility: Node.js 22 or later. Semantic evaluation additionally requires curl and the configured Cloudflare environment from cloudflare-ai.
+---
+
+# Documentation Quality
+
+Use the [controlled-English baseline and exception policy](../technical-writing/SKILL.md#controlled-english-for-developer-documentation) when auditing English prose.
+
+> [!IMPORTANT]
+> The rule catalog maps the 53 numbered writing rules in ASD-STE100 Issue 9 to local checks or explicit counting dependencies.
+> Read the [coverage record](references/coverage.md) for the source, dictionary evidence, and boundaries before reporting compliance.
+> A complete rule inventory is not proof that every passage has been evaluated or that a document complies with the standard.
+> Keep cross-page requirements in manual review, and report missing dictionary evidence or unsupported syntax rather than guessing.
+
+## Review workflow
+
+1. Establish the English source, intended task, audience, and imposed template constraints.
+   Distinguish beginner, intermediate, and advanced users from developers of the subject itself.
+   Split subject developers into contributors and maintainers when their tasks differ.
+   A programmer who consumes a library or API is its user.
+2. Load the [rule index](references/rules.md) and executable catalog.
+   Apply all applicable verified rules.
+   Use `not_applicable` only with a contextual justification, not to make the document pass.
+   Keep unimplemented standard requirements visible as coverage gaps.
+3. Run mechanical checks first for properties that code can decide.
+   Do not ask a Decision Model to count, look up a known restriction, or detect syntax that deterministic code can detect.
+   Establish the local writing mode and verify the declared word-count groups against their actual role in the passage.
+   A quoted interface label, title, or identifier is not permission to classify arbitrary prose as a one-word group.
+   Verify dictionary membership and forms from the actual entry before asking a contextual question about meaning or part of speech.
+   If the required entry or terminology evidence is missing, retain `insufficient_context`.
+   A model's memory of the dictionary is not evidence.
+4. Review complete paragraphs, sections, or pages with their local context.
+   Keep instructions, conditions, examples, and warnings intact.
+   Scripted review must not judge destination pages, cross-page duplication, document-set ownership, or unseen external evidence.
+5. Use `typesafe/jev` by default for a bounded contextual judgment that remains undecidable by the mechanical checks.
+   Follow cloudflare-ai for model overrides and execution.
+   Verify each finding against its actual passage and relevant source before editing.
+   Preserve required structure, technical meaning, public interfaces, and exact representations.
+6. Report the rule, source range, evidence, correction, and unresolved coverage.
+   Leave proposed exceptions unchanged until the user accepts their minimum scope and operational grounds.
+   Missing evidence, model errors, deferred checks, and untranslated exclusions are not passes.
+
+## Rule details and exceptions
+
+The [rule index](references/rules.md) separates standard-derived guidance from supplements.
+Open its linked guide only when interpreting a finding or resolving applicability.
+Supplementary rules cover audience boundaries, substantive representations, navigation, and visual roles that the language standard does not itself settle.
+Do not restate these supplements as new STE requirements.
+
+## Scripted and semantic evaluation
+
+Use [running evaluations](references/running.md) for manifests, local execution, Cloudflare routes, and report interpretation.
+Use [decision-model](../decision-model/SKILL.md) for typed judgment design and calibration, and [cloudflare-ai](../cloudflare-ai/SKILL.md) for model selection, transport, and authentication.
+If a relative path is unavailable, use the corresponding [decision-model source](https://github.com/totto2727-org/agent/blob/main/plugins/totto2727-external-information/skills/decision-model/SKILL.md) or [cloudflare-ai source](https://github.com/totto2727-org/agent/blob/main/plugins/totto2727-external-information/skills/cloudflare-ai/SKILL.md).
+Never substitute direct Typesafe or another provider's transport for the selected Cloudflare route.
+A supported model name is not authorization to operate that provider directly.
+
+> [!WARNING]
+> A Decision Model is review assistance, not an unattended approval gate.
+> An uncalibrated confidence threshold cannot establish semantic acceptance.
+> High confidence does not establish correctness, and absence of a flagged defect does not establish full STE compliance.
+
+Keep labeled examples and expected verdicts out of blind requests.
+Run representative public workflows separately to verify runnable examples, rendering, links, source accuracy, and packaging.
+Translation fidelity requires a separate review against the English source.
+The local tests establish evaluator behavior, not standard coverage or model accuracy.

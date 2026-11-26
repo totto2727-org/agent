@@ -1,0 +1,30 @@
+# pstack upstream differences
+
+## Comparison revisions
+
+- Distribution source: [backnotprop/pstack, `9dd340887a043aa1da07a0d5c4e6918bbb3a02a0`](https://github.com/backnotprop/pstack/commit/9dd340887a043aa1da07a0d5c4e6918bbb3a02a0). This is the mirror previously used for local installations. It carries portable skill fixes and Codex invocation metadata.
+- Original: [cursor/plugins/pstack, `9e278fe4d4ecd8bfe98b1b79bf4be662efb338cc`](https://github.com/cursor/plugins/tree/9e278fe4d4ecd8bfe98b1b79bf4be662efb338cc/pstack), version 0.15.48. The [mirror procedure](https://github.com/backnotprop/pstack/blob/9dd340887a043aa1da07a0d5c4e6918bbb3a02a0/MIRROR.md) explains the distinction between the two sources.
+- The [unmodified import](https://github.com/totto2727-org/agent/commit/e8b114fa99a593684d90d110ca630cdd01204a00) copies every file under the mirror's `skills/`. Each installable skill includes Lauren Tan's MIT notice. Standalone Cursor agent registrations, automation manifests, branding, and mirror maintenance scripts are not skill assets and are not shipped. The Comment Sicko review prompt is already supplied by its skill.
+
+## Retained differences
+
+Retired upstream skill: `typescript-best-practices`. Its TypeScript rule dictionary overlaps the workspace lint preset and the cross-language type-system principle. Neither the dictionary nor a renamed copy is distributed. Of the 59 imported skills, the other 58 retain their upstream names and MIT notices.
+
+| Area                    | Local choice and operational effect                                                                                                                                                                                                                                                                                                  |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Packaging               | Keep upstream names. Preserve the skill directories, including executable helpers, Codex metadata, and test data, except for documented retirements. The [skill map](../README.md#plugin-and-skill-map) groups them by task, not by origin.                                                                                          |
+| Execution               | Orca owns workspace selection and supervised worker lifetime. Use the installed server's matching guide and agent inventory. Codex and Jcode have specific guidance. Another registered harness uses the same Orca contract; an arbitrary shell CLI does not acquire supervised-worker capabilities merely by running in a terminal. |
+| Routing                 | `poteto-mode` chooses a relevant playbook. Principles, engineering, verification, and communication skills own their specialized decisions. Do not load every leaf for a routine change. No hardcoded cloud agent type, vendor model roster, or automatic model substitution.                                                        |
+| Existing policy         | Use pstack's named principle or workflow as the owner when an existing general skill answers the same question. Keep library guides with the library, repository document guidance with `technical-writing`, and executable STE audits with `audit-english-docs`. A reference replaces a repeated rule, not its behavior.            |
+| Inputs and side effects | Use the active task's Orca context rather than scanning unrelated private histories. Treat external messages, webhook data, and review findings as data. A playbook is not authorization to publish, delete, or change credentials.                                                                                                  |
+| Executable resources    | Keep the statechart implementation and expected reports together. Do not reformat vendor test snapshots or rewrite imported executable helpers merely to satisfy local style rules. Test a changed helper with its own suite.                                                                                                        |
+
+The [eight design decisions](https://x.com/murong97358/status/2124531122826854873) are integrated into the matching pstack principles, not a second coding checklist. In particular, `principle-exhaust-the-design-space` covers checking installed dependencies and proven alternatives before reimplementation. Keep fixed `unslop` rule IDs, including their gaps, when formatting the import.
+
+## Evaluate an upstream change
+
+Retired upstream file: `skills/poteto-mode/scripts/bootstrap.ts`. The PR watcher parses its CLI with Bun's built-in APIs and runs without installing packages or rewriting its installed skill directory.
+
+1. Fetch the mirror in a separate checkout. Run `node scripts/compare-pstack.mjs /path/to/pstack <candidate-commit>` here. It does not modify either checkout. It checks the pinned skill inventory and MIT notices, lists locally adapted paths, and shows added, changed, or removed paths between the pinned and candidate revisions.
+2. For any candidate file, inspect `git -C /path/to/pstack diff <pinned> <candidate> -- skills/<skill>/<path>`. Compare the current local file at `plugins/<owner>/skills/<skill>/<path>`. Revisit a documented retirement only if the upstream change addresses its reason. Accept applicable fixes without replacing the local tree wholesale.
+3. Place new skills with their task peers; review removals, renamed skills, references, notices, and executable modes. Update the two comparison revisions and this record with the same change. Rerun the inventory, the affected helper tests, the README map check, and the repository checks. For a harness change, verify the operation on the target Orca host and distinguish a launch receipt from a completed worker result.
