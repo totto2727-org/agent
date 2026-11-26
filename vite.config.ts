@@ -11,7 +11,7 @@ const auditVitestFiles = ["catalog", "evaluate", "history-corpus", "ste"].map(
 type Override = NonNullable<typeof preset.overrides>[number];
 
 const scopeVitest = (override: Override): Override => {
-  if (override.plugins?.includes("vitest") === true && override.files.includes("**/*.test.ts")) {
+  if (override.plugins.includes("vitest") && override.files.includes("**/*.test.ts")) {
     return { ...override, files: auditVitestFiles };
   }
   return override;
@@ -30,7 +30,7 @@ export default defineConfig({
     ...preset,
     env: { node: true },
     overrides: [
-      ...(preset.overrides ?? []).map((override) => scopeVitest(override)),
+      ...preset.overrides.map(scopeVitest),
       {
         // Node.js 22 and later run these distributed JavaScript files directly.
         files: [`${auditScripts}/*.mjs`],
