@@ -4,15 +4,11 @@ import { defineConfig } from "vite-plus";
 const auditScripts = "plugins/totto2727-documentation/skills/audit-english-docs/scripts";
 
 // Only these four suites run through Vitest. Statechart and watch-pr use their native runners.
-const auditVitestFiles = ["catalog", "evaluate", "history-corpus", "ste"].map(
-  (name) => `${auditScripts}/${name}.test.mjs`,
-);
-
 type Override = NonNullable<typeof preset.overrides>[number];
 
 const scopeVitest = (override: Override): Override => {
   if (override.plugins.includes("vitest") && override.files.includes("**/*.test.ts")) {
-    return { ...override, files: auditVitestFiles };
+    return { ...override, files: [`${auditScripts}/*.test.mjs`] };
   }
   return override;
 };
